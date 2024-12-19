@@ -3,6 +3,7 @@
  *
  * See LICENSE.txt for license information
  ************************************************************************/
+
 #include <stdio.h>
 #include <pthread.h>
 #include "type.h"
@@ -24,16 +25,12 @@ __thread struct flagcxGroupJob flagcxGroupJobMain;
 __thread int flagcxGroupBlocking = 1; /* default mode */
 __thread struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next> flagcxAsyncJobs;
 
-
-
-
 flagcxResult_t flagcxHeteroGroupStart() {
   flagcxResult_t ret = flagcxSuccess;
   FLAGCXCHECK(flagcxGroupStartInternal());
   TRACE_CALL("flagcxGroupStart()");
   return ret;
 }
-
 
 flagcxResult_t flagcxHeteroGroupEnd() {
   flagcxResult_t ret = flagcxSuccess;
@@ -70,7 +67,6 @@ void* flagcxAsyncJobMain(void* arg) {
   __atomic_store_n(&job->state, flagcxGroupJobDone, __ATOMIC_RELEASE);
   return arg;
 }
-
 
 static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
   flagcxResult_t ret = flagcxSuccess;

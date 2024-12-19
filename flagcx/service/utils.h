@@ -3,6 +3,7 @@
  *
  * See LICENSE.txt for license information
  ************************************************************************/
+
 #ifndef FLAGCX_UTILS_H_
 #define FLAGCX_UTILS_H_
 
@@ -259,7 +260,6 @@ inline void flagcxMemoryStackPop(struct flagcxMemoryStack* me) {
   me->topFrame = *me->topFrame.below; // C++ struct assignment
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
 struct flagcxMemoryPool {
@@ -429,8 +429,8 @@ inline void flagcxIntruQueueSortEnqueue(flagcxIntruQueue<T,next> *me, T *x, int 
     }
   }
 }
-////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
 
 #define FLAGCX_TEMPLETELIST_DEFINE(listName, type,  prev, next) \
 inline void flagcx##listName##ListEnList(type **head, type *x){ \
@@ -585,4 +585,5 @@ T* flagcxIntruQueueMpscAbandon(flagcxIntruQueueMpsc<T,next>* me) {
     return head;
   }
 }
+
 #endif

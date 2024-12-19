@@ -1,9 +1,14 @@
+/*************************************************************************
+ * Copyright (c) 2015-2022, NVIDIA CORPORATION. All rights reserved.
+ *
+ * See LICENSE.txt for license information
+ ************************************************************************/
+
 #include<cstddef>
 #include "flagcx.h"
 
 #ifndef FLAGCX_TYPE_H_
 #define FLAGCX_TYPE_H_
-
 
 #define FLAGCX_VERSION(X,Y,Z) ((X) * 10000 + (Y) * 100 + (Z))
 
@@ -66,4 +71,3 @@ struct flagcxConnFifo {
 };
 
 #endif
-

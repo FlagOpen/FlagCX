@@ -112,10 +112,12 @@ flagcxResult_t flagcxNvlsLocalRegisterBuffer(struct flagcxHeteroComm *comm, cons
 flagcxResult_t flagcxNvlsFree(struct flagcxHeteroComm* comm);
 
 enum { collNetRecv=0, collNetSend=1 };
+
 int flagcxTransportCollNetSetup(struct flagcxHeteroComm* comm, struct flagcxTopoGraph* collNetGraph, struct flagcxChannel* channel, int masterRank, int masterPeer, int collNetGraphChannelId, int type, flagcxConnect* connect);
 flagcxResult_t flagcxTransportCollNetCheck(struct flagcxHeteroComm* comm, int collNetSetupFail);
 flagcxResult_t flagcxTransportCollNetFree(struct flagcxHeteroComm* comm);
 flagcxResult_t flagcxCollnetLocalRegisterBuffer(struct flagcxHeteroComm* comm, const void* userbuff, size_t buffSize, int type, int* outRegBufUsed, void** outHandle);
 flagcxResult_t flagcxCollnetGraphRegisterBuffer(struct flagcxHeteroComm* comm, struct flagcxKernelPlan *plan, const void* userbuff, size_t buffSize, int type, int* outRegBufFlag, void** outHandle);
 flagcxResult_t flagcxCollnetDeregBuffer(struct flagcxHeteroComm* comm, struct flagcxProxyConnector* proxyconn, void* handle);
+
 #endif

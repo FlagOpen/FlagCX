@@ -30,4 +30,3 @@ void flagcxLoadParam(char const* env, int64_t deftVal, int64_t uninitialized, in
   }
 
 #endif
-

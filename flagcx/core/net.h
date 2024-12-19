@@ -89,7 +89,6 @@ struct recvNetResources {
   flagcxStream_t cpStream; 
 };
 
-
 enum flagcxIbCommState {
   flagcxIbCommStateStart = 0,
   flagcxIbCommStateConnect = 1,
@@ -118,7 +117,6 @@ struct flagcxIbHandle {
   uint64_t magic; // random number to help debugging
   struct flagcxIbCommStage stage; // Used by the other side when connecting
 };
-
 
 flagcxResult_t flagcxSendRegMr(flagcxHeteroComm_t comm, void* data, size_t size, int peer, int channel);
 flagcxResult_t flagcxRecvRegMr(flagcxHeteroComm_t comm, void* data, size_t size, int peer, int channel);

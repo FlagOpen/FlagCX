@@ -25,7 +25,6 @@
 #include "timer.h"
 #include "net.h"
 
-
 #define MAXNAMESIZE 64
 static char flagcxIbIfName[MAX_IF_NAME_SIZE+1];
 static union flagcxSocketAddress flagcxIbIfAddr;
@@ -1980,7 +1979,6 @@ flagcxResult_t flagcxIbGetDevFromName(char *name, int *dev) {
   return flagcxSystemError;
 }
 
-
 flagcxNet_t flagcxNetIb = {
   "IB",
   flagcxIbInit,
@@ -2003,4 +2001,3 @@ flagcxNet_t flagcxNetIb = {
   NULL /* irecvConsumed */,
   flagcxIbGetDevFromName
 };
-

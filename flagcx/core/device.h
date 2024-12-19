@@ -7,13 +7,11 @@
 #ifndef FLAGCX_DEVICE_H_
 #define FLAGCX_DEVICE_H_
 
-
 #include "align.h"
 #include "flagcx_common.h"
 #include <stdint.h>
 #include "type.h"
 #include "net_device.h"
-
 
 extern const char* flagcxFuncStr[FLAGCX_NUM_FUNCTIONS];
 
@@ -23,7 +21,6 @@ extern const char* flagcxProtoStr[FLAGCX_NUM_PROTOCOLS];
 
 #define FLAGCX_MAX_OPS 2048
 #define FLAGCX_STEPS 8
-
 
 enum flagcxDevRedOp_t {
   flagcxDevSum, flagcxDevProd, flagcxDevMinMax,
@@ -36,7 +33,6 @@ struct flagcxDevRedOpFull{
   bool scalarArgIsPtr;
   uint64_t scalarArg;
 };
-
 
 union flagcxLLFifoLine {
   /* Flags have to be *after* data, because otherwise, an incomplete receive

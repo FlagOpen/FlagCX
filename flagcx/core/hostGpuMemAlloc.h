@@ -1,5 +1,6 @@
 #ifndef HOST_GPU_MEMALLOC_H
 #define HOST_GPU_MEMALLOC_H
+
 /*
  * nvcc memAlloc.cu -o mem -lcuda  -I /usr/local/cuda/include
  */
@@ -18,7 +19,6 @@
 #else
 #define GPU_MEMALLOC_API_EXTERN extern
 #endif
-
 
 struct DIM3{
     unsigned int x;
@@ -359,6 +359,5 @@ GPU_MEMALLOC_API_EXTERN flagcxResult_t (*flagcxDeviceDestroyEvent)(void *event, 
 GPU_MEMALLOC_API_EXTERN flagcxResult_t (*flagcxDeviceEventRecord)(void *event, void *stream, void *memHandle);
 
 GPU_MEMALLOC_API_EXTERN flagcxResult_t (*flagcxDeviceLaunchHostFunc)(void *stream, void (*fn)(void *),  void *args);
-
 
 #endif

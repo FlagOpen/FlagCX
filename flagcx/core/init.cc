@@ -3,6 +3,7 @@
  *
  * See LICENSE.txt for license information
  ************************************************************************/
+
 #include <string.h>
 #include "flagcx.h"
 #include "type.h"
@@ -31,13 +32,11 @@ struct flagcxCommInitRankAsyncJob {
   int color, key;
 };
 
-
 flagcxResult_t flagcxHeteroGetVersion(int* version) {
  if (version == NULL) return flagcxInvalidArgument;
  *version = FLAGCX_VERSION(1,0,0);
  return flagcxSuccess;
 }
-
 
 static flagcxResult_t flagcxInit() {
   if (__atomic_load_n(&initialized, __ATOMIC_ACQUIRE)) return flagcxSuccess;
@@ -50,7 +49,6 @@ static flagcxResult_t flagcxInit() {
   pthread_mutex_unlock(&initLock);
   return flagcxSuccess;
 }
-
 
 flagcxResult_t flagcxHeteroGetUniqueId(flagcxUniqueId* out) {
   FLAGCXCHECK(flagcxInit());

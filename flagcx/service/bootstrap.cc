@@ -3,6 +3,7 @@
  *
  * See LICENSE.txt for license information
  ************************************************************************/
+
 #include "check.h"
 #include "debug.h"
 #include "utils.h"
@@ -430,6 +431,7 @@ flagcxResult_t bootstrapRingAllGather(struct flagcxSocket* prevSocket, struct fl
   }
   return flagcxSuccess;
 }
+
 flagcxResult_t bootstrapAllGather(void* commState, void* allData, int size) {
   struct bootstrapState* state = (struct bootstrapState*)commState;
   int rank = state->rank;

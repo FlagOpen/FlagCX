@@ -4,7 +4,6 @@
  * See LICENSE.txt for license information
  ************************************************************************/
 
-
 #include "proxy.h"
 #include "transport.h"
 #include "comm.h"
@@ -22,9 +21,6 @@
 #include <sys/time.h>
 #include <string>
 using namespace std;
-
-
-
 
 enum { proxyRecv=0, proxySend=1 };
 extern union flagcxSocketAddress bootstrapNetIfAddr;
@@ -51,12 +47,10 @@ FLAGCX_TEMPLETELIST_DEFINE(ProdProgChannel, struct flagcxProxyOps, prodPrevChann
 FLAGCX_TEMPLETELIST_DEFINE(ConsProgChannel, struct flagcxProxyOps, consPrevChannel, consNextChannel);
 FLAGCX_TEMPLETELIST_DEFINE(ProgPeer, struct flagcxProxyOps::consPeer, prevPeer, nextPeer);
 
-
 flagcxResult_t flagcxProxyProgressChannelJoin(struct flagcxProxyState* proxyState, struct flagcxProxyState*){
 
   return flagcxSuccess;
 }
-
 
 static flagcxResult_t asyncProxyOpEnqueue(flagcxProxyAsyncOp **opHead, flagcxProxyAsyncOp *newOp){
   flagcxProxyAsyncOp* list = *opHead;
@@ -78,8 +72,6 @@ static flagcxResult_t asyncProxyOpDequeue(flagcxProxyAsyncOp **opHead, flagcxPro
   free(op);
   return flagcxSuccess;
 }
-
-
 
 static flagcxResult_t SaveProxy(struct flagcxHeteroComm* comm, struct flagcxChannel* channel, int type, int peer, struct flagcxProxyOp* op, int connIndex, bool* justInquire) {
   if (peer < 0) return flagcxSuccess;
@@ -266,7 +258,6 @@ static flagcxResult_t expectedProxyResponseEnqueue(struct flagcxProxyState* stat
   return flagcxSuccess;
 }
 
-
 static flagcxResult_t expectedProxyResponseDequeue(struct flagcxProxyState* state, void* opId, void* respBuff, int* found) {
   struct flagcxExpectedProxyResponse* elem = state->expectedResponses;
   struct flagcxExpectedProxyResponse* prev = NULL;
@@ -311,8 +302,6 @@ static flagcxResult_t expectedProxyResponseRemove(struct flagcxProxyState* state
   WARN("Couldn't find opId=%p", opId);
   return flagcxInternalError;
 }
-
-
 
 flagcxResult_t flagcxPollProxyResponse(struct flagcxHeteroComm* comm, struct flagcxProxyConnector* proxyConn, void* respBuff, void* opId) {
   struct flagcxProxyState* sharedProxyState = comm->proxyState;
@@ -366,11 +355,6 @@ flagcxResult_t flagcxPollProxyResponse(struct flagcxHeteroComm* comm, struct fla
 
   return res;
 }
-
-
-
-
-
 
 static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead, flagcxProxyAsyncOp *op) {
   int done = 0;
@@ -514,11 +498,6 @@ flagcxResult_t flagcxProxyInit(struct flagcxHeteroComm* comm) {
   pthread_create(&comm->proxyState->progressState.thread, NULL, flagcxProxyProgress, comm->proxyState);
   return flagcxSuccess;
 }
-
-
-
-
-
 
 void *flagcxProxyService(void* args){
   struct flagcxHeteroComm* comm = (struct flagcxHeteroComm*)args;

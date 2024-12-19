@@ -1,8 +1,9 @@
-/*
- * Copyright (c) 2016-2023, NVIDIA CORPORATION. All rights reserved.
+/*************************************************************************
+ * Copyright (c) 2015-2022, NVIDIA CORPORATION. All rights reserved.
  *
- * See COPYRIGHT for license information
- */
+ * See LICENSE.txt for license information
+ ************************************************************************/
+
 #include "ipcsocket.h"
 #include "utils.h"
 #include <stdlib.h>

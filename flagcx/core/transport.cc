@@ -72,6 +72,5 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm* comm, struct fla
     }
   }
 
-
   return flagcxSuccess;
 }

@@ -4,7 +4,6 @@
  * See LICENSE.txt for license information
  ************************************************************************/
 
-
 #ifndef FLAGCX_CHECKS_H_
 #define FLAGCX_CHECKS_H_
 

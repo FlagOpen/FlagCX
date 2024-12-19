@@ -69,8 +69,6 @@ flagcxResult_t loadDeviceSymbol(){
     LOADSYMBOL(libHandle, flagcxDeviceLaunchHostFunc);
     LOADSYMBOL(libHandle, flagcxTopoGetLocalNet);
 
-    
-
     struct flagcxDeviceAdaptor loadApi{
         "runTimeApi",
         LOADAPI(flagcxDeviceAdaptor,deviceSynchronize,  flagcxDeviceSynchronize),
@@ -100,7 +98,6 @@ flagcxResult_t loadDeviceSymbol(){
     devRunTimeApi = loadApi;
     return flagcxSuccess;
 }
-
 
 flagcxResult_t flagcxLaunchKernel(void *func, DIM3 grid, DIM3 block, void **args, size_t share_mem, void *stream, void *memHandle){
     return _flagcxLaunchKernel(func, block.x, block.y, block.z, grid.x, grid.y, grid.z, args, share_mem, stream, memHandle);

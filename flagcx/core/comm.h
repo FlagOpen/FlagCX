@@ -3,9 +3,9 @@
  *
  * See LICENSE.txt for license information
  ************************************************************************/
+
 #ifndef FLAGCX_COMM_H_
 #define FLAGCX_COMM_H_
-
 
 #include "type.h"
 #include <stdint.h>

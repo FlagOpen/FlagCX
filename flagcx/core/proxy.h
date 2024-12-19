@@ -31,7 +31,6 @@ union flagcxProxyOpSpecifics {
   } collnetDirect;
 };
 
-
 struct flagcxProxySubArgs {
   struct flagcxProxyConnection* connection;
   int reg;
@@ -42,7 +41,6 @@ struct flagcxProxySubArgs {
   void *stream;
   //kernel copy
   void *copyArgs;
-
   
   // collnet handles
   void* sendMhandle;
@@ -115,7 +113,6 @@ struct flagcxProxyArgs {
   union flagcxProxyOpSpecifics specifics;
 };
 
-
 struct flagcxProxyOp {
   struct flagcxProxyConnection* connection;
   ssize_t nbytes;
@@ -183,8 +180,6 @@ struct flagcxProxyOps {
     struct flagcxIntruQueue<struct flagcxProxyOp, &flagcxProxyOp::next> sendQueue;
     struct flagcxIntruQueue<struct flagcxProxyOp, &flagcxProxyOp::next> recvQueue;
   };
-
-
 
   struct consPeer *consPeers;
   struct prodPeer  prodPeers;
@@ -354,6 +349,7 @@ enum proxyMode {
   proxyFrom = 1,
   proxyTo = 2
 };
+
 void *flagcxProxyService(void* args);
 flagcxResult_t flagcxProxySaveOp(struct flagcxHeteroComm* comm, struct flagcxProxyOp* proxyOp, bool *justInquire = NULL);
 flagcxResult_t flagcxProxyComputeP2p(struct flagcxInfo* info, struct flagcxProxyOp* proxyOp, int reg);
@@ -361,6 +357,7 @@ flagcxResult_t flagcxProxyStart(struct flagcxHeteroComm* comm);
 flagcxResult_t flagcxProxyInit(struct flagcxHeteroComm* comm);
 flagcxResult_t flagcxProxyCreate(struct flagcxHeteroComm* comm);
 flagcxResult_t flagcxProxyConnect(struct flagcxHeteroComm* comm, int transport, int send, int proxyRank, struct flagcxProxyConnector* proxyConn);
+
 enum flagcxProxyMsgType {
   flagcxProxyMsgInit = 1,
   flagcxProxyMsgSharedInit = 2,
@@ -393,4 +390,5 @@ flagcxResult_t flagcxProxyClientGetFdBlocking(struct flagcxHeteroComm* comm, int
 flagcxResult_t flagcxProxyStop(struct flagcxHeteroComm* comm);
 flagcxResult_t flagcxProxyShmUnlink(struct flagcxHeteroComm* comm);
 flagcxResult_t flagcxProxyDestroy(struct flagcxHeteroComm* comm);
+
 #endif

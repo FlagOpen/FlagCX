@@ -1,3 +1,9 @@
+/*************************************************************************
+ * Copyright (c) 2015-2022, NVIDIA CORPORATION. All rights reserved.
+ *
+ * See LICENSE.txt for license information
+ ************************************************************************/
+
 #ifndef FLAGCX_IBV_SYMBOLS_H_
 #define FLAGCX_IBV_SYMBOLS_H_
 
@@ -7,7 +13,6 @@
 #include "ibvcore.h"
 #include "type.h"
 #endif
-
 
 /* IB Verbs Function Pointers*/
 struct flagcxIbvSymbols {

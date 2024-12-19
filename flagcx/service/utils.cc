@@ -9,7 +9,6 @@
 #include "flagcx_common.h"
 #include <stdlib.h>
 
-
 flagcxResult_t int64ToBusId(int64_t id, char* busId) {
   sprintf(busId, "%04lx:%02lx:%02lx.%01lx", (id) >> 20, (id & 0xff000) >> 12, (id & 0xff0) >> 4, (id & 0xf));
   return flagcxSuccess;
@@ -170,7 +169,6 @@ static bool matchPort(const int port1, const int port2) {
   if (port1 == port2) return true;
   return false;
 }
-
 
 bool matchIfList(const char* string, int port, struct netIf* ifList, int listSize, bool matchExact) {
   // Make an exception for the case where no user list is defined
