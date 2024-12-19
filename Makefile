@@ -1,7 +1,37 @@
 BUILDDIR ?= $(abspath ./build)
+
+# set to 0 if not provided
 USE_NVIDIA ?= 0
 USE_ILUVATAR_COREX ?= 0
 USE_CAMBRICON ?= 0
+
+# set to empty if not provided
+DEVICE_HOME ?= 
+CCL_HOME ?= 
+
+ifeq ($(strip $(DEVICE_HOME)),)
+	ifeq ($(USE_NVIDIA), 1)
+		DEVICE_HOME = /usr/local/cuda
+	else ifeq ($(USE_ILUVATAR_COREX), 1)
+		DEVICE_HOME = /usr/local/corex
+	else ifeq ($(USE_CAMBRICON), 1)
+		DEVICE_HOME = /torch/neuware_home
+	else
+		DEVICE_HOME = /usr/local/cuda
+	endif
+endif
+
+ifeq ($(strip $(CCL_HOME)),)
+	ifeq ($(USE_NVIDIA), 1)
+		CCL_HOME = /usr/local/nccl/build
+	else ifeq ($(USE_ILUVATAR_COREX), 1)
+		CCL_HOME = /usr/local/corex
+	else ifeq ($(USE_CAMBRICON), 1)
+		CCL_HOME = /torch/neuware_home
+	else
+		CCL_HOME = /usr/local/nccl/build
+	endif
+endif
 
 DEVICE_LIB =
 DEVICE_INCLUDE =
@@ -11,35 +41,35 @@ CCL_INCLUDE =
 CCL_LINK =
 ADAPTOR_FLAG =
 ifeq ($(USE_NVIDIA), 1)
-	DEVICE_LIB = /usr/local/cuda/lib64
-	DEVICE_INCLUDE = /usr/local/cuda/include
+	DEVICE_LIB = $(DEVICE_HOME)/lib64
+	DEVICE_INCLUDE = $(DEVICE_HOME)/include
 	DEVICE_LINK = -lcudart -lcuda
-	CCL_LIB = /usr/local/nccl/build/lib
-	CCL_INCLUDE = /usr/local/nccl/build/include
+	CCL_LIB = $(CCL_HOME)/lib
+	CCL_INCLUDE = $(CCL_HOME)/include
 	CCL_LINK = -lnccl
 	ADAPTOR_FLAG = -DUSE_NVIDIA_ADAPTOR
 else ifeq ($(USE_ILUVATAR_COREX), 1)
-	DEVICE_LIB = /usr/local/corex/lib
-	DEVICE_INCLUDE = /usr/local/corex/include
+	DEVICE_LIB = $(DEVICE_HOME)/lib
+	DEVICE_INCLUDE = $(DEVICE_HOME)/include
 	DEVICE_LINK = -lcudart -lcuda
-	CCL_LIB = /usr/local/corex/lib
-	CCL_INCLUDE = /usr/local/corex/include
+	CCL_LIB = $(CCL_HOME)/lib
+	CCL_INCLUDE = $(CCL_HOME)/include
 	CCL_LINK = -lnccl
 	ADAPTOR_FLAG = -DUSE_ILUVATAR_COREX_ADAPTOR
 else ifeq ($(USE_CAMBRICON), 1)
-	DEVICE_LIB = /torch/neuware_home/lib64
-	DEVICE_INCLUDE = /torch/neuware_home/include
+	DEVICE_LIB = $(DEVICE_HOME)/lib64
+	DEVICE_INCLUDE = $(DEVICE_HOME)/include
 	DEVICE_LINK = -lcnrt
-	CCL_LIB = /torch/neuware_home/lib64
-	CCL_INCLUDE = /torch/neuware_home/include
+	CCL_LIB = $(CCL_HOME)/lib64
+	CCL_INCLUDE = $(CCL_HOME)/include
 	CCL_LINK = -lcncl
 	ADAPTOR_FLAG = -DUSE_CAMBRICON_ADAPTOR
 else
-	DEVICE_LIB = /usr/local/cuda/lib64
-	DEVICE_INCLUDE = /usr/local/cuda/include
+	DEVICE_LIB = $(DEVICE_HOME)/lib64
+	DEVICE_INCLUDE = $(DEVICE_HOME)/include
 	DEVICE_LINK = -lcudart -lcuda
-	CCL_LIB = /usr/local/nccl/build/lib
-	CCL_INCLUDE = /usr/local/nccl/build/include/
+	CCL_LIB = $(CCL_HOME)/lib
+	CCL_INCLUDE = $(CCL_HOME)/include
 	CCL_LINK = -lnccl
 	ADAPTOR_FLAG = -DUSE_NVIDIA_ADAPTOR
 endif
@@ -65,6 +95,8 @@ TARGET = libflagcx.so
 all: $(LIBDIR)/$(TARGET)
 
 print_var:
+	@echo "DEVICE_HOME: $(DEVICE_HOME)"
+	@echo "CCL_HOME: $(CCL_HOME)"
 	@echo "USE_NVIDIA: $(USE_NVIDIA)"
 	@echo "USE_ILUVATAR_COREX: $(USE_ILUVATAR_COREX)"
 	@echo "USE_CAMBRICON: $(USE_CAMBRICON)"

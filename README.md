@@ -24,7 +24,7 @@ FlagCX leverages native collective communication libraries to provide the full s
     cd FlagCX
     make [USE_NVIDIA/USE_ILUVATAR_COREX/USE_CAMBRICON]=1
     ```
-    You should ensure that the corresponding native collective communication librariy has already been built.
+    The default install path is set to `build/`, you can manually set `BUILDDIR` to specify the build path. You may also define `DEVICE_HOME` and `CCL_HOME` to indicate the install paths of device runtime and communication libraries.
 
 ### Tests
 
