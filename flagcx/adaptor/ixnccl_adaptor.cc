@@ -182,23 +182,6 @@ flagcxResult_t ixncclAdaptorGroupEnd() {
     return (flagcxResult_t)ncclGroupEnd();
 }
 
-// flagcxResult_t ixncclAdaptorMemAlloc(void** ptr, size_t size) {
-//     return (flagcxResult_t)ncclMemAlloc(ptr, size);
-// }
-
-// flagcxResult_t ixncclAdaptorMemFree(void *ptr) {
-//     return (flagcxResult_t)ncclMemFree(ptr);
-// }
-
-// flagcxResult_t ixncclAdaptorCommRegister(const flagcxHomoComm_t comm, void* buff,
-//                                        size_t size, void** handle) {
-//     return (flagcxResult_t)ncclCommRegister(comm->base, buff, size, handle);
-// }
-
-// flagcxResult_t ixncclAdaptorCommDeregister(const flagcxHomoComm_t comm, void* handle) {
-//     return (flagcxResult_t)ncclCommDeregister(comm->base, handle);
-// }
-
 struct flagcxCCLAdaptor ixncclAdaptor = {
   "IXNCCL",
   // Basic functions
@@ -230,12 +213,7 @@ struct flagcxCCLAdaptor ixncclAdaptor = {
   ixncclAdaptorRecv,
   // Group semantics
   ixncclAdaptorGroupStart,
-  ixncclAdaptorGroupEnd,
-  // Memory functions
-  NULL,
-  NULL,
-  NULL,
-  NULL
+  ixncclAdaptorGroupEnd
 };
 
 #endif // USE_ILUVATAR_COREX_ADAPTOR

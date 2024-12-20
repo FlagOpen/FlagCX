@@ -101,13 +101,6 @@ flagcxResult_t flagcxHandleInit(flagcxHandlerGroup_t* handler);
 
 flagcxResult_t flagcxHandleFree(flagcxHandlerGroup_t handler);
 
-/* Malloc and free function for all types of FLAGCX optimizations
- * (e.g. user buffer registration). The actual allocated size might
- * be larger than requested due to granularity requirement. */
-flagcxResult_t flagcxMemAlloc(void** ptr, size_t size);
-
-flagcxResult_t flagcxMemFree(void *ptr);
-
 /* Return the version of the FlagCX library in the supplied integer.
  * It contains the underlying adaptor library version and FlagCX core version
  */
@@ -162,12 +155,6 @@ flagcxResult_t flagcxCommGetDeviceNumber(const flagcxComm_t comm, int* device);
 
 /* Returns the user-ordered "rank" associated with the communicator. */
 flagcxResult_t flagcxCommUserRank(const flagcxComm_t comm, int* rank);
-
-/* Register device-side buffer for zero-copy operation */
-flagcxResult_t flagcxCommRegister(const flagcxComm_t comm, void* buff, size_t size, void** handle);
-
-/* Deregister device-side buffer */
-flagcxResult_t flagcxCommDeregister(const flagcxComm_t comm, void* handle);
 
 /*
  * Collective communication operations
@@ -353,25 +340,6 @@ flagcxResult_t flagcxGroupStart();
  * need to be called after flagcxGroupEnd.
  */
 flagcxResult_t flagcxGroupEnd();
-
-/*
- * Stream semantics
- */
-
-/*
-* Stream Create
-*/
-flagcxResult_t flagcxStreamCreate(flagcxStream_t *stream);
-
-/*
-* Stream Synchronize
-*/
-flagcxResult_t flagcxStreamSynchronize(flagcxStream_t stream);
-
-/*
-* Stream Destroy
-*/
-flagcxResult_t flagcxStreamDestroy(flagcxStream_t stream);
 
 #ifdef __cplusplus
 } // end extern "C"

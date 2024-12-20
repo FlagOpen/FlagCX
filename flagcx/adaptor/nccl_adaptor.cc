@@ -182,23 +182,6 @@ flagcxResult_t ncclAdaptorGroupEnd() {
     return (flagcxResult_t)ncclGroupEnd();
 }
 
-flagcxResult_t ncclAdaptorMemAlloc(void** ptr, size_t size) {
-    return (flagcxResult_t)ncclMemAlloc(ptr, size);
-}
-
-flagcxResult_t ncclAdaptorMemFree(void *ptr) {
-    return (flagcxResult_t)ncclMemFree(ptr);
-}
-
-flagcxResult_t ncclAdaptorCommRegister(const flagcxHomoComm_t comm, void* buff,
-                                       size_t size, void** handle) {
-    return (flagcxResult_t)ncclCommRegister(comm->base, buff, size, handle);
-}
-
-flagcxResult_t ncclAdaptorCommDeregister(const flagcxHomoComm_t comm, void* handle) {
-    return (flagcxResult_t)ncclCommDeregister(comm->base, handle);
-}
-
 struct flagcxCCLAdaptor ncclAdaptor = {
   "NCCL",
   // Basic functions
@@ -230,12 +213,7 @@ struct flagcxCCLAdaptor ncclAdaptor = {
   ncclAdaptorRecv,
   // Group semantics
   ncclAdaptorGroupStart,
-  ncclAdaptorGroupEnd,
-  // Memory functions
-  ncclAdaptorMemAlloc,
-  ncclAdaptorMemFree,
-  ncclAdaptorCommRegister,
-  ncclAdaptorCommDeregister
+  ncclAdaptorGroupEnd
 };
 
 #endif // USE_NVIDIA_ADAPTOR

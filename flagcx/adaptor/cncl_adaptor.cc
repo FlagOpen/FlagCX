@@ -240,28 +240,6 @@ flagcxResult_t cnclAdaptorGroupEnd() {
     return (flagcxResult_t)c2f_ret_map[cnclGroupEnd()];
 }
 
-flagcxResult_t cnclAdaptorMemAlloc(void** ptr, size_t size) {
-    cnrtMalloc(ptr, size);
-    return flagcxSuccess;
-}
-
-flagcxResult_t cnclAdaptorMemFree(void *ptr) {
-    cnrtFree(ptr);
-    return flagcxSuccess;
-}
-
-flagcxResult_t cnclAdaptorCommRegister(const flagcxHomoComm_t comm, void* buff,
-                                       size_t size, void** handle) {
-    //return (flagcxResult_t)cnclCommRegister(comm->base, buff, size, handle);
-    return flagcxUnhandledDeviceError;
-}
-
-//TODO: unsupported
-flagcxResult_t cnclAdaptorCommDeregister(const flagcxHomoComm_t comm, void* handle) {
-    //return (flagcxResult_t)cnclCommDeregister(comm->base, handle);
-    return flagcxUnhandledDeviceError;
-}
-
 struct flagcxCCLAdaptor cnclAdaptor = {
   "CNCL",
   // Basic functions
@@ -293,12 +271,7 @@ struct flagcxCCLAdaptor cnclAdaptor = {
   cnclAdaptorRecv,
   // Group semantics
   cnclAdaptorGroupStart,
-  cnclAdaptorGroupEnd,
-  // Memory functions
-  cnclAdaptorMemAlloc,
-  cnclAdaptorMemFree,
-  cnclAdaptorCommRegister,
-  cnclAdaptorCommDeregister
+  cnclAdaptorGroupEnd
 };
 
 #endif // USE_CAMBRICON_ADAPTOR

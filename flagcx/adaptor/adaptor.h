@@ -64,12 +64,6 @@ struct flagcxCCLAdaptor {
     // Group semantics
     flagcxResult_t (*groupStart)();
     flagcxResult_t (*groupEnd)();
-
-    // Memory functions
-    flagcxResult_t (*memAlloc)(void** ptr, size_t size);
-    flagcxResult_t (*memFree)(void *ptr);
-    flagcxResult_t (*commRegister)(const flagcxHomoComm_t comm, void* buff, size_t size, void** handle);
-    flagcxResult_t (*commDeregister)(const flagcxHomoComm_t comm, void* handle);
 };
 
 const int MAX_VENDOR_LEN = 128;
