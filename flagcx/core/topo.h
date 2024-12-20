@@ -249,4 +249,14 @@ static int mirrorBits(int val, int pow2) {
   for (int b=1, mb=(pow2>>1); b<pow2; b<<=1, mb>>=1) if (val & b) mirror |= mb;
   return mirror;
 }
+
+
+#ifdef CREATE_DEVICE_TOPO_API
+#define DEVICE_TOPO_API_EXTERN
+#else
+#define DEVICE_TOPO_API_EXTERN extern
+#endif
+
+DEVICE_TOPO_API_EXTERN flagcxResult_t (*flagcxTopoGetLocalNet)(int gpu, char *name);
+
 #endif

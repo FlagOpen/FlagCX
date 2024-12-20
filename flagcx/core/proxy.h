@@ -14,7 +14,7 @@
 #include <pthread.h>
 #include "info.h"
 #include "net.h"
-#include "hostGpuMemAlloc.h"
+#include "launch_kernel.h"
 
 enum flagcxProxyOpState { flagcxProxyOpNone, flagcxProxyOpReady, flagcxProxyOpProgress };
 

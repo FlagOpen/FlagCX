@@ -5,7 +5,6 @@
 #include "net.h"
 #include "topo.h"
 #include "adaptor.h"
-#include "hostGpuMemAlloc.h"
 #define ENABLE_TIMER 0
 #include "timer.h"
 

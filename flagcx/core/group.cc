@@ -14,6 +14,7 @@
 #include "assert.h"
 #include "net.h"
 #include "adaptor.h"
+#include "launch_kernel.h"
 
 __thread int flagcxGroupDepth = 0;
 __thread bool flagcxGroupJobAbortFlag = false;
