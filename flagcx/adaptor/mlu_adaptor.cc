@@ -17,7 +17,7 @@ flagcxResult_t mluAdaptorDeviceMemcpy(void *dst, void *src, size_t size, flagcxM
     if (stream == NULL) {
         DEVCHECK(cnrtMemcpy(dst, src, size, memcpy_type_map[type]));
     } else {
-        DEVCHECK(cnrtMemcpyAsync_V3(dst, src, size, stream->base, memcpy_type_map[type]));
+        DEVCHECK(cnrtMemcpyAsync_V2(dst, src, size, stream->base, memcpy_type_map[type]));
     }
     return flagcxSuccess;
 }
@@ -73,12 +73,18 @@ flagcxResult_t mluAdaptorGetVendor(char *vendor) {
 }
 
 flagcxResult_t mluAdaptorGdrMemAlloc(void **ptr, size_t size, void *memHandle) {
-    // TODO: Implement GDR memory allocation
+    if (ptr == NULL) {
+        return flagcxInvalidArgument;
+    }
+    DEVCHECK(cnrtMalloc(ptr, size));
     return flagcxSuccess;
 }
 
 flagcxResult_t mluAdaptorGdrMemFree(void *ptr, void *memHandle) {
-    // TODO: Implement GDR memory free
+    if (ptr == NULL) {
+        return flagcxSuccess;
+    }
+    DEVCHECK(cnrtFree(ptr));
     return flagcxSuccess;
 }
 

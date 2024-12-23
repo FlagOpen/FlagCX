@@ -6,8 +6,8 @@ USE_ILUVATAR_COREX ?= 0
 USE_CAMBRICON ?= 0
 
 # set to empty if not provided
-DEVICE_HOME ?= 
-CCL_HOME ?= 
+DEVICE_HOME ?=
+CCL_HOME ?=
 
 ifeq ($(strip $(DEVICE_HOME)),)
 	ifeq ($(USE_NVIDIA), 1)
@@ -15,7 +15,7 @@ ifeq ($(strip $(DEVICE_HOME)),)
 	else ifeq ($(USE_ILUVATAR_COREX), 1)
 		DEVICE_HOME = /usr/local/corex
 	else ifeq ($(USE_CAMBRICON), 1)
-		DEVICE_HOME = /torch/neuware_home
+		DEVICE_HOME = $(NEUWARE_HOME)
 	else
 		DEVICE_HOME = /usr/local/cuda
 	endif
@@ -27,7 +27,7 @@ ifeq ($(strip $(CCL_HOME)),)
 	else ifeq ($(USE_ILUVATAR_COREX), 1)
 		CCL_HOME = /usr/local/corex
 	else ifeq ($(USE_CAMBRICON), 1)
-		CCL_HOME = /torch/neuware_home
+		CCL_HOME = $(NEUWARE_HOME)
 	else
 		CCL_HOME = /usr/local/nccl/build
 	endif

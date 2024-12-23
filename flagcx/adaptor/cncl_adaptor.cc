@@ -58,8 +58,11 @@ flagcxResult_t cnclAdaptorCommInitRank(flagcxHomoComm_t *comm, int nranks, flagc
     if (*comm == NULL) {
         flagcxCalloc(comm, 1);
     }
-    return (flagcxResult_t)cnclInitComms(&(*comm)->base, 1/*num_comm*/, &rank/*dev_list*/,
-                                           &rank/*rank_list*/, nranks, (cnclCliqueId *)commId);
+    unsigned int device_count = 0;
+    DEVCHECK(cnrtGetDeviceCount(&device_count));
+    int dev_id = rank % device_count;
+    return (flagcxResult_t)c2f_ret_map[cnclInitComms(&(*comm)->base, 1/*num_comm*/, &dev_id/*dev_list*/,
+                                       &rank/*rank_list*/, nranks, (cnclCliqueId *)commId)];
 }
 
 //TODO: unsupported
