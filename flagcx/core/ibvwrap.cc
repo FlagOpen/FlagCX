@@ -31,8 +31,12 @@ flagcxResult_t wrap_ibv_symbols(void) {
   CHECK_NOT_NULL(container, internal_name); \
   retval = container.call; \
   if (retval == error_retval) { \
-    WARN("Call to " name " failed with error %s", strerror(errno)); \
-    return flagcxSystemError; \
+      WARN("Call to " name " failed with error %s first time", strerror(errno)); \
+      retval = container.call; \
+      if (retval == error_retval) { \
+          WARN("Call to " name " failed with error %s second time", strerror(errno)); \
+          return flagcxSystemError; \
+      } \
   } \
   return flagcxSuccess;
 

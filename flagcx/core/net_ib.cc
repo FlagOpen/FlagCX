@@ -8,7 +8,6 @@
 #include "socket.h"
 #include "utils.h"
 #include "param.h"
-#include "ibvcore.h"
 #include "ibvwrap.h"
 #include "flagcx_common.h"
 #include "flagcx_net.h"
