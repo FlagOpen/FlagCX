@@ -39,6 +39,19 @@ Note that the default MPI install path is set to `/usr/local/mpi`, you may speci
 make MPI_HOME=<path to mpi install>
 ```
 
+All tests support the same set of arguments:
+
+* Sizes to scan
+  * `-b <min size in bytes>` minimum size to start with. Default: 1M.
+  * `-e <max size in bytes>` maximum size to end at. Default: 1G.
+  * `-f <increment factor>` multiplication factor between sizes. Default: 2.
+* Performance
+  * `-w, <warmup iteration count>` number of warmup iterations (not timed). Default: 5.
+  * `-n, <iteration count>` number of iterations. Default: 20.
+* Utils
+  * `-p, <0/1>` print buffer info. Default: 0.
+  * `-h` print help message. Default: disabled.
+
 ## License
 
 This project is licensed under the [Apache License (Version 2.0)](https://github.com/FlagOpen/FlagCX/blob/main/LICENSE).
