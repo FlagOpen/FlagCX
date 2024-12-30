@@ -6,6 +6,7 @@
 #include "alloc.h"
 #include "check.h"
 #include "param.h"
+#include "cluster.h"
 
 #include <cassert>
 #include <stdio.h>
@@ -81,7 +82,6 @@ flagcxResult_t flagCXEnsureCommReady() {
 
 bool is_homo_comm() {
     assert(flagCXEnsureCommReady() == flagcxSuccess);
-    //printf("comm_type:%d\n", cur_comm->comm_type);
 #ifdef FORCE_HOMO_COMM
     return true;
 #endif
@@ -89,21 +89,6 @@ bool is_homo_comm() {
     return false;
 #endif
     return cur_comm->comm_type == flagcxCommunicatorHomo;
-}
-
-static flagcxResult_t flagcxDetectCommType(const flagcxVendor* allData, int nranks, flagcxCommunicatorType_t &type) {
-    if (nranks <= 1) {
-        type = flagcxCommunicatorHomo;
-        return flagcxSuccess;
-    }
-    for (int i = 1; i < nranks; ++i) {
-        if (strncmp(allData[i].internal, allData[0].internal, MAX_VENDOR_LEN)) {
-        type = flagcxCommunicatorHybrid;
-        return flagcxSuccess;
-        }
-    }
-    type = flagcxCommunicatorHomo;
-    return flagcxSuccess;
 }
 
 flagcxResult_t flagcxHandleInit(flagcxHandlerGroup_t *handler) {
@@ -186,11 +171,18 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
     flagcxCalloc(comm, 1);
     (*comm)->rank = rank;
     (*comm)->nranks = nranks;
+    (*comm)->homo_root_rank = -1;
+    (*comm)->homo_ranks = -1;
+    (*comm)->hetero_rank = -1;
+    (*comm)->hetero_root_rank = -1;
+    (*comm)->hetero_ranks = -1;
     (*comm)->magic = 0;
     (*comm)->abortFlag = 0;
     (*comm)->bootstrap = NULL;
     (*comm)->homo_comm = NULL;
     (*comm)->hetero_comm = NULL;
+    (*comm)->rank_to_homorank = NULL;
+    (*comm)->cluster_ids = NULL;
     (*comm)->comm_type = flagcxCommunicatorUnknown;
     cur_comm = *comm;
 
@@ -219,33 +211,99 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
     FLAGCXCHECK(flagcxCalloc(&vendorData, nranks));
     memcpy(vendorData + rank, &vendor, sizeof(flagcxVendor));
     FLAGCXCHECK(bootstrapAllGather(state, (void *)vendorData, sizeof(flagcxVendor)));
-    bootstrapBarrier((*comm)->bootstrap, rank, nranks, 0);
-    FLAGCXCHECK(flagcxDetectCommType(vendorData, nranks, (*comm)->comm_type));
+    FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
 
-    // Reset commId and root rank calls underlying GetUniqueId function
+    // Init cluster info
+    int *rankToHomoRankData;
+    int *clusterIdData;
+    FLAGCXCHECK(flagcxCalloc(&rankToHomoRankData, nranks));
+    FLAGCXCHECK(flagcxCalloc(&clusterIdData, nranks));
+    FLAGCXCHECK(flagcxCollectClusterInfos(vendorData,
+                                         (*comm)->comm_type,
+                                         rankToHomoRankData + rank, &(*comm)->homo_root_rank, &(*comm)->homo_ranks,
+                                         &(*comm)->hetero_rank, &(*comm)->hetero_root_rank, &(*comm)->hetero_ranks,
+                                         clusterIdData + rank, rank, nranks));
+    FLAGCXCHECK(bootstrapAllGather(state, (void *)rankToHomoRankData, sizeof(int)));
+    FLAGCXCHECK(bootstrapAllGather(state, (void *)clusterIdData, sizeof(int)));
+    FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
+    (*comm)->rank_to_homorank = rankToHomoRankData;
+    (*comm)->cluster_ids = clusterIdData;
+
+    // Reset commId and homo root rank calls underlying GetUniqueId function for initialization of homo communicator
     memset((void *)commId, 0, sizeof(*commId));
-    if (rank == 0) {
-        if (is_homo_comm()) {
-            cclAdaptor->getUniqueId(&commId);
-        } else {
+    if ((*comm)->rank_to_homorank[rank] == 0) {
+        cclAdaptor->getUniqueId(&commId);
+    }
+    flagcxUniqueId *uniqueIdData;
+    FLAGCXCHECK(flagcxCalloc(&uniqueIdData, nranks));
+    if ((*comm)->rank_to_homorank[rank] == 0) {
+        memcpy((void *)&uniqueIdData[rank], (void *)commId, sizeof(flagcxUniqueId));
+    }
+    FLAGCXCHECK(bootstrapAllGather(state, (void *)uniqueIdData, sizeof(flagcxUniqueId)));
+    FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
+
+    memcpy((void *)commId, (void *)&uniqueIdData[(*comm)->homo_root_rank], sizeof(flagcxUniqueId));
+    // call flagcxHomoComm commInitRank
+    FLAGCXCHECK(cclAdaptor->commInitRank(&(*comm)->homo_comm, (*comm)->homo_ranks, commId, (*comm)->rank_to_homorank[rank]));
+
+    // Reset commId and hetero root rank calls flagcxHeteroGetUniqueId
+    if (!is_homo_comm()) {
+        // int *heteroRootRanks;
+        // FLAGCXCHECK(flagcxCalloc(&heteroRootRanks, nranks));
+        // heteroRootRanks[rank] = (*comm)->hetero_root_rank;
+        // FLAGCXCHECK(bootstrapAllGather(state, (void *)heteroRootRanks, sizeof(int)));
+        // if ((*comm)->hetero_ranks != -1) {
+        //     for (int i = 0; i < nranks; ++i) {
+        //         if (heteroRootRanks[i] != -1) {
+        //             (*comm)->hetero_root_rank = heteroRootRanks[i];
+        //             break;
+        //         }
+        //     }
+        // }
+
+        // memset((void *)commId, 0, sizeof(flagcxUniqueId));
+        // memset((void *)uniqueIdData, 0, nranks * sizeof(flagcxUniqueId));
+        // if (rank == (*comm)->hetero_root_rank) {
+        //     flagcxHeteroGetUniqueId(commId);
+        //     memcpy((void *)&uniqueIdData[rank], (void *)commId, sizeof(flagcxUniqueId));
+        // }
+        // FLAGCXCHECK(bootstrapAllGather(state, (void *)uniqueIdData, sizeof(flagcxUniqueId)));
+
+        // if ((*comm)->hetero_ranks != -1) {
+        //     memcpy((void *)commId, (void *)&uniqueIdData[(*comm)->hetero_root_rank], sizeof(flagcxUniqueId));
+        //     // call flagcxHeteroCommInitRank
+        //     FLAGCXCHECK(flagcxHeteroCommInitRank(&(*comm)->hetero_comm, (*comm)->hetero_ranks, *commId, (*comm)->hetero_rank));
+        // }
+
+        // free(heteroRootRanks);
+
+        memset((void *)commId, 0, sizeof(flagcxUniqueId));
+        memset((void *)uniqueIdData, 0, nranks * sizeof(flagcxUniqueId));
+        if (rank == 0) {
             flagcxHeteroGetUniqueId(commId);
+            memcpy((void *)&uniqueIdData[0], (void *)commId, sizeof(flagcxUniqueId));
         }
+        FLAGCXCHECK(bootstrapAllGather(state, (void *)uniqueIdData, sizeof(flagcxUniqueId)));
+        FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
+        memcpy((void *)commId, (void *)&uniqueIdData[0], sizeof(flagcxUniqueId));
+        // call flagcxHeteroCommInitRank
+        FLAGCXCHECK(flagcxHeteroCommInitRank(&(*comm)->hetero_comm, nranks, *commId, rank));
     }
 
-    // Use bootstrap to broadcast the new generated CommId across all ranks.
-    bootstrapBroadcast((*comm)->bootstrap, rank, nranks, 0 /*root*/, (void*) commId, sizeof(flagcxUniqueId));
-    bootstrapBarrier((*comm)->bootstrap, rank, nranks, 0);
-    
-    // Destroy bootstrap state and net if we use adaptor under homo circumstance
-    bootstrapClose(state);
+    free(uniqueIdData);
+    free(vendorData);
+    INFO(FLAGCX_INIT, "rank = %d, nranks = %d, cluster_id = %d, homo_rank = %d, homo_root_rank = %d, homo_ranks = %d, hetero_rank = %d, hetero_root_rank = %d, hetero_ranks = %d",
+         rank,
+         nranks,
+         (*comm)->cluster_ids[rank],
+         (*comm)->rank_to_homorank[rank],
+         (*comm)->homo_root_rank,
+         (*comm)->homo_ranks,
+         (*comm)->hetero_rank,
+         (*comm)->hetero_root_rank,
+         (*comm)->hetero_ranks);
 
-    // call underlying commInitRank
-    if (is_homo_comm()) {
-        // call flagcxHomoComm commInitRank
-        return cclAdaptor->commInitRank(&(*comm)->homo_comm, nranks, commId, rank);
-    }
-
-    return flagcxHeteroCommInitRank(&(*comm)->hetero_comm, nranks, *commId, rank);
+    return flagcxSuccess;
 }
 
 flagcxResult_t flagcxCommFinalize(flagcxComm_t comm) {
@@ -257,6 +315,13 @@ flagcxResult_t flagcxCommFinalize(flagcxComm_t comm) {
 }
 
 flagcxResult_t flagcxCommDestroy(flagcxComm_t comm) {
+    // Destroy cluster info
+    free(comm->rank_to_homorank);
+    free(comm->cluster_ids);
+
+    // Destroy bootstrap state and net
+    bootstrapClose(comm->bootstrap);
+
     if (is_homo_comm()) {
         return cclAdaptor->commDestroy(comm->homo_comm);
     }
@@ -397,16 +462,16 @@ flagcxResult_t flagcxAlltoAll(const void* sendbuff, void* recvbuff, size_t count
 
 flagcxResult_t flagcxSend(const void* sendbuff, size_t count, flagcxDataType_t datatype, int peer,
                           flagcxComm_t comm, flagcxStream_t stream) {
-    if (is_homo_comm()) {
-        return cclAdaptor->send(sendbuff, count, datatype, peer, comm->homo_comm, stream);
+    if (is_homo_comm() || comm->cluster_ids[comm->rank] == comm->cluster_ids[peer]) {
+        return cclAdaptor->send(sendbuff, count, datatype, comm->rank_to_homorank[peer], comm->homo_comm, stream);
     }
     return flagcxHeteroSend(sendbuff, count, datatype, peer, comm->hetero_comm, stream);
 }
 
 flagcxResult_t flagcxRecv(void* recvbuff, size_t count, flagcxDataType_t datatype, int peer,
                           flagcxComm_t comm, flagcxStream_t stream) {
-    if (is_homo_comm()) {
-        return cclAdaptor->recv(recvbuff, count, datatype, peer, comm->homo_comm, stream);
+    if (is_homo_comm() || comm->cluster_ids[comm->rank] == comm->cluster_ids[peer]) {
+        return cclAdaptor->recv(recvbuff, count, datatype, comm->rank_to_homorank[peer], comm->homo_comm, stream);
     }
     return flagcxHeteroRecv(recvbuff, count, datatype, peer, comm->hetero_comm, stream);
 }

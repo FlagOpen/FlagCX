@@ -62,9 +62,9 @@ int main(int argc, char *argv[]){
 
         if (proc == 0 && print_buffer) {
             printf("sendbuff = ");
-            printf((const char *)((char *)hello));
-            printf((const char *)((char *)hello + size/3));
-            puts((const char *)((char *)hello + size/3*2));
+            printf("%s", (const char *)((char *)hello));
+            printf("%s", (const char *)((char *)hello + size/3));
+            printf("%s\n", (const char *)((char *)hello + size/3*2));
         }
 
         for(int i=0;i<num_warmup_iters;i++){
@@ -100,9 +100,9 @@ int main(int argc, char *argv[]){
         devHandle->deviceMemcpy(hello, recvbuff, size, flagcxMemcpyDeviceToHost, NULL);
         if (proc == 0 && print_buffer) {
             printf("recvbuff = ");
-            printf((const char *)((char *)hello));
-            printf((const char *)((char *)hello + size/3));
-            puts((const char *)((char *)hello + size/3*2));
+            printf("%s", (const char *)((char *)hello));
+            printf("%s", (const char *)((char *)hello + size/3));
+            printf("%s\n", (const char *)((char *)hello + size/3*2));
         }
 
         devHandle->deviceFree(sendbuff, flagcxMemDevice);
