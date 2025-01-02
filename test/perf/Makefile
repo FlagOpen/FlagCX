@@ -56,7 +56,7 @@ run-allgather:
 	@mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=ALL ./test_allgather
 
 run-alltoall:
-	@mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x NCCL_DEBUG=INFO -x NCCL_DEBUG_SUBSYS=INIT -x NCCL_COMM_ID=10.8.60.201:8080 ./test_alltoall
+	@mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=ALL ./test_alltoall
 
 run-core-sendrecv:
 	@mpirun --allow-run-as-root -np 2 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1 -x NCCL_IB_HCA=mlx5_2 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=INIT,NET -x FLAGCX_TOPO_DUMP_FILE=./topo ./test_core_sendrecv
