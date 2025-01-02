@@ -11,6 +11,6 @@ flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor* allData,
                                          flagcxCommunicatorType_t &type,
                                          int *homo_rank, int *homo_root_rank, int *homo_ranks,
                                          int *hetero_rank, int *hetero_root_rank, int *hetero_ranks,
-                                         int *cluster_id, int rank, int nranks);
+                                         int *cluster_id, int *nclusters, int rank, int nranks);
 
 #endif // end include guard

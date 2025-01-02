@@ -19,15 +19,17 @@ typedef enum {
 struct flagcxComm {
     int rank;
     int nranks;
+    int nclusters;
     int homo_root_rank;
+    int homo_inter_rank;
     int homo_ranks;
-    // we do not support for intermediate transfer (src rank -> intra-cluster proxy rank -> net) for now
     int hetero_rank;
     int hetero_root_rank;
     int hetero_ranks;
     flagcxCommunicatorType_t comm_type;
     uint64_t magic;
     volatile uint32_t* abortFlag;
+    int *cluster_sizes;
     int *rank_to_homorank;
     int *cluster_ids;
     // int *rank_to_heterorank;
