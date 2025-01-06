@@ -22,11 +22,15 @@ flagcxResult_t mluAdaptorDeviceMemcpy(void *dst, void *src, size_t size, flagcxM
     return flagcxSuccess;
 }
 
-flagcxResult_t mluAdaptorDeviceMemset(void *ptr, int value, size_t size, flagcxMemType_t type) {
+flagcxResult_t mluAdaptorDeviceMemset(void *ptr, int value, size_t size, flagcxMemType_t type, flagcxStream_t stream) {
     if (type == flagcxMemHost) {
         memset(ptr, value, size);
     } else {
-        DEVCHECK(cnrtMemset(ptr, value, size));
+        if (stream == NULL) {
+            DEVCHECK(cnrtMemset(ptr, value, size));
+        } else {
+            DEVCHECK(cnrtMemsetAsync(ptr, value, size, stream->base));
+        }
     }
     return flagcxSuccess;
 }

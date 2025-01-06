@@ -73,7 +73,7 @@ struct flagcxDeviceHandle {
    // Basic functions
    flagcxResult_t (*deviceSynchronize)();
    flagcxResult_t (*deviceMemcpy)(void *dst, void *src, size_t size, flagcxMemcpyType_t type, flagcxStream_t stream);
-   flagcxResult_t (*deviceMemset)(void *ptr, int value, size_t size, flagcxMemType_t type);
+   flagcxResult_t (*deviceMemset)(void *ptr, int value, size_t size, flagcxMemType_t type, flagcxStream_t stream);
    flagcxResult_t (*deviceMalloc)(void **ptr, size_t size, flagcxMemType_t type);
    flagcxResult_t (*deviceFree)(void *ptr, flagcxMemType_t type);
    flagcxResult_t (*setDevice)(int dev);

@@ -50,7 +50,7 @@ int main(int argc, char *argv[]){
         devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice);
         devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice);
         devHandle->deviceMalloc(&hello, size, flagcxMemHost);
-        devHandle->deviceMemset(hello, 0, size, flagcxMemHost);
+        devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
 
         for (int i = 0; i < totalProcs; i++) {
 	     ((float *)hello)[i * (count / totalProcs)] = 10 * proc + i;
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]){
 
         MPI_Barrier(MPI_COMM_WORLD);
 
-        devHandle->deviceMemset(hello, 0, size, flagcxMemHost);
+        devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
         devHandle->deviceMemcpy(hello, recvbuff, size, flagcxMemcpyDeviceToHost, NULL);
         if (proc == 0 && print_buffer) {
             printf("recvbuff = ");

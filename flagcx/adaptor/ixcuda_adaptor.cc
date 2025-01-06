@@ -22,11 +22,15 @@ flagcxResult_t ixcudaAdaptorDeviceMemcpy(void *dst, void *src, size_t size, flag
     return flagcxSuccess;
 }
 
-flagcxResult_t ixcudaAdaptorDeviceMemset(void *ptr, int value, size_t size, flagcxMemType_t type) {
+flagcxResult_t ixcudaAdaptorDeviceMemset(void *ptr, int value, size_t size, flagcxMemType_t type, flagcxStream_t stream) {
     if (type == flagcxMemHost) {
         memset(ptr, value, size);
     } else {
-        DEVCHECK(cudaMemset(ptr, value, size));
+        if (stream == NULL) {
+            DEVCHECK(cudaMemset(ptr, value, size));
+        } else {
+            DEVCHECK(cudaMemsetAsync(ptr, value, size, stream->base));
+        }
     }
     return flagcxSuccess;
 }
