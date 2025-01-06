@@ -75,7 +75,7 @@ int main(int argc, char *argv[]){
         devHandle->streamSynchronize(stream);
 
         double elapsed_time = tim.elapsed() / num_iters;
-        double base_bw = (double)(size) / 1024 / 1024 / 1024 / elapsed_time;
+        double base_bw = (double)(size) / 1.0E9 / elapsed_time;
         double alg_bw = base_bw;
         double factor = (totalProcs - 1) / (double)totalProcs;
         double bus_bw = base_bw * factor;
