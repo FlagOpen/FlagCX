@@ -1,7 +1,5 @@
 #ifdef USE_GLOO_ADAPTOR
 
-#define MAX_GLOO_STORE_SIZE 16
-
 #include "comm.h"
 #include "utils.h"
 #include "alloc.h"
@@ -11,7 +9,6 @@
 
 #include <gloo/context.h>
 #include <gloo/algorithm.h>
-// #include <gloo/common/error.h>
 #include <gloo/rendezvous/store.h>
 #include <gloo/rendezvous/context.h>
 #include <gloo/rendezvous/prefix_store.h>
@@ -32,9 +29,15 @@
 #include <map>
 #include <chrono>
 #include <vector>
+#include <queue>
 #include <memory>
 #include <string>
 #include <cstring>
+
+using buffer_ptr = std::unique_ptr<::gloo::transport::UnboundBuffer>;
+static std::queue<buffer_ptr> inputBuffers;
+static constexpr std::chrono::milliseconds flagcxGlooDefaultTimeout = std::chrono::seconds(10000);
+static bool groupStarted = false;
 
 #define GENERATE_ALL_TYPES(type, func, args...)  \
   switch (type) {                                \
@@ -204,6 +207,7 @@ public:
     
 public:
     bootstrapState *bootstrap_;
+    const uint64_t tag = 0x1337;
 };
 
 struct flagcxHomoComm
@@ -213,117 +217,5 @@ struct flagcxHomoComm
     // std::shared_ptr<::gloo::rendezvous::Store> store;
     // std::shared_ptr<::gloo::transport::Device> device;
 };
-
-// struct KVData
-// {
-//     char key[MAX_GLOO_STORE_SIZE];
-//     char value[MAX_GLOO_STORE_SIZE];
-// };
-
-// class flagcxGlooStore : public ::gloo::rendezvous::Store
-// {
-// public:
-//     flagcxGlooStore(int rank, int nranks, bootstrapState *bootstrap)
-//     {
-//         rank_ = rank;
-//         nranks_ = nranks;
-//         bootstrap_ = bootstrap;
-//     }
-
-//     void set(const std::string &key, const std::vector<char> &value) override
-//     {
-//         std::string tmp(value.begin(), value.end());
-//         kv_map_[key] = tmp;
-//         key_ = key;
-//         value_ = tmp;
-//         printf("rank = %d, set [%s, %s]\n", rank_, key.c_str(), tmp.c_str());
-//     }
-
-//     std::vector<char> get(const std::string &key) override
-//     {
-//         auto value = kv_map_[key];
-//         printf("rank = %d, get [%s, %s]\n", rank_, key.c_str(), value.c_str());
-//         return std::vector<char>(value.begin(), value.end());
-//     }
-
-//     void wait(const std::vector<std::string> &keys) override
-//     {
-//         bootstrapBarrier(bootstrap_, rank_, nranks_, 0);
-//         printf("rank = %d, wait after bootstrap barrier\n", rank_);
-//         for (auto key : keys)
-//         {
-//             if (kv_map_.find(key) == kv_map_.end())
-//             {
-//                 KVData *kvData;
-//                 KVData myData;
-//                 flagcxCalloc(&kvData, nranks_);
-//                 std::strcpy(myData.key, key_.c_str());
-//                 std::strcpy(myData.value, value_.c_str());
-//                 memcpy(kvData + rank_, &myData, sizeof(KVData));
-//                 printf("rank = %d, wait before bootstrap allgather\n", rank_);
-//                 bootstrapAllGather(bootstrap_, (void *)kvData, sizeof(KVData));
-//                 printf("rank = %d, wait after bootstrap allgather\n", rank_);
-//                 bootstrapBarrier(bootstrap_, rank_, nranks_, 0);
-//                 for (int i = 0; i < nranks_; i++)
-//                 {
-//                     KVData *data = kvData + i;
-//                     printf("rank = %d, wait [%s, %s]\n", rank_, (data->key), (data->value));
-//                     if (kv_map_.find(data->key) == kv_map_.end())
-//                     {
-//                         kv_map_[data->key] = data->value;
-//                     }
-//                 }
-//                 free(kvData);
-//                 break;
-//             }
-//         }
-//         printf("rank = %d, wait terminated\n", rank_);
-//         bootstrapBarrier(bootstrap_, rank_, nranks_, 0);
-//     }
-
-//     void wait(
-//         const std::vector<std::string> &keys,
-//         const std::chrono::milliseconds &timeout) override
-//     {
-//         // TODO: timeout is not supported
-//         wait(keys);
-//     }
-
-// public:
-//     int rank_;
-//     int nranks_;
-//     std::string key_;
-//     std::string value_;
-//     bootstrapState *bootstrap_;
-//     std::map<std::string, std::string> kv_map_;
-// };
-
-// std::map<flagcxDataType_t, cnclDataType_t> f2c_datatype_map = {
-//     {flagcxInt8, cnclInt8},
-//     {flagcxHalf, cnclHalf},
-//     {flagcxFloat16, cnclFloat16},
-//     {flagcxBfloat16, cnclBfloat16},
-//     {flagcxFloat32, cnclFloat32},
-//     {flagcxFloat, cnclFloat},
-// };
-
-// std::map<flagcxRedOp_t, cnclReduceOp_t> f2c_reduceop_map = {
-//     {flagcxSum, cnclSum},
-//     {flagcxProd, cnclProd},
-//     {flagcxMax, cnclMax},
-//     {flagcxMin, cnclMin}
-// };
-
-// //TODO: not match fully
-// std::map<cnclResult_t, flagcxResult_t> c2f_ret_map = {
-//     {CNCL_RET_SUCCESS, flagcxSuccess},
-//     {CNCL_RET_ERR_UNSUPPORTED, flagcxUnhandledDeviceError},
-//     {CNCL_RET_ASYNC_ERROR , flagcxRemoteError}
-// };
-
-// std::map<flagcxResult_t, cnclResult_t> f2c_ret_map = {
-//     {flagcxSuccess, CNCL_RET_SUCCESS},
-//     {flagcxUnhandledDeviceError, CNCL_RET_ERR_UNSUPPORTED}
-// };
 
 #endif // USE_GLOO_ADAPTOR

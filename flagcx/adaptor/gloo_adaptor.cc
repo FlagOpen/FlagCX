@@ -131,41 +131,61 @@ flagcxResult_t glooAdaptorReduceScatter(const void* sendbuff, void* recvbuff, si
     return flagcxNotSupported;
 }
 
-//TODO: unsupported
 flagcxResult_t glooAdaptorAllGather(const void* sendbuff, void* recvbuff, size_t sendcount,
                                     flagcxDataType_t datatype, flagcxHomoComm_t comm,
                                     flagcxStream_t /*stream*/) {
-    return flagcxNotSupported;
+    ::gloo::AllgatherOptions opts(comm->base);
+    GENERATE_ALL_TYPES(datatype, setInput, opts, const_cast<void*>(sendbuff), sendcount);
+    GENERATE_ALL_TYPES(datatype, setOutput, opts, recvbuff, comm->base->size * sendcount);
+    ::gloo::allgather(opts);
+    return flagcxSuccess;
 }
 
-//TODO: unsupported
 flagcxResult_t glooAdaptorAlltoAll(const void* sendbuff, void* recvbuff, size_t count,
                                    flagcxDataType_t datatype, flagcxHomoComm_t comm,
                                    flagcxStream_t /*stream*/) {
-    return flagcxNotSupported;
+    ::gloo::AlltoallOptions opts(comm->base);
+    GENERATE_ALL_TYPES(datatype, setInput, opts, const_cast<void*>(sendbuff), comm->base->size * count);
+    GENERATE_ALL_TYPES(datatype, setOutput, opts, recvbuff, comm->base->size * count);
+    ::gloo::alltoall(opts);
+    return flagcxSuccess;
 }
 
-//TODO: unsupported
 flagcxResult_t glooAdaptorSend(const void* sendbuff, size_t count,
                                flagcxDataType_t datatype, int peer,
                                flagcxHomoComm_t comm, flagcxStream_t /*stream*/) {
-    return flagcxNotSupported;
+    size_t size = count * getFlagcxDataTypeSize(datatype);
+    inputBuffers.push(comm->base->createUnboundBuffer(const_cast<void*>(sendbuff), size));
+    inputBuffers.back()->send(peer, comm->base->rank);
+    if (!groupStarted) {
+        inputBuffers.back()->waitSend(flagcxGlooDefaultTimeout);
+    }
+    return flagcxSuccess;
 }
 
-//TODO: unsupported
 flagcxResult_t glooAdaptorRecv(void* recvbuff, size_t count,
                                flagcxDataType_t datatype, int peer,
                                flagcxHomoComm_t comm, flagcxStream_t /*stream*/) {
-    return flagcxNotSupported;
+    size_t size = count * getFlagcxDataTypeSize(datatype);
+    auto buf = comm->base->createUnboundBuffer(const_cast<void*>(recvbuff), size);
+    buf->recv(peer, peer);
+    buf->waitRecv(flagcxGlooDefaultTimeout);
+    return flagcxSuccess;
 }
 
 flagcxResult_t glooAdaptorGroupStart() {
-    // Do nothing
+    groupStarted = true;
     return flagcxSuccess;
 }
 
 flagcxResult_t glooAdaptorGroupEnd() {
-    // Do nothing
+    if (groupStarted) {
+        while (!inputBuffers.empty()) {
+            inputBuffers.front()->waitSend(flagcxGlooDefaultTimeout);
+            inputBuffers.pop();
+        }
+        groupStarted = false;
+    }
     return flagcxSuccess;
 }
 

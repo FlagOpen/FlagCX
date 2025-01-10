@@ -47,7 +47,7 @@ clean:
 	@rm -f test_core_sendrecv
 
 run-sendrecv:
-	@mpirun --allow-run-as-root --hostfile ./hostfile -np 2 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=2 -x NCCL_IB_HCA=mlx5_2 -x NCCL_DEBUG=INFO -x NCCL_DEBUG_SUBSYS=INIT,NET -x NCCL_IB_MERGE_NICS=1 -x NCCL_NET_GDR_LEVEL=4 -x NCCL_IB_QPS_PER_CONNECTION=4 -x NCCL_TOPO_DUMP_FILE=./topo ./test_sendrecv
+	@mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=ALL ./test_sendrecv
 
 run-allreduce:
 	@mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=ALL ./test_allreduce

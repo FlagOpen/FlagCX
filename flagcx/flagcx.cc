@@ -297,7 +297,9 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
     }
 
     // Init host cclAdaptor
+#ifdef FORCE_HOST_COMM
     cclAdaptors[flagcxCCLAdaptorHost]->commInitRank(&(*comm)->host_comm, nranks, commId, rank, state);
+#endif
     
     free(clusterInterRankData);
     free(uniqueIdData);
@@ -505,6 +507,19 @@ flagcxResult_t flagcxAllGather(const void* sendbuff, void* recvbuff, size_t send
     if (is_homo_comm()) {
         return cclAdaptors[flagcxCCLAdaptorDevice]->allGather(sendbuff, recvbuff, sendcount, datatype, comm->homo_comm, stream);
     } else {
+#ifdef FORCE_HOST_COMM
+        void *buff_in;
+        void *buff_out;
+        size_t size = sendcount * getFlagcxDataTypeSize(datatype);
+        size_t totalSize = comm->nranks * size;
+        deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
+        deviceAdaptor->deviceMalloc(&buff_out, totalSize, flagcxMemHost);
+        deviceAdaptor->deviceMemcpy(buff_in, const_cast<void*>(sendbuff), size, flagcxMemcpyDeviceToHost, NULL, NULL);
+        cclAdaptors[flagcxCCLAdaptorHost]->allGather(buff_in, buff_out, sendcount, datatype, comm->host_comm, NULL);
+        deviceAdaptor->deviceMemcpy(recvbuff, buff_out, totalSize, flagcxMemcpyHostToDevice, NULL, NULL);
+        deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
+        deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
+#else
         // intra-cluster gather
         int offset = 0;
         for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
@@ -530,6 +545,7 @@ flagcxResult_t flagcxAllGather(const void* sendbuff, void* recvbuff, size_t send
 
         // intra-cluster broadcast
         FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(recvbuff, recvbuff, sendcount * comm->nranks, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
+#endif
     }
     return flagcxSuccess;
 }
@@ -539,6 +555,18 @@ flagcxResult_t flagcxAlltoAll(const void* sendbuff, void* recvbuff, size_t count
     if (is_homo_comm()) {
         return cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(sendbuff, recvbuff, count, datatype, comm->homo_comm, stream);
     } else {
+#ifdef FORCE_HOST_COMM
+        void *buff_in;
+        void *buff_out;
+        size_t size = comm->nranks * count * getFlagcxDataTypeSize(datatype);
+        deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
+        deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost);
+        deviceAdaptor->deviceMemcpy(buff_in, const_cast<void*>(sendbuff), size, flagcxMemcpyDeviceToHost, NULL, NULL);
+        cclAdaptors[flagcxCCLAdaptorHost]->allGather(buff_in, buff_out, count, datatype, comm->host_comm, NULL);
+        deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size, flagcxMemcpyHostToDevice, NULL, NULL);
+        deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
+        deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
+#else
         int size = count * getFlagcxDataTypeSize(datatype);
         const char* buffer_in = static_cast<const char*>(sendbuff);
         char* buffer_out = static_cast<char*>(recvbuff);
@@ -560,6 +588,7 @@ flagcxResult_t flagcxAlltoAll(const void* sendbuff, void* recvbuff, size_t count
             }
         }
         flagcxGroupEnd();
+#endif
     }
     return flagcxSuccess;
 }
@@ -568,28 +597,63 @@ flagcxResult_t flagcxSend(const void* sendbuff, size_t count, flagcxDataType_t d
                           flagcxComm_t comm, flagcxStream_t stream) {
     if (is_homo_comm()) {
         return cclAdaptors[flagcxCCLAdaptorDevice]->send(sendbuff, count, datatype, peer, comm->homo_comm, stream);
+    } else {
+#ifdef FORCE_HOST_COMM
+        void *buff_in;
+        size_t size = count * getFlagcxDataTypeSize(datatype);
+        deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
+        deviceAdaptor->deviceMemcpy(buff_in, const_cast<void*>(sendbuff), size, flagcxMemcpyDeviceToHost, NULL, NULL);
+        cclAdaptors[flagcxCCLAdaptorHost]->send(buff_in, count, datatype, peer, comm->host_comm, NULL);
+        // buff_in will be freed in gloo adaptor send function
+        // deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
+#else
+        FLAGCXCHECK(flagcxHeteroSend(sendbuff, count, datatype, peer, comm->hetero_comm, stream));
+#endif
     }
-    return flagcxHeteroSend(sendbuff, count, datatype, peer, comm->hetero_comm, stream);
+    return flagcxSuccess;
 }
 
 flagcxResult_t flagcxRecv(void* recvbuff, size_t count, flagcxDataType_t datatype, int peer,
                           flagcxComm_t comm, flagcxStream_t stream) {
     if (is_homo_comm()) {
         return cclAdaptors[flagcxCCLAdaptorDevice]->recv(recvbuff, count, datatype, peer, comm->homo_comm, stream);
+    } else {
+#ifdef FORCE_HOST_COMM
+        void *buff_out;
+        size_t size = count * getFlagcxDataTypeSize(datatype);
+        deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost);
+        cclAdaptors[flagcxCCLAdaptorHost]->recv(buff_out, count, datatype, peer, comm->host_comm, NULL);
+        deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size, flagcxMemcpyHostToDevice, NULL, NULL);
+        deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
+#else
+        FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, peer, comm->hetero_comm, stream));
+#endif
     }
-    return flagcxHeteroRecv(recvbuff, count, datatype, peer, comm->hetero_comm, stream);
+    return flagcxSuccess;
 }
 
 flagcxResult_t flagcxGroupStart() {
     if (is_homo_comm()) {
         return cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
+    } else {
+#ifdef FORCE_HOST_COMM
+    cclAdaptors[flagcxCCLAdaptorHost]->groupStart();
+#else
+    FLAGCXCHECK(flagcxHeteroGroupStart());
+#endif
     }
-    return flagcxHeteroGroupStart();
+    return flagcxSuccess;
 }
 
 flagcxResult_t flagcxGroupEnd() {
     if (is_homo_comm()) {
         return cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
+    } else {
+#ifdef FORCE_HOST_COMM
+    cclAdaptors[flagcxCCLAdaptorHost]->groupEnd();
+#else
+    FLAGCXCHECK(flagcxHeteroGroupEnd());
+#endif
     }
-    return flagcxHeteroGroupEnd();
+    return flagcxSuccess;
 }
