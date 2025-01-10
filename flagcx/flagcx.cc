@@ -122,7 +122,7 @@ flagcxResult_t flagcxHandleFree(flagcxHandlerGroup_t handler) {
 flagcxResult_t flagcxGetVersion(int *version) {
     // TODO: check how to return flagcx version including flagcx core and flagcx adaptor
     if (is_homo_comm()) {
-        return cclAdaptor->getVersion(version);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->getVersion(version);
     }
     return flagcxHeteroGetVersion(version);
 }
@@ -147,14 +147,14 @@ flagcxResult_t flagcxGetUniqueId(flagcxUniqueId_t *uniqueId) {
 
 const char* flagcxGetErrorString(flagcxResult_t result) {
     if (is_homo_comm()) {
-        return cclAdaptor->getErrorString(result);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->getErrorString(result);
     }
     return "Not implemented.";
 }
 
 const char* flagcxGetLastError(flagcxComm_t comm) {
     if (is_homo_comm()) {
-        return cclAdaptor->getLastError(comm->homo_comm);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->getLastError(comm->homo_comm);
     }
     return "Not implemented.";
 }
@@ -176,6 +176,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
     (*comm)->magic = 0;
     (*comm)->abortFlag = 0;
     (*comm)->bootstrap = NULL;
+    (*comm)->host_comm = NULL;
     (*comm)->homo_comm = NULL;
     (*comm)->hetero_comm = NULL;
     (*comm)->cluster_ids = NULL;
@@ -265,7 +266,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
     // Reset commId and homo root rank calls underlying GetUniqueId function for initialization of homo communicator
     memset((void *)commId, 0, sizeof(*commId));
     if ((*comm)->homo_rank == 0) {
-        cclAdaptor->getUniqueId(&commId);
+        cclAdaptors[flagcxCCLAdaptorDevice]->getUniqueId(&commId);
     }
     flagcxUniqueId *uniqueIdData;
     FLAGCXCHECK(flagcxCalloc(&uniqueIdData, nranks));
@@ -277,7 +278,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
 
     memcpy((void *)commId, (void *)&uniqueIdData[(*comm)->homo_root_rank], sizeof(flagcxUniqueId));
     // call flagcxHomoComm commInitRank
-    FLAGCXCHECK(cclAdaptor->commInitRank(&(*comm)->homo_comm, (*comm)->homo_ranks, commId, (*comm)->homo_rank));
+    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->commInitRank(&(*comm)->homo_comm, (*comm)->homo_ranks, commId, (*comm)->homo_rank, NULL));
 
     // Reset commId and hetero root rank calls flagcxHeteroGetUniqueId
     if (!is_homo_comm()) {
@@ -294,6 +295,9 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
         // call flagcxHeteroCommInitRank
         FLAGCXCHECK(flagcxHeteroCommInitRank(&(*comm)->hetero_comm, nranks, *commId, rank));
     }
+
+    // Init host cclAdaptor
+    cclAdaptors[flagcxCCLAdaptorHost]->commInitRank(&(*comm)->host_comm, nranks, commId, rank, state);
     
     free(clusterInterRankData);
     free(uniqueIdData);
@@ -315,7 +319,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
 
 flagcxResult_t flagcxCommFinalize(flagcxComm_t comm) {
     if (is_homo_comm()) {
-        return cclAdaptor->commFinalize(comm->homo_comm);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->commFinalize(comm->homo_comm);
     }
     // TODO: to be implemented
     return flagcxNotSupported;
@@ -336,14 +340,14 @@ flagcxResult_t flagcxCommDestroy(flagcxComm_t comm) {
     }
 
     // Destroy homo comm
-    FLAGCXCHECK(cclAdaptor->commDestroy(comm->homo_comm));
+    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->commDestroy(comm->homo_comm));
 
     return flagcxSuccess;
 }
 
 flagcxResult_t flagcxCommAbort(flagcxComm_t comm) {
     if (is_homo_comm()) {
-        return cclAdaptor->commAbort(comm->homo_comm);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->commAbort(comm->homo_comm);
     }
     // TODO: to be implemented.
     return flagcxNotSupported;
@@ -351,7 +355,7 @@ flagcxResult_t flagcxCommAbort(flagcxComm_t comm) {
 
 flagcxResult_t flagcxCommResume(flagcxComm_t comm) {
     if (is_homo_comm()) {
-        return cclAdaptor->commResume(comm->homo_comm);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->commResume(comm->homo_comm);
     }
     // TODO: to be implemented.
     return flagcxNotSupported;
@@ -359,7 +363,7 @@ flagcxResult_t flagcxCommResume(flagcxComm_t comm) {
 
 flagcxResult_t flagcxCommSuspend(flagcxComm_t comm) {
     if (is_homo_comm()) {
-        return cclAdaptor->commSuspend(comm->homo_comm);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->commSuspend(comm->homo_comm);
     }
     // TODO: to be implemented.
     return flagcxNotSupported;
@@ -367,14 +371,14 @@ flagcxResult_t flagcxCommSuspend(flagcxComm_t comm) {
 
 flagcxResult_t flagcxCommCount(const flagcxComm_t comm, int* count) {
     if (is_homo_comm()) {
-        return cclAdaptor->commCount(comm->homo_comm, count);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->commCount(comm->homo_comm, count);
     }
     return flagcxHeteroCommCount(comm->hetero_comm, count);
 }
 
 flagcxResult_t flagcxCommGetDeviceNumber(const flagcxComm_t comm, int* device) {
     if (is_homo_comm()) {
-        return cclAdaptor->commGetDeviceNumber(comm->homo_comm, device);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->commGetDeviceNumber(comm->homo_comm, device);
     }
     // TODO: to be implemented.
     return flagcxNotSupported;
@@ -382,14 +386,14 @@ flagcxResult_t flagcxCommGetDeviceNumber(const flagcxComm_t comm, int* device) {
 
 flagcxResult_t flagcxCommUserRank(const flagcxComm_t comm, int* rank) {
     if (is_homo_comm()) {
-        return cclAdaptor->commUserRank(comm->homo_comm, rank);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->commUserRank(comm->homo_comm, rank);
     }
     return flagcxHeteroCommUserRank(comm->hetero_comm, rank);
 }
 
 flagcxResult_t flagcxCommGetAsyncError(flagcxComm_t comm, flagcxResult_t asyncError) {
     if (is_homo_comm()) {
-        return cclAdaptor->commGetAsyncError(comm->homo_comm, asyncError);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->commGetAsyncError(comm->homo_comm, asyncError);
     }
     // TODO: to be implemented.
     return flagcxNotSupported;
@@ -399,7 +403,7 @@ flagcxResult_t flagcxReduce(const void* sendbuff, void* recvbuff, size_t count,
                             flagcxDataType_t datatype, flagcxRedOp_t op, int root,
                             flagcxComm_t comm, flagcxStream_t stream) {
     if (is_homo_comm()) {
-        return cclAdaptor->reduce(sendbuff, recvbuff, count, datatype, op, root, comm->homo_comm, stream);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->reduce(sendbuff, recvbuff, count, datatype, op, root, comm->homo_comm, stream);
     }
     // TODO: to be implemented.
     return flagcxNotSupported;
@@ -409,7 +413,7 @@ flagcxResult_t flagcxGather(const void* sendbuff, void* recvbuff, size_t count,
                             flagcxDataType_t datatype, int root, flagcxComm_t comm,
                             flagcxStream_t stream) {
     if (is_homo_comm()) {
-        return cclAdaptor->gather(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->gather(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
     }
     // TODO: to be implemented.
     return flagcxNotSupported;
@@ -419,7 +423,7 @@ flagcxResult_t flagcxScatter(const void* sendbuff, void* recvbuff, size_t count,
                              flagcxDataType_t datatype, int root, flagcxComm_t comm,
                              flagcxStream_t stream) {
     if (is_homo_comm()) {
-        return cclAdaptor->scatter(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->scatter(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
     }
     // TODO: to be implemented.
     return flagcxNotSupported;
@@ -429,7 +433,7 @@ flagcxResult_t flagcxBroadcast(const void* sendbuff, void* recvbuff, size_t coun
                                flagcxDataType_t datatype, int root, flagcxComm_t comm,
                                flagcxStream_t stream) {
     if (is_homo_comm()) {
-        return cclAdaptor->broadcast(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
     }
     // TODO: to be implemented.
     return flagcxNotSupported;
@@ -439,10 +443,22 @@ flagcxResult_t flagcxAllReduce(const void* sendbuff, void* recvbuff, size_t coun
                                flagcxDataType_t datatype, flagcxRedOp_t op, flagcxComm_t comm,
                                flagcxStream_t stream) {
     if (is_homo_comm()) {
-        return cclAdaptor->allReduce(sendbuff, recvbuff, count, datatype, op, comm->homo_comm, stream);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(sendbuff, recvbuff, count, datatype, op, comm->homo_comm, stream);
     } else {
+#ifdef FORCE_HOST_COMM
+        void *buff_in;
+        void *buff_out;
+        size_t size = count * getFlagcxDataTypeSize(datatype);
+        deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
+        deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost);
+        deviceAdaptor->deviceMemcpy(buff_in, const_cast<void*>(sendbuff), size, flagcxMemcpyDeviceToHost, NULL, NULL);
+        cclAdaptors[flagcxCCLAdaptorHost]->allReduce(buff_in, buff_out, count, datatype, op, comm->host_comm, NULL);
+        deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size, flagcxMemcpyHostToDevice, NULL, NULL);
+        deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
+        deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
+#else
         // intra-cluster reduce
-        FLAGCXCHECK(cclAdaptor->reduce(sendbuff, recvbuff, count, datatype, op, comm->homo_inter_rank, comm->homo_comm, stream));
+        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(sendbuff, recvbuff, count, datatype, op, comm->homo_inter_rank, comm->homo_comm, stream));
 
         // inter-cluster sendrecv
         deviceAdaptor->streamSynchronize(stream);
@@ -468,7 +484,8 @@ flagcxResult_t flagcxAllReduce(const void* sendbuff, void* recvbuff, size_t coun
         flagcxGroupEnd();
 
         // intra-cluster allreduce
-        FLAGCXCHECK(cclAdaptor->allReduce(recvbuff, recvbuff, count, datatype, op, comm->homo_comm, stream));
+        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(recvbuff, recvbuff, count, datatype, op, comm->homo_comm, stream));
+#endif
     }
     return flagcxSuccess;
 }
@@ -477,7 +494,7 @@ flagcxResult_t flagcxReduceScatter(const void* sendbuff, void* recvbuff, size_t 
                                    flagcxDataType_t datatype, flagcxRedOp_t op, flagcxComm_t comm,
                                    flagcxStream_t stream) {
     if (is_homo_comm()) {
-        return cclAdaptor->reduceScatter(sendbuff, recvbuff, recvcount, datatype, op, comm->homo_comm, stream);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->reduceScatter(sendbuff, recvbuff, recvcount, datatype, op, comm->homo_comm, stream);
     }
     // TODO: to be implemented.
     return flagcxNotSupported;
@@ -486,14 +503,14 @@ flagcxResult_t flagcxReduceScatter(const void* sendbuff, void* recvbuff, size_t 
 flagcxResult_t flagcxAllGather(const void* sendbuff, void* recvbuff, size_t sendcount,
                                flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream) {
     if (is_homo_comm()) {
-        return cclAdaptor->allGather(sendbuff, recvbuff, sendcount, datatype, comm->homo_comm, stream);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->allGather(sendbuff, recvbuff, sendcount, datatype, comm->homo_comm, stream);
     } else {
         // intra-cluster gather
         int offset = 0;
         for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
             offset += comm->cluster_sizes[i];
         }
-        FLAGCXCHECK(cclAdaptor->gather(sendbuff, (void *)((char *)recvbuff + getFlagcxDataTypeSize(datatype) * offset * sendcount), sendcount, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
+        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(sendbuff, (void *)((char *)recvbuff + getFlagcxDataTypeSize(datatype) * offset * sendcount), sendcount, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
 
         // inter-cluster sendrecv
         if (comm->homo_inter_rank == comm->homo_rank) {
@@ -512,7 +529,7 @@ flagcxResult_t flagcxAllGather(const void* sendbuff, void* recvbuff, size_t send
         }
 
         // intra-cluster broadcast
-        FLAGCXCHECK(cclAdaptor->broadcast(recvbuff, recvbuff, sendcount * comm->nranks, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
+        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(recvbuff, recvbuff, sendcount * comm->nranks, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
     }
     return flagcxSuccess;
 }
@@ -520,7 +537,7 @@ flagcxResult_t flagcxAllGather(const void* sendbuff, void* recvbuff, size_t send
 flagcxResult_t flagcxAlltoAll(const void* sendbuff, void* recvbuff, size_t count,
                               flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream) {
     if (is_homo_comm()) {
-        return cclAdaptor->alltoAll(sendbuff, recvbuff, count, datatype, comm->homo_comm, stream);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(sendbuff, recvbuff, count, datatype, comm->homo_comm, stream);
     } else {
         int size = count * getFlagcxDataTypeSize(datatype);
         const char* buffer_in = static_cast<const char*>(sendbuff);
@@ -531,7 +548,7 @@ flagcxResult_t flagcxAlltoAll(const void* sendbuff, void* recvbuff, size_t count
         for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
             offset += comm->cluster_sizes[i];
         }
-        FLAGCXCHECK(cclAdaptor->alltoAll(static_cast<const void*>(buffer_in + offset * size), static_cast<void*>(buffer_out + offset * size), count, datatype, comm->homo_comm, stream))
+        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(static_cast<const void*>(buffer_in + offset * size), static_cast<void*>(buffer_out + offset * size), count, datatype, comm->homo_comm, stream))
 
         // inter-cluster sendrecv
         // TODO: use cluster_inter_rank to perform hetero sendrecv operation
@@ -550,7 +567,7 @@ flagcxResult_t flagcxAlltoAll(const void* sendbuff, void* recvbuff, size_t count
 flagcxResult_t flagcxSend(const void* sendbuff, size_t count, flagcxDataType_t datatype, int peer,
                           flagcxComm_t comm, flagcxStream_t stream) {
     if (is_homo_comm()) {
-        return cclAdaptor->send(sendbuff, count, datatype, peer, comm->homo_comm, stream);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->send(sendbuff, count, datatype, peer, comm->homo_comm, stream);
     }
     return flagcxHeteroSend(sendbuff, count, datatype, peer, comm->hetero_comm, stream);
 }
@@ -558,21 +575,21 @@ flagcxResult_t flagcxSend(const void* sendbuff, size_t count, flagcxDataType_t d
 flagcxResult_t flagcxRecv(void* recvbuff, size_t count, flagcxDataType_t datatype, int peer,
                           flagcxComm_t comm, flagcxStream_t stream) {
     if (is_homo_comm()) {
-        return cclAdaptor->recv(recvbuff, count, datatype, peer, comm->homo_comm, stream);
+        return cclAdaptors[flagcxCCLAdaptorDevice]->recv(recvbuff, count, datatype, peer, comm->homo_comm, stream);
     }
     return flagcxHeteroRecv(recvbuff, count, datatype, peer, comm->hetero_comm, stream);
 }
 
 flagcxResult_t flagcxGroupStart() {
     if (is_homo_comm()) {
-        return cclAdaptor->groupStart();
+        return cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
     }
     return flagcxHeteroGroupStart();
 }
 
 flagcxResult_t flagcxGroupEnd() {
     if (is_homo_comm()) {
-        return cclAdaptor->groupEnd();
+        return cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
     }
     return flagcxHeteroGroupEnd();
 }

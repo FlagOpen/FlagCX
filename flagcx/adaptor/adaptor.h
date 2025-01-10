@@ -6,12 +6,18 @@ extern "C" {
 #endif
 
 #include "flagcx.h"
+#include "bootstrap.h"
 #include "global_comm.h"
 
+#define NCCLADAPTORS 2
+#define flagcxCCLAdaptorHost  0
+#define flagcxCCLAdaptorDevice 1
+
+extern struct flagcxCCLAdaptor glooAdaptor;
 extern struct flagcxCCLAdaptor ncclAdaptor;
 extern struct flagcxCCLAdaptor ixncclAdaptor;
 extern struct flagcxCCLAdaptor cnclAdaptor;
-extern struct flagcxCCLAdaptor* cclAdaptor;
+extern struct flagcxCCLAdaptor* cclAdaptors[];
 
 extern struct flagcxDeviceAdaptor cudaAdaptor;
 extern struct flagcxDeviceAdaptor ixcudaAdaptor;
@@ -27,7 +33,7 @@ struct flagcxCCLAdaptor {
     const char* (*getLastError)(flagcxHomoComm_t comm);
 
     // Communicator functions
-    flagcxResult_t (*commInitRank)(flagcxHomoComm_t *comm, int nranks, flagcxUniqueId *commId, int rank);
+    flagcxResult_t (*commInitRank)(flagcxHomoComm_t *comm, int nranks, flagcxUniqueId *commId, int rank, bootstrapState *bootstrap);
     flagcxResult_t (*commFinalize)(flagcxHomoComm_t comm);
     flagcxResult_t (*commDestroy)(flagcxHomoComm_t comm);
     flagcxResult_t (*commAbort)(flagcxHomoComm_t comm);

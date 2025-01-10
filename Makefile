@@ -4,10 +4,12 @@ BUILDDIR ?= $(abspath ./build)
 USE_NVIDIA ?= 0
 USE_ILUVATAR_COREX ?= 0
 USE_CAMBRICON ?= 0
+USE_GLOO ?= 0
 
 # set to empty if not provided
 DEVICE_HOME ?=
 CCL_HOME ?=
+HOST_CCL_HOME ?=
 
 ifeq ($(strip $(DEVICE_HOME)),)
 	ifeq ($(USE_NVIDIA), 1)
@@ -33,13 +35,25 @@ ifeq ($(strip $(CCL_HOME)),)
 	endif
 endif
 
+ifeq ($(strip $(HOST_CCL_HOME)),)
+	ifeq ($(USE_GLOO), 1)
+		HOST_CCL_HOME = /usr/local
+	else
+		HOST_CCL_HOME = 
+	endif
+endif
+
 DEVICE_LIB =
 DEVICE_INCLUDE =
 DEVICE_LINK =
 CCL_LIB =
 CCL_INCLUDE =
 CCL_LINK =
+HOST_CCL_LIB = 
+HOST_CCL_INCLUDE =
+HOST_CCL_LINK =
 ADAPTOR_FLAG =
+HOST_CCL_ADAPTOR_FLAG =
 ifeq ($(USE_NVIDIA), 1)
 	DEVICE_LIB = $(DEVICE_HOME)/lib64
 	DEVICE_INCLUDE = $(DEVICE_HOME)/include
@@ -74,6 +88,13 @@ else
 	ADAPTOR_FLAG = -DUSE_NVIDIA_ADAPTOR
 endif
 
+ifeq ($(USE_GLOO), 1)
+	HOST_CCL_LIB = $(HOST_CCL_HOME)/lib
+	HOST_CCL_INCLUDE = $(HOST_CCL_HOME)/include
+	HOST_CCL_LINK = -lgloo
+	HOST_CCL_ADAPTOR_FLAG = -DUSE_GLOO_ADAPTOR
+endif
+
 LIBDIR := $(BUILDDIR)/lib
 OBJDIR := $(BUILDDIR)/obj
 
@@ -97,24 +118,29 @@ all: $(LIBDIR)/$(TARGET)
 print_var:
 	@echo "DEVICE_HOME: $(DEVICE_HOME)"
 	@echo "CCL_HOME: $(CCL_HOME)"
+	@echo "HOST_CCL_HOME: $(HOST_CCL_HOME)"
 	@echo "USE_NVIDIA: $(USE_NVIDIA)"
 	@echo "USE_ILUVATAR_COREX: $(USE_ILUVATAR_COREX)"
 	@echo "USE_CAMBRICON: $(USE_CAMBRICON)"
+	@echo "USE_GLOO: $(USE_GLOO)"
 	@echo "DEVICE_LIB: $(DEVICE_LIB)"
 	@echo "DEVICE_INCLUDE: $(DEVICE_INCLUDE)"
 	@echo "CCL_LIB: $(CCL_LIB)"
 	@echo "CCL_INCLUDE: $(CCL_INCLUDE)"
+	@echo "HOST_CCL_LIB: $(HOST_CCL_LIB)"
+	@echo "HOST_CCL_INCLUDE: $(HOST_CCL_INCLUDE)"
 	@echo "ADAPTOR_FLAG: $(ADAPTOR_FLAG)"
+	@echo "HOST_CCL_ADAPTOR_FLAG: $(HOST_CCL_ADAPTOR_FLAG)"
 
 $(LIBDIR)/$(TARGET): $(LIBOBJ)
 	@mkdir -p `dirname $@`
 	@echo "Linking   $@"
-	@g++ $(LIBOBJ) -o $@ -L$(CCL_LIB) -L$(DEVICE_LIB) -shared -fvisibility=default -Wl,--no-as-needed -Wl,-rpath,$(LIBDIR) -Wl,-rpath,$(CCL_LIB) -lpthread -lrt -ldl $(CCL_LINK) $(DEVICE_LINK) -g
+	@g++ $(LIBOBJ) -o $@ -L$(CCL_LIB) -L$(DEVICE_LIB) -L$(HOST_CCL_LIB) -shared -fvisibility=default -Wl,--no-as-needed -Wl,-rpath,$(LIBDIR) -Wl,-rpath,$(CCL_LIB) -Wl,-rpath,$(HOST_CCL_LIB) -lpthread -lrt -ldl $(CCL_LINK) $(DEVICE_LINK) $(HOST_CCL_LINK) -g
 
 $(OBJDIR)/%.o: %.cc
 	@mkdir -p `dirname $@`
 	@echo "Compiling $@"
-	@g++ $< -o $@ $(foreach dir,$(INCLUDEDIR),-I$(dir)) -I$(CCL_INCLUDE) -I$(DEVICE_INCLUDE) $(ADAPTOR_FLAG) -c -fPIC -fvisibility=default -Wvla -Wno-unused-function -Wno-sign-compare -Wall -MMD -MP -g
+	@g++ $< -o $@ $(foreach dir,$(INCLUDEDIR),-I$(dir)) -I$(CCL_INCLUDE) -I$(DEVICE_INCLUDE) -I$(HOST_CCL_INCLUDE) $(ADAPTOR_FLAG) $(HOST_CCL_ADAPTOR_FLAG) -c -fPIC -fvisibility=default -Wvla -Wno-unused-function -Wno-sign-compare -Wall -MMD -MP -g
 
 -include $(LIBOBJ:.o=.d)
 
