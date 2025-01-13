@@ -32,6 +32,7 @@ struct flagcxComm {
     int *cluster_inter_ranks;
     int *globalrank2homorank;
     bootstrapState* bootstrap;
+    flagcxHomoComm_t host_comm;
     flagcxHomoComm_t homo_comm;
     flagcxHeteroComm_t hetero_comm;
 };

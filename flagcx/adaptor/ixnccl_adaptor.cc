@@ -21,7 +21,7 @@ const char* ixncclAdaptorGetLastError(flagcxHomoComm_t comm) {
     return ncclGetLastError(comm->base);
 }
 
-flagcxResult_t ixncclAdaptorCommInitRank(flagcxHomoComm_t *comm, int nranks, flagcxUniqueId_t commId, int rank) {
+flagcxResult_t ixncclAdaptorCommInitRank(flagcxHomoComm_t *comm, int nranks, flagcxUniqueId_t commId, int rank, bootstrapState */*bootstrap*/) {
     if (*comm == NULL) {
         flagcxCalloc(comm, 1);
     }

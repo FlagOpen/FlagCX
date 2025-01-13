@@ -69,8 +69,8 @@ int main(int argc, char *argv[]){
 
         for(int i=0;i<num_warmup_iters;i++){
             flagcxGroupStart();
-            flagcxRecv(recvbuff, count, DATATYPE, recvPeer, comm, stream);
             flagcxSend(sendbuff, count, DATATYPE, sendPeer, comm, stream);
+            flagcxRecv(recvbuff, count, DATATYPE, recvPeer, comm, stream);
             flagcxGroupEnd();
         }
         devHandle->streamSynchronize(stream);

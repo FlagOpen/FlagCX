@@ -54,7 +54,7 @@ const char* cnclAdaptorGetLastError(flagcxHomoComm_t comm) {
     return "Not Implemented";
 }
 
-flagcxResult_t cnclAdaptorCommInitRank(flagcxHomoComm_t *comm, int nranks, flagcxUniqueId_t commId, int rank) {
+flagcxResult_t cnclAdaptorCommInitRank(flagcxHomoComm_t *comm, int nranks, flagcxUniqueId_t commId, int rank, bootstrapState */*bootstrap*/) {
     if (*comm == NULL) {
         flagcxCalloc(comm, 1);
     }
