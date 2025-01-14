@@ -441,17 +441,6 @@ flagcxResult_t flagcxBroadcast(const void* sendbuff, void* recvbuff, size_t coun
     return flagcxNotSupported;
 }
 
-struct HostRunArgs {
-    volatile bool started = false; // outside world will start iff started == true
-    volatile bool finished = false; // outside world notify the completion by setting finished = true;
-};
-
-void HostRunFunc(void *_args) {
-    struct HostRunArgs *args = (struct HostRunArgs *) _args;
-    __atomic_store_n(&args->started, 1, __ATOMIC_RELAXED);
-    while(!__atomic_load_n(&args->finished, __ATOMIC_RELAXED));
-}
-
 #define TIMER_COLL_TOTAL    0
 #define TIMER_COLL_MEM_D2H  1
 #define TIMER_COLL_MEM_H2D  2
@@ -478,11 +467,8 @@ flagcxResult_t flagcxAllReduceBootstrap(const void* sendbuff, void* recvbuff, si
   char *sbuff = nullptr;
   FLAGCXCHECK(flagcxCalloc(&sbuff, databytes));
   wrapper_deviceMemcpy(sbuff, const_cast<void *>(sendbuff), databytes, flagcxMemcpyDeviceToHost, stream);
-  // step 2: launch Host Function into that stream.
-  HostRunArgs args;
-  deviceAdaptor->launchHostFunc(stream, HostRunFunc, &args);
-  // wait until memcpy done.
-  while(!__atomic_load_n(&args.started, __ATOMIC_RELAXED));
+  // step 2: wait until memcpy done.
+  deviceAdaptor->streamSynchronize(stream);
   timers[TIMER_COLL_MEM_D2H] = clockNano() - timers[TIMER_COLL_MEM_D2H];
 
   // step 3: start the allreduce primitive via bootstrap
@@ -490,8 +476,6 @@ flagcxResult_t flagcxAllReduceBootstrap(const void* sendbuff, void* recvbuff, si
   timers[TIMER_COLL_COMM] = clockNano();
   flagcxResult_t res = bootstrapAllReduce(comm->bootstrap, (void *)sbuff, (void *)sbuff, count, datatype, op);
   timers[TIMER_COLL_COMM] = clockNano() - timers[TIMER_COLL_COMM];
-  // signal the HostFunction that the AllReduce primitive is done.
-  __atomic_store_n(&args.finished, 1, __ATOMIC_RELAXED);
 
   // step 4: copy data back to GPU memory
   timers[TIMER_COLL_MEM_H2D] = clockNano();
