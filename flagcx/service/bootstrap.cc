@@ -14,6 +14,14 @@
 #include "param.h"
 #include "comm.h"
 
+// time recorder
+#define TIMER_COLL_TOTAL  0
+#define TIMER_COLL_CALC   1
+#define TIMER_COLL_COMM   2
+#define TIMER_COLL_MEM    3
+#define TIMER_COLL_ALLOC  4
+#define TIMERS_COLL_COUNT 5
+
 struct bootstrapRootArgs {
   struct flagcxSocket* listenSock;
   uint64_t magic;
@@ -432,6 +440,32 @@ flagcxResult_t bootstrapRingAllGather(struct flagcxSocket* prevSocket, struct fl
   return flagcxSuccess;
 }
 
+// Another Version of RingAllGather
+// The data bytes gather from multiple ranks are uneven.
+flagcxResult_t bootstrapRingAllGatherV2(struct flagcxSocket* prevSocket, struct flagcxSocket* nextSocket, int rank, int nranks,
+                                        char* data, size_t* offset, size_t* length) {
+  /* Simple ring based AllGather
+   * At each step i receive data from (rank-i-1) from prev
+   * and send previous step's data from (rank-i) to next
+   */
+  uint64_t timers[TIMERS_COLL_COUNT] = {0};
+  timers[TIMER_COLL_TOTAL] = clockNano();
+
+  for (int i=0; i<nranks-1; i++) {
+    size_t rslice = (rank - i - 1 + nranks) % nranks;
+    size_t sslice = (rank - i + nranks) % nranks;
+
+    // Send slice to the right, recv slice from the left
+    FLAGCXCHECK(bootstrapNetSendRecv(nextSocket, (void *)(data + offset[sslice]), length[sslice],
+                                     prevSocket, (void *)(data + offset[rslice]), length[rslice]));
+  }
+  timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
+  INFO(FLAGCX_COLL,
+       "COLL timings - %s: rank %d nranks %d total %.2fms.",
+       "BootstrapRingAllGatherV2", rank, nranks, timers[TIMER_COLL_TOTAL] / 1e6);
+  return flagcxSuccess;
+
+}
 flagcxResult_t bootstrapAllGather(void* commState, void* allData, int size) {
   struct bootstrapState* state = (struct bootstrapState*)commState;
   int rank = state->rank;
@@ -442,6 +476,232 @@ flagcxResult_t bootstrapAllGather(void* commState, void* allData, int size) {
   FLAGCXCHECK(bootstrapRingAllGather(&state->ringRecvSocket, &state->ringSendSocket, rank, nranks, (char*)allData, size));
 
   TRACE(FLAGCX_INIT, "rank %d nranks %d size %d - DONE", rank, nranks, size);
+  return flagcxSuccess;
+}
+
+#define GENERATE_ALL_TYPES(type, func, args...)  \
+  switch (type) {                                \
+    case flagcxInt8:                             \
+      func<char>(args);                          \
+      break;                                     \
+    case flagcxUint8:                            \
+      func<unsigned char>(args);                 \
+      break;                                     \
+    case flagcxInt32:                            \
+      func<int32_t>(args);                       \
+      break;                                     \
+    case flagcxUint32:                           \
+      func<uint32_t>(args);                      \
+      break;                                     \
+    case flagcxInt64:                            \
+      func<int64_t>(args);                       \
+      break;                                     \
+    case flagcxUint64:                           \
+      func<uint64_t>(args);                      \
+      break;                                     \
+    case flagcxFloat:                            \
+      func<float>(args);                         \
+      break;                                     \
+    case flagcxFloat64:                          \
+      func<double>(args);                        \
+      break;                                     \
+    case flagcxFloat16:                          \
+    case flagcxBfloat16:                         \
+    default:                                     \
+      WARN("Unsupported data type %d", type);    \
+      return flagcxInvalidArgument;              \
+  }
+
+template <typename T>
+void sum(void* res, const void* op1, const void* op2, size_t n) {
+  const T* a = static_cast<const T*>(op1);
+  const T* b = static_cast<const T*>(op2);
+  T* c = static_cast<T*>(res);
+  for (auto i = 0; i < n; i++) {
+    c[i] = a[i] + b[i];
+  }
+}
+
+template <typename T>
+void min(void* res, const void* op1, const void* op2, size_t n) {
+  const T* a = static_cast<const T*>(op1);
+  const T* b = static_cast<const T*>(op2);
+  T* c = static_cast<T*>(res);
+  for (auto i = 0; i < n; i++) {
+    c[i] = std::min(a[i], b[i]);
+  }
+}
+
+template <typename T>
+void max(void* res, const void* op1, const void* op2, size_t n) {
+  const T* a = static_cast<const T*>(op1);
+  const T* b = static_cast<const T*>(op2);
+  T* c = static_cast<T*>(res);
+  for (auto i = 0; i < n; i++) {
+    c[i] = std::max(a[i], b[i]);
+  }
+}
+
+flagcxResult_t bootstrapRingReduceScatter(struct flagcxSocket* prevSocket, struct flagcxSocket* nextSocket, int rank, int nranks,
+                                         const char* sendbuff, char* recvbuff, size_t* offset, size_t* length,
+                                         flagcxDataType_t datatype, flagcxRedOp_t op) {
+  uint64_t timers[TIMERS_COLL_COUNT] = {0};
+  timers[TIMER_COLL_TOTAL] = clockNano();
+
+  // Allocate two temporary buffer with size length[0] to ensure that it can fill any chunk size.
+  timers[TIMER_COLL_ALLOC] = clockNano();
+  size_t subSize = length[0];
+  char *data_for_send = nullptr;
+  FLAGCXCHECK(flagcxCalloc(&data_for_send, subSize));
+  char *data_for_recv = nullptr;
+  FLAGCXCHECK(flagcxCalloc(&data_for_recv, subSize));
+  timers[TIMER_COLL_ALLOC] = clockNano() - timers[TIMER_COLL_ALLOC];
+
+  uint64_t start = 0;
+  uint64_t end = 0;
+  // for iteration 0 -> n-1
+  for (int iter = 0; iter < nranks; ++iter) {
+    // for each iteration ${iter}
+    // 1. rank ${rank} should send data of chunk $(send_chunk_no) to next rank
+    // 2. rank ${rank} should recv data of chunk $(recv_chunk_no) from prev rank
+    int send_chunk_no = (rank + 2 * nranks - iter - 1) % nranks;
+    int recv_chunk_no = (rank + 2 * nranks - iter - 2) % nranks;
+    bool needSend = length[send_chunk_no] != 0;
+    bool needRecv = length[recv_chunk_no] != 0;
+
+    INFO(FLAGCX_COLL, "rank %d nranks %d; iter=%d; send_chunk_no=%d; send_chunk_size=%lu; needSend=%d; "
+	              "recv_chunk_no=%d; recv_chunk_size=%lu; needRecv=%d",
+	 rank, nranks, iter, send_chunk_no, length[send_chunk_no], needSend, recv_chunk_no, length[recv_chunk_no], needRecv);
+    if (!needSend && !needRecv) {
+      continue;
+    }
+
+    // step 1: prepare send data if needed
+    if (needSend) {
+      start = clockNano();
+      if (iter == 0) {
+        memcpy(data_for_send, sendbuff + offset[send_chunk_no], length[send_chunk_no]);
+      } else {
+        memcpy(data_for_send, recvbuff + offset[send_chunk_no], length[send_chunk_no]);
+      }
+      end = clockNano();
+      timers[TIMER_COLL_MEM] += end - start;
+    }
+
+    // step 2: exchange data using Send/Recv
+    start = clockNano();
+    if (needSend && needRecv) {
+      FLAGCXCHECK(bootstrapNetSendRecv(nextSocket, (void *)data_for_send, length[send_chunk_no],
+                                       prevSocket, (void *)data_for_recv, length[recv_chunk_no]));
+    } else if (needSend) {
+      FLAGCXCHECK(bootstrapNetSend(nextSocket, (void *)data_for_send, length[send_chunk_no]));
+    } else if (needRecv) {
+      FLAGCXCHECK(bootstrapNetRecv(prevSocket, (void *)data_for_recv, length[recv_chunk_no]));
+    }
+    end = clockNano();
+    timers[TIMER_COLL_COMM] += end - start;
+
+    // step3 : local reduction for data_for_recv & chunk ${recv_chunk_no} if recv something
+    if (!needRecv) {
+      continue;
+    }
+    start = clockNano();
+    switch(op) {
+      case flagcxSum:
+        GENERATE_ALL_TYPES(datatype, sum, recvbuff + offset[recv_chunk_no],
+                          recvbuff + offset[recv_chunk_no], data_for_recv,
+                          length[recv_chunk_no]/getFlagcxDataTypeSize(datatype));
+        break;
+      case flagcxMax:
+        GENERATE_ALL_TYPES(datatype, max, recvbuff + offset[recv_chunk_no],
+                          recvbuff + offset[recv_chunk_no], data_for_recv,
+                          length[recv_chunk_no]/getFlagcxDataTypeSize(datatype));
+        break;
+      case flagcxMin:
+        GENERATE_ALL_TYPES(datatype, min, recvbuff + offset[recv_chunk_no],
+                          recvbuff + offset[recv_chunk_no], data_for_recv,
+                          length[recv_chunk_no]/getFlagcxDataTypeSize(datatype));
+        break;
+      default:
+          WARN("Unsupported reduction operation %d", op);
+          return flagcxInvalidArgument;
+      }
+      end = clockNano();
+      timers[TIMER_COLL_CALC] += end - start;
+  }
+  timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
+  INFO(FLAGCX_COLL,
+       "COLL timings - %s: rank %d nranks %d total %.2fms (calc %.2fms, mem_alloc %.2fms, memory %.2fms, comm %.2fms)",
+       "BootstrapRingReduceScatter", rank, nranks,
+       timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_CALC] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6, timers[TIMER_COLL_MEM] / 1e6,
+       timers[TIMER_COLL_COMM] / 1e6);
+  return flagcxSuccess;
+}
+
+
+const size_t MIN_CHUNK_SIZE = 1024 * 1024 * 4; // 4MB
+
+size_t roundUp(size_t value, size_t multiple) {
+  size_t remainder = value % multiple;
+  if (remainder == 0) {
+    return value;
+  }
+  return value + multiple - remainder;
+}
+
+flagcxResult_t bootstrapRingAllReduce(struct flagcxSocket* prevSocket, struct flagcxSocket* nextSocket, int rank, int nranks,
+                                      const char* sendbuff, char* recvbuff, size_t count, flagcxDataType_t datatype, flagcxRedOp_t op) {
+
+  // The ring algorithm works as follows.
+  //
+  // The given input is split into a number of chunks equal to the
+  // number of processes. Once the reducescatter has finished, every
+  // process hosts one chunk of reduced output, in sequential order
+  // (rank 0 has chunk 0, rank 1 has chunk 1, etc.). As the input may
+  // not be divisible by the number of processes, the chunk on the
+  // final ranks may have partial output or may be empty.
+  //
+
+  size_t size = count * getFlagcxDataTypeSize(datatype);
+  size_t ChunkBytes = std::max((size+nranks-1)/nranks, MIN_CHUNK_SIZE);
+  // Ensure that min chunk size is a multiple of the element size.
+  ChunkBytes = roundUp(ChunkBytes, getFlagcxDataTypeSize(datatype));
+  INFO(FLAGCX_COLL, "rank %d nranks %d; size=%lu; typesize=%lu; ChunkBytes=%lu", rank, nranks, size, getFlagcxDataTypeSize(datatype), ChunkBytes);
+
+  // step 1: split the data and prepare offset and length array
+  size_t offset[nranks] = {0};
+  size_t length[nranks] = {0};
+  for (size_t i = 0; i < nranks; ++i) {
+    if (ChunkBytes * i >= size) {
+      offset[i] = size;
+      length[i] = 0;
+    }
+    offset[i] = ChunkBytes * i;
+    length[i] = ChunkBytes * (i + 1) >= size ? size - ChunkBytes * i : ChunkBytes;
+  }
+
+  // step 2: reduce scatter
+  FLAGCXCHECK(bootstrapRingReduceScatter(prevSocket, nextSocket, rank, nranks, sendbuff, recvbuff, offset, length, datatype, op));
+
+  // step 3: all gather
+  FLAGCXCHECK(bootstrapRingAllGatherV2(prevSocket, nextSocket, rank, nranks, recvbuff, offset, length));
+  return flagcxSuccess;
+}
+
+flagcxResult_t bootstrapAllReduce(void* commState, const void* sendbuff, void* recvbuff, size_t count,
+                                  flagcxDataType_t datatype, flagcxRedOp_t op) {
+  struct bootstrapState* state = (struct bootstrapState*)commState;
+  int rank = state->rank;
+  int nranks = state->nranks;
+  if (nranks == 1) {
+    if (sendbuff != recvbuff) {
+      memcpy(recvbuff, sendbuff, count * getFlagcxDataTypeSize(datatype));
+    }
+    return flagcxSuccess;
+  }
+  FLAGCXCHECK(bootstrapRingAllReduce(&state->ringRecvSocket, &state->ringSendSocket, rank, nranks,
+                                    (char*)sendbuff, (char*)recvbuff, count, datatype, op));
+
   return flagcxSuccess;
 }
 

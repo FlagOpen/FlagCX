@@ -38,6 +38,8 @@ flagcxResult_t bootstrapCreateRoot(struct flagcxBootstrapHandle* handle, bool id
 flagcxResult_t bootstrapGetUniqueId(struct flagcxBootstrapHandle* handle);
 flagcxResult_t bootstrapInit(struct flagcxBootstrapHandle* handle, void* commState);
 flagcxResult_t bootstrapAllGather(void* commState, void* allData, int size);
+flagcxResult_t bootstrapAllReduce(void* commState, const void* sendbuff, void* recvbuff, size_t count,
+                                 flagcxDataType_t datatype, flagcxRedOp_t op);
 flagcxResult_t bootstrapSend(void* commState, int peer, int tag, void* data, int size);
 flagcxResult_t bootstrapRecv(void* commState, int peer, int tag, void* data, int size);
 flagcxResult_t bootstrapBarrier(void* commState, int rank, int nranks, int tag);

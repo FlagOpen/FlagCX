@@ -78,7 +78,7 @@ parser::parser(int argc, char **argv) {
     {"stepfactor", required_argument, 0, 'f'},
     {"warmup_iters", required_argument, 0, 'w'},
     {"iters", required_argument, 0, 'n'},
-    {"print_buffer", required_argument, 0, 'n'},
+    {"print_buffer", required_argument, 0, 'p'},
     // {"op", required_argument, 0, 'o'},
     // {"datatype", required_argument, 0, 'd'},
     {"help", no_argument, 0, 'h'},
