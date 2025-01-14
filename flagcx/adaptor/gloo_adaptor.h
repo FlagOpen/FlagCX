@@ -15,6 +15,7 @@
 #include <gloo/transport/device.h>
 #include <gloo/transport/context.h>
 #include <gloo/transport/tcp/device.h>
+#include <gloo/transport/ibverbs/device.h>
 #include <gloo/allgather.h>
 #include <gloo/allgatherv.h>
 #include <gloo/allreduce.h>
@@ -200,22 +201,17 @@ public:
             transportContext->getPair(i)->connect(address);
         }
 
-        // printf("rank = %d, wait before bootstrap allgather\n", rank_);
         device_ = dev;
         transportContext_ = std::move(transportContext);
     }
     
 public:
     bootstrapState *bootstrap_;
-    const uint64_t tag = 0x1337;
 };
 
 struct flagcxHomoComm
 {
     std::shared_ptr<flagcxGlooContext> base;
-    // std::shared_ptr<::gloo::rendezvous::Context> base;
-    // std::shared_ptr<::gloo::rendezvous::Store> store;
-    // std::shared_ptr<::gloo::transport::Device> device;
 };
 
 #endif // USE_GLOO_ADAPTOR

@@ -26,16 +26,24 @@ flagcxResult_t glooAdaptorCommInitRank(flagcxHomoComm_t *comm, int nranks, flagc
     if (*comm == NULL) {
         FLAGCXCHECK(flagcxCalloc(comm, 1));
     }
-    // Create gloo transport device
-    char line[1024];
-    FLAGCXCHECK(getHostName(line, 1024, '.'));
-    std::string hostname(line);
-    ::gloo::transport::tcp::attr attr;
-    attr.hostname = hostname;
     // Create gloo context
     (*comm)->base = std::make_shared<flagcxGlooContext>(rank, nranks, bootstrap);
-    // Create gloo device
-    auto dev = ::gloo::transport::tcp::CreateDevice(attr);
+    // Create gloo transport device
+    std::shared_ptr<::gloo::transport::Device> dev;
+    try {
+        // Firstly, try ibverbs
+        ::gloo::transport::ibverbs::attr attr;
+        dev = ::gloo::transport::ibverbs::CreateDevice(attr);
+    } catch (const std::exception& e) {
+        std::cout << "Caught an exception during the creation of ibverbs transport device: " << e.what() << ". Try tcp transport device alternatively." << std::endl;
+        // Alternatively, try tcp
+        char line[1024];
+        FLAGCXCHECK(getHostName(line, 1024, '.'));
+        std::string hostname(line);
+        ::gloo::transport::tcp::attr attr;
+        attr.hostname = hostname;
+        dev = ::gloo::transport::tcp::CreateDevice(attr);
+    }
     (*comm)->base->connectFullMesh(dev);
     return flagcxSuccess;
 }
