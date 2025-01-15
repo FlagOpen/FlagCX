@@ -586,4 +586,66 @@ T* flagcxIntruQueueMpscAbandon(flagcxIntruQueueMpsc<T,next>* me) {
   }
 }
 
+#define GENERATE_ALL_TYPES(type, func, args...)  \
+  switch (type) {                                \
+    case flagcxInt8:                             \
+      func<char>(args);                          \
+      break;                                     \
+    case flagcxUint8:                            \
+      func<unsigned char>(args);                 \
+      break;                                     \
+    case flagcxInt32:                            \
+      func<int32_t>(args);                       \
+      break;                                     \
+    case flagcxUint32:                           \
+      func<uint32_t>(args);                      \
+      break;                                     \
+    case flagcxInt64:                            \
+      func<int64_t>(args);                       \
+      break;                                     \
+    case flagcxUint64:                           \
+      func<uint64_t>(args);                      \
+      break;                                     \
+    case flagcxFloat:                            \
+      func<float>(args);                         \
+      break;                                     \
+    case flagcxFloat64:                          \
+      func<double>(args);                        \
+      break;                                     \
+    case flagcxFloat16:                          \
+    case flagcxBfloat16:                         \
+    default:                                     \
+      WARN("Unsupported data type %d", type);    \
+      return flagcxInvalidArgument;              \
+  }
+
+template <typename T>
+void sum(void* res, const void* op1, const void* op2, size_t n) {
+  const T* a = static_cast<const T*>(op1);
+  const T* b = static_cast<const T*>(op2);
+  T* c = static_cast<T*>(res);
+  for (auto i = 0; i < n; i++) {
+    c[i] = a[i] + b[i];
+  }
+}
+
+template <typename T>
+void min(void* res, const void* op1, const void* op2, size_t n) {
+  const T* a = static_cast<const T*>(op1);
+  const T* b = static_cast<const T*>(op2);
+  T* c = static_cast<T*>(res);
+  for (auto i = 0; i < n; i++) {
+    c[i] = std::min(a[i], b[i]);
+  }
+}
+
+template <typename T>
+void max(void* res, const void* op1, const void* op2, size_t n) {
+  const T* a = static_cast<const T*>(op1);
+  const T* b = static_cast<const T*>(op2);
+  T* c = static_cast<T*>(res);
+  for (auto i = 0; i < n; i++) {
+    c[i] = std::max(a[i], b[i]);
+  }
+}
 #endif

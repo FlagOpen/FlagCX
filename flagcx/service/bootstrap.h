@@ -38,6 +38,14 @@ flagcxResult_t bootstrapCreateRoot(struct flagcxBootstrapHandle* handle, bool id
 flagcxResult_t bootstrapGetUniqueId(struct flagcxBootstrapHandle* handle);
 flagcxResult_t bootstrapInit(struct flagcxBootstrapHandle* handle, void* commState);
 flagcxResult_t bootstrapAllGather(void* commState, void* allData, int size);
+/*
+ * All-Reduce
+ *
+ * Reduces data arrays of length count(NOT bytes size) in sendbuff using op operation, and
+ * leaves identical copies of result on each recvbuff.
+ *
+ * In-place operation will happen if sendbuff == recvbuff.
+ */
 flagcxResult_t bootstrapAllReduce(void* commState, const void* sendbuff, void* recvbuff, size_t count,
                                  flagcxDataType_t datatype, flagcxRedOp_t op);
 flagcxResult_t bootstrapSend(void* commState, int peer, int tag, void* data, int size);
