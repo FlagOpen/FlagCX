@@ -38,16 +38,7 @@ flagcxResult_t bootstrapCreateRoot(struct flagcxBootstrapHandle* handle, bool id
 flagcxResult_t bootstrapGetUniqueId(struct flagcxBootstrapHandle* handle);
 flagcxResult_t bootstrapInit(struct flagcxBootstrapHandle* handle, void* commState);
 flagcxResult_t bootstrapAllGather(void* commState, void* allData, int size);
-/*
- * All-Reduce
- *
- * Reduces data arrays of length count(NOT bytes size) in sendbuff using op operation, and
- * leaves identical copies of result on each recvbuff.
- *
- * In-place operation will happen if sendbuff == recvbuff.
- */
-flagcxResult_t bootstrapAllReduce(void* commState, const void* sendbuff, void* recvbuff, size_t count,
-                                 flagcxDataType_t datatype, flagcxRedOp_t op);
+
 flagcxResult_t bootstrapSend(void* commState, int peer, int tag, void* data, int size);
 flagcxResult_t bootstrapRecv(void* commState, int peer, int tag, void* data, int size);
 flagcxResult_t bootstrapBarrier(void* commState, int rank, int nranks, int tag);
@@ -56,6 +47,30 @@ flagcxResult_t bootstrapIntraNodeBarrier(void* commState, int *ranks, int rank, 
 flagcxResult_t bootstrapIntraNodeBroadcast(void* commState, int *ranks, int rank, int nranks, int root, void* bcastData, int size);
 flagcxResult_t bootstrapClose(void* commState);
 flagcxResult_t bootstrapAbort(void* commState);
+
+/* A bunch of collective communication operators */
+/*
+ * All-Gather
+ *
+ * Each device gathers sendcount values from other GPUs into recvbuff,
+ * receiving data from rank i at offset i*sendcount.
+ * Assumes recvcount is equal to nranks*sendcount, which means that recvbuff
+ * should have a size of at least nranks*sendcount elements.
+ *
+ * In-place operations will happen if sendbuff == recvbuff + rank * sendcount.
+ */
+flagcxResult_t AllGatherBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t sendcount,
+                                  flagcxDataType_t datatype);
+/*
+ * All-Reduce
+ *
+ * Reduces data arrays of length count(NOT bytes size) in sendbuff using op operation, and
+ * leaves identical copies of result on each recvbuff.
+ *
+ * In-place operation will happen if sendbuff == recvbuff.
+ */
+flagcxResult_t AllReduceBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t count,
+                                 flagcxDataType_t datatype, flagcxRedOp_t op);
 
 #ifdef __cplusplus
 } // end extern "C"

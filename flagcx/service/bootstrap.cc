@@ -471,6 +471,16 @@ flagcxResult_t bootstrapAllGather(void* commState, void* allData, int size) {
   return flagcxSuccess;
 }
 
+flagcxResult_t AllGatherBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t sendcount,
+                                    flagcxDataType_t datatype) {
+  struct bootstrapState* state = (struct bootstrapState*)commState;
+  int rank = state->rank;
+  // if not in-place
+  if (sendbuff != (void *)((char *)recvbuff + rank * getFlagcxDataTypeSize(datatype) * sendcount)) {
+    memcpy((void *)((char*)recvbuff + rank * getFlagcxDataTypeSize(datatype) * sendcount), sendbuff, getFlagcxDataTypeSize(datatype) * sendcount);
+  }
+  return  bootstrapAllGather(commState, recvbuff, getFlagcxDataTypeSize(datatype) * sendcount);
+}
 /*
  * Reduce-Scatter
  *
@@ -641,7 +651,7 @@ flagcxResult_t bootstrapRingAllReduce(struct flagcxSocket* prevSocket, struct fl
   return flagcxSuccess;
 }
 
-flagcxResult_t bootstrapAllReduce(void* commState, const void* sendbuff, void* recvbuff, size_t count,
+flagcxResult_t AllReduceBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t count,
                                   flagcxDataType_t datatype, flagcxRedOp_t op) {
   struct bootstrapState* state = (struct bootstrapState*)commState;
   int rank = state->rank;
