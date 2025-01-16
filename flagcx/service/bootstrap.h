@@ -72,6 +72,18 @@ flagcxResult_t AllGatherBootstrap(void* commState, const void* sendbuff, void* r
 flagcxResult_t AllReduceBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t count,
                                  flagcxDataType_t datatype, flagcxRedOp_t op);
 
+/*
+ * All-to-all
+ *
+ * Every rank sends j-th block of its own sendbuff to the j-th rank of the communicator.
+ * Meanwhile, every rank receives j-th block of its own recvbuff from j-th rank.
+ * 
+ * Every block has the size of count elements.
+ *
+ * In-place operations will happen if sendbuff == recvbuff.
+ */
+flagcxResult_t AlltoAllBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t count,
+                                 flagcxDataType_t datatype);
 #ifdef __cplusplus
 } // end extern "C"
 #endif

@@ -786,6 +786,93 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count
     return flagcxSuccess;
 }
 
+// A wrapper over AllGatherBootstrap.
+// TODO: consider move to another place.
+flagcxResult_t wrapperAlltoAllBootstrap(const void* sendbuff, void* recvbuff, size_t count,
+                                        flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream) {
+  uint64_t timers[TIMERS_COLL_COUNT] = {0};
+  timers[TIMER_COLL_TOTAL] = clockNano();
+
+  // step 1: alloc recv buffer and copy sendbuff from GPU memory to Host memory
+  timers[TIMER_COLL_MEM_D2H] = clockNano();
+  size_t databytes = count * getFlagcxDataTypeSize(datatype) * comm->nranks;
+  char *sbuff = nullptr;
+  FLAGCXCHECK(flagcxCalloc(&sbuff, databytes));
+  wrapper_deviceMemcpy(sbuff, const_cast<void *>(sendbuff), databytes, flagcxMemcpyDeviceToHost, stream);
+
+  // step 2: wait until memcpy done.
+  deviceAdaptor->streamSynchronize(stream);
+  timers[TIMER_COLL_MEM_D2H] = clockNano() - timers[TIMER_COLL_MEM_D2H];
+
+  // step 3: start the alltoall primitive via bootstrap
+  // use in-place version
+  timers[TIMER_COLL_COMM] = clockNano();
+  flagcxResult_t res = AlltoAllBootstrap(comm->bootstrap, (void *)(sbuff), (void *)(sbuff), count, datatype);
+  timers[TIMER_COLL_COMM] = clockNano() - timers[TIMER_COLL_COMM];
+
+  // step 4: copy data back to GPU memory
+  timers[TIMER_COLL_MEM_H2D] = clockNano();
+  wrapper_deviceMemcpy(recvbuff, (void *)sbuff, databytes, flagcxMemcpyHostToDevice, stream);
+
+  // For now, use synchronized way to free the buffer
+  deviceAdaptor->streamSynchronize(stream);
+  free(sbuff);
+  timers[TIMER_COLL_MEM_H2D] = clockNano() - timers[TIMER_COLL_MEM_H2D];
+  timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
+  INFO(FLAGCX_COLL,
+       "Flagcx timings - %s: rank %d nranks %d total %.2fms (memory d2h %.2fms, memory h2d %.2fms, comm %.2fms)",
+       "wrapperAlltoAllBootstrap", comm->rank, comm->nranks,
+       timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6, timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
+  return res;
+}
+
+flagcxResult_t flagcxAlltoAll(const void* sendbuff, void* recvbuff, size_t count,
+                              flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream) {
+    if (is_homo_comm()) {
+        return cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(sendbuff, recvbuff, count, datatype, comm->homo_comm, stream);
+    } else {
+        char* useBootstrap = getenv("USE_BOOTSTRAP_CCL");
+        if (useBootstrap) {
+            return wrapperAlltoAllBootstrap(sendbuff, recvbuff, count, datatype, comm, stream);
+        }
+#ifdef FORCE_HOST_COMM
+        void *buff_in;
+        void *buff_out;
+        size_t size = comm->nranks * count * getFlagcxDataTypeSize(datatype);
+        deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
+        deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost);
+        deviceAdaptor->deviceMemcpy(buff_in, const_cast<void*>(sendbuff), size, flagcxMemcpyDeviceToHost, NULL, NULL);
+        cclAdaptors[flagcxCCLAdaptorHost]->allGather(buff_in, buff_out, count, datatype, comm->host_comm, NULL);
+        deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size, flagcxMemcpyHostToDevice, NULL, NULL);
+        deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
+        deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
+#else
+        int size = count * getFlagcxDataTypeSize(datatype);
+        const char* buffer_in = static_cast<const char*>(sendbuff);
+        char* buffer_out = static_cast<char*>(recvbuff);
+
+        // intra-cluster alltoall
+        int offset = 0;
+        for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
+            offset += comm->cluster_sizes[i];
+        }
+        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(static_cast<const void*>(buffer_in + offset * size), static_cast<void*>(buffer_out + offset * size), count, datatype, comm->homo_comm, stream))
+
+        // inter-cluster sendrecv
+        // TODO: use cluster_inter_rank to perform hetero sendrecv operation
+        flagcxGroupStart();
+        for (int r = 0; r < comm->nranks; ++r) {
+            if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r]) {
+                FLAGCXCHECK(flagcxHeteroSend(static_cast<const void*>(buffer_in + r * size), count, datatype, r, comm->hetero_comm, stream));
+                FLAGCXCHECK(flagcxHeteroRecv(static_cast<void*>(buffer_out + r * size), count, datatype, r, comm->hetero_comm, stream));
+            }
+        }
+        flagcxGroupEnd();
+#endif
+    }
+    return flagcxSuccess;
+}
+
 flagcxResult_t flagcxSend(const void *sendbuff, size_t count, flagcxDataType_t datatype, int peer,
                           flagcxComm_t comm, flagcxStream_t stream)
 {

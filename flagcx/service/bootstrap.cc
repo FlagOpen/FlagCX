@@ -669,6 +669,50 @@ flagcxResult_t AllReduceBootstrap(void* commState, const void* sendbuff, void* r
   return flagcxSuccess;
 }
 
+flagcxResult_t AlltoAllBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t count,
+                                 flagcxDataType_t datatype) {
+  struct bootstrapState* state = (struct bootstrapState*)commState;
+  int rank = state->rank;
+  int nranks = state->nranks;
+  size_t size = count * getFlagcxDataTypeSize(datatype);
+
+  bool inPlace = (sendbuff == recvbuff);
+  char *tmpBuff = nullptr;
+  if (inPlace) {
+      FLAGCXCHECK(flagcxCalloc(&tmpBuff, size));
+  }
+
+  for (int i = 0; i < nranks; ++i) {
+    if (i == rank) {
+      if (!inPlace) {
+        memcpy((void *)((char*)recvbuff + size * i), (void *)((char *)sendbuff + size * i), size);
+      }
+    }
+    const int bootstrapTag = -9991;
+    if (rank > i) {
+      FLAGCXCHECK(bootstrapSend(commState, i, bootstrapTag, (void *)((char *)sendbuff + size * i), size));
+      if (inPlace) {
+        FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag, (void *)tmpBuff, size));
+        memcpy((void *)((char *)recvbuff + size * i), (void *)tmpBuff, size);
+      } else {
+        FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag, (void *)((char *)recvbuff + size * i), size));
+      }
+    } else if (rank < i) {
+      if (inPlace) {
+        FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag, (void *)tmpBuff, size));
+      } else {
+        FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag, (void *)((char *)recvbuff + size * i), size));
+      }
+      FLAGCXCHECK(bootstrapSend(commState, i, bootstrapTag, (void *)((char *)sendbuff + size * i), size));
+      if (inPlace) {
+        memcpy((void *)((char *)recvbuff + size * i), (void *)tmpBuff, size);
+      }
+    }
+  }
+  free(tmpBuff);
+  return flagcxSuccess;
+}
+
 flagcxResult_t bootstrapIntraNodeBarrier(void* commState, int *ranks, int rank, int nranks, int tag) {
   if (nranks == 1) return flagcxSuccess;
   TRACE(FLAGCX_INIT, "rank %d nranks %d tag %x - ENTER", rank, nranks, tag);
