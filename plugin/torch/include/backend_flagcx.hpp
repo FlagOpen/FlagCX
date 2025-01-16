@@ -21,98 +21,98 @@ namespace c10d
     {
     public:
         explicit BackendFlagcx(
-            const c10::intrusive_ptr<::c10d::Store>& store,
+            const c10::intrusive_ptr<::c10d::Store> &store,
             int rank = -1,
             int size = -1);
 
         ~BackendFlagcx() override;
 
         c10::intrusive_ptr<Work> broadcast(
-            std::vector<at::Tensor>& data,
-            const BroadcastOptions& opts = BroadcastOptions()) override;
+            std::vector<at::Tensor> &data,
+            const BroadcastOptions &opts = BroadcastOptions()) override;
 
         c10::intrusive_ptr<Work> allreduce(
-            std::vector<at::Tensor>& tensors,
-            const AllreduceOptions& opts = AllreduceOptions()) override;
+            std::vector<at::Tensor> &tensors,
+            const AllreduceOptions &opts = AllreduceOptions()) override;
 
         c10::intrusive_ptr<Work> allreduce_coalesced(
-            std::vector<at::Tensor>& tensors,
-            const AllreduceCoalescedOptions& opts =
+            std::vector<at::Tensor> &tensors,
+            const AllreduceCoalescedOptions &opts =
                 AllreduceCoalescedOptions()) override;
 
         c10::intrusive_ptr<Work> reduce(
-            std::vector<at::Tensor>& tensors,
-            const ReduceOptions& opts = ReduceOptions()) override;
+            std::vector<at::Tensor> &tensors,
+            const ReduceOptions &opts = ReduceOptions()) override;
 
         c10::intrusive_ptr<Work> allgather(
-            std::vector<std::vector<at::Tensor>>& outputTensors,
-            std::vector<at::Tensor>& inputTensors,
-            const AllgatherOptions& opts = AllgatherOptions()) override;
+            std::vector<std::vector<at::Tensor>> &outputTensors,
+            std::vector<at::Tensor> &inputTensors,
+            const AllgatherOptions &opts = AllgatherOptions()) override;
 
         c10::intrusive_ptr<Work> _allgather_base(
-            at::Tensor& outputBuffer,
-            at::Tensor& inputBuffer,
-            const AllgatherOptions& opts = AllgatherOptions()) override;
+            at::Tensor &outputBuffer,
+            at::Tensor &inputBuffer,
+            const AllgatherOptions &opts = AllgatherOptions()) override;
 
         c10::intrusive_ptr<Work> barrier(
-            const BarrierOptions& opts = BarrierOptions()) override;
+            const BarrierOptions &opts = BarrierOptions()) override;
 
         c10::intrusive_ptr<Work> gather(
-            std::vector<std::vector<at::Tensor>>& outputTensors,
-            std::vector<at::Tensor>& inputTensors,
-            const GatherOptions& opts = GatherOptions()) override;
+            std::vector<std::vector<at::Tensor>> &outputTensors,
+            std::vector<at::Tensor> &inputTensors,
+            const GatherOptions &opts = GatherOptions()) override;
 
         c10::intrusive_ptr<Work> scatter(
-            std::vector<at::Tensor>& outputTensors,
-            std::vector<std::vector<at::Tensor>>& inputTensors,
-            const ScatterOptions& opts = ScatterOptions()) override;
+            std::vector<at::Tensor> &outputTensors,
+            std::vector<std::vector<at::Tensor>> &inputTensors,
+            const ScatterOptions &opts = ScatterOptions()) override;
 
         c10::intrusive_ptr<Work> reduce_scatter(
-            std::vector<at::Tensor>& outputTensors,
-            std::vector<std::vector<at::Tensor>>& inputTensors,
-            const ReduceScatterOptions& opts = ReduceScatterOptions()) override;
+            std::vector<at::Tensor> &outputTensors,
+            std::vector<std::vector<at::Tensor>> &inputTensors,
+            const ReduceScatterOptions &opts = ReduceScatterOptions()) override;
 
         c10::intrusive_ptr<Work> alltoall_base(
-            at::Tensor& outputTensor,
-            at::Tensor& inputTensor,
-            std::vector<int64_t>& outputSplitSizes,
-            std::vector<int64_t>& inputSplitSizes,
-            const AllToAllOptions& opts = AllToAllOptions()) override;
+            at::Tensor &outputTensor,
+            at::Tensor &inputTensor,
+            std::vector<int64_t> &outputSplitSizes,
+            std::vector<int64_t> &inputSplitSizes,
+            const AllToAllOptions &opts = AllToAllOptions()) override;
 
         c10::intrusive_ptr<Work> alltoall(
-            std::vector<at::Tensor>& outputTensors,
-            std::vector<at::Tensor>& inputTensors,
-            const AllToAllOptions& opts = AllToAllOptions()) override;
+            std::vector<at::Tensor> &outputTensors,
+            std::vector<at::Tensor> &inputTensors,
+            const AllToAllOptions &opts = AllToAllOptions()) override;
 
         c10::intrusive_ptr<Work> send(
-            std::vector<at::Tensor>& tensors,
+            std::vector<at::Tensor> &tensors,
             int dstRank,
             int tag) override;
 
         c10::intrusive_ptr<Work> recv(
-            std::vector<at::Tensor>& tensors,
+            std::vector<at::Tensor> &tensors,
             int srcRank,
             int tag) override;
 
         c10::intrusive_ptr<Work> recvAnysource(
-            std::vector<at::Tensor>& tensors,
+            std::vector<at::Tensor> &tensors,
             int tag) override;
 
         static c10::intrusive_ptr<Backend> createBackendFlagcx(
-            const c10::intrusive_ptr<::c10d::Store>& store,
+            const c10::intrusive_ptr<::c10d::Store> &store,
             int rank,
             int size,
-            const std::chrono::duration<float>& timeout);
+            const std::chrono::duration<float> &timeout);
 
         static void BackendFlagcxConstructor() __attribute__((constructor))
         {
-        std::string dev_name="cuda";
+            std::string dev_name = "cuda";
 #ifdef USE_NVIDIA_ADAPTOR
-        dev_name = "cuda";
+            dev_name = "cuda";
 #elif USE_ILUVATAR_COREX_ADAPTOR
-        dev_name = "cuda";
+            dev_name = "cuda";
 #elif USE_CAMBRICON_ADAPTOR
-        dev_name = "mlu";
+            dev_name = "mlu";
 #endif
             py::object module = py::module::import("torch.distributed");
             py::object register_backend =
@@ -123,7 +123,6 @@ namespace c10d
     protected:
         void initComm(at::Device dev);
         void syncStream(at::Device device);
-
 
     protected:
         c10::intrusive_ptr<::c10d::Store> store;

@@ -7,25 +7,25 @@
 #include "flagcx.h"
 #include "adaptor.h"
 
-#include <gloo/context.h>
-#include <gloo/algorithm.h>
-#include <gloo/rendezvous/store.h>
-#include <gloo/rendezvous/context.h>
-#include <gloo/rendezvous/prefix_store.h>
-#include <gloo/transport/device.h>
-#include <gloo/transport/context.h>
-#include <gloo/transport/tcp/device.h>
-#include <gloo/transport/ibverbs/device.h>
-#include <gloo/allgather.h>
-#include <gloo/allgatherv.h>
-#include <gloo/allreduce.h>
-#include <gloo/alltoall.h>
-#include <gloo/alltoallv.h>
-#include <gloo/barrier.h>
-#include <gloo/broadcast.h>
-#include <gloo/gather.h>
-#include <gloo/reduce.h>
-#include <gloo/scatter.h>
+#include "gloo/context.h"
+#include "gloo/algorithm.h"
+#include "gloo/rendezvous/store.h"
+#include "gloo/rendezvous/context.h"
+#include "gloo/rendezvous/prefix_store.h"
+#include "gloo/transport/device.h"
+#include "gloo/transport/context.h"
+#include "gloo/transport/tcp/device.h"
+#include "gloo/transport/ibverbs/device.h"
+#include "gloo/allgather.h"
+#include "gloo/allgatherv.h"
+#include "gloo/allreduce.h"
+#include "gloo/alltoall.h"
+#include "gloo/alltoallv.h"
+#include "gloo/barrier.h"
+#include "gloo/broadcast.h"
+#include "gloo/gather.h"
+#include "gloo/reduce.h"
+#include "gloo/scatter.h"
 
 #include <map>
 #include <chrono>
@@ -40,7 +40,7 @@ static std::queue<buffer_ptr> inputBuffers;
 static constexpr std::chrono::milliseconds flagcxGlooDefaultTimeout = std::chrono::seconds(10000);
 static bool groupStarted = false;
 
-#define GENERATE_ALL_TYPES(type, func, args...)  \
+#define GENERATE_GLOO_TYPES(type, func, args...) \
   switch (type) {                                \
     case flagcxChar:                             \
       func<char>(args);                          \
@@ -108,7 +108,7 @@ template <typename F>
 F getFunction(flagcxDataType_t dtype, flagcxRedOp_t op) 
 {
   F fn;
-  GENERATE_ALL_TYPES(dtype, getFunction, fn, op);
+  GENERATE_GLOO_TYPES(dtype, getFunction, fn, op);
   return fn;
 }
 
@@ -209,7 +209,7 @@ public:
     bootstrapState *bootstrap_;
 };
 
-struct flagcxHomoComm
+struct flagcxInnerComm
 {
     std::shared_ptr<flagcxGlooContext> base;
 };

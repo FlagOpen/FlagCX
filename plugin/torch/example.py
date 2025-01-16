@@ -5,29 +5,32 @@ try:
     #deps for cambricon devices
     import torch_mlu
     from torch_mlu.utils.gpu_migration import migration
-    dev_type="mlu"
 except:
-    dev_type="cuda"
+    pass
 
 import flagcx
 import torch.distributed as dist
+#import pdb
+#pdb.set_trace()
 
 rank = int(os.environ["RANK"])
 world_size = int(os.environ["WORLD_SIZE"])
 
-dist.init_process_group(f"cpu:gloo,{dev_type}:flagcx", rank=rank, world_size=world_size)
+dist.init_process_group("flagcx", rank=rank, world_size=world_size)
 ranks = list(range(world_size))
 
-FLAGCX_GROUP1 = dist.new_group(ranks=ranks, backend=f"{dev_type}:flagcx")
-FLAGCX_GROUP2 = dist.new_group(ranks=ranks, backend=f"{dev_type}:flagcx")
+FLAGCX_GROUP1 = dist.new_group(ranks=ranks, backend="flagcx")
+FLAGCX_GROUP2 = dist.new_group(ranks=ranks, backend="flagcx")
 ranks_flagcx = dist.get_process_group_ranks(FLAGCX_GROUP1)
 print(f"ranks_flagcx: {ranks_flagcx}")
 
-# this goes through gloo
+print(f"ddp backend config is {dist.get_backend_config()}")
+
 x = torch.ones(world_size)
 print(f"initial x: {x}")
-dist.all_reduce(x)
-print(f"cpu allreduce x: {x}")
+# this goes through gloo
+# dist.all_reduce(x)
+# print(f"cpu allreduce x: {x}")
 
 # this goes through flagcx
 if torch.cuda.is_available():
@@ -45,6 +48,7 @@ if torch.cuda.is_available():
     list_y = list(torch.chunk(y, world_size, dim=0))
     print(list_y)
     list_z = list(torch.chunk(torch.ones(world_size).cuda(), world_size, dim=0))
+    print(list_z)
     dist.all_to_all(list_z, list_y, group=FLAGCX_GROUP1)
     y = torch.cat(list_z, dim=0)
     print(f"flagcx alltoall y with FLAGCX_GROUP1: {y}")

@@ -9,9 +9,10 @@
 #include "alloc.h"
 #include "adaptor.h"
 #include <map>
-struct flagcxHomoComm {
+struct flagcxInnerComm {
     cnclComm_t base;
 };
+
 struct flagcxStream {
     cnrtQueue_t base;
 };

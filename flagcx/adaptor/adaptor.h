@@ -30,42 +30,42 @@ struct flagcxCCLAdaptor {
     flagcxResult_t (*getVersion)(int *version);
     flagcxResult_t (*getUniqueId)(flagcxUniqueId_t *uniqueId);
     const char* (*getErrorString)(flagcxResult_t result);
-    const char* (*getLastError)(flagcxHomoComm_t comm);
+    const char* (*getLastError)(flagcxInnerComm_t comm);
 
     // Communicator functions
-    flagcxResult_t (*commInitRank)(flagcxHomoComm_t *comm, int nranks, flagcxUniqueId *commId, int rank, bootstrapState *bootstrap);
-    flagcxResult_t (*commFinalize)(flagcxHomoComm_t comm);
-    flagcxResult_t (*commDestroy)(flagcxHomoComm_t comm);
-    flagcxResult_t (*commAbort)(flagcxHomoComm_t comm);
-    flagcxResult_t (*commResume)(flagcxHomoComm_t comm);
-    flagcxResult_t (*commSuspend)(flagcxHomoComm_t comm);
-    flagcxResult_t (*commCount)(const flagcxHomoComm_t comm, int* count);
-    flagcxResult_t (*commGetDeviceNumber)(const flagcxHomoComm_t comm, int* device);
-    flagcxResult_t (*commUserRank)(const flagcxHomoComm_t comm, int* rank);
-    flagcxResult_t (*commGetAsyncError)(flagcxHomoComm_t comm, flagcxResult_t asyncError);
+    flagcxResult_t (*commInitRank)(flagcxInnerComm_t *comm, int nranks, flagcxUniqueId *commId, int rank, bootstrapState *bootstrap);
+    flagcxResult_t (*commFinalize)(flagcxInnerComm_t comm);
+    flagcxResult_t (*commDestroy)(flagcxInnerComm_t comm);
+    flagcxResult_t (*commAbort)(flagcxInnerComm_t comm);
+    flagcxResult_t (*commResume)(flagcxInnerComm_t comm);
+    flagcxResult_t (*commSuspend)(flagcxInnerComm_t comm);
+    flagcxResult_t (*commCount)(const flagcxInnerComm_t comm, int* count);
+    flagcxResult_t (*commGetDeviceNumber)(const flagcxInnerComm_t comm, int* device);
+    flagcxResult_t (*commUserRank)(const flagcxInnerComm_t comm, int* rank);
+    flagcxResult_t (*commGetAsyncError)(flagcxInnerComm_t comm, flagcxResult_t asyncError);
 
     // Communication functions
     flagcxResult_t (*reduce)(const void* sendbuff, void* recvbuff, size_t count, flagcxDataType_t datatype,
-                             flagcxRedOp_t op, int root, flagcxHomoComm_t comm, flagcxStream_t stream);
+                             flagcxRedOp_t op, int root, flagcxInnerComm_t comm, flagcxStream_t stream);
     flagcxResult_t (*gather)(const void* sendbuff, void* recvbuff, size_t count,
-                             flagcxDataType_t datatype, int root, flagcxHomoComm_t comm, flagcxStream_t stream);
+                             flagcxDataType_t datatype, int root, flagcxInnerComm_t comm, flagcxStream_t stream);
     flagcxResult_t (*scatter)(const void* sendbuff, void* recvbuff, size_t count,
-                              flagcxDataType_t datatype, int root, flagcxHomoComm_t comm, flagcxStream_t stream);
+                              flagcxDataType_t datatype, int root, flagcxInnerComm_t comm, flagcxStream_t stream);
     flagcxResult_t (*broadcast)(const void* sendbuff, void* recvbuff, size_t count,
-                                flagcxDataType_t datatype, int root, flagcxHomoComm_t comm, flagcxStream_t stream);
+                                flagcxDataType_t datatype, int root, flagcxInnerComm_t comm, flagcxStream_t stream);
     flagcxResult_t (*allReduce)(const void* sendbuff, void* recvbuff, size_t count,
-                                flagcxDataType_t datatype, flagcxRedOp_t op, flagcxHomoComm_t comm, flagcxStream_t stream);
+                                flagcxDataType_t datatype, flagcxRedOp_t op, flagcxInnerComm_t comm, flagcxStream_t stream);
     flagcxResult_t (*reduceScatter)(const void* sendbuff, void* recvbuff,
-                                    size_t recvcount, flagcxDataType_t datatype, flagcxRedOp_t op, flagcxHomoComm_t comm,
+                                    size_t recvcount, flagcxDataType_t datatype, flagcxRedOp_t op, flagcxInnerComm_t comm,
                                     flagcxStream_t stream);
     flagcxResult_t (*allGather)(const void* sendbuff, void* recvbuff, size_t sendcount,
-                                flagcxDataType_t datatype, flagcxHomoComm_t comm, flagcxStream_t stream);
+                                flagcxDataType_t datatype, flagcxInnerComm_t comm, flagcxStream_t stream);
     flagcxResult_t (*alltoAll)(const void* sendbuff, void* recvbuff, size_t count,
-                               flagcxDataType_t datatype, flagcxHomoComm_t comm, flagcxStream_t stream);
+                               flagcxDataType_t datatype, flagcxInnerComm_t comm, flagcxStream_t stream);
     flagcxResult_t (*send)(const void* sendbuff, size_t count, flagcxDataType_t datatype, int peer,
-                           flagcxHomoComm_t comm, flagcxStream_t stream);
+                           flagcxInnerComm_t comm, flagcxStream_t stream);
     flagcxResult_t (*recv)(void* recvbuff, size_t count, flagcxDataType_t datatype, int peer,
-                           flagcxHomoComm_t comm, flagcxStream_t stream);
+                           flagcxInnerComm_t comm, flagcxStream_t stream);
 
     // Group semantics
     flagcxResult_t (*groupStart)();

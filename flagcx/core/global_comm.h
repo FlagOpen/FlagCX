@@ -4,8 +4,8 @@
 #include "flagcx.h"
 #include "bootstrap.h"
 
-/* Opaque handle to flagcxHomoComm */
-typedef struct flagcxHomoComm* flagcxHomoComm_t;
+/* Opaque handle to flagcxInnerComm */
+typedef struct flagcxInnerComm* flagcxInnerComm_t;
 
 /* Opaque handle to flagcxHeteroComm */
 typedef struct flagcxHeteroComm* flagcxHeteroComm_t;
@@ -32,8 +32,8 @@ struct flagcxComm {
     int *cluster_inter_ranks;
     int *globalrank2homorank;
     bootstrapState* bootstrap;
-    flagcxHomoComm_t host_comm;
-    flagcxHomoComm_t homo_comm;
+    flagcxInnerComm_t host_comm;
+    flagcxInnerComm_t homo_comm;
     flagcxHeteroComm_t hetero_comm;
 };
 

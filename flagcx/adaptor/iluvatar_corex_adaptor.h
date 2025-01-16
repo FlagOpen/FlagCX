@@ -8,9 +8,10 @@
 #include <map>
 #include <cuda.h>
 #include <cuda_runtime.h>
-struct flagcxHomoComm {
+struct flagcxInnerComm {
     ncclComm_t base;
 };
+
 struct flagcxStream {
     cudaStream_t base;
 };

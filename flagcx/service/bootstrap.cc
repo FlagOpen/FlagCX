@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include "param.h"
 #include "comm.h"
+#include <vector>
 
 struct bootstrapRootArgs {
   struct flagcxSocket* listenSock;
@@ -632,8 +633,8 @@ flagcxResult_t bootstrapRingAllReduce(struct flagcxSocket* prevSocket, struct fl
   INFO(FLAGCX_COLL, "rank %d nranks %d; size=%lu; typesize=%lu; ChunkBytes=%lu", rank, nranks, size, getFlagcxDataTypeSize(datatype), ChunkBytes);
 
   // step 1: split the data and prepare offset and length array
-  size_t offset[nranks] = {0};
-  size_t length[nranks] = {0};
+  std::vector<size_t> offset(nranks, 0);
+  std::vector<size_t> length(nranks, 0);
   for (size_t i = 0; i < nranks; ++i) {
     if (ChunkBytes * i >= size) {
       offset[i] = size;
@@ -644,10 +645,10 @@ flagcxResult_t bootstrapRingAllReduce(struct flagcxSocket* prevSocket, struct fl
   }
 
   // step 2: reduce scatter
-  FLAGCXCHECK(bootstrapRingReduceScatter(prevSocket, nextSocket, rank, nranks, sendbuff, recvbuff + offset[rank], offset, length, datatype, op));
+  FLAGCXCHECK(bootstrapRingReduceScatter(prevSocket, nextSocket, rank, nranks, sendbuff, recvbuff + offset[rank], offset.data(), length.data(), datatype, op));
 
   // step 3: all gather
-  FLAGCXCHECK(bootstrapRingAllGatherV2(prevSocket, nextSocket, rank, nranks, recvbuff, offset, length));
+  FLAGCXCHECK(bootstrapRingAllGatherV2(prevSocket, nextSocket, rank, nranks, recvbuff, offset.data(), length.data()));
   return flagcxSuccess;
 }
 

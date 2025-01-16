@@ -20,12 +20,12 @@ if '--adaptor' in sys.argv:
 
 sources = ["src/backend_flagcx.cpp"]
 include_dirs = [
-    f"{os.path.dirname(os.path.abspath(__file__))}/include/",
+    f"{os.path.dirname(os.path.abspath(__file__))}/include",
     f"{os.path.dirname(os.path.abspath(__file__))}/../../flagcx/include",
 ]
 
 library_dirs = [
-    f"{os.path.dirname(os.path.abspath(__file__))}/../../build/lib/",
+    f"{os.path.dirname(os.path.abspath(__file__))}/../../build/lib",
 ]
 
 libs = ["flagcx"]
@@ -50,7 +50,6 @@ elif adaptor_flag == "-DUSE_CAMBRICON_ADAPTOR":
     library_dirs += [f"{neuware_home_path}/lib64", torch_mlu_lib_dir]
     libs += ["cnrt", "cncl", "torch_mlu"]
 
-
 module = cpp_extension.CppExtension(
     name='flagcx',
     sources=sources,
@@ -58,7 +57,7 @@ module = cpp_extension.CppExtension(
     extra_compile_args={
         'cxx': [adaptor_flag]
     },
-    extra_link_args=["-Wl,-rpath,"+f"{os.path.dirname(os.path.abspath(__file__))}/../../build/lib/"],
+    extra_link_args=["-Wl,-rpath,"+f"{os.path.dirname(os.path.abspath(__file__))}/../../build/lib"],
     library_dirs=library_dirs,
     libraries=libs,
 )
