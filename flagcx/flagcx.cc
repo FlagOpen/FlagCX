@@ -680,7 +680,8 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff, size_t send
     else
     {
         char* useBootstrap = getenv("USE_BOOTSTRAP_CCL");
-        if (useBootstrap) {
+        if (useBootstrap)
+	{
             return wrapperAllGatherBootstrap(sendbuff, recvbuff, sendcount, datatype, comm, stream);
         }
         if (has_host_comm())
@@ -733,59 +734,6 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff, size_t send
     return flagcxSuccess;
 }
 
-flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count,
-                              flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream)
-{
-    if (is_homo_comm())
-    {
-        return cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(sendbuff, recvbuff, count, datatype, comm->homo_comm, stream);
-    }
-    else
-    {
-        if (has_host_comm())
-        {
-            void *buff_in;
-            void *buff_out;
-            size_t size = comm->nranks * count * getFlagcxDataTypeSize(datatype);
-            deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
-            deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost);
-            deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff), size, flagcxMemcpyDeviceToHost, NULL, NULL);
-            cclAdaptors[flagcxCCLAdaptorHost]->allGather(buff_in, buff_out, count, datatype, comm->host_comm, NULL);
-            deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size, flagcxMemcpyHostToDevice, NULL, NULL);
-            deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
-            deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
-        }
-        else
-        {
-            int size = count * getFlagcxDataTypeSize(datatype);
-            const char *buffer_in = static_cast<const char *>(sendbuff);
-            char *buffer_out = static_cast<char *>(recvbuff);
-
-            // intra-cluster alltoall
-            int offset = 0;
-            for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i)
-            {
-                offset += comm->cluster_sizes[i];
-            }
-            FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(static_cast<const void *>(buffer_in + offset * size), static_cast<void *>(buffer_out + offset * size), count, datatype, comm->homo_comm, stream))
-
-            // inter-cluster sendrecv
-            // TODO: use cluster_inter_rank to perform hetero sendrecv operation
-            flagcxGroupStart();
-            for (int r = 0; r < comm->nranks; ++r)
-            {
-                if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r])
-                {
-                    FLAGCXCHECK(flagcxHeteroSend(static_cast<const void *>(buffer_in + r * size), count, datatype, r, comm->hetero_comm, stream));
-                    FLAGCXCHECK(flagcxHeteroRecv(static_cast<void *>(buffer_out + r * size), count, datatype, r, comm->hetero_comm, stream));
-                }
-            }
-            flagcxGroupEnd();
-        }
-    }
-    return flagcxSuccess;
-}
-
 // A wrapper over AlltoAllBootstrap.
 // TODO: consider move to another place.
 flagcxResult_t wrapperAlltoAllBootstrap(const void* sendbuff, void* recvbuff, size_t count,
@@ -826,49 +774,60 @@ flagcxResult_t wrapperAlltoAllBootstrap(const void* sendbuff, void* recvbuff, si
   return res;
 }
 
-flagcxResult_t flagcxAlltoAll(const void* sendbuff, void* recvbuff, size_t count,
-                              flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream) {
-    if (is_homo_comm()) {
+flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count,
+                              flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream)
+{
+    if (is_homo_comm())
+    {
         return cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(sendbuff, recvbuff, count, datatype, comm->homo_comm, stream);
-    } else {
+    }
+    else
+    {
         char* useBootstrap = getenv("USE_BOOTSTRAP_CCL");
-        if (useBootstrap) {
+        if (useBootstrap)
+	{
             return wrapperAlltoAllBootstrap(sendbuff, recvbuff, count, datatype, comm, stream);
         }
-#ifdef FORCE_HOST_COMM
-        void *buff_in;
-        void *buff_out;
-        size_t size = comm->nranks * count * getFlagcxDataTypeSize(datatype);
-        deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
-        deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost);
-        deviceAdaptor->deviceMemcpy(buff_in, const_cast<void*>(sendbuff), size, flagcxMemcpyDeviceToHost, NULL, NULL);
-        cclAdaptors[flagcxCCLAdaptorHost]->allGather(buff_in, buff_out, count, datatype, comm->host_comm, NULL);
-        deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size, flagcxMemcpyHostToDevice, NULL, NULL);
-        deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
-        deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
-#else
-        int size = count * getFlagcxDataTypeSize(datatype);
-        const char* buffer_in = static_cast<const char*>(sendbuff);
-        char* buffer_out = static_cast<char*>(recvbuff);
-
-        // intra-cluster alltoall
-        int offset = 0;
-        for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
-            offset += comm->cluster_sizes[i];
+        if (has_host_comm())
+        {
+            void *buff_in;
+            void *buff_out;
+            size_t size = comm->nranks * count * getFlagcxDataTypeSize(datatype);
+            deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
+            deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost);
+            deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff), size, flagcxMemcpyDeviceToHost, NULL, NULL);
+            cclAdaptors[flagcxCCLAdaptorHost]->allGather(buff_in, buff_out, count, datatype, comm->host_comm, NULL);
+            deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size, flagcxMemcpyHostToDevice, NULL, NULL);
+            deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
+            deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
         }
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(static_cast<const void*>(buffer_in + offset * size), static_cast<void*>(buffer_out + offset * size), count, datatype, comm->homo_comm, stream))
+        else
+        {
+            int size = count * getFlagcxDataTypeSize(datatype);
+            const char *buffer_in = static_cast<const char *>(sendbuff);
+            char *buffer_out = static_cast<char *>(recvbuff);
 
-        // inter-cluster sendrecv
-        // TODO: use cluster_inter_rank to perform hetero sendrecv operation
-        flagcxGroupStart();
-        for (int r = 0; r < comm->nranks; ++r) {
-            if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r]) {
-                FLAGCXCHECK(flagcxHeteroSend(static_cast<const void*>(buffer_in + r * size), count, datatype, r, comm->hetero_comm, stream));
-                FLAGCXCHECK(flagcxHeteroRecv(static_cast<void*>(buffer_out + r * size), count, datatype, r, comm->hetero_comm, stream));
+            // intra-cluster alltoall
+            int offset = 0;
+            for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i)
+            {
+                offset += comm->cluster_sizes[i];
             }
+            FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(static_cast<const void *>(buffer_in + offset * size), static_cast<void *>(buffer_out + offset * size), count, datatype, comm->homo_comm, stream))
+
+            // inter-cluster sendrecv
+            // TODO: use cluster_inter_rank to perform hetero sendrecv operation
+            flagcxGroupStart();
+            for (int r = 0; r < comm->nranks; ++r)
+            {
+                if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r])
+                {
+                    FLAGCXCHECK(flagcxHeteroSend(static_cast<const void *>(buffer_in + r * size), count, datatype, r, comm->hetero_comm, stream));
+                    FLAGCXCHECK(flagcxHeteroRecv(static_cast<void *>(buffer_out + r * size), count, datatype, r, comm->hetero_comm, stream));
+                }
+            }
+            flagcxGroupEnd();
         }
-        flagcxGroupEnd();
-#endif
     }
     return flagcxSuccess;
 }
