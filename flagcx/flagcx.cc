@@ -786,14 +786,14 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count
     return flagcxSuccess;
 }
 
-// A wrapper over AllGatherBootstrap.
+// A wrapper over AlltoAllBootstrap.
 // TODO: consider move to another place.
 flagcxResult_t wrapperAlltoAllBootstrap(const void* sendbuff, void* recvbuff, size_t count,
                                         flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream) {
   uint64_t timers[TIMERS_COLL_COUNT] = {0};
   timers[TIMER_COLL_TOTAL] = clockNano();
 
-  // step 1: alloc recv buffer and copy sendbuff from GPU memory to Host memory
+  // step 1: alloc sendbuffer and copy from GPU memory to Host memory
   timers[TIMER_COLL_MEM_D2H] = clockNano();
   size_t databytes = count * getFlagcxDataTypeSize(datatype) * comm->nranks;
   char *sbuff = nullptr;
