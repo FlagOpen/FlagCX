@@ -1,7 +1,6 @@
 #pragma once
 
 #include <torch/python.h>
-
 #include <torch/csrc/distributed/c10d/Backend.hpp>
 #include <torch/csrc/distributed/c10d/Work.hpp>
 #include <torch/csrc/distributed/c10d/Store.hpp>
@@ -9,14 +8,57 @@
 #include <torch/csrc/distributed/c10d/Utils.hpp>
 
 #include <pybind11/chrono.h>
-
 #include <unordered_map>
+#include <vector>
 #include <memory>
 
 #include "event_flagcx.hpp"
 
 namespace c10d
 {
+    class WorkFlagcx : public Work
+    {
+        friend class BackendFlagcx;
+
+    public:
+        WorkFlagcx(
+            OpType opType,
+            c10::intrusive_ptr<c10::ivalue::Future> future, // future of the output
+            flagcxStream_t stream = nullptr,
+            flagcxDeviceHandle_t handler = nullptr,
+            int device_id = 0,
+            bool coalesced = false)
+            : Work(
+                  -1, // rank, only used by recvAnySource, irrelevant in this implementation
+                  opType),
+              future_(std::move(future)), stream_(stream), handler_(handler), device_id_(device_id), coalesced_(coalesced)
+        {
+#ifdef USE_NVIDIA_ADAPTOR
+            event_ = std::make_unique<CUDAEventFlagcx>();
+#elif USE_ILUVATAR_COREX_ADAPTOR
+            event_ = std::make_unique<IXCUDAEventFlagcx>();
+#elif USE_CAMBRICON_ADAPTOR
+            event_ = std::make_unique<MLUEventFlagcx>();
+#endif
+            event_->record(stream_, device_id_);
+        }
+        bool isCompleted() override;
+        bool isSuccess() const override;
+        bool wait(std::chrono::milliseconds timeout = kUnsetTimeout) override;
+        c10::intrusive_ptr<c10::ivalue::Future> getFuture() override;
+
+    protected:
+        bool isBarrierOp_{false};
+
+    private:
+        c10::intrusive_ptr<c10::ivalue::Future> future_;
+        std::unique_ptr<EventFlagcx> event_;
+        flagcxStream_t stream_;
+        flagcxDeviceHandle_t handler_;
+        int device_id_;
+        bool coalesced_; // for group semantics, unused for now
+    };
+
     class BackendFlagcx : public Backend
     {
     public:
@@ -26,6 +68,13 @@ namespace c10d
             int size = -1);
 
         ~BackendFlagcx() override;
+
+        void startCoalescing() override;
+
+        c10::intrusive_ptr<Work> endCoalescing() override;
+
+        // For specifying a composite optype, such as ALLGATHER and REDUCE_SCATTER
+        c10::intrusive_ptr<Work> endCoalescing(OpType optype);
 
         c10::intrusive_ptr<Work> broadcast(
             std::vector<at::Tensor> &data,
@@ -123,38 +172,15 @@ namespace c10d
     protected:
         void initComm(at::Device dev);
         void syncStream(at::Device device);
+        void groupStart();
+        void groupEnd();
 
-    protected:
         c10::intrusive_ptr<::c10d::Store> store;
         int nDevs;
+        int device_id;
         flagcxStream_t stream;
         flagcxHandlerGroup_t handler;
         std::unique_ptr<EventFlagcx> event;
-    };
-
-    class WorkFlagcx : public Work
-    {
-        friend class BackendFlagcx;
-
-    public:
-        WorkFlagcx(
-            OpType opType,
-            c10::intrusive_ptr<c10::ivalue::Future> future) // future of the output
-            : Work(
-                  -1, // rank, only used by recvAnySource, irrelevant in this implementation
-                  opType),
-              future_(std::move(future))
-        {
-        }
-        bool isCompleted() override;
-        bool isSuccess() const override;
-        bool wait(std::chrono::milliseconds timeout = kUnsetTimeout) override;
-        virtual c10::intrusive_ptr<c10::ivalue::Future> getFuture() override;
-
-    protected:
-        bool isBarrierOp_{false};
-
-    private:
-        c10::intrusive_ptr<c10::ivalue::Future> future_;
+        uint64_t flagcxActiveGroupCounter_;
     };
 } // namespace c10d

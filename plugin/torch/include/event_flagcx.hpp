@@ -20,9 +20,11 @@ namespace c10d
     public:
         virtual ~EventFlagcx() = default;
 
-        virtual void record(const at::Device& device) = 0;
+        virtual void record(const int device_id) = 0;
+        virtual void record(const flagcxStream_t &stream, const int device_id) = 0;
 
-        virtual void block(const flagcxStream_t &stream, const at::Device& device) = 0;
+        virtual void block(const int device_id) = 0;
+        virtual void block(const flagcxStream_t &stream, const int device_id) = 0;
     };
 
 #ifdef USE_NVIDIA_ADAPTOR
@@ -33,14 +35,24 @@ namespace c10d
             cuda_event = at::cuda::CUDAEvent(cudaEventDisableTiming);
         }
 
-        void record(const at::Device& device) override
+        void record(const int device_id) override
         {
-            cuda_event.record(at::cuda::getCurrentCUDAStream(device.index()));
+            cuda_event.record(at::cuda::getCurrentCUDAStream(device_id));
         }
 
-        void block(const flagcxStream_t &stream, const at::Device& device) override
+        void record(const flagcxStream_t &stream, const int device_id) override
         {
-            cuda_event.block(at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, device.index()));
+            cuda_event.record(at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, device_id));
+        }
+
+        void block(const int device_id) override
+        {
+            cuda_event.block(at::cuda::getCurrentCUDAStream(device_id));
+        }
+
+        void block(const flagcxStream_t &stream, const int device_id) override
+        {
+            cuda_event.block(at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, device_id));
         }
     private:
         at::cuda::CUDAEvent cuda_event;
@@ -53,14 +65,24 @@ namespace c10d
             ixcuda_event = at::cuda::CUDAEvent(cudaEventDisableTiming);
         }
 
-        void record(const at::Device& device) override
+        void record(const int device_id) override
         {
-            ixcuda_event.record(at::cuda::getCurrentCUDAStream(device.index()));
+            ixcuda_event.record(at::cuda::getCurrentCUDAStream(device_id));
         }
 
-        void block(const flagcxStream_t &stream, const at::Device& device) override
+        void record(const flagcxStream_t &stream, const int device_id) override
         {
-            ixcuda_event.block(at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, device.index()));
+            ixcuda_event.record(at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, device_id));
+        }
+
+        void block(const int device_id) override
+        {
+            ixcuda_event.block(at::cuda::getCurrentCUDAStream(device_id));
+        }
+
+        void block(const flagcxStream_t &stream, const int device_id) override
+        {
+            ixcuda_event.block(at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, device_id));
         }
     private:
         at::cuda::CUDAEvent ixcuda_event;
@@ -73,14 +95,24 @@ namespace c10d
             mlu_event = torch_mlu::MLUEvent();
         }
 
-        void record(const at::Device& device) override
+        void record(const int device_id) override
         {
-            mlu_event.place(torch_mlu::getCurrentMLUStream(device.index()));
+            mlu_event.place(torch_mlu::getCurrentMLUStream(device_id));
         }
 
-        void block(const flagcxStream_t &stream, const at::Device& device) override
+        void record(const flagcxStream_t &stream, const int device_id) override
         {
-            mlu_event.wait(torch_mlu::getStreamFromExternal(*(cnrtQueue_t *)stream, device.index()));
+            mlu_event.place(torch_mlu::getStreamFromExternal(*(cnrtQueue_t *)stream, device_id));
+        }
+
+        void block(const int device_id) override
+        {
+            mlu_event.wait(torch_mlu::getCurrentMLUStream(device_id));
+        }
+
+        void block(const flagcxStream_t &stream, const int device_id) override
+        {
+            mlu_event.wait(torch_mlu::getStreamFromExternal(*(cnrtQueue_t *)stream, device_id));
         }
     private:
         torch_mlu::MLUEvent mlu_event;

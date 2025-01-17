@@ -120,17 +120,32 @@ namespace c10d
 
     bool WorkFlagcx::isCompleted()
     {
-        return future_->completed();
+        if (!coalesced_)
+        {
+            return future_->completed();
+        }
+        return false;
     }
 
     bool WorkFlagcx::isSuccess() const
     {
-        return future_->hasValue();
+        if (!coalesced_)
+        {
+            return future_->hasValue();
+        }
+        return false;
     }
 
     bool WorkFlagcx::wait(std::chrono::milliseconds /* unused */)
     {
-        future_->wait();
+        if (!coalesced_)
+        {
+            event_->block(device_id_);
+        }
+        if (isBarrierOp_)
+        {
+            handler_->streamSynchronize(stream_);
+        }
         return true;
     }
 
@@ -155,6 +170,7 @@ namespace c10d
 #elif USE_CAMBRICON_ADAPTOR
         event = std::make_unique<MLUEventFlagcx>();
 #endif
+        flagcxActiveGroupCounter_ = 0;
     }
 
     BackendFlagcx::~BackendFlagcx()
@@ -175,6 +191,8 @@ namespace c10d
     {
         if (*(handler->status) == 0)
         {
+            device_id = dev.index();
+            handler->devHandle->setDevice(device_id);
             // Get the unique id
             flagcxGetUniqueId(&handler->uniqueId);
             if (rank_ == 0)
@@ -217,9 +235,6 @@ namespace c10d
         {
             if (dev.is_cuda() || dev.is_privateuseone())
             {
-                // Get the device index
-                int device_id;
-                flagcxCommGetDeviceNumber(handler->comm, &device_id);
                 if (device_id != dev.index())
                 {
                     throw std::runtime_error(
@@ -231,8 +246,34 @@ namespace c10d
 
     void BackendFlagcx::syncStream(at::Device device)
     {
-        event->record(device);
-        event->block(stream, device);
+        event->record(device.index());
+        event->block(stream, device.index());
+    }
+
+    void BackendFlagcx::groupStart()
+    {
+        // flagcxGroupStart();
+        // ++flagcxActiveGroupCounter_;
+    }
+
+    void BackendFlagcx::groupEnd()
+    {
+        // flagcxGroupEnd();
+        // --flagcxActiveGroupCounter_;
+    }
+
+    void BackendFlagcx::startCoalescing()
+    {
+        // groupStart();
+    }
+
+    c10::intrusive_ptr<Work> BackendFlagcx::endCoalescing()
+    {
+        // groupEnd();
+        auto future = c10::make_intrusive<c10::ivalue::Future>(
+            c10::ListType::create(c10::TensorType::get()));
+        future->markCompleted(c10::IValue(0));
+        return c10::make_intrusive<WorkFlagcx>(OpType::COALESCED, std::move(future), stream, handler->devHandle, device_id, false);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::allgather(
@@ -279,7 +320,7 @@ namespace c10d
         auto future = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(outputTensors_));
-        return c10::make_intrusive<WorkFlagcx>(OpType::ALLGATHER, std::move(future));
+        return c10::make_intrusive<WorkFlagcx>(OpType::ALLGATHER, std::move(future), stream, handler->devHandle, device_id);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::_allgather_base(
@@ -313,7 +354,7 @@ namespace c10d
         auto future = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(tensors));
-        return c10::make_intrusive<WorkFlagcx>(OpType::ALLREDUCE, std::move(future));
+        return c10::make_intrusive<WorkFlagcx>(OpType::ALLREDUCE, std::move(future), stream, handler->devHandle, device_id);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::allreduce_coalesced(
@@ -386,7 +427,7 @@ namespace c10d
         auto future = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(outputTensors));
-        return c10::make_intrusive<WorkFlagcx>(OpType::ALLTOALL, std::move(future));
+        return c10::make_intrusive<WorkFlagcx>(OpType::ALLTOALL, std::move(future), stream, handler->devHandle, device_id);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::alltoall_base(
@@ -446,7 +487,7 @@ namespace c10d
         auto future = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(tensors));
-        return c10::make_intrusive<WorkFlagcx>(OpType::BROADCAST, std::move(future));
+        return c10::make_intrusive<WorkFlagcx>(OpType::BROADCAST, std::move(future), stream, handler->devHandle, device_id);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::gather(
@@ -484,7 +525,7 @@ namespace c10d
         auto future = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(outputTensors_));
-        return c10::make_intrusive<WorkFlagcx>(OpType::GATHER, std::move(future));
+        return c10::make_intrusive<WorkFlagcx>(OpType::GATHER, std::move(future), stream, handler->devHandle, device_id);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::reduce(
@@ -513,7 +554,7 @@ namespace c10d
         auto future = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(tensors));
-        return c10::make_intrusive<WorkFlagcx>(OpType::REDUCE, std::move(future));
+        return c10::make_intrusive<WorkFlagcx>(OpType::REDUCE, std::move(future), stream, handler->devHandle, device_id);
 
     }
 
@@ -562,7 +603,7 @@ namespace c10d
         auto future = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(outputTensor));
-        return c10::make_intrusive<WorkFlagcx>(OpType::REDUCE_SCATTER, std::move(future));
+        return c10::make_intrusive<WorkFlagcx>(OpType::REDUCE_SCATTER, std::move(future), stream, handler->devHandle, device_id);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::scatter(
@@ -601,7 +642,7 @@ namespace c10d
         auto future = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(outputTensor));
-        return c10::make_intrusive<WorkFlagcx>(OpType::SCATTER, std::move(future));
+        return c10::make_intrusive<WorkFlagcx>(OpType::SCATTER, std::move(future), stream, handler->devHandle, device_id);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::send(
@@ -626,7 +667,8 @@ namespace c10d
         auto future = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(tensors));
-        return c10::make_intrusive<WorkFlagcx>(OpType::SEND, std::move(future));
+        bool coalesced = (flagcxActiveGroupCounter_ > 0);
+        return c10::make_intrusive<WorkFlagcx>(OpType::SEND, std::move(future), stream, handler->devHandle, device_id, coalesced);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::recv(
@@ -651,7 +693,8 @@ namespace c10d
         auto future = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(tensors));
-        return c10::make_intrusive<WorkFlagcx>(OpType::RECV, std::move(future));
+        bool coalesced = (flagcxActiveGroupCounter_ > 0);
+        return c10::make_intrusive<WorkFlagcx>(OpType::RECV, std::move(future), stream, handler->devHandle, device_id, coalesced);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::recvAnysource(
