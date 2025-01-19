@@ -264,12 +264,12 @@ namespace c10d
 
     void BackendFlagcx::startCoalescing()
     {
-        // groupStart();
+        groupStart();
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::endCoalescing()
     {
-        // groupEnd();
+        groupEnd();
         auto future = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(0));
@@ -297,9 +297,6 @@ namespace c10d
             // Flatten a vector of tensors into a single, stacked tensor.
             at::Tensor outputFlattened = newLikeFlat(outputTensors_);
 
-            // Sync the underlying stream with flagcx stream.
-            syncStream(inputTensor.device());
-
             // Perform the allgather operation
             flagcxAllGather(
                 inputTensor.data_ptr(),
@@ -324,11 +321,29 @@ namespace c10d
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::_allgather_base(
-        at::Tensor& /* unused */,
-        at::Tensor& /* unused */,
+        at::Tensor& outputTensor,
+        at::Tensor& inputTensor,
         const AllgatherOptions& /* unused */)
     {
-        throw std::runtime_error("BackendFlagcx does not support _allgather_base");
+        auto flagcxDataType = getFlagcxDataType(inputTensor.scalar_type());
+        check_device(inputTensor.device(), outputTensor.device());
+        initComm(inputTensor.device());
+        syncStream(inputTensor.device());
+
+        // Perform the allgather operation
+        flagcxAllGather(
+            inputTensor.data_ptr(),
+            outputTensor.data_ptr(),
+            inputTensor.numel(),
+            flagcxDataType,
+            handler->comm,
+            stream);
+
+        // Create a future to track the allgather operation
+        auto future = c10::make_intrusive<c10::ivalue::Future>(
+            c10::ListType::create(c10::TensorType::get()));
+        future->markCompleted(c10::IValue(outputTensor));
+        return c10::make_intrusive<WorkFlagcx>(OpType::_ALLGATHER_BASE, std::move(future), stream, handler->devHandle, device_id);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::allreduce(
