@@ -450,6 +450,16 @@ flagcxResult_t flagcxCommGetAsyncError(flagcxComm_t comm, flagcxResult_t asyncEr
     return flagcxNotSupported;
 }
 
+flagcxResult_t flagcxBarrier(flagcxComm_t comm, flagcxStream_t stream) {
+    void *barrierBuff;
+    deviceAdaptor->deviceMalloc(&barrierBuff, comm->nranks, flagcxMemDevice);
+    deviceAdaptor->deviceMemset(barrierBuff, 0, comm->nranks, flagcxMemDevice, stream);
+    flagcxAllReduce(barrierBuff, barrierBuff, comm->nranks, flagcxChar, flagcxMax, comm, stream);
+    deviceAdaptor->streamSynchronize(stream);
+    deviceAdaptor->deviceFree(barrierBuff, flagcxMemDevice);
+    return flagcxSuccess;
+}
+
 flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
                             flagcxDataType_t datatype, flagcxRedOp_t op, int root,
                             flagcxComm_t comm, flagcxStream_t stream)

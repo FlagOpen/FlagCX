@@ -46,6 +46,7 @@ if torch.cuda.is_available():
     print(f"rank {rank} after allreduce max with FLAGCX_GROUP1: y = {y}")
     dist.all_reduce(x, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
     print(f"rank {rank} after allreduce sum with FLAGCX_GROUP1: x = {x}")
+    dist.barrier(group=FLAGCX_GROUP1)
 
     # Perform send and recv with FLAGCX_GROUP2
     for i in range(world_size):
@@ -67,6 +68,8 @@ if torch.cuda.is_available():
         dist.recv(y, prev_rank, group=FLAGCX_GROUP2)
         dist.recv(y, prev_rank, group=FLAGCX_GROUP2)
     print(f"rank {rank} after send/recv with FLAGCX_GROUP2: x = {x}, y = {y}")
+    handle = dist.barrier(group=FLAGCX_GROUP2, async_op=True)
+    handle.wait()
 
     # Perform allgather with FLAGCX_GROUP1
     z = torch.rand(1).cuda()
@@ -81,12 +84,14 @@ if torch.cuda.is_available():
     cur_rank_info = {'rank': rank, 'device_type': f"cpu:gloo,{dev_name}:flagcx"}
     dist.all_gather_object(all_rank_infos, cur_rank_info)
     print(f"rank {rank} after all_gather_object with FLAGCX_GROUP1: all_rank_infos = {all_rank_infos}")
+    dist.barrier(group=FLAGCX_GROUP1)
 
     # Perform broadcast with FLAGCX_GROUP2
     x = torch.rand(world_size).cuda()
     print(f"rank {rank} before broadcast with FLAGCX_GROUP2: x = {x}")
     dist.broadcast(x, 0, group=FLAGCX_GROUP2)
     print(f"rank {rank} after broadcast with FLAGCX_GROUP2: x = {x}")
+    dist.barrier(group=FLAGCX_GROUP2)
 
     # print(f"medium y: {y}")
     # list_y = list(torch.chunk(y, world_size, dim=0))

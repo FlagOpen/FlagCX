@@ -73,7 +73,7 @@ int main(int argc, char *argv[]){
             flagcxRecv(recvbuff, count, DATATYPE, recvPeer, comm, stream);
             flagcxGroupEnd();
         }
-        devHandle->streamSynchronize(stream);
+        flagcxBarrier(comm, stream);
         
         MPI_Barrier(MPI_COMM_WORLD);
 
@@ -84,7 +84,8 @@ int main(int argc, char *argv[]){
             flagcxRecv(recvbuff, count, DATATYPE, recvPeer, comm, stream);
             flagcxGroupEnd();
         }
-        devHandle->streamSynchronize(stream);
+        flagcxBarrier(comm, stream);
+
         double elapsed_time = tim.elapsed() / num_iters;
         double base_bw = (double)(size) / 1.0E9 / elapsed_time;
         double alg_bw = base_bw;

@@ -170,6 +170,14 @@ flagcxResult_t flagcxCommUserRank(const flagcxComm_t comm, int* rank);
  */
 
 /*
+ * Barrier
+ *
+ * Blocks until all processes in the communicator have reached this routine.
+ *
+ */
+flagcxResult_t flagcxBarrier(flagcxComm_t comm, flagcxStream_t stream);
+
+/*
  * Reduce
  *
  * Reduces data arrays of length count in sendbuff into recvbuff using op

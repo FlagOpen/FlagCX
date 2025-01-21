@@ -409,19 +409,8 @@ namespace c10d
 
         // Flatten a vector of tensors into a single, stacked tensor.
         // TODO: check the correctness of newLikeFlat
-        // if (rank_ == 7)
-        // {
-        //     for (const auto j : c10::irange(inputTensors.size()))
-        //     {
-        //         std::cout << "inputTensors[" << j << "]: " << inputTensors[j] << "; outputTensors[" << j << "]: " << outputTensors[j] << std::endl;
-        //     }
-        // }
         at::Tensor inputFlattened = newLikeFlat(inputTensors);
         at::Tensor outputFlattened = newLikeFlat(outputTensors);
-        // if (rank_ == 7)
-        // {
-        //     std::cout << "inputFlattened: " << inputFlattened << "; outputFlattened: " << outputFlattened << std::endl;
-        // }
 
         flagcxAlltoAll(
             inputFlattened.data_ptr(),
@@ -458,24 +447,14 @@ namespace c10d
     c10::intrusive_ptr<Work> BackendFlagcx::barrier(
         const BarrierOptions& opts)
     {
-        throw std::runtime_error("BackendFlagcx does not support barrier");
-        // int barDevIdx = static_cast<int16_t>(rank_ % localDeviceCount_);
-        // auto barDevice = at::Device(at::DeviceType::CUDA, static_cast<c10::DeviceIndex>(barDevIdx));
+        flagcxBarrier(handler->comm, stream);
 
-        // // Create a dummy tensor on the device
-        // // Note: we use zeros() instead of empty() to prevent barrier from triggering
-        // // alarm when NaN checker is enabled.
-        // std::vector<at::Tensor> barrierTensors;
-        // barrierTensors.emplace_back(at::zeros({1}, at::TensorOptions().device(barDevice).dtype(at::kFloat)));
-
-        // // All reduce to achieve the barrier
-        // auto work = allreduce(barrierTensors);
-
-        // // Work will take over barrierTensors
-        // auto flagcxWork = dynamic_cast<WorkFlagcx *>(work.get());
-        // TORCH_CHECK(flagcxWork);
-        // flagcxWork->isBarrierOp_ = true;
-        // return work;
+        auto future = c10::make_intrusive<c10::ivalue::Future>(
+            c10::ListType::create(c10::TensorType::get()));
+        future->markCompleted(c10::IValue(0));
+        auto work = c10::make_intrusive<WorkFlagcx>(OpType::COALESCED, std::move(future), stream, handler->devHandle, device_id, false);
+        work->isBarrierOp_ = true;
+        return work;
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::broadcast(
@@ -584,6 +563,7 @@ namespace c10d
         auto flagcxReduceOp = getFlagcxReduceOp(opts.reduceOp, outputTensor, flagcxDataType, handler->comm);
         check_device(outputTensor.device(), inputTensors_[0].device());
         initComm(outputTensor.device());
+        syncStream(outputTensor.device());
 
         if (!check_same_size(inputTensors_))
         {
@@ -593,9 +573,6 @@ namespace c10d
         {
             // Flatten a vector of tensors into a single, stacked tensor.
             at::Tensor inputFlattened = newLikeFlat(inputTensors_);
-
-            // Sync the underlying stream with flagcx stream.
-            syncStream(outputTensor.device());
 
             // Perform the reducescatter operation
             flagcxReduceScatter(
