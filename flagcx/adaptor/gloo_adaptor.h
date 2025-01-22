@@ -15,7 +15,7 @@
 #include "gloo/transport/device.h"
 #include "gloo/transport/context.h"
 #include "gloo/transport/tcp/device.h"
-#include "gloo/transport/ibverbs/device.h"
+// #include "gloo/transport/ibverbs/device.h"
 #include "gloo/allgather.h"
 #include "gloo/allgatherv.h"
 #include "gloo/allreduce.h"

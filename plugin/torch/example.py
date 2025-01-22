@@ -93,13 +93,30 @@ if torch.cuda.is_available():
     print(f"rank {rank} after broadcast with FLAGCX_GROUP2: x = {x}")
     dist.barrier(group=FLAGCX_GROUP2)
 
-    # print(f"medium y: {y}")
-    # list_y = list(torch.chunk(y, world_size, dim=0))
-    # print(list_y)
-    # list_z = list(torch.chunk(torch.ones(world_size).cuda(), world_size, dim=0))
-    # print(list_z)
-    # dist.all_to_all(list_z, list_y, group=FLAGCX_GROUP1)
-    # y = torch.cat(list_z, dim=0)
-    # print(f"flagcx alltoall y with FLAGCX_GROUP1: {y}")
+    # Perform reducescatter with FLAGCX_GROUP1
+    z[0] = 0
+    for i in range(world_size):
+        x[i] = i
+    x_list = list(torch.chunk(x, world_size, dim=0))
+    print(f"rank {rank} before reduce_scatter with FLAGCX_GROUP1: x_list = {x_list}, z = {z}")
+    dist.reduce_scatter(z, x_list, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+    print(f"rank {rank} after reduce_scatter with FLAGCX_GROUP1: x_list = {x_list}, z = {z}")
+    dist.barrier(group=FLAGCX_GROUP1)
+    for i in range(world_size):
+        x[i] = rank
+    print(f"rank {rank} before _reduce_scatter_base with FLAGCX_GROUP1: x = {x}, z = {z}")
+    dist._reduce_scatter_base(z, x, op=dist.ReduceOp.MAX, group=FLAGCX_GROUP1)
+    print(f"rank {rank} after _reduce_scatter_base with FLAGCX_GROUP1: x = {x}, z = {z}")
+
+    # Perform alltoall with FLAGCX_GROUP2
+    for i in range(world_size):
+        y[i] = rank
+        x[i] = 0
+    list_y = list(torch.chunk(y, world_size, dim=0))
+    list_z = list(torch.chunk(x, world_size, dim=0))
+    print(f"rank {rank} before all_to_all with FLAGCX_GROUP2: list_y = {list_y}, list_z = {list_z}")
+    dist.all_to_all(list_z, list_y, group=FLAGCX_GROUP2)
+    print(f"rank {rank} after all_to_all with FLAGCX_GROUP2: list_y = {list_y}, list_z = {list_z}")
+    dist.barrier(group=FLAGCX_GROUP2)
 
 dist.destroy_process_group()

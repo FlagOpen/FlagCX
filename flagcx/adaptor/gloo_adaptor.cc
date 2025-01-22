@@ -26,25 +26,25 @@ const char* glooAdaptorGetLastError(flagcxInnerComm_t comm) {
 flagcxResult_t glooAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks, flagcxUniqueId_t /*commId*/, int rank, bootstrapState *bootstrap) {
     // Create gloo transport device
     std::shared_ptr<::gloo::transport::Device> dev;
+    // try {
+    //     // Firstly, try ibverbs
+    //     ::gloo::transport::ibverbs::attr attr;
+    //     dev = ::gloo::transport::ibverbs::CreateDevice(attr);
+    // } catch (const std::exception& e) {
+    //     std::cout << "Caught an exception during the creation of ibverbs transport device: " << e.what() << ". Try tcp transport device alternatively." << std::endl;
+    //     // Alternatively, try tcp
     try {
-        // Firstly, try ibverbs
-        ::gloo::transport::ibverbs::attr attr;
-        dev = ::gloo::transport::ibverbs::CreateDevice(attr);
+        char line[1024];
+        FLAGCXCHECK(getHostName(line, 1024, '.'));
+        std::string hostname(line);
+        ::gloo::transport::tcp::attr attr;
+        attr.hostname = hostname;
+        dev = ::gloo::transport::tcp::CreateDevice(attr);
     } catch (const std::exception& e) {
-        std::cout << "Caught an exception during the creation of ibverbs transport device: " << e.what() << ". Try tcp transport device alternatively." << std::endl;
-        // Alternatively, try tcp
-        try {
-            char line[1024];
-            FLAGCXCHECK(getHostName(line, 1024, '.'));
-            std::string hostname(line);
-            ::gloo::transport::tcp::attr attr;
-            attr.hostname = hostname;
-            dev = ::gloo::transport::tcp::CreateDevice(attr);
-        } catch (const std::exception& e) {
-            std::cout << "Caught an exception during the creation of tcp transport device: " << e.what() << ". Fail to create gloo transport device." << std::endl;
-            return flagcxSuccess;
-        }
+        std::cout << "Caught an exception during the creation of tcp transport device: " << e.what() << ". Fail to create gloo transport device." << std::endl;
+        return flagcxInternalError;
     }
+    // }
     if (*comm == NULL) {
         FLAGCXCHECK(flagcxCalloc(comm, 1));
     }

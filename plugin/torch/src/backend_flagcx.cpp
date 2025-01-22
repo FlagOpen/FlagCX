@@ -16,8 +16,7 @@ namespace c10d
         flagcxRedOp_t getFlagcxReduceOp(
             const ReduceOp &reduceOp,
             at::Tensor &input,
-            const flagcxDataType_t &dataType,
-            const flagcxComm_t &comm)
+            const flagcxDataType_t &dataType)
         {
             try
             {
@@ -306,7 +305,7 @@ namespace c10d
                 handler->comm,
                 stream);
 
-            // Unflatten the flattened tensor back into a vector of tensors.
+            // Copy the flattened tensor back into a vector of tensors.
             for (const auto j : c10::irange(outputTensors_.size()))
             {
                 outputTensors_[j].copy_(outputFlattened[j], true);
@@ -352,7 +351,7 @@ namespace c10d
     {
         auto &tensor = tensors.back();
         auto flagcxDataType = getFlagcxDataType(tensor.scalar_type());
-        auto flagcxReduceOp = getFlagcxReduceOp(opts.reduceOp, tensor, flagcxDataType, handler->comm);
+        auto flagcxReduceOp = getFlagcxReduceOp(opts.reduceOp, tensor, flagcxDataType);
         initComm(tensor.device());
         syncStream(tensor.device());
 
@@ -384,14 +383,6 @@ namespace c10d
         std::vector<at::Tensor>& inputTensors,
         const AllToAllOptions& /* unused */)
     {
-        // std::vector<int64_t> inSplitSizes;
-        // std::vector<int64_t> outSplitSizes;
-        // for (const auto r : c10::irange(outputTensors.size()))
-        // {
-        //     inSplitSizes.push_back(inputTensors[r].numel());
-        //     outSplitSizes.push_back(outputTensors[r].numel());
-        // }
-
         if (inputTensors.size() != outputTensors.size())
             throw std::runtime_error("Input and output tensors size must be equal");
         if (inputTensors[0].numel() != outputTensors[0].numel())
@@ -408,9 +399,14 @@ namespace c10d
         syncStream(device);
 
         // Flatten a vector of tensors into a single, stacked tensor.
-        // TODO: check the correctness of newLikeFlat
         at::Tensor inputFlattened = newLikeFlat(inputTensors);
         at::Tensor outputFlattened = newLikeFlat(outputTensors);
+
+        // Copy the input tensors to the flattened tensor.
+        for (const auto j : c10::irange(inputTensors.size()))
+        {
+            inputFlattened[j].copy_(inputTensors[j], true);
+        }
 
         flagcxAlltoAll(
             inputFlattened.data_ptr(),
@@ -420,10 +416,9 @@ namespace c10d
             handler->comm,
             stream);
 
-        // Unflatten the flattened tensor back into a vector of tensors.
+        // Copy the flattened tensor back into a vector of tensors.
         for (const auto j : c10::irange(outputTensors.size()))
         {
-            inputTensors[j].copy_(inputFlattened[j], true);
             outputTensors[j].copy_(outputFlattened[j], true);
         }
 
@@ -528,7 +523,7 @@ namespace c10d
     {
         auto &tensor = tensors.back();
         auto flagcxDataType = getFlagcxDataType(tensor.scalar_type());
-        auto flagcxReduceOp = getFlagcxReduceOp(opts.reduceOp, tensor, flagcxDataType, handler->comm);
+        auto flagcxReduceOp = getFlagcxReduceOp(opts.reduceOp, tensor, flagcxDataType);
         initComm(tensor.device());
         syncStream(tensor.device());
 
@@ -560,7 +555,7 @@ namespace c10d
         auto outputTensor = outputTensors.back();
         auto inputTensors_ = inputTensors.back();
         auto flagcxDataType = getFlagcxDataType(outputTensor.scalar_type());
-        auto flagcxReduceOp = getFlagcxReduceOp(opts.reduceOp, outputTensor, flagcxDataType, handler->comm);
+        auto flagcxReduceOp = getFlagcxReduceOp(opts.reduceOp, outputTensor, flagcxDataType);
         check_device(outputTensor.device(), inputTensors_[0].device());
         initComm(outputTensor.device());
         syncStream(outputTensor.device());
@@ -574,6 +569,12 @@ namespace c10d
             // Flatten a vector of tensors into a single, stacked tensor.
             at::Tensor inputFlattened = newLikeFlat(inputTensors_);
 
+            // Copy the input tensors to the flattened tensor.
+            for (const auto j : c10::irange(inputTensors_.size()))
+            {
+                inputFlattened[j].copy_(inputTensors_[j], true);
+            }
+
             // Perform the reducescatter operation
             flagcxReduceScatter(
                 inputFlattened.data_ptr(),
@@ -584,11 +585,6 @@ namespace c10d
                 handler->comm,
                 stream);
 
-            // Unflatten the flattened tensor back into a vector of tensors.
-            for (const auto j : c10::irange(inputTensors_.size()))
-            {
-                inputFlattened[j].copy_(inputTensors_[j], true);
-            }
         }
 
         // Create a future to track the reducescatter operation
@@ -596,6 +592,41 @@ namespace c10d
             c10::ListType::create(c10::TensorType::get()));
         future->markCompleted(c10::IValue(outputTensor));
         return c10::make_intrusive<WorkFlagcx>(OpType::REDUCE_SCATTER, std::move(future), stream, handler->devHandle, device_id);
+    }
+
+    c10::intrusive_ptr<Work> BackendFlagcx::_reduce_scatter_base(
+        at::Tensor &outputTensor,
+        at::Tensor &inputTensor,
+        const ReduceScatterOptions &opts)
+    {    
+        auto flagcxDataType = getFlagcxDataType(outputTensor.scalar_type());
+        auto flagcxReduceOp = getFlagcxReduceOp(opts.reduceOp, outputTensor, flagcxDataType);
+        check_device(outputTensor.device(), inputTensor.device());
+        initComm(outputTensor.device());
+        syncStream(outputTensor.device());
+
+        if (inputTensor.numel() != outputTensor.numel() * size_)
+        {
+            throw std::runtime_error("Input tensor must be the same szie as output size times world size");
+        }
+        else
+        {
+            // Perform the reducescatter operation
+            flagcxReduceScatter(
+                inputTensor.data_ptr(),
+                outputTensor.data_ptr(),
+                outputTensor.numel(),
+                flagcxDataType,
+                flagcxReduceOp,
+                handler->comm,
+                stream);
+        }
+
+        // Create a future to track the reducescatter operation
+        auto future = c10::make_intrusive<c10::ivalue::Future>(
+            c10::ListType::create(c10::TensorType::get()));
+        future->markCompleted(c10::IValue(outputTensor));
+        return c10::make_intrusive<WorkFlagcx>(OpType::_REDUCE_SCATTER_BASE, std::move(future), stream, handler->devHandle, device_id);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::scatter(
@@ -614,6 +645,12 @@ namespace c10d
         // Flatten a vector of tensors into a single, stacked tensor.
         at::Tensor inputFlattened = newLikeFlat(inputTensors_);
 
+        // Copy the input tensors to the flattened tensor.
+        for (const auto j : c10::irange(inputTensors_.size()))
+        {
+            inputFlattened[j].copy_(inputTensors_[j], true);
+        }
+
         // Perform the scatter operation
         flagcxScatter(
             inputFlattened.data_ptr(),
@@ -623,12 +660,6 @@ namespace c10d
             root,
             handler->comm,
             stream);
-
-        // Unflatten the flattened tensor back into a vector of tensors.
-        for (const auto j : c10::irange(inputTensors_.size()))
-        {
-            inputFlattened[j].copy_(inputTensors_[j], true);
-        }
 
         // Create a future to track the scatter operation
         auto future = c10::make_intrusive<c10::ivalue::Future>(

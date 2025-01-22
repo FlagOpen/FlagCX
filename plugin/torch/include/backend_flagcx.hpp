@@ -31,7 +31,7 @@ namespace c10d
             : Work(
                   -1, // rank, only used by recvAnySource, irrelevant in this implementation
                   opType),
-              future_(std::move(future)), stream_(stream), handler_(handler), device_id_(device_id), coalesced_(coalesced)
+              future_(std::move(future)), stream_(stream), handler_(handler), device_id_(device_id), coalesced_(coalesced), isBarrierOp_(false)
         {
 #ifdef USE_NVIDIA_ADAPTOR
             event_ = std::make_unique<CUDAEventFlagcx>();
@@ -41,22 +41,21 @@ namespace c10d
             event_ = std::make_unique<MLUEventFlagcx>();
 #endif
             event_->record(stream_, device_id_);
+            printf("WorkFlagcx created with device_id = %d, coalesced = %d\n", device_id_, coalesced_);
         }
         bool isCompleted() override;
         bool isSuccess() const override;
         bool wait(std::chrono::milliseconds timeout = kUnsetTimeout) override;
         c10::intrusive_ptr<c10::ivalue::Future> getFuture() override;
 
-    protected:
-        bool isBarrierOp_{false};
-
     private:
         c10::intrusive_ptr<c10::ivalue::Future> future_;
-        std::unique_ptr<EventFlagcx> event_;
         flagcxStream_t stream_;
         flagcxDeviceHandle_t handler_;
         int device_id_;
         bool coalesced_; // for group semantics, unused for now
+        bool isBarrierOp_;
+        std::unique_ptr<EventFlagcx> event_;
     };
 
     class BackendFlagcx : public Backend
@@ -119,6 +118,11 @@ namespace c10d
         c10::intrusive_ptr<Work> reduce_scatter(
             std::vector<at::Tensor> &outputTensors,
             std::vector<std::vector<at::Tensor>> &inputTensors,
+            const ReduceScatterOptions &opts = ReduceScatterOptions()) override;
+
+        c10::intrusive_ptr<Work> _reduce_scatter_base(
+            at::Tensor &outputTensor,
+            at::Tensor &inputTensor,
             const ReduceScatterOptions &opts = ReduceScatterOptions()) override;
 
         c10::intrusive_ptr<Work> alltoall_base(
