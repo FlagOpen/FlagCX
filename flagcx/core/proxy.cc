@@ -132,7 +132,9 @@ inline void* flagcxProxyProgress(void *proxyState_){
   // flagcxSetDevice(proxyState->cudaDev);
   deviceAdaptor->setDevice(proxyState->cudaDev);
 
-  while(!proxyState->progressState.stop || !commplete){
+  int stop = 0;
+  while(!stop || !commplete){
+    stop = proxyState->progressState.stop;
     commplete = true;
     if(!flagcxConsProgChannelListEmpty(proxyState->consProgChannelHead)){
       struct flagcxProxyOps* proxyOps = proxyState->consProgChannelHead;
