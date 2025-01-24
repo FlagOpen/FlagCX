@@ -55,6 +55,7 @@ void flagcxSetThreadName(pthread_t thread, const char *fmt, ...);
 #define TIMER_COLL_MEM_D2H  4
 #define TIMER_COLL_MEM_H2D  5
 #define TIMER_COLL_ALLOC    6
-#define TIMERS_COLL_COUNT   7
+#define TIMER_COLL_FREE     7     
+#define TIMERS_COLL_COUNT   8
 
 #endif

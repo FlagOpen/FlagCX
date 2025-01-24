@@ -34,11 +34,18 @@ flagcxResult_t glooAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks, flag
     //     std::cout << "Caught an exception during the creation of ibverbs transport device: " << e.what() << ". Try tcp transport device alternatively." << std::endl;
     //     // Alternatively, try tcp
     try {
-        char line[1024];
-        FLAGCXCHECK(getHostName(line, 1024, '.'));
-        std::string hostname(line);
         ::gloo::transport::tcp::attr attr;
-        attr.hostname = hostname;
+        char line[1024];
+        const char* glooIface = flagcxGetEnv("FLAGCX_GLOO_SOCKET_IFNAME");
+        if(glooIface == NULL) {
+            FLAGCXCHECK(getHostName(line, 1024, '.'));
+            std::string hostname(line);
+            attr.hostname = hostname;
+        } else {
+            strcpy(line, glooIface);
+            std::string iface(line);
+            attr.iface = iface;
+        }
         dev = ::gloo::transport::tcp::CreateDevice(attr);
     } catch (const std::exception& e) {
         std::cout << "Caught an exception during the creation of tcp transport device: " << e.what() << ". Fail to create gloo transport device." << std::endl;
