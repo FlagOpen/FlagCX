@@ -23,15 +23,15 @@ namespace c10d
     public:
         WorkFlagcx(
             OpType opType,
-            c10::intrusive_ptr<c10::ivalue::Future> future, // future of the output
             flagcxStream_t stream = nullptr,
             flagcxDeviceHandle_t handler = nullptr,
+            c10::intrusive_ptr<c10::ivalue::Future> future = nullptr, // future of the output
             int device_id = 0,
             bool coalesced = false)
             : Work(
                   -1, // rank, only used by recvAnySource, irrelevant in this implementation
                   opType),
-              future_(std::move(future)), stream_(stream), handler_(handler), device_id_(device_id), coalesced_(coalesced), isBarrierOp_(false)
+              stream_(stream), handler_(handler), future_(std::move(future)), device_id_(device_id), coalesced_(coalesced), isBarrierOp_(false)
         {
 #ifdef USE_NVIDIA_ADAPTOR
             event_ = std::make_unique<CUDAEventFlagcx>();
@@ -40,8 +40,7 @@ namespace c10d
 #elif USE_CAMBRICON_ADAPTOR
             event_ = std::make_unique<MLUEventFlagcx>();
 #endif
-            event_->record(stream_, device_id_);
-            printf("WorkFlagcx created with device_id = %d, coalesced = %d\n", device_id_, coalesced_);
+            // event_->record(stream_, device_id_);
         }
         bool isCompleted() override;
         bool isSuccess() const override;
@@ -49,9 +48,9 @@ namespace c10d
         c10::intrusive_ptr<c10::ivalue::Future> getFuture() override;
 
     private:
-        c10::intrusive_ptr<c10::ivalue::Future> future_;
         flagcxStream_t stream_;
         flagcxDeviceHandle_t handler_;
+        c10::intrusive_ptr<c10::ivalue::Future> future_;
         int device_id_;
         bool coalesced_; // for group semantics, unused for now
         bool isBarrierOp_;

@@ -594,6 +594,13 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
         }
         else
         {
+            // op validation
+            if (op != flagcxSum && op != flagcxMax && op != flagcxMin)
+            {
+                WARN("Unsupported reduction operation %d", op);
+                return flagcxInvalidArgument;
+            }
+
             // intra-cluster reduce
             FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(sendbuff, recvbuff, count, datatype, op, comm->homo_inter_rank, comm->homo_comm, stream));
 
@@ -601,7 +608,9 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
             deviceAdaptor->streamSynchronize(stream);
             if (comm->homo_inter_rank != comm->homo_rank)
             {
-                deviceAdaptor->deviceMemset(recvbuff, 0, count * getFlagcxDataTypeSize(datatype), flagcxMemDevice, stream);
+                if (op == flagcxSum) {
+                    deviceAdaptor->deviceMemset(recvbuff, 0, count * getFlagcxDataTypeSize(datatype), flagcxMemDevice, stream);
+                }
             }
             int cid = 0;
             flagcxGroupStart();
