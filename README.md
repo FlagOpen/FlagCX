@@ -6,10 +6,29 @@
 
 FlagCX is also a part of [FlagAI-Open](https://flagopen.baai.ac.cn/), an open-source initiative by BAAI that aims to foster an open-source ecosystem for AI technologies. It serves as a platform where developers, researchers, and AI enthusiasts can collaborate on various AI projects, contribute to the development of cutting-edge AI solutions, and share their work with the global community.
 
-FlagCX leverages native collective communication libraries to provide the full support of single-chip communication on different platforms. All supported communication backends are listed as follows:
+FlagCX leverages native collective communications libraries to provide the full support of single-chip communications on different platforms. In addition to its native x-CCL support, FlagCX provides an original device-buffer RDMA design to offer advanced support for cross-chip high-performance sendrecev operations (`CORE` module), which can also be integrated with native x-CCL backends to enable optimized cross-chip collective communications. A comprehensive list of currently supported communication backends and their different capabilities are listed as follows:
+
+| Backend       | NCCL | IXCCL  | CNCL | GLOO    | CORE+x-CCL |
+|:--------------|:-----|:-------|:-----|:--------|:-----------|
+| Mode          | Homo | Homo   | Homo | Hetero  | Hetero     |
+| send          | ✓    | ✓      | ✓    | ✓       | ✓          |
+| recv          | ✓    | ✓      | ✓    | ✓       | ✓          |
+| broadcast     | ✓    | ✓      | ✓    | ✘       | ✘          |
+| gather        | ✓    | ✓      | ✓    | ✘       | ✘          |
+| scatter       | ✓    | ✓      | ✓    | ✘       | ✘          |
+| reduce        | ✓    | ✓      | ✓    | ✘       | ✘          |
+| allreduce     | ✓    | ✓      | ✓    | ✓       | ✓          |
+| allgather     | ✓    | ✓      | ✓    | ✓       | ✓          |
+| reducescatter | ✓    | ✓      | ✓    | ✘       | ✘          |
+| alltoall      | ✓    | ✓      | ✓    | ✓       | ✓          |
+| group ops     | ✓    | ✓      | ✓    | ?       | ?          |
+
+Note that `Homo` and `Hetero` modes refer to communications among homogeneouse and heterogeneous clusters. All supported native collective communication libraries can be referenced through the links below:
+
 - [NCCL](https://github.com/NVIDIA/nccl), NVIDIA Collective Communications Library.
 - [IXCCL](https://www.iluvatar.com/software?fullCode=cpjs-rj-rjz), Iluvatar Corex Collective Communications Library.
 - [CNCL](https://www.cambricon.com/docs/sdk_1.7.0/cncl_1.2.1/user_guide/index.html#), Cambricon Communications Library.
+- [GLOO](https://github.com/facebookincubator/gloo), Gloo Collective Communications Library.
 
 ## Quick Start
 
@@ -22,7 +41,7 @@ FlagCX leverages native collective communication libraries to provide the full s
 2. Build the library with different flags targeting to different platforms:
     ```sh
     cd FlagCX
-    make [USE_NVIDIA/USE_ILUVATAR_COREX/USE_CAMBRICON]=1
+    make [USE_NVIDIA/USE_ILUVATAR_COREX/USE_CAMBRICON/USE_GLOO]=1
     ```
     The default install path is set to `build/`, you can manually set `BUILDDIR` to specify the build path. You may also define `DEVICE_HOME` and `CCL_HOME` to indicate the install paths of device runtime and communication libraries.
 
