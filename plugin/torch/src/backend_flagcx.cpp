@@ -1,5 +1,6 @@
 #include "backend_flagcx.hpp"
 #include <iostream>
+#include <c10/cuda/impl/CUDAGuardImpl.h>
 
 namespace c10d
 {
@@ -254,14 +255,17 @@ namespace c10d
 
     void BackendFlagcx::groupStart()
     {
-        // flagcxGroupStart();
-        // ++flagcxActiveGroupCounter_;
+        c10::DeviceIndex device = 0;
+        C10_CUDA_CHECK(c10::cuda::GetDevice(&device));
+        initComm(at::Device(c10::DeviceType::CUDA, device));
+        flagcxGroupStart();
+        ++flagcxActiveGroupCounter_;
     }
 
     void BackendFlagcx::groupEnd()
     {
-        // flagcxGroupEnd();
-        // --flagcxActiveGroupCounter_;
+        flagcxGroupEnd();
+        --flagcxActiveGroupCounter_;
     }
 
     void BackendFlagcx::startCoalescing()
