@@ -1,6 +1,5 @@
 #include "backend_flagcx.hpp"
 #include <iostream>
-#include <c10/core/DeviceGuard.h>
 
 namespace c10d
 {
@@ -138,14 +137,11 @@ namespace c10d
 
     bool WorkFlagcx::wait(std::chrono::milliseconds /* unused */)
     {
-        // TODO: find a solution to block flagcx stream on default stream,
-        // otherwise we have to call torch distributed ops under a customized stream context.
-        // if (!coalesced_)
-        // {
-        //     event_->block(device_id_);
-        // }
-        // if (isBarrierOp_)
-        // For now, we directly call stream sync.
+        if (!coalesced_)
+        {
+            event_->block(device_id_);
+        }
+        if (isBarrierOp_)
         {
             handler_->streamSynchronize(stream_);
         }
@@ -284,6 +280,7 @@ namespace c10d
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
         work->coalesced_ = false;
+        work->isBarrierOp_ = true;
         // Create a future to track the coalesced operation
         work->future_ = c10::make_intrusive<c10::ivalue::Future>(c10::ListType::create(c10::TensorType::get()));
         work->future_->markCompleted(c10::IValue(0));

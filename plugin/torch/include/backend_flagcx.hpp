@@ -6,6 +6,7 @@
 #include <torch/csrc/distributed/c10d/Store.hpp>
 #include <torch/csrc/distributed/c10d/Types.hpp>
 #include <torch/csrc/distributed/c10d/Utils.hpp>
+#include <c10/core/DeviceGuard.h>
 
 #include <pybind11/chrono.h>
 #include <unordered_map>
