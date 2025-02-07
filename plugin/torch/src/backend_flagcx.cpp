@@ -257,6 +257,8 @@ namespace c10d
     {
 #if defined(USE_NVIDIA_ADAPTOR) || defined(USE_ILUVATAR_COREX_ADAPTOR)
         initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::CUDA)->getDevice());
+#elif defined(USE_CAMBRICON_ADAPTOR)
+        initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice());
 #endif
         flagcxGroupStart();
         ++flagcxActiveGroupCounter_;
