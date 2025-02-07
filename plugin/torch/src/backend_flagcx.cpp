@@ -1,6 +1,6 @@
 #include "backend_flagcx.hpp"
 #include <iostream>
-#include <c10/cuda/impl/CUDAGuardImpl.h>
+#include <c10/core/DeviceGuard.h>
 
 namespace c10d
 {
@@ -255,9 +255,9 @@ namespace c10d
 
     void BackendFlagcx::groupStart()
     {
-        c10::DeviceIndex device = 0;
-        C10_CUDA_CHECK(c10::cuda::GetDevice(&device));
-        initComm(at::Device(c10::DeviceType::CUDA, device));
+#if defined(USE_NVIDIA_ADAPTOR) || defined(USE_ILUVATAR_COREX_ADAPTOR)
+        initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::CUDA)->getDevice());
+#endif
         flagcxGroupStart();
         ++flagcxActiveGroupCounter_;
     }
