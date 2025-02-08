@@ -17,7 +17,7 @@ EXTRA_COMPILER_FLAG = -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -
 INCLUDEDIR := $(abspath include)
 LIBSRCFILES:= $(wildcard *.cc)
 
-all: test-sendrecv test-allreduce test-allgather test-alltoall test-core-sendrecv
+all: test-sendrecv test-allreduce test-allgather test-alltoall test-core-sendrecv test-broadcast
 
 test-sendrecv: test_sendrecv.cpp
 	@echo "Compiling $@"
@@ -39,12 +39,17 @@ test-core-sendrecv: test_core_sendrecv.cpp
 	@echo "Compiling $@"
 	@$(COMPILER) $(EXTRA_COMPILER_FLAG) -o test_core_sendrecv test_core_sendrecv.cpp $(LIBSRCFILES) -I../../flagcx/include -I../../flagcx/service -I../../flagcx/core -I$(INCLUDEDIR) -I$(MPI_INCLUDE) -L../../build/lib/ -L$(MPI_LIB) -lflagcx $(MPI_LINK)
 
+test-broadcast: test_broadcast.cpp
+	@echo "Compiling $@"
+	@$(COMPILER) $(EXTRA_COMPILER_FLAG) -o test_broadcast test_broadcast.cpp $(LIBSRCFILES) -I../../flagcx/include -I$(INCLUDEDIR) -I$(MPI_INCLUDE) -L../../build/lib -L$(MPI_LIB) -lflagcx $(MPI_LINK)
+
 clean:
 	@rm -f test_sendrecv
 	@rm -f test_allreduce
 	@rm -f test_allgather
 	@rm -f test_alltoall
 	@rm -f test_core_sendrecv
+	@rm -f test_broadcast
 
 run-sendrecv:
 	@mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=ALL ./test_sendrecv

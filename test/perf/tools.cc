@@ -69,6 +69,7 @@ parser::parser(int argc, char **argv) {
   warmupIters = 5;
   testIters = 20;
   printBuffer = 0;
+  root = -1;
 
   double parsedValue;
   int longIndex;
@@ -79,6 +80,7 @@ parser::parser(int argc, char **argv) {
     {"warmup_iters", required_argument, 0, 'w'},
     {"iters", required_argument, 0, 'n'},
     {"print_buffer", required_argument, 0, 'p'},
+    {"root", required_argument, 0, 'r'},
     // {"op", required_argument, 0, 'o'},
     // {"datatype", required_argument, 0, 'd'},
     {"help", no_argument, 0, 'h'},
@@ -87,7 +89,7 @@ parser::parser(int argc, char **argv) {
 
   while (1) {
     int c;
-    c = getopt_long(argc, argv, "b:e:f:w:n:p:h", longOpts, &longIndex);
+    c = getopt_long(argc, argv, "b:e:f:w:n:p:r:h", longOpts, &longIndex);
 
     if (c == -1) break;
 
@@ -136,6 +138,13 @@ parser::parser(int argc, char **argv) {
           exit(1);
         }
         break;
+      case 'r':
+	root = (int)strtol(optarg, NULL, 0);
+	if (root < -1) {
+          fprintf(stderr, "Invalid root value\n");
+          exit(1);
+	}
+	break;
       case 'h':
       default:
         if (c != 'h') printf("Invalid argument '%c'\n", c);
@@ -146,6 +155,7 @@ parser::parser(int argc, char **argv) {
             "[-w <warmupiters>] \n\t"
             "[-n <iters>] \n\t"
             "[-p <printbuffer 0/1>] \n\t"
+            "[-r <root>] \n\t"
             "[-h\n", basename(argv[0]));
         printf("Use default values with -b 1M -e 1G -f 2 -w 5 -n 20 -p 0\n");
         break;
