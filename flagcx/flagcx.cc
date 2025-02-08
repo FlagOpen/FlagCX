@@ -640,8 +640,9 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
             // intra-cluster reduce
             FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(sendbuff, recvbuff, count, datatype, op, comm->homo_inter_rank, comm->homo_comm, stream));
 
-            // inter-cluster sendrecv
             deviceAdaptor->streamSynchronize(stream);
+
+            // inter-cluster sendrecv
             if (comm->homo_inter_rank != comm->homo_rank)
             {
                 if (op == flagcxSum) {
@@ -669,6 +670,8 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
                 cid += 1;
             }
             flagcxGroupEnd();
+
+            deviceAdaptor->streamSynchronize(stream);
 
             // intra-cluster allreduce
             FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(recvbuff, recvbuff, count, datatype, op, comm->homo_comm, stream));
@@ -825,6 +828,8 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff, size_t send
                 flagcxGroupEnd();
             }
 
+            deviceAdaptor->streamSynchronize(stream);
+
             // intra-cluster broadcast
             FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(recvbuff, recvbuff, sendcount * comm->nranks, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
         }
@@ -962,6 +967,8 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count
                 }
             }
             flagcxGroupEnd();
+
+            deviceAdaptor->streamSynchronize(stream);
         }
     }
     return flagcxSuccess;

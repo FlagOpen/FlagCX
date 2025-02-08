@@ -23,7 +23,7 @@ FlagCX leverages native collective communications libraries to provide the full 
 | alltoall      | ✓    | ✓      | ✓    | ✓       | ✓          |
 | group ops     | ✓    | ✓      | ✓    | ?       | ?          |
 
-Note that `Homo` and `Hetero` modes refer to communications among homogeneouse and heterogeneous clusters. All supported native collective communication libraries can be referenced through the links below:
+Note that `Homo` and `Hetero` modes refer to communications among homogeneous and heterogeneous clusters. All supported native collective communication libraries can be referenced through the links below:
 
 - [NCCL](https://github.com/NVIDIA/nccl), NVIDIA Collective Communications Library.
 - [IXCCL](https://www.iluvatar.com/software?fullCode=cpjs-rj-rjz), Iluvatar Corex Collective Communications Library.
