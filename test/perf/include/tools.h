@@ -18,6 +18,7 @@ public:
   int getWarmupIters() const { return warmupIters; }
   int getTestIters() const { return testIters; }
   bool isPrintBuffer() const { return printBuffer == 1; }
+  int getRootRank() const { return root; }
 
   size_t minBytes;
   size_t maxBytes;
@@ -25,4 +26,5 @@ public:
   int warmupIters;
   int testIters; 
   int printBuffer;
+  int root;
 };

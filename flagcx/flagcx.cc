@@ -507,8 +507,62 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff, size_t coun
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
     }
-    // TODO: to be implemented.
-    return flagcxNotSupported;
+    else
+    {
+        if (has_host_comm())
+        {
+            // TODO: to be implemented.
+            return flagcxNotSupported;
+        }
+	else
+        {
+            bool is_root_cluster = (comm->cluster_ids[comm->rank] == comm->cluster_ids[root]);
+            int offset = 0;
+            for (int i = 0; i < comm->cluster_ids[root]; ++i)
+            {
+                offset += comm->cluster_sizes[i];
+            }
+
+            // cluster w/ the root rank: intra-cluster bcast
+	    if (is_root_cluster && comm->homo_inter_rank != root - offset)
+            {
+                FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(sendbuff, recvbuff, count, datatype, root - offset, comm->homo_comm, stream));
+	    }
+
+	    // inter-cluster sendrecv
+	    flagcxGroupStart();
+	    if (comm->homo_inter_rank == comm->homo_rank)
+            {
+                if (comm->cluster_ids[comm->rank] == comm->cluster_ids[root])
+                {
+                    for (int i = 0; i < comm->nclusters; ++i)
+                    {
+                        if (i == comm->cluster_ids[root])
+                        {
+                            continue;
+			}
+			FLAGCXCHECK(flagcxHeteroSend(recvbuff, count, datatype, comm->cluster_inter_ranks[i], comm->hetero_comm, stream));
+		    }
+		}
+		else
+                {
+                    FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, comm->cluster_inter_ranks[comm->cluster_ids[root]], comm->hetero_comm, stream));
+		}
+	    }
+	    flagcxGroupEnd();
+
+	    // intra-cluster bcast
+	    if (!is_root_cluster)
+            {
+                FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(recvbuff, recvbuff, count, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
+            }
+	    else if (comm->homo_inter_rank == root - offset)
+            {
+	        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(sendbuff, recvbuff, count, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
+	    }
+        }
+    }
+    return flagcxSuccess;
 }
 
 // A wrapper over BootstrapAllReduce.
