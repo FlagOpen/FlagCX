@@ -13,8 +13,8 @@ FlagCX leverages native collective communications libraries to provide the full 
 | Mode          | Homo | Homo   | Homo | Hetero  | Hetero     |
 | send          | ✓    | ✓      | ✓    | ✓       | ✓          |
 | recv          | ✓    | ✓      | ✓    | ✓       | ✓          |
-| broadcast     | ✓    | ✓      | ✓    | ✘       | ✘          |
-| gather        | ✓    | ✓      | ✓    | ✘       | ✘          |
+| broadcast     | ✓    | ✓      | ✓    | ✘       | ✓          |
+| gather        | ✓    | ✓      | ✓    | ✘       | ✓          |
 | scatter       | ✓    | ✓      | ✓    | ✘       | ✘          |
 | reduce        | ✓    | ✓      | ✓    | ✘       | ✘          |
 | allreduce     | ✓    | ✓      | ✓    | ✓       | ✓          |
