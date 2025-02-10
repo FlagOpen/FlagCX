@@ -48,10 +48,10 @@ int main(int argc, char *argv[]){
     
     for (size_t size = min_bytes; size <= max_bytes; size *= step_factor) {
         int begin_root, end_root;
-	double sum_alg_bw = 0;
-	double sum_bus_bw = 0;
-	double sum_time = 0;
-	int test_count = 0;
+        double sum_alg_bw = 0;
+        double sum_bus_bw = 0;
+        double sum_time = 0;
+        int test_count = 0;
 
         if (root != -1) {
             begin_root = end_root = root;
@@ -61,54 +61,54 @@ int main(int argc, char *argv[]){
         }
         for (int r = begin_root; r <= end_root; r++) {
             count = size / sizeof(float);
-	    devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice);
-	    devHandle->deviceMalloc(&hello, size, flagcxMemHost);
-	    devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
+            devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice);
+            devHandle->deviceMalloc(&hello, size, flagcxMemHost);
+            devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
 
-	    for (size_t i = 0; i < count; i++) {
+            for (size_t i = 0; i < count; i++) {
                 ((float *)hello)[i] = i % 10;
-	    }
-
-	    if (proc == r) {
-                devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice);
-		devHandle->deviceMemcpy(sendbuff, hello, size, flagcxMemcpyHostToDevice, NULL);
             }
 
-	    if (proc == 0 && print_buffer) {
+            if (proc == r) {
+                devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice);
+                devHandle->deviceMemcpy(sendbuff, hello, size, flagcxMemcpyHostToDevice, NULL);
+            }
+
+            if (proc == 0 && print_buffer) {
                 printf("sendbuff = ");
                 for (size_t i = 0; i < 10; i++) {
                     printf("%f ", ((float *)hello)[i]);
                 }
                 printf("\n");
-		printf("root rank is %d\n", r);
+                printf("root rank is %d\n", r);
             }
 
             for (int i = 0 ; i < num_warmup_iters; i++) {
                 flagcxBroadcast(sendbuff, recvbuff, count, DATATYPE, r, comm, stream);
             }
-	    devHandle->streamSynchronize(stream);
+            devHandle->streamSynchronize(stream);
 
-	    MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(MPI_COMM_WORLD);
 
-	    tim.reset();
-	    for (int i = 0; i < num_iters; i++) {
+            tim.reset();
+            for (int i = 0; i < num_iters; i++) {
                 flagcxBroadcast(sendbuff, recvbuff, count, DATATYPE, r, comm, stream);
-	    }
-	    devHandle->streamSynchronize(stream);
-	    
-	    MPI_Barrier(MPI_COMM_WORLD);
+            }
+            devHandle->streamSynchronize(stream);
+            
+            MPI_Barrier(MPI_COMM_WORLD);
 
-	    double elapsed_time = tim.elapsed() / num_iters;
-	    double base_bw = (double)(size) / 1.0E9 / elapsed_time;
+            double elapsed_time = tim.elapsed() / num_iters;
+            double base_bw = (double)(size) / 1.0E9 / elapsed_time;
             double alg_bw = base_bw;
             double factor = 1;
             double bus_bw = base_bw * factor;
-	    sum_alg_bw += alg_bw;
-	    sum_bus_bw += bus_bw;
-	    sum_time += elapsed_time;
-	    test_count++;
+            sum_alg_bw += alg_bw;
+            sum_bus_bw += bus_bw;
+            sum_time += elapsed_time;
+            test_count++;
 
-	    devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
+            devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
             devHandle->deviceMemcpy(hello, recvbuff, size, flagcxMemcpyDeviceToHost, NULL);
             if (proc == 0 && print_buffer) {
                 printf("recvbuff = ");
@@ -118,16 +118,16 @@ int main(int argc, char *argv[]){
                 printf("\n");
             }
 
-	    if (proc == r) {
+            if (proc == r) {
                 devHandle->deviceFree(sendbuff, flagcxMemDevice);
-	    }
-	    devHandle->deviceFree(recvbuff, flagcxMemDevice);
+            }
+            devHandle->deviceFree(recvbuff, flagcxMemDevice);
             devHandle->deviceFree(hello, flagcxMemHost);
         }
         if (proc == 0) {
             double alg_bw = sum_alg_bw / test_count;
-	    double bus_bw = sum_bus_bw / test_count;
-	    double elapsed_time = sum_time / test_count;
+            double bus_bw = sum_bus_bw / test_count;
+            double elapsed_time = sum_time / test_count;
             printf("Comm size: %zu bytes; Elapsed time: %lf sec; Algo bandwidth: %lf GB/s; Bus bandwidth: %lf GB/s\n", size, elapsed_time, alg_bw, bus_bw);
         }
     }

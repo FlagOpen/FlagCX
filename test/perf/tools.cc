@@ -139,12 +139,12 @@ parser::parser(int argc, char **argv) {
         }
         break;
       case 'r':
-	root = (int)strtol(optarg, NULL, 0);
-	if (root < -1) {
+        root = (int)strtol(optarg, NULL, 0);
+        if (root < -1) {
           fprintf(stderr, "Invalid root value\n");
           exit(1);
-	}
-	break;
+        }
+        break;
       case 'h':
       default:
         if (c != 'h') printf("Invalid argument '%c'\n", c);

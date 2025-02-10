@@ -514,7 +514,7 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff, size_t coun
             // TODO: to be implemented.
             return flagcxNotSupported;
         }
-	else
+        else
         {
             bool is_root_cluster = (comm->cluster_ids[comm->rank] == comm->cluster_ids[root]);
             int offset = 0;
@@ -524,14 +524,14 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff, size_t coun
             }
 
             // cluster w/ the root rank: intra-cluster bcast
-	    if (is_root_cluster && comm->homo_inter_rank != root - offset)
+            if (is_root_cluster && comm->homo_inter_rank != root - offset)
             {
                 FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(sendbuff, recvbuff, count, datatype, root - offset, comm->homo_comm, stream));
-	    }
+            }
 
-	    // inter-cluster sendrecv
-	    flagcxGroupStart();
-	    if (comm->homo_inter_rank == comm->homo_rank)
+            // inter-cluster sendrecv
+            flagcxGroupStart();
+            if (comm->homo_inter_rank == comm->homo_rank)
             {
                 if (comm->cluster_ids[comm->rank] == comm->cluster_ids[root])
                 {
@@ -540,26 +540,26 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff, size_t coun
                         if (i == comm->cluster_ids[root])
                         {
                             continue;
-			}
-			FLAGCXCHECK(flagcxHeteroSend(recvbuff, count, datatype, comm->cluster_inter_ranks[i], comm->hetero_comm, stream));
-		    }
-		}
-		else
+                        }
+                        FLAGCXCHECK(flagcxHeteroSend(recvbuff, count, datatype, comm->cluster_inter_ranks[i], comm->hetero_comm, stream));
+                    }
+                }
+                else
                 {
                     FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, comm->cluster_inter_ranks[comm->cluster_ids[root]], comm->hetero_comm, stream));
-		}
-	    }
-	    flagcxGroupEnd();
+                }
+            }
+            flagcxGroupEnd();
 
-	    // intra-cluster bcast
-	    if (!is_root_cluster)
+            // intra-cluster bcast
+            if (!is_root_cluster)
             {
                 FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(recvbuff, recvbuff, count, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
             }
-	    else if (comm->homo_inter_rank == root - offset)
+            else if (comm->homo_inter_rank == root - offset)
             {
-	        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(sendbuff, recvbuff, count, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
-	    }
+                FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(sendbuff, recvbuff, count, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
+            }
         }
     }
     return flagcxSuccess;
