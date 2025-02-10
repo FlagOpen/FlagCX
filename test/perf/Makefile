@@ -58,6 +58,8 @@ clean:
 	@rm -f test_alltoall
 	@rm -f test_core_sendrecv
 	@rm -f test_broadcast
+	@rm -f test_gather
+	@rm -f test_scatter
 
 run-sendrecv:
 	@mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=ALL ./test_sendrecv
