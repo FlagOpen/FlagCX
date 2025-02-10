@@ -183,8 +183,8 @@ namespace c10d
         c10::intrusive_ptr<::c10d::Store> store;
         int nDevs;
         int device_id;
-        flagcxStream_t stream;
-        flagcxHandlerGroup_t handler;
+        flagcxStream_t stream = nullptr;
+        flagcxHandlerGroup_t handler = nullptr;
         std::unique_ptr<EventFlagcx> event;
         uint64_t flagcxActiveGroupCounter_;
     };

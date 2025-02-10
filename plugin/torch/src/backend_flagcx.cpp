@@ -267,6 +267,7 @@ namespace c10d
 
     void BackendFlagcx::groupEnd()
     {
+        initComm();
         flagcxGroupEnd();
         --flagcxActiveGroupCounter_;
     }
@@ -480,8 +481,8 @@ namespace c10d
     c10::intrusive_ptr<Work> BackendFlagcx::barrier(
         const BarrierOptions& opts)
     {
-        auto work = c10::make_intrusive<WorkFlagcx>(OpType::BARRIER, stream, handler->devHandle);
         initComm();
+	auto work = c10::make_intrusive<WorkFlagcx>(OpType::BARRIER, stream, handler->devHandle);
         flagcxBarrier(handler->comm, stream);
 
         work->event_->record(stream, device_id);
