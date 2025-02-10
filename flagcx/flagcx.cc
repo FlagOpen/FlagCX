@@ -485,6 +485,12 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
     }
     else
     {
+        char *useBootstrap = getenv("USE_BOOTSTRAP_CCL");
+        if (useBootstrap)
+        {
+            // TODO: to be implemented.
+            return flagcxNotSupported;
+        }
         if (has_host_comm())
         {
             // TODO: to be implemented.
@@ -745,6 +751,12 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff, size_t coun
     }
     else
     {
+        char *useBootstrap = getenv("USE_BOOTSTRAP_CCL");
+        if (useBootstrap)
+        {
+            // TODO: to be implemented.
+            return flagcxNotSupported;
+        }
         if (has_host_comm())
         {
             // TODO: to be implemented.

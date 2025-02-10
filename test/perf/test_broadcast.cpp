@@ -75,12 +75,12 @@ int main(int argc, char *argv[]){
             }
 
             if (proc == 0 && print_buffer) {
+                printf("root rank is %d\n", r);
                 printf("sendbuff = ");
                 for (size_t i = 0; i < 10; i++) {
                     printf("%f ", ((float *)hello)[i]);
                 }
                 printf("\n");
-                printf("root rank is %d\n", r);
             }
 
             for (int i = 0 ; i < num_warmup_iters; i++) {
