@@ -95,6 +95,8 @@ int main(int argc, char *argv[]){
                 flagcxBroadcast(sendbuff, recvbuff, count, DATATYPE, r, comm, stream);
 	    }
 	    devHandle->streamSynchronize(stream);
+	    
+	    MPI_Barrier(MPI_COMM_WORLD);
 
 	    double elapsed_time = tim.elapsed() / num_iters;
 	    double base_bw = (double)(size) / 1.0E9 / elapsed_time;
@@ -106,8 +108,6 @@ int main(int argc, char *argv[]){
 	    sum_time += elapsed_time;
 	    test_count++;
 
-	    MPI_Barrier(MPI_COMM_WORLD);
-	    
 	    devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
             devHandle->deviceMemcpy(hello, recvbuff, size, flagcxMemcpyDeviceToHost, NULL);
             if (proc == 0 && print_buffer) {
