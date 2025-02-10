@@ -243,6 +243,15 @@ namespace c10d
         }
     }
 
+    void BackendFlagcx::initComm()
+    {
+#if defined(USE_NVIDIA_ADAPTOR) || defined(USE_ILUVATAR_COREX_ADAPTOR)
+        initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::CUDA)->getDevice());
+#elif defined(USE_CAMBRICON_ADAPTOR)
+        initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice());
+#endif
+    }
+
     void BackendFlagcx::syncStream(at::Device device)
     {
         event->record(device.index());
@@ -251,11 +260,7 @@ namespace c10d
 
     void BackendFlagcx::groupStart()
     {
-#if defined(USE_NVIDIA_ADAPTOR) || defined(USE_ILUVATAR_COREX_ADAPTOR)
-        initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::CUDA)->getDevice());
-#elif defined(USE_CAMBRICON_ADAPTOR)
-        initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice());
-#endif
+        initComm();
         flagcxGroupStart();
         ++flagcxActiveGroupCounter_;
     }
@@ -476,7 +481,7 @@ namespace c10d
         const BarrierOptions& opts)
     {
         auto work = c10::make_intrusive<WorkFlagcx>(OpType::BARRIER, stream, handler->devHandle);
-
+        initComm();
         flagcxBarrier(handler->comm, stream);
 
         work->event_->record(stream, device_id);

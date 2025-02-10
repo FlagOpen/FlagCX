@@ -175,6 +175,7 @@ namespace c10d
 
     protected:
         void initComm(at::Device dev);
+        void initComm();
         void syncStream(at::Device device);
         void groupStart();
         void groupEnd();
