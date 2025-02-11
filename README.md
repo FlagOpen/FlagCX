@@ -19,7 +19,7 @@ FlagCX leverages native collective communications libraries to provide the full 
 | reduce        | ✓    | ✓      | ✓    | ✘       | ✘          |
 | allreduce     | ✓    | ✓      | ✓    | ✓       | ✓          |
 | allgather     | ✓    | ✓      | ✓    | ✓       | ✓          |
-| reducescatter | ✓    | ✓      | ✓    | ✘       | ✘          |
+| reducescatter | ✓    | ✓      | ✓    | ✘       | ✓          |
 | alltoall      | ✓    | ✓      | ✓    | ✓       | ✓          |
 | group ops     | ✓    | ✓      | ✓    | ?       | ?          |
 
@@ -29,6 +29,25 @@ Note that `Homo` and `Hetero` modes refer to communications among homogeneous an
 - [IXCCL](https://www.iluvatar.com/software?fullCode=cpjs-rj-rjz), Iluvatar Corex Collective Communications Library.
 - [CNCL](https://www.cambricon.com/docs/sdk_1.7.0/cncl_1.2.1/user_guide/index.html#), Cambricon Communications Library.
 - [GLOO](https://github.com/facebookincubator/gloo), Gloo Collective Communications Library.
+
+FlagCX also develops plugins to integrate with upper-layer applications such as PyTorch based on its unified APIs. The table below presents the communication operations currently supported by the plugins of their corresponding frameworks, where the `batch_XXX` and `XXX_coalesced` ops refer to the usage of group primitives.
+
+| Plugin                            | PyTorch |
+|:----------------------------------|:--------|
+| send                              | ✓       |
+| recv                              | ✓       |
+| batch_isend_irecv                 | ✓       |
+| broadcast                         | ✘       |
+| all_reduce                        | ✓       |
+| all_reduce_coalesced              | ✘       |
+| reduce                            | ✘       |
+| all_gather                        | ✓       |
+| all_gather_into_tensor_coalesced  | ✘       |
+| gather                            | ✘       |
+| scatter                           | ✘       |
+| reduce_scatter                    | ✓       |
+| reduce_scatter_tensor_coalesced   | ✘       |
+| all_to_all                        | ✓       |
 
 ## Quick Start
 
