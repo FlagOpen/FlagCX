@@ -102,6 +102,11 @@ namespace c10d
             at::Tensor &inputBuffer,
             const AllgatherOptions &opts = AllgatherOptions()) override;
 
+        c10::intrusive_ptr<Work> allgather_into_tensor_coalesced(
+            std::vector<at::Tensor>& outputs,
+            std::vector<at::Tensor>& inputs,
+            const AllgatherOptions& opts = AllgatherOptions()) override;
+
         c10::intrusive_ptr<Work> barrier(
             const BarrierOptions &opts = BarrierOptions()) override;
 
@@ -124,6 +129,11 @@ namespace c10d
             at::Tensor &outputTensor,
             at::Tensor &inputTensor,
             const ReduceScatterOptions &opts = ReduceScatterOptions()) override;
+
+        c10::intrusive_ptr<Work> reduce_scatter_tensor_coalesced(
+            std::vector<at::Tensor>& outputs,
+            std::vector<at::Tensor>& inputs,
+            const ReduceScatterOptions& opts = ReduceScatterOptions()) override;
 
         c10::intrusive_ptr<Work> alltoall_base(
             at::Tensor &outputTensor,
@@ -187,5 +197,18 @@ namespace c10d
         flagcxHandlerGroup_t handler = nullptr;
         std::unique_ptr<EventFlagcx> event;
         uint64_t flagcxActiveGroupCounter_;
+
+    private:
+        // Helper that encapsulates work shared across all collective communication
+        // primitives.  The callbacks have the following signatures:
+        //
+        //    flagcxResult_t fn(at::Tensor& input, at::Tensor& output,
+        //                    flagcxComm_t, flagcxStream_t&);
+        template <typename Fn>
+        c10::intrusive_ptr<Work> collectiveCoalesced(
+            std::vector<at::Tensor>& input,
+            std::vector<at::Tensor>& output,
+            Fn fn,
+            OpType opType);
     };
 } // namespace c10d

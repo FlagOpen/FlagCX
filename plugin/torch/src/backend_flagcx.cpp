@@ -1,4 +1,5 @@
 #include "backend_flagcx.hpp"
+#include "utils_flagcx.hpp"
 #include <iostream>
 
 namespace c10d
@@ -72,8 +73,10 @@ namespace c10d
             {at::kBool, flagcxUint8},
             {at::kFloat8_e5m2, flagcxUint8},
             {at::kFloat8_e4m3fn, flagcxUint8},
+	    /*
             {at::kFloat8_e4m3fnuz, flagcxUint8},
             {at::kFloat8_e5m2fnuz, flagcxUint8},
+	    */
             {at::kBFloat16, flagcxBfloat16},
         };
 
@@ -114,6 +117,37 @@ namespace c10d
                 throw std::runtime_error("BackendFlagcx does not support multidevice tensors");
             }
 #endif
+        }
+        int64_t check_gpu_tensors_same_device(const std::vector<at::Tensor>& tensors)
+        {
+            if (tensors.empty()) {
+                C10_THROW_ERROR(ValueError, "Tensor list must be nonempty");
+            }
+
+            const auto& first = tensors.front();
+
+            int64_t total_numel = 0;
+            for (const auto& t : tensors) {
+                if (t.is_sparse()) {
+                    C10_THROW_ERROR(ValueError, "Tensors must be dense");
+                }
+                if (t.scalar_type() != first.scalar_type()) {
+                    C10_THROW_ERROR(TypeError, "Tensors must have identical type");
+                }
+                if (!t.is_non_overlapping_and_dense()) {
+                    C10_THROW_ERROR(ValueError, "Tensors must be non-overlapping and dense");
+                }
+                // If we're in this function, the user called a _coalesced collective
+                // on a set of tensors with potentially different sizes and strides.
+                // Therefore, we don't check for matching sizes and strides,
+                // but we do double-check tensors are on the same device.
+                TORCH_CHECK_WITH(
+                    ValueError,
+                    t.get_device() == tensors[0].get_device(),
+                    "Expected list of tensors on the same device");
+                total_numel += t.numel();
+            }
+            return total_numel;
         }
     } // namespace
 
@@ -279,18 +313,64 @@ namespace c10d
 
     c10::intrusive_ptr<Work> BackendFlagcx::endCoalescing()
     {
-        auto work = c10::make_intrusive<WorkFlagcx>(OpType::COALESCED, stream, handler->devHandle);
-
         groupEnd();
 
+        auto work = c10::make_intrusive<WorkFlagcx>(OpType::COALESCED, stream, handler->devHandle);
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
-        work->coalesced_ = false;
+        work->coalesced_ = true;
         work->isBarrierOp_ = true;
         // Create a future to track the coalesced operation
         work->future_ = c10::make_intrusive<c10::ivalue::Future>(c10::ListType::create(c10::TensorType::get()));
         work->future_->markCompleted(c10::IValue(0));
 
+        return work;
+    }
+
+    template <typename Fn>
+    c10::intrusive_ptr<Work> BackendFlagcx::collectiveCoalesced(
+        std::vector<at::Tensor>& inputs,
+        std::vector<at::Tensor>& outputs,
+        Fn fn,
+        OpType opType)
+    {
+        // Currently, the API permits one scenario where inputs.size() and
+        // outputs.size() are > 0.
+        // 1. If the call was a _coalesced call, all inputs must be on the same
+        // device.
+        //    The group of flagcx calls applies the collective separately to each input,
+        //    but the group as a whole should be efficient.
+        auto device = inputs[0].device();
+        initComm(device);
+
+        // TODO: keep track of the coalesced state at backend side.
+
+        // First let NCCL stream wait for input tensor allocation stream
+        syncStream(device);
+        auto work = c10::make_intrusive<WorkFlagcx>(opType, stream, handler->devHandle);
+
+        {
+            AutoFlagcxGroup flagcx_group_guard;
+            for (const auto i : c10::irange(inputs.size()))
+            {
+                // TODO: we need to record these input/output to prevent being freed before the collective finished.
+                auto inputTensor = inputs[i];
+                auto outputTensor = outputs[i];
+                // Perform the collective operation
+                fn(inputTensor, outputTensor, handler->comm, stream);
+            }
+        }
+
+        work->event_->record(stream, device_id);
+        work->device_id_ = device_id;
+        work->coalesced_ = true;
+        // TODO: optimize to make it non-blocking.
+        work->isBarrierOp_ = true;
+        // Create a future to track the allgather operation
+        std::vector<at::Device> devices{inputs[0].device()};
+        work->future_ = c10::make_intrusive<c10::ivalue::Future>(
+            c10::ListType::create(c10::TensorType::get()), devices);
+        work->future_->markCompleted(c10::IValue(outputs[0]));
         return work;
     }
 
@@ -374,6 +454,31 @@ namespace c10d
         return work;
     }
 
+    c10::intrusive_ptr<Work> BackendFlagcx::allgather_into_tensor_coalesced(
+        std::vector<at::Tensor>& outputs,
+        std::vector<at::Tensor>& inputs,
+        const AllgatherOptions& opts)
+    {
+        // parameter validation
+        check_gpu_tensors_same_device(inputs);
+
+        return collectiveCoalesced(
+            inputs,
+            outputs,
+            [&](at::Tensor& input, at::Tensor& output, flagcxComm_t comm, flagcxStream_t& stream)
+            {
+                auto flagcxDataType = getFlagcxDataType(input.scalar_type());
+                return flagcxAllGather(
+                        input.data_ptr(),
+                        output.data_ptr(),
+                        input.numel(),
+                        flagcxDataType,
+                        handler->comm,
+                        stream);
+            },
+	        OpType::COALESCED);
+    }
+
     c10::intrusive_ptr<Work> BackendFlagcx::allreduce(
         std::vector<at::Tensor>& tensors,
         const AllreduceOptions& opts)
@@ -407,10 +512,32 @@ namespace c10d
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::allreduce_coalesced(
-        std::vector<at::Tensor>& /* unused */,
-        const AllreduceCoalescedOptions& /* unused */)
+        std::vector<at::Tensor>& tensors,
+        const AllreduceCoalescedOptions& opts)
     {
-        throw std::runtime_error("BackendFlagcx does not support allreduce_coalesced");
+        // parameter validation
+        check_gpu_tensors_same_device(tensors);
+        TORCH_CHECK(
+            !isFloat8Type(tensors.back().scalar_type()),
+            "Float8 dtypes are not currenlty supported for NCCL reductions");
+
+        return collectiveCoalesced(
+            tensors,
+            tensors,
+            [&](at::Tensor& input, at::Tensor& output, flagcxComm_t comm, flagcxStream_t stream)
+            {
+                auto flagcxDataType = getFlagcxDataType(input.scalar_type());
+                auto flagcxReduceOp = getFlagcxReduceOp(opts.reduceOp, input, flagcxDataType);
+                return flagcxAllReduce(
+                        input.data_ptr(),
+                        output.data_ptr(),
+                        input.numel(),
+                        flagcxDataType,
+                        flagcxReduceOp,
+                        comm,
+                        stream);
+            },
+            OpType::COALESCED);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::alltoall(
@@ -662,7 +789,7 @@ namespace c10d
         at::Tensor &outputTensor,
         at::Tensor &inputTensor,
         const ReduceScatterOptions &opts)
-    {    
+    {
         auto flagcxDataType = getFlagcxDataType(outputTensor.scalar_type());
         auto flagcxReduceOp = getFlagcxReduceOp(opts.reduceOp, outputTensor, flagcxDataType);
         auto work = c10::make_intrusive<WorkFlagcx>(OpType::_REDUCE_SCATTER_BASE, stream, handler->devHandle);
@@ -696,6 +823,14 @@ namespace c10d
             c10::ListType::create(c10::TensorType::get()), devices);
         work->future_->markCompleted(c10::IValue(outputTensor));
         return work;
+    }
+
+    c10::intrusive_ptr<Work> BackendFlagcx::reduce_scatter_tensor_coalesced(
+        std::vector<at::Tensor>& outputs,
+        std::vector<at::Tensor>& inputs,
+        const ReduceScatterOptions& opts)
+    {
+        throw std::runtime_error("BackendFlagcx does not support reduce_scatter_tensor_coalesced");
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::scatter(

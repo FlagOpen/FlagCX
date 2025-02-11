@@ -47,6 +47,18 @@ if torch.cuda.is_available():
     dist.all_reduce(x, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
     print(f"rank {rank} after allreduce sum with FLAGCX_GROUP1: x = {x}")
 
+    # Perform all_reduce_coalesced sync with FLAGCX_GROUP1
+    with dist._coalescing_manager(group=FLAGCX_GROUP1):
+        dist.all_reduce(x, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+        dist.all_reduce(y, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+    print(f"rank {rank} after all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = {x}, y = {y}")
+    # Perform all_reduce_coalesced async with FLAGCX_GROUP1
+    with dist._coalescing_manager(group=FLAGCX_GROUP1, async_ops=True)  as cm:
+        dist.all_reduce(x,op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+        dist.all_reduce(y,op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+    cm.wait()
+    print(f"rank {rank} after all_reduce_coalesced async sum with FLAGCX_GROUP1: x = {x}, y = {y}")
+
     # Perform send and recv with FLAGCX_GROUP2
     for i in range(world_size):
         x[i] = rank
@@ -82,6 +94,22 @@ if torch.cuda.is_available():
     cur_rank_info = {'rank': rank, 'device_type': f"cpu:gloo,{dev_name}:flagcx"}
     dist.all_gather_object(all_rank_infos, cur_rank_info)
     print(f"rank {rank} after all_gather_object with FLAGCX_GROUP1: all_rank_infos = {all_rank_infos}")
+
+    # Perform all_gather_coalesced sync with FLAGCX_GROUP1
+    z1 = torch.rand(1).cuda()
+    z1[0] = rank * 10
+    with dist._coalescing_manager(group=FLAGCX_GROUP1):
+        dist.all_gather_into_tensor(x, z1, group=FLAGCX_GROUP1)
+        dist.all_gather_into_tensor(y, z, group=FLAGCX_GROUP1)
+    print(f"rank {rank} after all_gather_coalesced sync with FLAGCX_GROUP1: x = {x}, y = {y}")
+    x = torch.rand(world_size).cuda()
+    y = torch.rand(world_size).cuda()
+    # Perform all_reduce_coalesced async with FLAGCX_GROUP1
+    with dist._coalescing_manager(group=FLAGCX_GROUP1, async_ops=True)  as cm:
+        dist.all_gather_into_tensor(x, z1, group=FLAGCX_GROUP1)
+        dist.all_gather_into_tensor(y, z, group=FLAGCX_GROUP1)
+    cm.wait()
+    print(f"rank {rank} after all_gather_coalesced async with FLAGCX_GROUP1: x = {x}, y = {y}")
 
     # Perform alltoall with FLAGCX_GROUP2
     for i in range(world_size):
