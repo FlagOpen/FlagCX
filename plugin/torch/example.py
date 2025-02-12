@@ -100,20 +100,45 @@ if torch.cuda.is_available():
     x_list = list(torch.chunk(x, world_size, dim=0))
     print(f"rank {rank} before reduce_scatter with FLAGCX_GROUP1: x_list = {x_list}, z = {z}")
     dist.reduce_scatter(z, x_list, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
-    # dist.barrier(group=FLAGCX_GROUP1)
     print(f"rank {rank} after reduce_scatter with FLAGCX_GROUP1: x_list = {x_list}, z = {z}")
     for i in range(world_size):
         x[i] = rank
     print(f"rank {rank} before _reduce_scatter_base with FLAGCX_GROUP1: x = {x}, z = {z}")
     dist._reduce_scatter_base(z, x, op=dist.ReduceOp.MAX, group=FLAGCX_GROUP1)
-    # dist.barrier(group=FLAGCX_GROUP1)
     print(f"rank {rank} after _reduce_scatter_base with FLAGCX_GROUP1: x = {x}, z = {z}")
 
     # Perform broadcast with FLAGCX_GROUP2
     x = torch.rand(world_size).cuda()
     print(f"rank {rank} before broadcast with FLAGCX_GROUP2: x = {x}")
     dist.broadcast(x, 0, group=FLAGCX_GROUP2)
-    # dist.barrier(group=FLAGCX_GROUP2)
     print(f"rank {rank} after broadcast with FLAGCX_GROUP2: x = {x}")
+
+    # Perform gather with FLAGCX_GROUP1
+    z[0] = rank
+    x = torch.rand(world_size).cuda()
+    x_list = list(torch.chunk(x, world_size, dim=0))
+    print(f"rank {rank} before gather on dst rank 0 with FLAGCX_GROUP1: z = {z}, x_list = {x_list}")
+    if rank == 0:
+        handle = dist.gather(z, x_list, 0, group=FLAGCX_GROUP1, async_op=True)
+    else:
+        handle = dist.gather(z, None, 0, group=FLAGCX_GROUP1, async_op=True)
+    handle.wait()
+    print(f"rank {rank} after gather on dst rank 0 with FLAGCX_GROUP1: z = {z}, x_list = {x_list}")
+
+    # Perform scatter with FLAGCX_GROUP2
+    z[0] = -1
+    print(f"rank {rank} before scatter from src rank 0 with FLAGCX_GROUP2: z = {z}, x_list = {x_list}")
+    if rank == 0:
+        dist.scatter(z, x_list, 0, group=FLAGCX_GROUP2)
+    else:
+        dist.scatter(z, None, 0, group=FLAGCX_GROUP2)
+    print(f"rank {rank} after scatter from src rank 0 with FLAGCX_GROUP2: z = {z}, x_list = {x_list}")
+
+    # Perform reduce with FLAGCX_GROUP1
+    for i in range(world_size):
+        x[i] = i
+    print(f"rank {rank} before reduce on src rank 0 with FLAGCX_GROUP1: x = {x}")
+    dist.reduce(x, 0, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+    print(f"rank {rank} after reduce on src rank 0 with FLAGCX_GROUP1: x = {x}")
 
 dist.destroy_process_group()

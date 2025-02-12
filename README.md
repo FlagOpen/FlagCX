@@ -16,7 +16,7 @@ FlagCX leverages native collective communications libraries to provide the full 
 | broadcast     | ✓    | ✓      | ✓    | ✘       | ✓          |
 | gather        | ✓    | ✓      | ✓    | ✘       | ✓          |
 | scatter       | ✓    | ✓      | ✓    | ✘       | ✓          |
-| reduce        | ✓    | ✓      | ✓    | ✘       | ✘          |
+| reduce        | ✓    | ✓      | ✓    | ✘       | ✓          |
 | allreduce     | ✓    | ✓      | ✓    | ✓       | ✓          |
 | allgather     | ✓    | ✓      | ✓    | ✓       | ✓          |
 | reducescatter | ✓    | ✓      | ✓    | ✘       | ✓          |
@@ -37,14 +37,14 @@ FlagCX also develops plugins to integrate with upper-layer applications such as 
 | send                              | ✓       |
 | recv                              | ✓       |
 | batch_isend_irecv                 | ✓       |
-| broadcast                         | ✘       |
+| broadcast                         | ✓       |
 | all_reduce                        | ✓       |
 | all_reduce_coalesced              | ✘       |
-| reduce                            | ✘       |
+| reduce                            | ✓       |
 | all_gather                        | ✓       |
 | all_gather_into_tensor_coalesced  | ✘       |
-| gather                            | ✘       |
-| scatter                           | ✘       |
+| gather                            | ✓       |
+| scatter                           | ✓       |
 | reduce_scatter                    | ✓       |
 | reduce_scatter_tensor_coalesced   | ✘       |
 | all_to_all                        | ✓       |

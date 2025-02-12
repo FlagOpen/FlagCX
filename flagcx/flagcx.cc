@@ -471,8 +471,98 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->reduce(sendbuff, recvbuff, count, datatype, op, root, comm->homo_comm, stream);
     }
-    // TODO: to be implemented.
-    return flagcxNotSupported;
+    else
+    {
+        char *useBootstrap = getenv("USE_BOOTSTRAP_CCL");
+        if (useBootstrap)
+        {
+            // TODO: to be implemented.
+            return flagcxNotSupported;
+        }
+        if (has_host_comm())
+        {
+            // TODO: to be implemented.
+            return flagcxNotSupported;
+        }
+        else
+        {
+            // op validation
+            if (op != flagcxSum && op != flagcxMax && op != flagcxMin)
+            {
+                WARN("Unsupported reduction operation %d", op);
+                return flagcxInvalidArgument;
+            }
+
+            bool is_root_cluster = (comm->cluster_ids[comm->rank] == comm->cluster_ids[root]);
+            // allocate a bounce buffer for the homo_inter_rank of non-root clusters and homo ranks of root cluster
+            // This buffer is used to avoid the overwrite of recvbuffer
+            void *fwdbuff;
+            if (is_root_cluster || (!is_root_cluster && comm->homo_rank == comm->homo_inter_rank))
+            {
+                deviceAdaptor->deviceMalloc(&fwdbuff, getFlagcxDataTypeSize(datatype) * count, flagcxMemDevice);
+                deviceAdaptor->deviceMemset(fwdbuff, 0, getFlagcxDataTypeSize(datatype) * count, flagcxMemDevice, stream);
+            }
+
+            // intra-cluster reduce
+            FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(sendbuff, fwdbuff, count, datatype, op, comm->homo_inter_rank, comm->homo_comm, stream));
+
+            deviceAdaptor->streamSynchronize(stream);
+
+            // inter-cluster sendrecv
+            if (is_root_cluster && comm->homo_inter_rank != comm->homo_rank)
+            {
+                if (op == flagcxSum) {
+                    deviceAdaptor->deviceMemset(fwdbuff, 0, count * getFlagcxDataTypeSize(datatype), flagcxMemDevice, stream);
+                }
+            }
+            int cid = 0;
+            flagcxGroupStart();
+            for (int i = 0; i < comm->nclusters; ++i)
+            {
+                if (comm->cluster_ids[comm->rank] == i)
+                    continue;
+                if (is_root_cluster)
+                {
+                    // TODO: better to add an assertation ensuring that comm->ncluster <= comm->homo_ranks
+                    int homo_rank_to_recv_from_cluster = (comm->homo_inter_rank - cid - 1 + comm->homo_ranks) % comm->homo_ranks;
+                    if (comm->homo_rank == homo_rank_to_recv_from_cluster)
+                    {
+                        FLAGCXCHECK(flagcxHeteroRecv(fwdbuff, count, datatype, comm->cluster_inter_ranks[i], comm->hetero_comm, stream));
+                    }
+                }
+                else
+                {
+                    int homo_rank_to_send_to_cluster = (comm->globalrank2homorank[comm->cluster_inter_ranks[i]] - cid - 1 + comm->cluster_sizes[i]) % comm->cluster_sizes[i];
+                    int global_rank_to_send_to_cluster = homo_rank_to_send_to_cluster - comm->globalrank2homorank[comm->cluster_inter_ranks[i]] + comm->cluster_inter_ranks[i];
+                    if (comm->homo_inter_rank == comm->homo_rank)
+                    {
+                        FLAGCXCHECK(flagcxHeteroSend(fwdbuff, count, datatype, global_rank_to_send_to_cluster, comm->hetero_comm, stream));
+                    }
+                }
+                cid += 1;
+            }
+            flagcxGroupEnd();
+
+            deviceAdaptor->streamSynchronize(stream);
+
+            // intra-cluster reduce for root cluster
+            if (is_root_cluster)
+            {
+                int offset = 0;
+                for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i)
+                {
+                    offset += comm->cluster_sizes[i];
+                }
+                FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(fwdbuff, recvbuff, count, datatype, op, root - offset, comm->homo_comm, stream));
+            }
+
+            if (is_root_cluster || (!is_root_cluster && comm->homo_rank == comm->homo_inter_rank))
+            {
+                deviceAdaptor->deviceFree(fwdbuff, flagcxMemDevice);
+            }
+        }
+    }
+    return flagcxSuccess;
 }
 
 flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
