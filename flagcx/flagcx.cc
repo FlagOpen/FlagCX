@@ -135,6 +135,19 @@ flagcxResult_t flagcxHandleFree(flagcxHandlerGroup_t handler)
     return flagcxSuccess;
 }
 
+flagcxResult_t flagcxIsHomoComm(int *isHomo)
+{
+    if (is_homo_comm())
+    {
+        *isHomo = 1;
+    }
+    else
+    {
+        *isHomo = 0;
+    }
+    return flagcxSuccess;
+}
+
 flagcxResult_t flagcxGetVersion(int *version)
 {
     // TODO: check how to return flagcx version including flagcx core and flagcx adaptor

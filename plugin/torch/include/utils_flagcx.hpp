@@ -11,11 +11,20 @@ namespace c10d
   {
     AutoFlagcxGroup()
     {
-      flagcxGroupStart();
+      // TODO: support group semantics for heterogeneous case
+      flagcxIsHomoComm(&is_homo_);
+      if (is_homo_)
+      {
+        flagcxGroupStart();
+      }
     }
     ~AutoFlagcxGroup() noexcept(false)
     {
-      flagcxGroupEnd();
+      if (is_homo_)
+      {
+        flagcxGroupEnd();
+      }
     }
+    int is_homo_ = 1;
   };
 } // namespace c10d
