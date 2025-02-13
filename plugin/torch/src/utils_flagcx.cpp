@@ -1,6 +1,6 @@
 #include <string>
 #include "utils_flagcx.hpp"
-#include <torch/csrc/distributed/c10d/TraceUtils.h>
+#include <c10/util/CallOnce.h>
 
 namespace c10d
 {
