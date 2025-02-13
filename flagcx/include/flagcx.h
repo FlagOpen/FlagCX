@@ -96,10 +96,13 @@ struct flagcxHandlerGroup {
 };
 typedef struct flagcxHandlerGroup* flagcxHandlerGroup_t;
 
-/* Init and free FLAGCX handls including flagcxComm_t, flagcxStream_t */
+/* Init and free FlagCX handls including flagcxComm_t, flagcxStream_t */
 flagcxResult_t flagcxHandleInit(flagcxHandlerGroup_t* handler);
 
 flagcxResult_t flagcxHandleFree(flagcxHandlerGroup_t handler);
+
+/* Check if the FlagCX communicator type is homogeneous or heterogeneous */
+flagcxResult_t flagcxIsHomoComm(int *isHomo);
 
 /* Return the version of the FlagCX library in the supplied integer.
  * It contains the underlying adaptor library version and FlagCX core version
