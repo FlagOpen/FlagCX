@@ -842,7 +842,29 @@ namespace c10d
         std::vector<at::Tensor>& inputs,
         const ReduceScatterOptions& opts)
     {
-        throw std::runtime_error("BackendFlagcx does not support reduce_scatter_tensor_coalesced");
+        // parameter validation
+        check_gpu_tensors_same_device(inputs);
+        TORCH_CHECK(
+            !isFloat8Type(inputs.back().scalar_type()),
+            "Float8 dtypes are not currenlty supported for FlagCX reductions");
+
+        return collectiveCoalesced(
+            inputs,
+            outputs,
+            [&](at::Tensor& input, at::Tensor& output, flagcxComm_t comm, flagcxStream_t stream)
+            {
+                auto flagcxDataType = getFlagcxDataType(input.scalar_type());
+                auto flagcxReduceOp = getFlagcxReduceOp(opts.reduceOp, input, flagcxDataType);
+                return flagcxReduceScatter(
+                        input.data_ptr(),
+                        output.data_ptr(),
+                        output.numel(),
+                        flagcxDataType,
+                        flagcxReduceOp,
+                        comm,
+                        stream);
+            },
+            OpType::COALESCED);
     }
 
     c10::intrusive_ptr<Work> BackendFlagcx::scatter(

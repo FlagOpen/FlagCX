@@ -104,7 +104,7 @@ if torch.cuda.is_available():
     print(f"rank {rank} after all_gather_coalesced sync with FLAGCX_GROUP1: x = {x}, y = {y}")
     x = torch.rand(world_size).cuda()
     y = torch.rand(world_size).cuda()
-    # Perform all_reduce_coalesced async with FLAGCX_GROUP1
+    # Perform all_gather_coalesced async with FLAGCX_GROUP1
     with dist._coalescing_manager(group=FLAGCX_GROUP1, async_ops=True)  as cm:
         dist.all_gather_into_tensor(x, z1, group=FLAGCX_GROUP1)
         dist.all_gather_into_tensor(y, z, group=FLAGCX_GROUP1)
@@ -134,6 +134,24 @@ if torch.cuda.is_available():
     print(f"rank {rank} before _reduce_scatter_base with FLAGCX_GROUP1: x = {x}, z = {z}")
     dist._reduce_scatter_base(z, x, op=dist.ReduceOp.MAX, group=FLAGCX_GROUP1)
     print(f"rank {rank} after _reduce_scatter_base with FLAGCX_GROUP1: x = {x}, z = {z}")
+
+    # Perform reduce_scatter_coalesced sync with FLAGCX_GROUP1
+    x = torch.rand(world_size).cuda()
+    y = torch.rand(world_size).cuda()
+    z[0] = 0
+    z1[0] = 0
+    with dist._coalescing_manager(group=FLAGCX_GROUP1):
+        dist.reduce_scatter_tensor(z, x, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+        dist.reduce_scatter_tensor(z1, y, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+    print(f"rank {rank} after reduce_scatter_coalesced sync with FLAGCX_GROUP1: x = {x}, y = {y}, z={z}, z1={z1}")
+    z[0] = 0
+    z1[0] = 0
+    # Perform reduce_scatter_coalesced async with FLAGCX_GROUP1
+    with dist._coalescing_manager(group=FLAGCX_GROUP1, async_ops=True)  as cm:
+        dist.reduce_scatter_tensor(z, x, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+        dist.reduce_scatter_tensor(z1, y, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+    cm.wait()
+    print(f"rank {rank} after reduce_scatter_coalesced async with FLAGCX_GROUP1: x = {x}, y = {y}, z={z}, z1={z1}")
 
     # Perform broadcast with FLAGCX_GROUP2
     x = torch.rand(world_size).cuda()
