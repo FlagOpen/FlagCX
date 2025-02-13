@@ -365,7 +365,7 @@ namespace c10d
         work->device_id_ = device_id;
         work->coalesced_ = false;
         work->isBarrierOp_ = false;
-        // Create a future to track the allgather operation
+        // Create a future to track the coalesced operation
         std::vector<at::Device> devices{inputs[0].device()};
         work->future_ = c10::make_intrusive<c10::ivalue::Future>(
             c10::ListType::create(c10::TensorType::get()), devices);
