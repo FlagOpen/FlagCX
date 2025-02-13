@@ -318,7 +318,7 @@ namespace c10d
         auto work = c10::make_intrusive<WorkFlagcx>(OpType::COALESCED, stream, handler->devHandle);
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
-        work->coalesced_ = true;
+        work->coalesced_ = false;
         work->isBarrierOp_ = true;
         // Create a future to track the coalesced operation
         work->future_ = c10::make_intrusive<c10::ivalue::Future>(c10::ListType::create(c10::TensorType::get()));
@@ -345,7 +345,7 @@ namespace c10d
 
         // TODO: keep track of the coalesced state at backend side.
 
-        // First let NCCL stream wait for input tensor allocation stream
+        // First let flagcx stream wait for input tensor allocation stream
         syncStream(device);
         auto work = c10::make_intrusive<WorkFlagcx>(opType, stream, handler->devHandle);
 
@@ -363,9 +363,8 @@ namespace c10d
 
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
-        work->coalesced_ = true;
-        // TODO: optimize to make it non-blocking.
-        work->isBarrierOp_ = true;
+        work->coalesced_ = false;
+        work->isBarrierOp_ = false;
         // Create a future to track the allgather operation
         std::vector<at::Device> devices{inputs[0].device()};
         work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -519,7 +518,7 @@ namespace c10d
         check_gpu_tensors_same_device(tensors);
         TORCH_CHECK(
             !isFloat8Type(tensors.back().scalar_type()),
-            "Float8 dtypes are not currenlty supported for NCCL reductions");
+            "Float8 dtypes are not currenlty supported for FlagCX reductions");
 
         return collectiveCoalesced(
             tensors,
