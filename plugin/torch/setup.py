@@ -18,7 +18,7 @@ if '--adaptor' in sys.argv:
         print("No adaptor provided after '--adaptor'. Using default nvidia adaptor")
     sys.argv.remove(sys.argv[arg_index])
 
-sources = ["src/backend_flagcx.cpp"]
+sources = ["src/backend_flagcx.cpp", "src/utils_flagcx.cpp"]
 include_dirs = [
     f"{os.path.dirname(os.path.abspath(__file__))}/include",
     f"{os.path.dirname(os.path.abspath(__file__))}/../../flagcx/include",

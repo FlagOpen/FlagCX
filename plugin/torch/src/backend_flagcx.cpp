@@ -177,7 +177,7 @@ namespace c10d
         }
         if (isBarrierOp_)
         {
-            handler_->streamSynchronize(stream_);
+            C10D_FLAGCX_CHECK(handler_->streamSynchronize(stream_), std::nullopt);
         }
         return true;
     }
@@ -194,8 +194,8 @@ namespace c10d
         int rank, int size)
         : Backend(rank, size), store(store)
     {
-        flagcxHandleInit(&handler);
-        handler->devHandle->getDeviceCount(&nDevs);
+        C10D_FLAGCX_CHECK(flagcxHandleInit(&handler), std::nullopt);
+        C10D_FLAGCX_CHECK(handler->devHandle->getDeviceCount(&nDevs), std::nullopt);
 #ifdef USE_NVIDIA_ADAPTOR
         event = std::make_unique<CUDAEventFlagcx>();
 #elif USE_ILUVATAR_COREX_ADAPTOR
@@ -210,13 +210,13 @@ namespace c10d
     {
         if (*(handler->status) == 1)
         {
-            handler->devHandle->streamDestroy(stream);
-            flagcxCommDestroy(handler->comm);
+            C10D_FLAGCX_CHECK(handler->devHandle->streamDestroy(stream), std::nullopt);
+            C10D_FLAGCX_CHECK(flagcxCommDestroy(handler->comm), std::nullopt);
             *(handler->status) = 0;
         }
         if (*(handler->status) == 0)
         {
-            flagcxHandleFree(handler);
+            C10D_FLAGCX_CHECK(flagcxHandleFree(handler), std::nullopt);
         }
     }
 
@@ -225,9 +225,9 @@ namespace c10d
         if (*(handler->status) == 0)
         {
             device_id = dev.index();
-            handler->devHandle->setDevice(device_id);
+            C10D_FLAGCX_CHECK(handler->devHandle->setDevice(device_id), std::nullopt);
             // Get the unique id
-            flagcxGetUniqueId(&handler->uniqueId);
+            C10D_FLAGCX_CHECK(flagcxGetUniqueId(&handler->uniqueId), std::nullopt);
             if (rank_ == 0)
             {
                 auto vec = std::vector<uint8_t>(
@@ -259,9 +259,9 @@ namespace c10d
                 }
             }
             // Initialize the communicator
-            flagcxCommInitRank(&handler->comm, size_, handler->uniqueId, rank_);
+            C10D_FLAGCX_CHECK(flagcxCommInitRank(&handler->comm, size_, handler->uniqueId, rank_), std::nullopt);
             // Initialize the stream
-            handler->devHandle->streamCreate(&stream);
+            C10D_FLAGCX_CHECK(handler->devHandle->streamCreate(&stream), std::nullopt);
             *(handler->status) = 1;
         }
         else
@@ -295,14 +295,14 @@ namespace c10d
     void BackendFlagcx::groupStart()
     {
         initComm();
-        flagcxGroupStart();
+        C10D_FLAGCX_CHECK(flagcxGroupStart(), std::nullopt);
         ++flagcxActiveGroupCounter_;
     }
 
     void BackendFlagcx::groupEnd()
     {
         initComm();
-        flagcxGroupEnd();
+        C10D_FLAGCX_CHECK(flagcxGroupEnd(), std::nullopt);
         --flagcxActiveGroupCounter_;
     }
 
@@ -357,7 +357,7 @@ namespace c10d
                 auto inputTensor = inputs[i];
                 auto outputTensor = outputs[i];
                 // Perform the collective operation
-                fn(inputTensor, outputTensor, handler->comm, stream);
+                C10D_FLAGCX_CHECK(fn(inputTensor, outputTensor, handler->comm, stream), std::nullopt);
             }
         }
 
@@ -396,13 +396,15 @@ namespace c10d
             at::Tensor outputFlattened = newLikeFlat(outputTensors_);
 
             // Perform the allgather operation
-            flagcxAllGather(
-                inputTensor.data_ptr(),
-                outputFlattened.data_ptr(),
-                inputTensor.numel(),
-                flagcxDataType,
-                handler->comm,
-                stream);
+            C10D_FLAGCX_CHECK(
+                flagcxAllGather(
+                    inputTensor.data_ptr(),
+                    outputFlattened.data_ptr(),
+                    inputTensor.numel(),
+                    flagcxDataType,
+                    handler->comm,
+                    stream),
+                std::nullopt);
 
             // Copy the flattened tensor back into a vector of tensors.
             for (const auto j : c10::irange(outputTensors_.size()))
@@ -434,13 +436,15 @@ namespace c10d
         syncStream(inputTensor.device());
 
         // Perform the allgather operation
-        flagcxAllGather(
-            inputTensor.data_ptr(),
-            outputTensor.data_ptr(),
-            inputTensor.numel(),
-            flagcxDataType,
-            handler->comm,
-            stream);
+        C10D_FLAGCX_CHECK(
+            flagcxAllGather(
+                inputTensor.data_ptr(),
+                outputTensor.data_ptr(),
+                inputTensor.numel(),
+                flagcxDataType,
+                handler->comm,
+                stream),
+            std::nullopt);
 
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
@@ -490,14 +494,16 @@ namespace c10d
         syncStream(tensor.device());
 
         // Perform the allreduce operation
-        flagcxAllReduce(
-            tensor.data_ptr(),
-            tensor.data_ptr(),
-            tensor.numel(),
-            flagcxDataType,
-            flagcxReduceOp,
-            handler->comm,
-            stream);
+        C10D_FLAGCX_CHECK(
+            flagcxAllReduce(
+                tensor.data_ptr(),
+                tensor.data_ptr(),
+                tensor.numel(),
+                flagcxDataType,
+                flagcxReduceOp,
+                handler->comm,
+                stream),
+            std::nullopt);
 
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
@@ -569,13 +575,15 @@ namespace c10d
             inputFlattened[j].copy_(inputTensors[j], true);
         }
 
-        flagcxAlltoAll(
-            inputFlattened.data_ptr(),
-            outputFlattened.data_ptr(),
-            count,
-            flagcxDataType,
-            handler->comm,
-            stream);
+        C10D_FLAGCX_CHECK(
+            flagcxAlltoAll(
+                inputFlattened.data_ptr(),
+                outputFlattened.data_ptr(),
+                count,
+                flagcxDataType,
+                handler->comm,
+                stream),
+            std::nullopt);
 
         // Copy the flattened tensor back into a vector of tensors.
         for (const auto j : c10::irange(outputTensors.size()))
@@ -608,8 +616,8 @@ namespace c10d
         const BarrierOptions& opts)
     {
         initComm();
-	auto work = c10::make_intrusive<WorkFlagcx>(OpType::BARRIER, stream, handler->devHandle);
-        flagcxBarrier(handler->comm, stream);
+	    auto work = c10::make_intrusive<WorkFlagcx>(OpType::BARRIER, stream, handler->devHandle);
+        C10D_FLAGCX_CHECK(flagcxBarrier(handler->comm, stream), std::nullopt);
 
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
@@ -634,14 +642,16 @@ namespace c10d
 
         const auto root = opts.rootRank + opts.rootTensor;
 
-        flagcxBroadcast(
-            tensor.data_ptr(),
-            tensor.data_ptr(),
-            tensor.numel(),
-            flagcxDataType,
-            root,
-            handler->comm,
-            stream);
+        C10D_FLAGCX_CHECK(
+            flagcxBroadcast(
+                tensor.data_ptr(),
+                tensor.data_ptr(),
+                tensor.numel(),
+                flagcxDataType,
+                root,
+                handler->comm,
+                stream),
+            std::nullopt);
 
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
@@ -681,14 +691,16 @@ namespace c10d
         at::Tensor outputFlattened = newLikeFlat(outputTensors_);
 
         // Perform the gather operation
-        flagcxGather(
-            inputTensor.data_ptr(),
-            outputFlattened.data_ptr(),
-            inputTensor.numel(),
-            flagcxDataType,
-            root,
-            handler->comm,
-            stream);
+        C10D_FLAGCX_CHECK(
+            flagcxGather(
+                inputTensor.data_ptr(),
+                outputFlattened.data_ptr(),
+                inputTensor.numel(),
+                flagcxDataType,
+                root,
+                handler->comm,
+                stream),
+            std::nullopt);
 
         // Unflatten the flattened tensor back into a vector of tensors.
         if (rank_ == root)
@@ -723,15 +735,17 @@ namespace c10d
 
         const auto root = opts.rootRank + opts.rootTensor;
 
-        flagcxReduce(
-            tensor.data_ptr(),
-            tensor.data_ptr(),
-            tensor.numel(),
-            flagcxDataType,
-            flagcxReduceOp,
-            root,
-            handler->comm,
-            stream);
+        C10D_FLAGCX_CHECK(
+            flagcxReduce(
+                tensor.data_ptr(),
+                tensor.data_ptr(),
+                tensor.numel(),
+                flagcxDataType,
+                flagcxReduceOp,
+                root,
+                handler->comm,
+                stream),
+            std::nullopt);
 
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
@@ -775,14 +789,16 @@ namespace c10d
             }
 
             // Perform the reducescatter operation
-            flagcxReduceScatter(
-                inputFlattened.data_ptr(),
-                outputTensor.data_ptr(),
-                outputTensor.numel(),
-                flagcxDataType,
-                flagcxReduceOp,
-                handler->comm,
-                stream);
+            C10D_FLAGCX_CHECK(
+                flagcxReduceScatter(
+                    inputFlattened.data_ptr(),
+                    outputTensor.data_ptr(),
+                    outputTensor.numel(),
+                    flagcxDataType,
+                    flagcxReduceOp,
+                    handler->comm,
+                    stream),
+                std::nullopt);
 
         }
 
@@ -816,14 +832,16 @@ namespace c10d
         else
         {
             // Perform the reducescatter operation
-            flagcxReduceScatter(
-                inputTensor.data_ptr(),
-                outputTensor.data_ptr(),
-                outputTensor.numel(),
-                flagcxDataType,
-                flagcxReduceOp,
-                handler->comm,
-                stream);
+            C10D_FLAGCX_CHECK(
+                flagcxReduceScatter(
+                    inputTensor.data_ptr(),
+                    outputTensor.data_ptr(),
+                    outputTensor.numel(),
+                    flagcxDataType,
+                    flagcxReduceOp,
+                    handler->comm,
+                    stream),
+                std::nullopt);
         }
 
         work->event_->record(stream, device_id);
@@ -903,14 +921,16 @@ namespace c10d
         }
 
         // Perform the scatter operation
-        flagcxScatter(
-            inputFlattened.data_ptr(),
-            outputTensor.data_ptr(),
-            outputTensor.numel(),
-            flagcxDataType,
-            root,
-            handler->comm,
-            stream);
+        C10D_FLAGCX_CHECK(
+            flagcxScatter(
+                inputFlattened.data_ptr(),
+                outputTensor.data_ptr(),
+                outputTensor.numel(),
+                flagcxDataType,
+                root,
+                handler->comm,
+                stream),
+            std::nullopt);
 
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
@@ -935,13 +955,15 @@ namespace c10d
         syncStream(tensor.device());
 
         // Perform the send operation
-        flagcxSend(
-            tensor.data_ptr(),
-            tensor.numel(),
-            flagcxDataType,
-            dstRank,
-            handler->comm,
-            stream);
+        C10D_FLAGCX_CHECK(
+            flagcxSend(
+                tensor.data_ptr(),
+                tensor.numel(),
+                flagcxDataType,
+                dstRank,
+                handler->comm,
+                stream),
+            std::nullopt);
 
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
@@ -966,13 +988,15 @@ namespace c10d
         syncStream(tensor.device());
 
         // Perform the recv operation
-        flagcxRecv(
-            tensor.data_ptr(),
-            tensor.numel(),
-            flagcxDataType,
-            srcRank,
-            handler->comm,
-            stream);
+        C10D_FLAGCX_CHECK(
+            flagcxRecv(
+                tensor.data_ptr(),
+                tensor.numel(),
+                flagcxDataType,
+                srcRank,
+                handler->comm,
+                stream),
+            std::nullopt);
 
         work->event_->record(stream, device_id);
         work->device_id_ = device_id;
