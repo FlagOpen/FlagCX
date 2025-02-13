@@ -616,7 +616,7 @@ namespace c10d
         const BarrierOptions& opts)
     {
         initComm();
-	    auto work = c10::make_intrusive<WorkFlagcx>(OpType::BARRIER, stream, handler->devHandle);
+        auto work = c10::make_intrusive<WorkFlagcx>(OpType::BARRIER, stream, handler->devHandle);
         C10D_FLAGCX_CHECK(flagcxBarrier(handler->comm, stream), std::nullopt);
 
         work->event_->record(stream, device_id);
