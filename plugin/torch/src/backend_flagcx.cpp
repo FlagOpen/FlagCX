@@ -210,13 +210,13 @@ namespace c10d
     {
         if (*(handler->status) == 1)
         {
-            C10D_FLAGCX_CHECK(handler->devHandle->streamDestroy(stream), std::nullopt);
-            C10D_FLAGCX_CHECK(flagcxCommDestroy(handler->comm), std::nullopt);
+            handler->devHandle->streamDestroy(stream);
+            flagcxCommDestroy(handler->comm);
             *(handler->status) = 0;
         }
         if (*(handler->status) == 0)
         {
-            C10D_FLAGCX_CHECK(flagcxHandleFree(handler), std::nullopt);
+            flagcxHandleFree(handler);
         }
     }
 
