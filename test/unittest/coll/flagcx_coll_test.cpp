@@ -35,9 +35,9 @@ void FlagCXCollTest::SetUp() {
     devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice);
     devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice);
     devHandle->deviceMalloc(&hostsendbuff, size, flagcxMemHost);
-    devHandle->deviceMemset(hostsendbuff, 0, size, flagcxMemHost);
+    devHandle->deviceMemset(hostsendbuff, 0, size, flagcxMemHost, NULL);
     devHandle->deviceMalloc(&hostrecvbuff, size, flagcxMemHost);
-    devHandle->deviceMemset(hostrecvbuff, 0, size, flagcxMemHost);
+    devHandle->deviceMemset(hostrecvbuff, 0, size, flagcxMemHost, NULL);
 }
 
 void FlagCXCollTest::TearDown() {

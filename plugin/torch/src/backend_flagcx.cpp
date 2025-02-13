@@ -660,13 +660,23 @@ namespace c10d
         const GatherOptions& opts)
     {
         auto& inputTensor = inputTensors.back();
-        auto& outputTensors_ = outputTensors.back();
         auto flagcxDataType = getFlagcxDataType(inputTensor.scalar_type());
         auto work = c10::make_intrusive<WorkFlagcx>(OpType::GATHER, stream, handler->devHandle);
         initComm(inputTensor.device());
         syncStream(inputTensor.device());
 
         auto root = opts.rootRank;
+        std::vector<at::Tensor> outputTensors_;
+        if (rank_ == root)
+        {
+            outputTensors_ = outputTensors.back();
+        }
+        else
+        {
+            outputTensors_ = {};
+            outputTensors_.emplace_back(at::ones({1}, at::TensorOptions().device(inputTensor.device())));
+        }
+
         // Flatten a vector of tensors into a single, stacked tensor.
         at::Tensor outputFlattened = newLikeFlat(outputTensors_);
 
@@ -681,9 +691,12 @@ namespace c10d
             stream);
 
         // Unflatten the flattened tensor back into a vector of tensors.
-        for (const auto j : c10::irange(outputTensors_.size()))
+        if (rank_ == root)
         {
-            outputTensors_[j].copy_(outputFlattened[j], true);
+            for (const auto j : c10::irange(outputTensors_.size()))
+            {
+                outputTensors_[j].copy_(outputFlattened[j], true);
+            }
         }
 
         work->event_->record(stream, device_id);
@@ -838,21 +851,33 @@ namespace c10d
         const ScatterOptions& opts)
     {
         auto& outputTensor = outputTensors.back();
-        auto& inputTensors_ = inputTensors.back();
         auto flagcxDataType = getFlagcxDataType(outputTensor.scalar_type());
         auto work = c10::make_intrusive<WorkFlagcx>(OpType::SCATTER, stream, handler->devHandle);
         initComm(outputTensor.device());
         syncStream(outputTensor.device());
 
         auto root = opts.rootRank;
+        std::vector<at::Tensor> inputTensors_;
+        if (rank_ == root)
+        {
+            inputTensors_ = inputTensors.back();
+        }
+        else
+        {
+            inputTensors_ = {};
+            inputTensors_.emplace_back(at::ones({1}, at::TensorOptions().device(outputTensor.device())));
+        }
 
         // Flatten a vector of tensors into a single, stacked tensor.
         at::Tensor inputFlattened = newLikeFlat(inputTensors_);
 
         // Copy the input tensors to the flattened tensor.
-        for (const auto j : c10::irange(inputTensors_.size()))
+        if (rank_ == root)
         {
-            inputFlattened[j].copy_(inputTensors_[j], true);
+            for (const auto j : c10::irange(inputTensors_.size()))
+            {
+                inputFlattened[j].copy_(inputTensors_[j], true);
+            }
         }
 
         // Perform the scatter operation
