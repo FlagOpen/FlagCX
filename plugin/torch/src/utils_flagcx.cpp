@@ -44,8 +44,6 @@ namespace c10d
         }
         std::string interpret;
         std::string err;
-        // TODO: make flagcxGetLastError() call safe.
-        /*
         auto ret = flagcxGetLastError(nullptr);
         if (ret)
         {
@@ -55,7 +53,6 @@ namespace c10d
         {
             err = "\nLast error: Unknown Flagcx Error\n";
         }
-        */
 
         switch (error)
         {
