@@ -137,6 +137,7 @@ flagcxResult_t flagcxHandleFree(flagcxHandlerGroup_t handler)
 
 flagcxResult_t flagcxIsHomoComm(int *isHomo)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         *isHomo = 1;
@@ -150,6 +151,8 @@ flagcxResult_t flagcxIsHomoComm(int *isHomo)
 
 flagcxResult_t flagcxGetVersion(int *version)
 {
+    // TODO: remove EnsureCommReady restriction.
+    FLAGCXCHECK(flagCXEnsureCommReady());
     // TODO: check how to return flagcx version including flagcx core and flagcx adaptor
     if (is_homo_comm())
     {
@@ -179,6 +182,10 @@ flagcxResult_t flagcxGetUniqueId(flagcxUniqueId_t *uniqueId)
 
 const char *flagcxGetErrorString(flagcxResult_t result)
 {
+    if (flagCXEnsureCommReady() != flagcxSuccess)
+    {
+        return "Undefined: Comm is not fully initialized.";
+    }
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->getErrorString(result);
@@ -188,6 +195,10 @@ const char *flagcxGetErrorString(flagcxResult_t result)
 
 const char *flagcxGetLastError(flagcxComm_t comm)
 {
+    if (flagCXEnsureCommReady() != flagcxSuccess)
+    {
+        return "Undefined: Comm is not fully initialized.";
+    }
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->getLastError(comm->homo_comm);
@@ -457,6 +468,7 @@ flagcxResult_t flagcxCommUserRank(const flagcxComm_t comm, int *rank)
 
 flagcxResult_t flagcxCommGetAsyncError(flagcxComm_t comm, flagcxResult_t asyncError)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->commGetAsyncError(comm->homo_comm, asyncError);
@@ -480,6 +492,7 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
                             flagcxDataType_t datatype, flagcxRedOp_t op, int root,
                             flagcxComm_t comm, flagcxStream_t stream)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->reduce(sendbuff, recvbuff, count, datatype, op, root, comm->homo_comm, stream);
@@ -581,6 +594,7 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
                             flagcxDataType_t datatype, int root, flagcxComm_t comm,
                             flagcxStream_t stream)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->gather(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
@@ -711,6 +725,7 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
                              flagcxDataType_t datatype, int root, flagcxComm_t comm,
                              flagcxStream_t stream)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->scatter(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
@@ -841,6 +856,7 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff, size_t coun
                                flagcxDataType_t datatype, int root, flagcxComm_t comm,
                                flagcxStream_t stream)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
@@ -968,6 +984,7 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
                                flagcxDataType_t datatype, flagcxRedOp_t op, flagcxComm_t comm,
                                flagcxStream_t stream)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(sendbuff, recvbuff, count, datatype, op, comm->homo_comm, stream);
@@ -1084,6 +1101,7 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff, size_t 
                                    flagcxDataType_t datatype, flagcxRedOp_t op, flagcxComm_t comm,
                                    flagcxStream_t stream)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->reduceScatter(sendbuff, recvbuff, recvcount, datatype, op, comm->homo_comm, stream);
@@ -1213,6 +1231,7 @@ flagcxResult_t wrapperAllGatherBootstrap(const void *sendbuff, void *recvbuff, s
 flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff, size_t sendcount,
                                flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->allGather(sendbuff, recvbuff, sendcount, datatype, comm->homo_comm, stream);
@@ -1357,6 +1376,7 @@ flagcxResult_t wrapperAlltoAllBootstrap(const void *sendbuff, void *recvbuff, si
 flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count,
                               flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(sendbuff, recvbuff, count, datatype, comm->homo_comm, stream);
@@ -1454,6 +1474,7 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count
 flagcxResult_t flagcxSend(const void *sendbuff, size_t count, flagcxDataType_t datatype, int peer,
                           flagcxComm_t comm, flagcxStream_t stream)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->send(sendbuff, count, datatype, peer, comm->homo_comm, stream);
@@ -1509,6 +1530,7 @@ flagcxResult_t flagcxSend(const void *sendbuff, size_t count, flagcxDataType_t d
 flagcxResult_t flagcxRecv(void *recvbuff, size_t count, flagcxDataType_t datatype, int peer,
                           flagcxComm_t comm, flagcxStream_t stream)
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->recv(recvbuff, count, datatype, peer, comm->homo_comm, stream);
@@ -1565,6 +1587,7 @@ flagcxResult_t flagcxRecv(void *recvbuff, size_t count, flagcxDataType_t datatyp
 
 flagcxResult_t flagcxGroupStart()
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
@@ -1585,6 +1608,7 @@ flagcxResult_t flagcxGroupStart()
 
 flagcxResult_t flagcxGroupEnd()
 {
+    FLAGCXCHECK(flagCXEnsureCommReady());
     if (is_homo_comm())
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
