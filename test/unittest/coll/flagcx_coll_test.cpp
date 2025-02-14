@@ -32,11 +32,11 @@ void FlagCXCollTest::SetUp() {
     devHandle->streamCreate(&stream);
 
     // allocate data and set inital value
-    devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice);
-    devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice);
-    devHandle->deviceMalloc(&hostsendbuff, size, flagcxMemHost);
+    devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice, NULL);
+    devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice, NULL);
+    devHandle->deviceMalloc(&hostsendbuff, size, flagcxMemHost, NULL);
     devHandle->deviceMemset(hostsendbuff, 0, size, flagcxMemHost, NULL);
-    devHandle->deviceMalloc(&hostrecvbuff, size, flagcxMemHost);
+    devHandle->deviceMalloc(&hostrecvbuff, size, flagcxMemHost, NULL);
     devHandle->deviceMemset(hostrecvbuff, 0, size, flagcxMemHost, NULL);
 }
 
@@ -50,10 +50,10 @@ void FlagCXCollTest::TearDown() {
     devHandle->streamDestroy(stream);
 
     // free data
-    devHandle->deviceFree(sendbuff, flagcxMemDevice);
-    devHandle->deviceFree(recvbuff, flagcxMemDevice);
-    devHandle->deviceFree(hostsendbuff, flagcxMemHost);
-    devHandle->deviceFree(hostrecvbuff, flagcxMemHost);
+    devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
+    devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
+    devHandle->deviceFree(hostsendbuff, flagcxMemHost, NULL);
+    devHandle->deviceFree(hostrecvbuff, flagcxMemHost, NULL);
 
     // free handles
     flagcxHandleFree(handler);

@@ -61,8 +61,8 @@ int main(int argc, char *argv[]){
         }
         for (int r = begin_root; r <= end_root; r++) {
             count = size / sizeof(float);
-            devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice);
-            devHandle->deviceMalloc(&hello, size, flagcxMemHost);
+            devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice, NULL);
+            devHandle->deviceMalloc(&hello, size, flagcxMemHost, NULL);
             devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
 
             for (size_t i = 0; i < count; i++) {
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]){
             }
 
             if (proc == r) {
-                devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice);
+                devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice, NULL);
                 devHandle->deviceMemcpy(sendbuff, hello, size, flagcxMemcpyHostToDevice, NULL);
             }
 
@@ -119,10 +119,10 @@ int main(int argc, char *argv[]){
             }
 
             if (proc == r) {
-                devHandle->deviceFree(sendbuff, flagcxMemDevice);
+                devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
             }
-            devHandle->deviceFree(recvbuff, flagcxMemDevice);
-            devHandle->deviceFree(hello, flagcxMemHost);
+            devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
+            devHandle->deviceFree(hello, flagcxMemHost, NULL);
         }
         if (proc == 0) {
             double alg_bw = sum_alg_bw / test_count;

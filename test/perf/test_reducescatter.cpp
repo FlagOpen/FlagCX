@@ -49,9 +49,9 @@ int main(int argc, char *argv[]){
         count = size / sizeof(float);
         recvcount = count / totalProcs;
         recvsize = size / totalProcs;
-        devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice);
-        devHandle->deviceMalloc(&recvbuff, recvsize, flagcxMemDevice);
-        devHandle->deviceMalloc(&hello, size, flagcxMemHost);
+        devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice, NULL);
+        devHandle->deviceMalloc(&recvbuff, recvsize, flagcxMemDevice, NULL);
+        devHandle->deviceMalloc(&hello, size, flagcxMemHost, NULL);
         devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
 
         size_t index = 0;
@@ -110,9 +110,9 @@ int main(int argc, char *argv[]){
             printf("\n");
         }
 
-        devHandle->deviceFree(sendbuff, flagcxMemDevice);
-        devHandle->deviceFree(recvbuff, flagcxMemDevice);
-        devHandle->deviceFree(hello, flagcxMemHost);
+        devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
+        devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
+        devHandle->deviceFree(hello, flagcxMemHost, NULL);
     }
 
     devHandle->streamDestroy(stream);

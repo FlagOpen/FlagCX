@@ -468,11 +468,11 @@ flagcxResult_t flagcxCommGetAsyncError(flagcxComm_t comm, flagcxResult_t asyncEr
 flagcxResult_t flagcxBarrier(flagcxComm_t comm, flagcxStream_t stream)
 {
     void *barrierBuff;
-    deviceAdaptor->deviceMalloc(&barrierBuff, comm->nranks, flagcxMemDevice);
+    deviceAdaptor->deviceMalloc(&barrierBuff, comm->nranks, flagcxMemDevice, stream);
     deviceAdaptor->deviceMemset(barrierBuff, 0, comm->nranks, flagcxMemDevice, stream);
     flagcxAllReduce(barrierBuff, barrierBuff, comm->nranks, flagcxChar, flagcxMax, comm, stream);
+    deviceAdaptor->deviceFree(barrierBuff, flagcxMemDevice, stream);
     deviceAdaptor->streamSynchronize(stream);
-    deviceAdaptor->deviceFree(barrierBuff, flagcxMemDevice);
     return flagcxSuccess;
 }
 
@@ -512,14 +512,12 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
             void *fwdbuff;
             if (is_root_cluster || (!is_root_cluster && comm->homo_rank == comm->homo_inter_rank))
             {
-                deviceAdaptor->deviceMalloc(&fwdbuff, getFlagcxDataTypeSize(datatype) * count, flagcxMemDevice);
+                deviceAdaptor->deviceMalloc(&fwdbuff, getFlagcxDataTypeSize(datatype) * count, flagcxMemDevice, stream);
                 deviceAdaptor->deviceMemset(fwdbuff, 0, getFlagcxDataTypeSize(datatype) * count, flagcxMemDevice, stream);
             }
 
             // intra-cluster reduce
             FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(sendbuff, fwdbuff, count, datatype, op, comm->homo_inter_rank, comm->homo_comm, stream));
-
-            deviceAdaptor->streamSynchronize(stream);
 
             // inter-cluster sendrecv
             if (is_root_cluster && comm->homo_inter_rank != comm->homo_rank)
@@ -556,6 +554,7 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
             }
             flagcxGroupEnd();
 
+            // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
 
             // intra-cluster reduce for root cluster
@@ -571,7 +570,7 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
 
             if (is_root_cluster || (!is_root_cluster && comm->homo_rank == comm->homo_inter_rank))
             {
-                deviceAdaptor->deviceFree(fwdbuff, flagcxMemDevice);
+                deviceAdaptor->deviceFree(fwdbuff, flagcxMemDevice, stream);
             }
         }
     }
@@ -612,17 +611,15 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
             void *fwdbuff;
             if (!is_root_cluster && comm->homo_rank == comm->homo_inter_rank)
             {
-                deviceAdaptor->deviceMalloc(&fwdbuff, getFlagcxDataTypeSize(datatype) * comm->homo_ranks * count, flagcxMemDevice);
+                deviceAdaptor->deviceMalloc(&fwdbuff, getFlagcxDataTypeSize(datatype) * comm->homo_ranks * count, flagcxMemDevice, stream);
                 deviceAdaptor->deviceMemset(fwdbuff, 0, getFlagcxDataTypeSize(datatype) * comm->homo_ranks * count, flagcxMemDevice, stream);
             }
             // allocate a bounce buffer for the homo_inter_rank of the root cluster if homo_inter_rank != root
             if (is_root_cluster && comm->homo_rank == comm->homo_inter_rank && comm->rank != root)
             {
-                deviceAdaptor->deviceMalloc(&fwdbuff, getFlagcxDataTypeSize(datatype) * comm->nranks * count, flagcxMemDevice);
+                deviceAdaptor->deviceMalloc(&fwdbuff, getFlagcxDataTypeSize(datatype) * comm->nranks * count, flagcxMemDevice, stream);
                 deviceAdaptor->deviceMemset(fwdbuff, 0, getFlagcxDataTypeSize(datatype) * comm->nranks * count, flagcxMemDevice, stream);
             }
-
-            deviceAdaptor->streamSynchronize(stream);
 
             // intra-cluster gather
             if (is_root_cluster)
@@ -633,8 +630,6 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
             {
                 FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(sendbuff, fwdbuff, count, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
             }
-
-            deviceAdaptor->streamSynchronize(stream);
 
             // inter-cluster sendrecv
             bool fwd_root = comm->cluster_inter_ranks[comm->cluster_ids[root]] != root;
@@ -669,6 +664,7 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
             }
             flagcxGroupEnd();
 
+            // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
 
             // intra-cluster sendrecv if homo_inter_rank != root_rank in the root cluster
@@ -704,7 +700,7 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
 
             if (comm->homo_rank == comm->homo_inter_rank && comm->rank != root)
             {
-                deviceAdaptor->deviceFree(fwdbuff, flagcxMemDevice);
+                deviceAdaptor->deviceFree(fwdbuff, flagcxMemDevice, stream);
             }
         }
     }
@@ -746,17 +742,15 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
             void *fwdbuff;
             if (!is_root_cluster && comm->homo_rank == comm->homo_inter_rank)
             {
-                deviceAdaptor->deviceMalloc(&fwdbuff, getFlagcxDataTypeSize(datatype) * comm->homo_ranks * count, flagcxMemDevice);
+                deviceAdaptor->deviceMalloc(&fwdbuff, getFlagcxDataTypeSize(datatype) * comm->homo_ranks * count, flagcxMemDevice, stream);
                 deviceAdaptor->deviceMemset(fwdbuff, 0, getFlagcxDataTypeSize(datatype) * comm->homo_ranks * count, flagcxMemDevice, stream);
             }
             // allocate a bounce buffer for the homo_inter_rank of the root cluster if homo_inter_rank != root
             if (is_root_cluster && comm->homo_rank == comm->homo_inter_rank && comm->rank != root)
             {
-                deviceAdaptor->deviceMalloc(&fwdbuff, getFlagcxDataTypeSize(datatype) * comm->nranks * count, flagcxMemDevice);
+                deviceAdaptor->deviceMalloc(&fwdbuff, getFlagcxDataTypeSize(datatype) * comm->nranks * count, flagcxMemDevice, stream);
                 deviceAdaptor->deviceMemset(fwdbuff, 0, getFlagcxDataTypeSize(datatype) * comm->nranks * count, flagcxMemDevice, stream);
             }
-
-            deviceAdaptor->streamSynchronize(stream);
 
             // intra-cluster sendrecv if homo_inter_rank != root_rank in the root cluster
             if (fwd_root && is_root_cluster)
@@ -788,8 +782,6 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
                 }
                 flagcxGroupEnd();
             }
-
-            deviceAdaptor->streamSynchronize(stream);
 
             // inter-cluster sendrecv
             flagcxGroupStart();
@@ -823,6 +815,7 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
             }
             flagcxGroupEnd();
 
+            // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
 
             // intra-cluster scatter
@@ -837,7 +830,7 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
 
             if (comm->homo_rank == comm->homo_inter_rank && comm->rank != root)
             {
-                deviceAdaptor->deviceFree(fwdbuff, flagcxMemDevice);
+                deviceAdaptor->deviceFree(fwdbuff, flagcxMemDevice, stream);
             }
         }
     }
@@ -901,6 +894,9 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff, size_t coun
                 }
             }
             flagcxGroupEnd();
+
+            // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
+            deviceAdaptor->streamSynchronize(stream);
 
             // intra-cluster bcast
             if (!is_root_cluster)
@@ -994,8 +990,8 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
 
             // step 1: malloc host buffer
             timers[TIMER_COLL_ALLOC] = clockNano();
-            deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
-            deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost);
+            deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost, NULL);
+            deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost, NULL);
             timers[TIMER_COLL_ALLOC] = clockNano() - timers[TIMER_COLL_ALLOC];
 
             // step 2: memcpy d2h
@@ -1015,8 +1011,8 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
 
             // step 5: free host buffer
             timers[TIMER_COLL_FREE] = clockNano();
-            deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
-            deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
+            deviceAdaptor->deviceFree(buff_in, flagcxMemHost, NULL);
+            deviceAdaptor->deviceFree(buff_out, flagcxMemHost, NULL);
             timers[TIMER_COLL_FREE] = clockNano() - timers[TIMER_COLL_FREE];
 
             timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
@@ -1044,8 +1040,6 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
 
             // intra-cluster reduce
             FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(sendbuff, recvbuff, count, datatype, op, comm->homo_inter_rank, comm->homo_comm, stream));
-
-            deviceAdaptor->streamSynchronize(stream);
 
             // inter-cluster sendrecv
             if (comm->homo_inter_rank != comm->homo_rank)
@@ -1076,6 +1070,7 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
             }
             flagcxGroupEnd();
 
+            // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
 
             // intra-cluster allreduce
@@ -1119,12 +1114,10 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff, size_t 
             void *tmpbuff;
             size_t count = comm->nranks * recvcount;
             size_t size = count * getFlagcxDataTypeSize(datatype);
-            deviceAdaptor->deviceMalloc(&tmpbuff, size, flagcxMemDevice);
+            deviceAdaptor->deviceMalloc(&tmpbuff, size, flagcxMemDevice, stream);
 
             // intra-cluster reduce
             FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(sendbuff, tmpbuff, count, datatype, op, comm->homo_inter_rank, comm->homo_comm, stream));
-
-            deviceAdaptor->streamSynchronize(stream);
 
             // inter-cluster sendrecv
             if (comm->homo_inter_rank != comm->homo_rank)
@@ -1155,6 +1148,7 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff, size_t 
             }
             flagcxGroupEnd();
 
+            // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
 
             // intra-cluster reducescatter
@@ -1167,7 +1161,7 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff, size_t 
                 static_cast<const void *>(static_cast<const char *>(tmpbuff) + offset * recvcount * getFlagcxDataTypeSize(datatype)),
                 recvbuff, recvcount, datatype, op, comm->homo_comm, stream));
 
-            deviceAdaptor->deviceFree(tmpbuff, flagcxMemDevice);
+            deviceAdaptor->deviceFree(tmpbuff, flagcxMemDevice, stream);
         }
     }
     return flagcxSuccess;
@@ -1241,8 +1235,8 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff, size_t send
 
             // step 1: malloc host buffer
             timers[TIMER_COLL_ALLOC] = clockNano();
-            deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
-            deviceAdaptor->deviceMalloc(&buff_out, totalSize, flagcxMemHost);
+            deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost, NULL);
+            deviceAdaptor->deviceMalloc(&buff_out, totalSize, flagcxMemHost, NULL);
             timers[TIMER_COLL_ALLOC] = clockNano() - timers[TIMER_COLL_ALLOC];
 
             // step 2: memcpy d2h
@@ -1262,8 +1256,8 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff, size_t send
 
             // step 5: free host buffer
             timers[TIMER_COLL_FREE] = clockNano();
-            deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
-            deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
+            deviceAdaptor->deviceFree(buff_in, flagcxMemHost, NULL);
+            deviceAdaptor->deviceFree(buff_out, flagcxMemHost, NULL);
             timers[TIMER_COLL_FREE] = clockNano() - timers[TIMER_COLL_FREE];
 
             timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
@@ -1309,6 +1303,7 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff, size_t send
                 flagcxGroupEnd();
             }
 
+            // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
 
             // intra-cluster broadcast
@@ -1383,8 +1378,8 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count
 
             // step 1: malloc host buffer
             timers[TIMER_COLL_ALLOC] = clockNano();
-            deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
-            deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost);
+            deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost, NULL);
+            deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost, NULL);
             timers[TIMER_COLL_ALLOC] = clockNano() - timers[TIMER_COLL_ALLOC];
 
             // step 2: memcpy d2h
@@ -1404,8 +1399,8 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count
 
             // step 5: free host buffer
             timers[TIMER_COLL_FREE] = clockNano();
-            deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
-            deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
+            deviceAdaptor->deviceFree(buff_in, flagcxMemHost, NULL);
+            deviceAdaptor->deviceFree(buff_out, flagcxMemHost, NULL);
             timers[TIMER_COLL_FREE] = clockNano() - timers[TIMER_COLL_FREE];
 
             timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
@@ -1449,6 +1444,7 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count
             }
             flagcxGroupEnd();
 
+            // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
         }
     }
@@ -1473,7 +1469,7 @@ flagcxResult_t flagcxSend(const void *sendbuff, size_t count, flagcxDataType_t d
 
             // step 1: malloc host buffer
             timers[TIMER_COLL_ALLOC] = clockNano();
-            deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost);
+            deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost, NULL);
             timers[TIMER_COLL_ALLOC] = clockNano() - timers[TIMER_COLL_ALLOC];
 
             // step 2: memcpy d2h
@@ -1488,7 +1484,7 @@ flagcxResult_t flagcxSend(const void *sendbuff, size_t count, flagcxDataType_t d
 
             // buff_in will be freed in gloo adaptor send function?
             // TODO: check if buff_in should be freed here
-            // deviceAdaptor->deviceFree(buff_in, flagcxMemHost);
+            // deviceAdaptor->deviceFree(buff_in, flagcxMemHost, NULL);
 
             timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
             INFO(FLAGCX_COLL,
@@ -1528,7 +1524,7 @@ flagcxResult_t flagcxRecv(void *recvbuff, size_t count, flagcxDataType_t datatyp
 
             // step 1: malloc host buffer
             timers[TIMER_COLL_ALLOC] = clockNano();
-            deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost);
+            deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost, NULL);
             timers[TIMER_COLL_ALLOC] = clockNano() - timers[TIMER_COLL_ALLOC];
 
             // step 2: recv
@@ -1543,7 +1539,7 @@ flagcxResult_t flagcxRecv(void *recvbuff, size_t count, flagcxDataType_t datatyp
 
             // step 4: free host buffer
             timers[TIMER_COLL_FREE] = clockNano();
-            deviceAdaptor->deviceFree(buff_out, flagcxMemHost);
+            deviceAdaptor->deviceFree(buff_out, flagcxMemHost, NULL);
             timers[TIMER_COLL_FREE] = clockNano() - timers[TIMER_COLL_FREE];
 
             timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
