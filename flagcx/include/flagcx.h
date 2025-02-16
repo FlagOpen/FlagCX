@@ -102,7 +102,7 @@ flagcxResult_t flagcxHandleInit(flagcxHandlerGroup_t* handler);
 flagcxResult_t flagcxHandleFree(flagcxHandlerGroup_t handler);
 
 /* Check if the FlagCX communicator type is homogeneous or heterogeneous */
-flagcxResult_t flagcxIsHomoComm(int *isHomo);
+flagcxResult_t flagcxIsHomoComm(flagcxComm_t comm, int *isHomo);
 
 /* Return the version of the FlagCX library in the supplied integer.
  * It contains the underlying adaptor library version and FlagCX core version
@@ -341,7 +341,7 @@ flagcxResult_t flagcxRecv(void* recvbuff, size_t count, flagcxDataType_t datatyp
  * a single FLAGCX operation. Nothing will be started on the FlagCX stream until
  * flagcxGroupEnd.
  */
-flagcxResult_t flagcxGroupStart();
+flagcxResult_t flagcxGroupStart(flagcxComm_t comm);
 
 /*
  * Group End
@@ -350,7 +350,7 @@ flagcxResult_t flagcxGroupStart();
  * flagcxGroupStart. Operations on the FlagCX stream depending on the FLAGCX operations
  * need to be called after flagcxGroupEnd.
  */
-flagcxResult_t flagcxGroupEnd();
+flagcxResult_t flagcxGroupEnd(flagcxComm_t comm);
 
 #ifdef __cplusplus
 } // end extern "C"

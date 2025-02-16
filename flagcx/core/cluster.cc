@@ -2,7 +2,7 @@
 #include <cstring>
 
 flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
-                                         flagcxCommunicatorType_t &type,
+                                         flagcxCommunicatorType_t *type,
                                          int *homo_rank, int *homo_root_rank, int *homo_ranks,
                                          int *cluster_id, int *cluster_inter_rank, int *ncluster,
                                          int rank, int nranks)
@@ -13,7 +13,7 @@ flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
     *cluster_id = 0;
     *cluster_inter_rank = -1;
     *ncluster = 1;
-    type = flagcxCommunicatorHomo;
+    *type = flagcxCommunicatorHomo;
 
     if (nranks <= 1)
         return flagcxSuccess;
@@ -56,14 +56,14 @@ flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
 
     if (clusterMap.size() > 1)
     {
-        type = flagcxCommunicatorHybrid;
+        *type = flagcxCommunicatorHybrid;
     }
     else
     {
-        type = flagcxCommunicatorHomo;
+        *type = flagcxCommunicatorHomo;
     }
 
-    if (type == flagcxCommunicatorHybrid)
+    if (*type == flagcxCommunicatorHybrid)
     {
         const char *useDev = flagcxGetEnv("FLAGCX_USEDEV");
         int useDev_;
@@ -75,9 +75,11 @@ flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
         {
             useDev_ = std::stoi(useDev);
         }
-        int currDev;
-        deviceAdaptor->getDevice(&currDev);
-        if (currDev == useDev_)
+        if (*homo_rank == useDev_)
+        {
+            *cluster_inter_rank = rank;
+        }
+        if (*homo_ranks <= useDev_ && *homo_rank == *homo_ranks - 1)
         {
             *cluster_inter_rank = rank;
         }

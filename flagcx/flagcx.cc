@@ -12,8 +12,6 @@
 #include <stdio.h>
 #include <string.h>
 
-static flagcxComm_t cur_comm = NULL;
-
 size_t getFlagcxDataTypeSize(flagcxDataType_t dtype)
 {
     switch (dtype)
@@ -74,29 +72,29 @@ static struct flagcxDeviceHandle globalDeviceHandle
         deviceAdaptor->streamQuery,
 };
 
-flagcxResult_t flagCXEnsureCommReady()
+flagcxResult_t flagcxEnsureCommReady(flagcxComm_t comm)
 {
-    if (cur_comm == NULL)
+    if (comm == NULL)
     {
         return flagcxInternalError;
     }
-    if (cur_comm->comm_type != flagcxCommunicatorHybrid && cur_comm->comm_type != flagcxCommunicatorHomo)
+    if (comm->comm_type != flagcxCommunicatorHybrid && comm->comm_type != flagcxCommunicatorHomo)
     {
         return flagcxInternalError;
     }
     return flagcxSuccess;
 }
 
-bool is_homo_comm()
+bool is_homo_comm(flagcxComm_t comm)
 {
-    assert(flagCXEnsureCommReady() == flagcxSuccess);
+    assert(flagcxEnsureCommReady(comm) == flagcxSuccess);
 #ifdef FORCE_HOMO_COMM
     return true;
 #endif
 #ifdef FORCE_HYBRID_COMM
     return false;
 #endif
-    return cur_comm->comm_type == flagcxCommunicatorHomo;
+    return comm->comm_type == flagcxCommunicatorHomo;
 }
 
 bool has_host_comm()
@@ -135,10 +133,10 @@ flagcxResult_t flagcxHandleFree(flagcxHandlerGroup_t handler)
     return flagcxSuccess;
 }
 
-flagcxResult_t flagcxIsHomoComm(int *isHomo)
+flagcxResult_t flagcxIsHomoComm(flagcxComm_t comm, int *isHomo)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         *isHomo = 1;
     }
@@ -151,13 +149,7 @@ flagcxResult_t flagcxIsHomoComm(int *isHomo)
 
 flagcxResult_t flagcxGetVersion(int *version)
 {
-    // TODO: remove EnsureCommReady restriction.
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    // TODO: check how to return flagcx version including flagcx core and flagcx adaptor
-    if (is_homo_comm())
-    {
-        return cclAdaptors[flagcxCCLAdaptorDevice]->getVersion(version);
-    }
+    // TODO: implement a method to retrieve global verison
     return flagcxHeteroGetVersion(version);
 }
 
@@ -182,24 +174,17 @@ flagcxResult_t flagcxGetUniqueId(flagcxUniqueId_t *uniqueId)
 
 const char *flagcxGetErrorString(flagcxResult_t result)
 {
-    if (flagCXEnsureCommReady() != flagcxSuccess)
-    {
-        return "Undefined: Comm is not fully initialized.";
-    }
-    if (is_homo_comm())
-    {
-        return cclAdaptors[flagcxCCLAdaptorDevice]->getErrorString(result);
-    }
+    // TODO: implement a method to retrieve error string
     return "Not implemented.";
 }
 
 const char *flagcxGetLastError(flagcxComm_t comm)
 {
-    if (flagCXEnsureCommReady() != flagcxSuccess)
-    {
-        return "Undefined: Comm is not fully initialized.";
+    // TODO: implement a method to retrieve last error string
+    if (comm == NULL) {
+        return "Undefined: flagcxComm is not fully initialized.";
     }
-    if (is_homo_comm())
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->getLastError(comm->homo_comm);
     }
@@ -233,7 +218,6 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
     (*comm)->cluster_inter_ranks = NULL;
     (*comm)->globalrank2homorank = NULL;
     (*comm)->comm_type = flagcxCommunicatorUnknown;
-    cur_comm = *comm;
 
     struct bootstrapState *state = NULL;
     FLAGCXCHECK(flagcxCalloc(&state, 1));
@@ -270,7 +254,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
     FLAGCXCHECK(flagcxCalloc(&clusterIdData, nranks));
     FLAGCXCHECK(flagcxCalloc(&clusterInterRankData, nranks));
     FLAGCXCHECK(flagcxCollectClusterInfos(vendorData,
-                                          (*comm)->comm_type,
+                                          &(*comm)->comm_type,
                                           globalRankToHomoRankData + rank, &(*comm)->homo_root_rank, &(*comm)->homo_ranks,
                                           clusterIdData + rank, clusterInterRankData + rank, &(*comm)->nclusters, rank, nranks));
     FLAGCXCHECK(bootstrapAllGather(state, (void *)globalRankToHomoRankData, sizeof(int)));
@@ -348,7 +332,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
     memcpy((void *)commId, (void *)&uniqueIdData[(*comm)->homo_root_rank], sizeof(flagcxUniqueId));
     FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->commInitRank(&(*comm)->homo_comm, (*comm)->homo_ranks, commId, (*comm)->homo_rank, NULL));
 
-    if (!is_homo_comm())
+    if (!is_homo_comm(*comm))
     {
         // Reset commId and hetero root rank calls flagcxHeteroGetUniqueId
         memset((void *)commId, 0, sizeof(flagcxUniqueId));
@@ -381,7 +365,8 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks, flagcxUniqueId
 
 flagcxResult_t flagcxCommFinalize(flagcxComm_t comm)
 {
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->commFinalize(comm->homo_comm);
     }
@@ -391,6 +376,8 @@ flagcxResult_t flagcxCommFinalize(flagcxComm_t comm)
 
 flagcxResult_t flagcxCommDestroy(flagcxComm_t comm)
 {
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+
     // Destroy cluster info
     free(comm->cluster_ids);
     free(comm->cluster_sizes);
@@ -400,7 +387,7 @@ flagcxResult_t flagcxCommDestroy(flagcxComm_t comm)
     bootstrapClose(comm->bootstrap);
 
     // Destroy hetero comm
-    if (!is_homo_comm())
+    if (!is_homo_comm(comm))
     {
         FLAGCXCHECK(flagcxHeteroCommDestroy(comm->hetero_comm));
         // Destroy homo comm
@@ -415,7 +402,8 @@ flagcxResult_t flagcxCommDestroy(flagcxComm_t comm)
 
 flagcxResult_t flagcxCommAbort(flagcxComm_t comm)
 {
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->commAbort(comm->homo_comm);
     }
@@ -425,7 +413,8 @@ flagcxResult_t flagcxCommAbort(flagcxComm_t comm)
 
 flagcxResult_t flagcxCommResume(flagcxComm_t comm)
 {
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->commResume(comm->homo_comm);
     }
@@ -435,7 +424,8 @@ flagcxResult_t flagcxCommResume(flagcxComm_t comm)
 
 flagcxResult_t flagcxCommSuspend(flagcxComm_t comm)
 {
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->commSuspend(comm->homo_comm);
     }
@@ -445,7 +435,8 @@ flagcxResult_t flagcxCommSuspend(flagcxComm_t comm)
 
 flagcxResult_t flagcxCommCount(const flagcxComm_t comm, int *count)
 {
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->commCount(comm->homo_comm, count);
     }
@@ -459,7 +450,8 @@ flagcxResult_t flagcxCommGetDeviceNumber(const flagcxComm_t comm, int *device)
 
 flagcxResult_t flagcxCommUserRank(const flagcxComm_t comm, int *rank)
 {
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->commUserRank(comm->homo_comm, rank);
     }
@@ -468,8 +460,8 @@ flagcxResult_t flagcxCommUserRank(const flagcxComm_t comm, int *rank)
 
 flagcxResult_t flagcxCommGetAsyncError(flagcxComm_t comm, flagcxResult_t asyncError)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->commGetAsyncError(comm->homo_comm, asyncError);
     }
@@ -492,8 +484,8 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
                             flagcxDataType_t datatype, flagcxRedOp_t op, int root,
                             flagcxComm_t comm, flagcxStream_t stream)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->reduce(sendbuff, recvbuff, count, datatype, op, root, comm->homo_comm, stream);
     }
@@ -540,7 +532,7 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
                 }
             }
             int cid = 0;
-            flagcxGroupStart();
+            flagcxGroupStart(comm);
             for (int i = 0; i < comm->nclusters; ++i)
             {
                 if (comm->cluster_ids[comm->rank] == i)
@@ -565,7 +557,7 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
                 }
                 cid += 1;
             }
-            flagcxGroupEnd();
+            flagcxGroupEnd(comm);
 
             // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
@@ -594,8 +586,8 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
                             flagcxDataType_t datatype, int root, flagcxComm_t comm,
                             flagcxStream_t stream)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->gather(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
     }
@@ -647,7 +639,7 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
 
             // inter-cluster sendrecv
             bool fwd_root = comm->cluster_inter_ranks[comm->cluster_ids[root]] != root;
-            flagcxGroupStart();
+            flagcxGroupStart(comm);
             if (!is_root_cluster && comm->homo_inter_rank == comm->homo_rank)
             {
                 FLAGCXCHECK(flagcxHeteroSend(fwdbuff, comm->homo_ranks * count, datatype, comm->cluster_inter_ranks[comm->cluster_ids[root]], comm->hetero_comm, stream));
@@ -676,7 +668,7 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
                     recvoffset += comm->cluster_sizes[i];
                 }
             }
-            flagcxGroupEnd();
+            flagcxGroupEnd(comm);
 
             // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
@@ -684,7 +676,7 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
             // intra-cluster sendrecv if homo_inter_rank != root_rank in the root cluster
             if (fwd_root && is_root_cluster)
             {
-                flagcxGroupStart();
+                flagcxGroupStart(comm);
                 if (comm->rank == root)
                 {
                     int recvoffset = 0;
@@ -709,7 +701,7 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
                         sendoffset += comm->cluster_sizes[i];
                     }
                 }
-                flagcxGroupEnd();
+                flagcxGroupEnd(comm);
             }
 
             if (comm->homo_rank == comm->homo_inter_rank && comm->rank != root)
@@ -725,8 +717,8 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
                              flagcxDataType_t datatype, int root, flagcxComm_t comm,
                              flagcxStream_t stream)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->scatter(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
     }
@@ -770,7 +762,7 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
             // intra-cluster sendrecv if homo_inter_rank != root_rank in the root cluster
             if (fwd_root && is_root_cluster)
             {
-                flagcxGroupStart();
+                flagcxGroupStart(comm);
                 if (comm->rank == root)
                 {
                     int sendoffset = 0;
@@ -795,11 +787,11 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
                         recvoffset += comm->cluster_sizes[i];
                     }
                 }
-                flagcxGroupEnd();
+                flagcxGroupEnd(comm);
             }
 
             // inter-cluster sendrecv
-            flagcxGroupStart();
+            flagcxGroupStart(comm);
             if (!is_root_cluster && comm->homo_inter_rank == comm->homo_rank)
             {
                 FLAGCXCHECK(flagcxHeteroRecv(fwdbuff, comm->homo_ranks * count, datatype, comm->cluster_inter_ranks[comm->cluster_ids[root]], comm->hetero_comm, stream));
@@ -828,7 +820,7 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
                     sendoffset += comm->cluster_sizes[i];
                 }
             }
-            flagcxGroupEnd();
+            flagcxGroupEnd(comm);
 
             // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
@@ -856,8 +848,8 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff, size_t coun
                                flagcxDataType_t datatype, int root, flagcxComm_t comm,
                                flagcxStream_t stream)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
     }
@@ -890,7 +882,7 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff, size_t coun
             }
 
             // inter-cluster sendrecv
-            flagcxGroupStart();
+            flagcxGroupStart(comm);
             if (comm->homo_inter_rank == comm->homo_rank)
             {
                 if (comm->cluster_ids[comm->rank] == comm->cluster_ids[root])
@@ -909,7 +901,7 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff, size_t coun
                     FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, comm->cluster_inter_ranks[comm->cluster_ids[root]], comm->hetero_comm, stream));
                 }
             }
-            flagcxGroupEnd();
+            flagcxGroupEnd(comm);
 
             // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
@@ -984,8 +976,8 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
                                flagcxDataType_t datatype, flagcxRedOp_t op, flagcxComm_t comm,
                                flagcxStream_t stream)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(sendbuff, recvbuff, count, datatype, op, comm->homo_comm, stream);
     }
@@ -1066,7 +1058,7 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
                 }
             }
             int cid = 0;
-            flagcxGroupStart();
+            flagcxGroupStart(comm);
             for (int i = 0; i < comm->nclusters; ++i)
             {
                 if (comm->cluster_ids[comm->rank] == i)
@@ -1085,7 +1077,7 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff, size_t coun
                 }
                 cid += 1;
             }
-            flagcxGroupEnd();
+            flagcxGroupEnd(comm);
 
             // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
@@ -1101,8 +1093,8 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff, size_t 
                                    flagcxDataType_t datatype, flagcxRedOp_t op, flagcxComm_t comm,
                                    flagcxStream_t stream)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->reduceScatter(sendbuff, recvbuff, recvcount, datatype, op, comm->homo_comm, stream);
     }
@@ -1145,7 +1137,7 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff, size_t 
                 }
             }
             int cid = 0;
-            flagcxGroupStart();
+            flagcxGroupStart(comm);
             for (int i = 0; i < comm->nclusters; ++i)
             {
                 if (comm->cluster_ids[comm->rank] == i)
@@ -1164,7 +1156,7 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff, size_t 
                 }
                 cid += 1;
             }
-            flagcxGroupEnd();
+            flagcxGroupEnd(comm);
 
             // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
@@ -1231,8 +1223,8 @@ flagcxResult_t wrapperAllGatherBootstrap(const void *sendbuff, void *recvbuff, s
 flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff, size_t sendcount,
                                flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->allGather(sendbuff, recvbuff, sendcount, datatype, comm->homo_comm, stream);
     }
@@ -1307,7 +1299,7 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff, size_t send
             if (comm->homo_inter_rank == comm->homo_rank)
             {
                 int offset_recv = 0;
-                flagcxGroupStart();
+                flagcxGroupStart(comm);
                 for (int i = 0; i < comm->nclusters; ++i)
                 {
                     if (comm->cluster_ids[comm->rank] == i)
@@ -1319,7 +1311,7 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff, size_t send
                     FLAGCXCHECK(flagcxHeteroRecv((void *)((char *)recvbuff + getFlagcxDataTypeSize(datatype) * offset_recv * sendcount), sendcount * comm->cluster_sizes[i], datatype, comm->cluster_inter_ranks[i], comm->hetero_comm, stream));
                     offset_recv += comm->cluster_sizes[i];
                 }
-                flagcxGroupEnd();
+                flagcxGroupEnd(comm);
             }
 
             // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
@@ -1376,8 +1368,8 @@ flagcxResult_t wrapperAlltoAllBootstrap(const void *sendbuff, void *recvbuff, si
 flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count,
                               flagcxDataType_t datatype, flagcxComm_t comm, flagcxStream_t stream)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(sendbuff, recvbuff, count, datatype, comm->homo_comm, stream);
     }
@@ -1453,7 +1445,7 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count
 
             // inter-cluster sendrecv
             // TODO: use cluster_inter_rank to perform hetero sendrecv operation
-            flagcxGroupStart();
+            flagcxGroupStart(comm);
             for (int r = 0; r < comm->nranks; ++r)
             {
                 if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r])
@@ -1462,7 +1454,7 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count
                     FLAGCXCHECK(flagcxHeteroRecv(static_cast<void *>(buffer_out + r * size), count, datatype, r, comm->hetero_comm, stream));
                 }
             }
-            flagcxGroupEnd();
+            flagcxGroupEnd(comm);
 
             // sync stream to collect implicitly triggered ops by flagcxHeteroSend/Recv
             deviceAdaptor->streamSynchronize(stream);
@@ -1474,8 +1466,8 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff, size_t count
 flagcxResult_t flagcxSend(const void *sendbuff, size_t count, flagcxDataType_t datatype, int peer,
                           flagcxComm_t comm, flagcxStream_t stream)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->send(sendbuff, count, datatype, peer, comm->homo_comm, stream);
     }
@@ -1530,8 +1522,8 @@ flagcxResult_t flagcxSend(const void *sendbuff, size_t count, flagcxDataType_t d
 flagcxResult_t flagcxRecv(void *recvbuff, size_t count, flagcxDataType_t datatype, int peer,
                           flagcxComm_t comm, flagcxStream_t stream)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->recv(recvbuff, count, datatype, peer, comm->homo_comm, stream);
     }
@@ -1585,10 +1577,10 @@ flagcxResult_t flagcxRecv(void *recvbuff, size_t count, flagcxDataType_t datatyp
     return flagcxSuccess;
 }
 
-flagcxResult_t flagcxGroupStart()
+flagcxResult_t flagcxGroupStart(flagcxComm_t comm)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
     }
@@ -1606,10 +1598,10 @@ flagcxResult_t flagcxGroupStart()
     return flagcxSuccess;
 }
 
-flagcxResult_t flagcxGroupEnd()
+flagcxResult_t flagcxGroupEnd(flagcxComm_t comm)
 {
-    FLAGCXCHECK(flagCXEnsureCommReady());
-    if (is_homo_comm())
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    if (is_homo_comm(comm))
     {
         return cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
     }

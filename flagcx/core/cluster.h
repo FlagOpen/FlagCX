@@ -8,7 +8,7 @@
 #include <string>
 
 flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor* allData,
-                                         flagcxCommunicatorType_t &type,
+                                         flagcxCommunicatorType_t *type,
                                          int *homo_rank, int *homo_root_rank, int *homo_ranks,
                                          int *cluster_id, int *cluster_inter_rank, int *nclusters,
                                          int rank, int nranks);

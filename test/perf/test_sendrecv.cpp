@@ -68,10 +68,10 @@ int main(int argc, char *argv[]){
         }
 
         for(int i=0;i<num_warmup_iters;i++){
-            flagcxGroupStart();
+            flagcxGroupStart(comm);
             flagcxSend(sendbuff, count, DATATYPE, sendPeer, comm, stream);
             flagcxRecv(recvbuff, count, DATATYPE, recvPeer, comm, stream);
-            flagcxGroupEnd();
+            flagcxGroupEnd(comm);
         }
         devHandle->streamSynchronize(stream);
         
@@ -79,10 +79,10 @@ int main(int argc, char *argv[]){
 
         tim.reset();
         for(int i=0;i<num_iters;i++){
-            flagcxGroupStart();
+            flagcxGroupStart(comm);
             flagcxSend(sendbuff, count, DATATYPE, sendPeer, comm, stream);
             flagcxRecv(recvbuff, count, DATATYPE, recvPeer, comm, stream);
-            flagcxGroupEnd();
+            flagcxGroupEnd(comm);
         }
         devHandle->streamSynchronize(stream);
 

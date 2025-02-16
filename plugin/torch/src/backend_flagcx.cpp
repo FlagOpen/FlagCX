@@ -295,14 +295,14 @@ namespace c10d
     void BackendFlagcx::groupStart()
     {
         initComm();
-        C10D_FLAGCX_CHECK(flagcxGroupStart(), std::nullopt);
+        C10D_FLAGCX_CHECK(flagcxGroupStart(handler->comm), std::nullopt);
         ++flagcxActiveGroupCounter_;
     }
 
     void BackendFlagcx::groupEnd()
     {
         initComm();
-        C10D_FLAGCX_CHECK(flagcxGroupEnd(), std::nullopt);
+        C10D_FLAGCX_CHECK(flagcxGroupEnd(handler->comm), std::nullopt);
         --flagcxActiveGroupCounter_;
     }
 
@@ -350,7 +350,7 @@ namespace c10d
         auto work = c10::make_intrusive<WorkFlagcx>(opType, stream, handler->devHandle);
 
         {
-            AutoFlagcxGroup flagcx_group_guard;
+            AutoFlagcxGroup flagcx_group_guard(handler->comm);
             for (const auto i : c10::irange(inputs.size()))
             {
                 // TODO: we need to record these input/output to prevent being freed before the collective finished.

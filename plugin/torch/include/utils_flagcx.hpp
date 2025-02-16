@@ -22,22 +22,24 @@ namespace c10d
   // manages group lifetimes.
   struct AutoFlagcxGroup final
   {
-    AutoFlagcxGroup()
+    AutoFlagcxGroup(flagcxComm_t comm)
     {
       // TODO: support group semantics for heterogeneous case
-      flagcxIsHomoComm(&is_homo_);
+      comm_ = comm;
+      flagcxIsHomoComm(comm_, &is_homo_);
       if (is_homo_)
       {
-        flagcxGroupStart();
+        flagcxGroupStart(comm_);
       }
     }
     ~AutoFlagcxGroup() noexcept(false)
     {
       if (is_homo_)
       {
-        flagcxGroupEnd();
+        flagcxGroupEnd(comm_);
       }
     }
+    flagcxComm_t comm_ = nullptr;
     int is_homo_ = 1;
   };
 
