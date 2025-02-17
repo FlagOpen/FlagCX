@@ -1103,51 +1103,51 @@ flagcxResult_t wrapperReduceScatterBootstrap(const void *sendbuff, void *recvbuf
                                             flagcxDataType_t datatype, flagcxRedOp_t op, flagcxComm_t comm,
                                             flagcxStream_t stream)
 {
-uint64_t timers[TIMERS_COLL_COUNT] = {0};
-timers[TIMER_COLL_TOTAL] = clockNano();
+    uint64_t timers[TIMERS_COLL_COUNT] = {0};
+    timers[TIMER_COLL_TOTAL] = clockNano();
 
-// step 0: parameter validation
-if (datatype == flagcxHalf || datatype == flagcxBfloat16)
-{
-    WARN("Unsupported datatype %d", datatype);
-    return flagcxInvalidArgument;
-}
-if (op != flagcxSum && op != flagcxMax && op != flagcxMin)
-{
-    WARN("Unsupported reduction operation %d", op);
-    return flagcxInvalidArgument;
-}
-// step 1: copy data from GPU memory to Host memory
-timers[TIMER_COLL_MEM_D2H] = clockNano();
-size_t databytes = recvcount * comm->nranks * getFlagcxDataTypeSize(datatype);
-char *sbuff = nullptr;
-FLAGCXCHECK(flagcxCalloc(&sbuff, databytes));
-wrapper_deviceMemcpy(sbuff, const_cast<void *>(sendbuff), databytes, flagcxMemcpyDeviceToHost, stream);
-// step 2: wait until memcpy done.
-deviceAdaptor->streamSynchronize(stream);
-timers[TIMER_COLL_MEM_D2H] = clockNano() - timers[TIMER_COLL_MEM_D2H];
+    // step 0: parameter validation
+    if (datatype == flagcxHalf || datatype == flagcxBfloat16)
+    {
+        WARN("Unsupported datatype %d", datatype);
+        return flagcxInvalidArgument;
+    }
+    if (op != flagcxSum && op != flagcxMax && op != flagcxMin)
+    {
+        WARN("Unsupported reduction operation %d", op);
+        return flagcxInvalidArgument;
+    }
+    // step 1: copy data from GPU memory to Host memory
+    timers[TIMER_COLL_MEM_D2H] = clockNano();
+    size_t databytes = recvcount * comm->nranks * getFlagcxDataTypeSize(datatype);
+    char *sbuff = nullptr;
+    FLAGCXCHECK(flagcxCalloc(&sbuff, databytes));
+    wrapper_deviceMemcpy(sbuff, const_cast<void *>(sendbuff), databytes, flagcxMemcpyDeviceToHost, stream);
+    // step 2: wait until memcpy done.
+    deviceAdaptor->streamSynchronize(stream);
+    timers[TIMER_COLL_MEM_D2H] = clockNano() - timers[TIMER_COLL_MEM_D2H];
 
-// step 3: start the allreduce primitive via bootstrap
-// use in-place version
-timers[TIMER_COLL_COMM] = clockNano();
-size_t recvbytes = recvcount * getFlagcxDataTypeSize(datatype);
-flagcxResult_t res = ReduceScatterBootstrap(comm->bootstrap, (void *)sbuff, (void *)(sbuff + comm->rank * recvbytes), recvcount, datatype, op);
-timers[TIMER_COLL_COMM] = clockNano() - timers[TIMER_COLL_COMM];
+    // step 3: start the allreduce primitive via bootstrap
+    // use in-place version
+    timers[TIMER_COLL_COMM] = clockNano();
+    size_t recvbytes = recvcount * getFlagcxDataTypeSize(datatype);
+    flagcxResult_t res = ReduceScatterBootstrap(comm->bootstrap, (void *)sbuff, (void *)(sbuff + comm->rank * recvbytes), recvcount, datatype, op);
+    timers[TIMER_COLL_COMM] = clockNano() - timers[TIMER_COLL_COMM];
 
-// step 4: copy data back to GPU memory
-timers[TIMER_COLL_MEM_H2D] = clockNano();
-wrapper_deviceMemcpy(recvbuff, (void *)(sbuff + comm->rank * recvbytes), recvbytes, flagcxMemcpyHostToDevice, stream);
+    // step 4: copy data back to GPU memory
+    timers[TIMER_COLL_MEM_H2D] = clockNano();
+    wrapper_deviceMemcpy(recvbuff, (void *)(sbuff + comm->rank * recvbytes), recvbytes, flagcxMemcpyHostToDevice, stream);
 
-// For now, use synchronized way to free the buffer
-deviceAdaptor->streamSynchronize(stream);
-free(sbuff);
-timers[TIMER_COLL_MEM_H2D] = clockNano() - timers[TIMER_COLL_MEM_H2D];
-timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
-INFO(FLAGCX_COLL,
-"Flagcx timings - %s: rank %d nranks %d total %.2fms (memory d2h %.2fms, memory h2d %.2fms, comm %.2fms)",
-"wrapperReduceScatterBootstrap", comm->rank, comm->nranks,
-timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6, timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
-return res;
+    // For now, use synchronized way to free the buffer
+    deviceAdaptor->streamSynchronize(stream);
+    free(sbuff);
+    timers[TIMER_COLL_MEM_H2D] = clockNano() - timers[TIMER_COLL_MEM_H2D];
+    timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
+    INFO(FLAGCX_COLL,
+        "Flagcx timings - %s: rank %d nranks %d total %.2fms (memory d2h %.2fms, memory h2d %.2fms, comm %.2fms)",
+        "wrapperReduceScatterBootstrap", comm->rank, comm->nranks,
+        timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6, timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
+    return res;
 }
 
 flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff, size_t recvcount,
