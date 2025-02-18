@@ -1156,7 +1156,7 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff, size_t 
         char *useBootstrap = getenv("USE_BOOTSTRAP_CCL");
         if (useBootstrap)
         {
-            wrapperReduceScatterBootstrap(sendbuff, recvbuff, recvcount, datatype, op, comm, stream);
+            return wrapperReduceScatterBootstrap(sendbuff, recvbuff, recvcount, datatype, op, comm, stream);
         }
         if (has_host_comm())
         {
