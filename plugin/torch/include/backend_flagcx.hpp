@@ -154,9 +154,9 @@ public:
 #ifdef USE_NVIDIA_ADAPTOR
     devName = "cuda";
 #elif USE_ILUVATAR_COREX_ADAPTOR
-    dev_name = "cuda";
+    devName = "cuda";
 #elif USE_CAMBRICON_ADAPTOR
-    dev_name = "mlu";
+    devName = "mlu";
 #endif
     py::object module = py::module::import("torch.distributed");
     py::object registerBackend =

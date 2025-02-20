@@ -5,6 +5,10 @@
 
 std::map<flagcxDataType_t, cnclDataType_t> f2c_datatype_map = {
     {flagcxInt8, cnclInt8},
+    {flagcxUint8, cnclUint8},
+    {flagcxInt, cnclInt},
+    {flagcxInt32, cnclInt32},
+    {flagcxInt64, cnclInt64},
     {flagcxHalf, cnclHalf},
     {flagcxFloat16, cnclFloat16},
     {flagcxBfloat16, cnclBfloat16},
@@ -185,7 +189,7 @@ flagcxResult_t cnclAdaptorReduceScatter(const void* sendbuff, void* recvbuff, si
                                         flagcxDataType_t datatype, flagcxRedOp_t op,
                                         flagcxInnerComm_t comm, flagcxStream_t stream) {
     return (flagcxResult_t)c2f_ret_map[cnclReduceScatter(sendbuff, recvbuff, recvcount,
-           (cnclDataType_t)datatype, (cnclReduceOp_t)f2c_reduceop_map[op], comm->base,
+           (cnclDataType_t)f2c_datatype_map[datatype], (cnclReduceOp_t)f2c_reduceop_map[op], comm->base,
            stream->base)];
 }
 
