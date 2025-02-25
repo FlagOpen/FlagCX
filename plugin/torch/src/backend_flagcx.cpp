@@ -273,7 +273,15 @@ c10::intrusive_ptr<Work> flagcxBackend::endCoalescing() {
   work->event_->record(stream_, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
-  work->isBarrierOp_ = true;
+  // Currently, hetero coalesced ops require a barrier op to avoid hanging issue
+  // TODO: remove this barrier op when the hanging issue is resolved
+  int isHomo;
+  flagcxIsHomoComm(handler_->comm, &isHomo);
+  if (isHomo) {
+    work->isBarrierOp_ = false;
+  } else {
+    work->isBarrierOp_ = true;
+  }
   // Create a future to track the coalesced operation
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
       c10::ListType::create(c10::TensorType::get()));
