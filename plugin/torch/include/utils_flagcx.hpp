@@ -25,20 +25,11 @@ namespace c10d {
 // manages group lifetimes.
 struct flagcxGroupGuard final {
   flagcxGroupGuard(flagcxComm_t comm) {
-    // TODO: support group semantics for heterogeneous case
     comm_ = comm;
-    flagcxIsHomoComm(comm_, &isHomo_);
-    if (isHomo_) {
-      flagcxGroupStart(comm_);
-    }
+    flagcxGroupStart(comm_);
   }
-  ~flagcxGroupGuard() noexcept(false) {
-    if (isHomo_) {
-      flagcxGroupEnd(comm_);
-    }
-  }
+  ~flagcxGroupGuard() noexcept(false) { flagcxGroupEnd(comm_); }
   flagcxComm_t comm_ = nullptr;
-  int isHomo_ = 1;
 };
 
 std::string getFlagcxVersion();

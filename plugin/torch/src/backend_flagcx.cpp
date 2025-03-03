@@ -171,23 +171,47 @@ flagcxBackend::flagcxBackend(const c10::intrusive_ptr<::c10d::Store> &store,
   activeGroupCounter_ = 0;
   C10D_FLAGCX_CHECK(flagcxHandleInit(&handler_), std::nullopt);
   C10D_FLAGCX_CHECK(handler_->devHandle->getDeviceCount(&nDevs_), std::nullopt);
-#ifdef USE_NVIDIA_ADAPTOR
-  event_ = std::make_unique<flagcxCudaEvent>();
-#elif USE_ILUVATAR_COREX_ADAPTOR
-  event_ = std::make_unique<flagcxIxcudaEvent>();
-#elif USE_CAMBRICON_ADAPTOR
-  event_ = std::make_unique<flagcxMluEvent>();
-#endif
 }
 
 flagcxBackend::~flagcxBackend() {
   if (status_ == 1) {
-    handler_->devHandle->streamDestroy(stream_);
+    for (auto &s : flagcxStreams_) {
+      handler_->devHandle->streamDestroy(s.second);
+    }
     flagcxCommDestroy(handler_->comm);
     status_ = 0;
   }
   if (status_ == 0) {
     flagcxHandleFree(handler_);
+  }
+}
+
+flagcxStream_t flagcxBackend::getStreamByIndex(int streamId) {
+  if (auto search = flagcxStreams_.find(streamId);
+      search != flagcxStreams_.end()) {
+    return search->second;
+  } else {
+    flagcxStreams_[streamId] = nullptr;
+    C10D_FLAGCX_CHECK(
+        handler_->devHandle->streamCreate(&flagcxStreams_[streamId]),
+        std::nullopt);
+    return flagcxStreams_[streamId];
+  }
+}
+
+std::unique_ptr<flagcxEvent> &flagcxBackend::getEventByIndex(int eventId) {
+  if (auto search = flagcxEvents_.find(eventId);
+      search != flagcxEvents_.end()) {
+    return search->second;
+  } else {
+#ifdef USE_NVIDIA_ADAPTOR
+    flagcxEvents_[eventId] = std::make_unique<flagcxCudaEvent>();
+#elif USE_ILUVATAR_COREX_ADAPTOR
+    flagcxEvents_[eventId] = std::make_unique<flagcxIxcudaEvent>();
+#elif USE_CAMBRICON_ADAPTOR
+    flagcxEvents_[eventId] = std::make_unique<flagcxMluEvent>();
+#endif
+    return flagcxEvents_[eventId];
   }
 }
 
@@ -223,9 +247,6 @@ void flagcxBackend::initComm(at::Device dev) {
     C10D_FLAGCX_CHECK(
         flagcxCommInitRank(&handler_->comm, size_, handler_->uniqueId, rank_),
         std::nullopt);
-    // Initialize the stream
-    C10D_FLAGCX_CHECK(handler_->devHandle->streamCreate(&stream_),
-                      std::nullopt);
     status_ = 1;
   } else {
     if (dev.is_cuda() || dev.is_privateuseone()) {
@@ -246,9 +267,11 @@ void flagcxBackend::initComm() {
 #endif
 }
 
-void flagcxBackend::syncStream(at::Device device) {
-  event_->record(device.index());
-  event_->block(stream_, device.index());
+void flagcxBackend::syncStream(at::Device device, int index) {
+  auto &event = getEventByIndex(index);
+  auto stream = getStreamByIndex(index);
+  event->record(device.index());
+  event->block(stream, device.index());
 }
 
 void flagcxBackend::groupStart() {
@@ -268,9 +291,9 @@ void flagcxBackend::startCoalescing() { groupStart(); }
 c10::intrusive_ptr<Work> flagcxBackend::endCoalescing() {
   groupEnd();
 
-  auto work = c10::make_intrusive<flagcxWork>(OpType::COALESCED, stream_,
-                                              handler_->devHandle);
-  work->event_->record(stream_, deviceId_);
+  auto work = c10::make_intrusive<flagcxWork>(
+      OpType::COALESCED, getStreamByIndex(0), handler_->devHandle);
+  work->event_->record(getStreamByIndex(0), deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   // Currently, hetero coalesced ops require a barrier op to avoid hanging issue
@@ -306,25 +329,47 @@ flagcxBackend::collectiveCoalesced(std::vector<at::Tensor> &inputs,
 
   // TODO: keep track of the coalesced state at backend side.
 
-  // First let flagcx stream wait for input tensor allocation stream
+  // First let default flagcx stream wait for input tensor allocation stream
   syncStream(device);
-  auto work =
-      c10::make_intrusive<flagcxWork>(opType, stream_, handler_->devHandle);
+  auto work = c10::make_intrusive<flagcxWork>(opType, getStreamByIndex(0),
+                                              handler_->devHandle);
 
   {
-    flagcxGroupGuard guard(handler_->comm);
+    int isHomo;
+    flagcxIsHomoComm(handler_->comm, &isHomo);
+    if (isHomo) {
+      flagcxGroupGuard guard(handler_->comm);
+    }
+    flagcxStream_t stream;
+
     for (const auto i : c10::irange(inputs.size())) {
+      if (isHomo) {
+        stream = getStreamByIndex(0);
+      } else {
+        stream = getStreamByIndex(i + 1);
+      }
       // TODO: we need to record these input/output to prevent being freed
       // before the collective finished.
       auto inputTensor = inputs[i];
       auto outputTensor = outputs[i];
       // Perform the collective operation
-      C10D_FLAGCX_CHECK(fn(inputTensor, outputTensor, handler_->comm, stream_),
+      C10D_FLAGCX_CHECK(fn(inputTensor, outputTensor, handler_->comm, stream),
                         std::nullopt);
+
+      if (!isHomo) {
+        auto &event = getEventByIndex(i + 1);
+        event->record(stream, deviceId_);
+      }
+    }
+    for (const auto i : c10::irange(inputs.size())) {
+      if (!isHomo) {
+        auto &event = getEventByIndex(i + 1);
+        event->block(getStreamByIndex(0), deviceId_);
+      }
     }
   }
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(getStreamByIndex(0), deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   work->isBarrierOp_ = false;
@@ -343,7 +388,8 @@ flagcxBackend::allgather(std::vector<std::vector<at::Tensor>> &outputTensors,
   auto inputTensor = inputTensors.back();
   auto outputTensorsTmp = outputTensors.back();
   auto flagcxDataType = getFlagcxDataType(inputTensor.scalar_type());
-  auto work = c10::make_intrusive<flagcxWork>(OpType::ALLGATHER, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::ALLGATHER, stream,
                                               handler_->devHandle);
   check_device(inputTensor.device(), outputTensorsTmp[0].device());
   initComm(inputTensor.device());
@@ -360,7 +406,7 @@ flagcxBackend::allgather(std::vector<std::vector<at::Tensor>> &outputTensors,
     C10D_FLAGCX_CHECK(flagcxAllGather(inputTensor.data_ptr(),
                                       outputFlattened.data_ptr(),
                                       inputTensor.numel(), flagcxDataType,
-                                      handler_->comm, stream_),
+                                      handler_->comm, stream),
                       std::nullopt);
 
     // Copy the flattened tensor back into a vector of tensors.
@@ -369,7 +415,7 @@ flagcxBackend::allgather(std::vector<std::vector<at::Tensor>> &outputTensors,
     }
   }
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   // Create a future to track the allgather operation
@@ -385,7 +431,8 @@ flagcxBackend::_allgather_base(at::Tensor &outputTensor,
                                at::Tensor &inputTensor,
                                const AllgatherOptions & /* unused */) {
   auto flagcxDataType = getFlagcxDataType(inputTensor.scalar_type());
-  auto work = c10::make_intrusive<flagcxWork>(OpType::_ALLGATHER_BASE, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::_ALLGATHER_BASE, stream,
                                               handler_->devHandle);
   check_device(inputTensor.device(), outputTensor.device());
   initComm(inputTensor.device());
@@ -395,10 +442,10 @@ flagcxBackend::_allgather_base(at::Tensor &outputTensor,
   C10D_FLAGCX_CHECK(flagcxAllGather(inputTensor.data_ptr(),
                                     outputTensor.data_ptr(),
                                     inputTensor.numel(), flagcxDataType,
-                                    handler_->comm, stream_),
+                                    handler_->comm, stream),
                     std::nullopt);
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   // Create a future to track the allgather operation
@@ -434,7 +481,8 @@ flagcxBackend::allreduce(std::vector<at::Tensor> &tensors,
   auto flagcxDataType = getFlagcxDataType(tensor.scalar_type());
   auto flagcxReduceOp =
       getFlagcxReduceOp(opts.reduceOp, tensor, flagcxDataType);
-  auto work = c10::make_intrusive<flagcxWork>(OpType::ALLREDUCE, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::ALLREDUCE, stream,
                                               handler_->devHandle);
   initComm(tensor.device());
   syncStream(tensor.device());
@@ -442,10 +490,10 @@ flagcxBackend::allreduce(std::vector<at::Tensor> &tensors,
   // Perform the allreduce operation
   C10D_FLAGCX_CHECK(flagcxAllReduce(tensor.data_ptr(), tensor.data_ptr(),
                                     tensor.numel(), flagcxDataType,
-                                    flagcxReduceOp, handler_->comm, stream_),
+                                    flagcxReduceOp, handler_->comm, stream),
                     std::nullopt);
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   // Create a future to track the allreduce operation
@@ -498,7 +546,8 @@ flagcxBackend::alltoall(std::vector<at::Tensor> &outputTensors,
   auto count = inputTensors[0].numel();
   auto flagcxDataType = getFlagcxDataType(inputTensors[0].scalar_type());
   auto device = outputTensors[0].device();
-  auto work = c10::make_intrusive<flagcxWork>(OpType::ALLTOALL, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::ALLTOALL, stream,
                                               handler_->devHandle);
   initComm(device);
   syncStream(device);
@@ -514,7 +563,7 @@ flagcxBackend::alltoall(std::vector<at::Tensor> &outputTensors,
 
   C10D_FLAGCX_CHECK(flagcxAlltoAll(inputFlattened.data_ptr(),
                                    outputFlattened.data_ptr(), count,
-                                   flagcxDataType, handler_->comm, stream_),
+                                   flagcxDataType, handler_->comm, stream),
                     std::nullopt);
 
   // Copy the flattened tensor back into a vector of tensors.
@@ -522,7 +571,7 @@ flagcxBackend::alltoall(std::vector<at::Tensor> &outputTensors,
     outputTensors[j].copy_(outputFlattened[j], true);
   }
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   // Create a future to track the alltoall operation
@@ -543,11 +592,12 @@ flagcxBackend::alltoall_base(at::Tensor &outputTensor, at::Tensor &inputTensor,
 
 c10::intrusive_ptr<Work> flagcxBackend::barrier(const BarrierOptions &opts) {
   initComm();
-  auto work = c10::make_intrusive<flagcxWork>(OpType::BARRIER, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::BARRIER, stream,
                                               handler_->devHandle);
-  C10D_FLAGCX_CHECK(flagcxBarrier(handler_->comm, stream_), std::nullopt);
+  C10D_FLAGCX_CHECK(flagcxBarrier(handler_->comm, stream), std::nullopt);
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   work->isBarrierOp_ = true;
@@ -563,7 +613,8 @@ flagcxBackend::broadcast(std::vector<at::Tensor> &tensors,
                          const BroadcastOptions &opts) {
   auto &tensor = tensors.back();
   auto flagcxDataType = getFlagcxDataType(tensor.scalar_type());
-  auto work = c10::make_intrusive<flagcxWork>(OpType::BROADCAST, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::BROADCAST, stream,
                                               handler_->devHandle);
   initComm(tensor.device());
   syncStream(tensor.device());
@@ -572,10 +623,10 @@ flagcxBackend::broadcast(std::vector<at::Tensor> &tensors,
 
   C10D_FLAGCX_CHECK(flagcxBroadcast(tensor.data_ptr(), tensor.data_ptr(),
                                     tensor.numel(), flagcxDataType, root,
-                                    handler_->comm, stream_),
+                                    handler_->comm, stream),
                     std::nullopt);
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   // Create a future to track the broadcast operation
@@ -592,7 +643,8 @@ flagcxBackend::gather(std::vector<std::vector<at::Tensor>> &outputTensors,
                       const GatherOptions &opts) {
   auto &inputTensor = inputTensors.back();
   auto flagcxDataType = getFlagcxDataType(inputTensor.scalar_type());
-  auto work = c10::make_intrusive<flagcxWork>(OpType::GATHER, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::GATHER, stream,
                                               handler_->devHandle);
   initComm(inputTensor.device());
   syncStream(inputTensor.device());
@@ -614,7 +666,7 @@ flagcxBackend::gather(std::vector<std::vector<at::Tensor>> &outputTensors,
   C10D_FLAGCX_CHECK(flagcxGather(inputTensor.data_ptr(),
                                  outputFlattened.data_ptr(),
                                  inputTensor.numel(), flagcxDataType, root,
-                                 handler_->comm, stream_),
+                                 handler_->comm, stream),
                     std::nullopt);
 
   // Unflatten the flattened tensor back into a vector of tensors.
@@ -624,7 +676,7 @@ flagcxBackend::gather(std::vector<std::vector<at::Tensor>> &outputTensors,
     }
   }
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   // Create a future to track the gather operation
@@ -641,7 +693,8 @@ c10::intrusive_ptr<Work> flagcxBackend::reduce(std::vector<at::Tensor> &tensors,
   auto flagcxDataType = getFlagcxDataType(tensor.scalar_type());
   auto flagcxReduceOp =
       getFlagcxReduceOp(opts.reduceOp, tensor, flagcxDataType);
-  auto work = c10::make_intrusive<flagcxWork>(OpType::REDUCE, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::REDUCE, stream,
                                               handler_->devHandle);
   initComm(tensor.device());
   syncStream(tensor.device());
@@ -650,10 +703,10 @@ c10::intrusive_ptr<Work> flagcxBackend::reduce(std::vector<at::Tensor> &tensors,
 
   C10D_FLAGCX_CHECK(flagcxReduce(tensor.data_ptr(), tensor.data_ptr(),
                                  tensor.numel(), flagcxDataType, flagcxReduceOp,
-                                 root, handler_->comm, stream_),
+                                 root, handler_->comm, stream),
                     std::nullopt);
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   // Create a future to track the reduce operation
@@ -673,7 +726,8 @@ c10::intrusive_ptr<Work> flagcxBackend::reduce_scatter(
   auto flagcxDataType = getFlagcxDataType(outputTensor.scalar_type());
   auto flagcxReduceOp =
       getFlagcxReduceOp(opts.reduceOp, outputTensor, flagcxDataType);
-  auto work = c10::make_intrusive<flagcxWork>(OpType::REDUCE_SCATTER, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::REDUCE_SCATTER, stream,
                                               handler_->devHandle);
   check_device(outputTensor.device(), inputTensorsTmp[0].device());
   initComm(outputTensor.device());
@@ -695,11 +749,11 @@ c10::intrusive_ptr<Work> flagcxBackend::reduce_scatter(
     C10D_FLAGCX_CHECK(
         flagcxReduceScatter(inputFlattened.data_ptr(), outputTensor.data_ptr(),
                             outputTensor.numel(), flagcxDataType,
-                            flagcxReduceOp, handler_->comm, stream_),
+                            flagcxReduceOp, handler_->comm, stream),
         std::nullopt);
   }
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   // Create a future to track the reducescatter operation
@@ -717,8 +771,9 @@ flagcxBackend::_reduce_scatter_base(at::Tensor &outputTensor,
   auto flagcxDataType = getFlagcxDataType(outputTensor.scalar_type());
   auto flagcxReduceOp =
       getFlagcxReduceOp(opts.reduceOp, outputTensor, flagcxDataType);
+  auto stream = getStreamByIndex(0);
   auto work = c10::make_intrusive<flagcxWork>(OpType::_REDUCE_SCATTER_BASE,
-                                              stream_, handler_->devHandle);
+                                              stream, handler_->devHandle);
   check_device(outputTensor.device(), inputTensor.device());
   initComm(outputTensor.device());
   syncStream(outputTensor.device());
@@ -731,11 +786,11 @@ flagcxBackend::_reduce_scatter_base(at::Tensor &outputTensor,
     C10D_FLAGCX_CHECK(
         flagcxReduceScatter(inputTensor.data_ptr(), outputTensor.data_ptr(),
                             outputTensor.numel(), flagcxDataType,
-                            flagcxReduceOp, handler_->comm, stream_),
+                            flagcxReduceOp, handler_->comm, stream),
         std::nullopt);
   }
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   // Create a future to track the reducescatter operation
@@ -775,7 +830,8 @@ flagcxBackend::scatter(std::vector<at::Tensor> &outputTensors,
                        const ScatterOptions &opts) {
   auto &outputTensor = outputTensors.back();
   auto flagcxDataType = getFlagcxDataType(outputTensor.scalar_type());
-  auto work = c10::make_intrusive<flagcxWork>(OpType::SCATTER, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::SCATTER, stream,
                                               handler_->devHandle);
   initComm(outputTensor.device());
   syncStream(outputTensor.device());
@@ -803,11 +859,10 @@ flagcxBackend::scatter(std::vector<at::Tensor> &outputTensors,
   // Perform the scatter operation
   C10D_FLAGCX_CHECK(flagcxScatter(inputFlattened.data_ptr(),
                                   outputTensor.data_ptr(), outputTensor.numel(),
-                                  flagcxDataType, root, handler_->comm,
-                                  stream_),
+                                  flagcxDataType, root, handler_->comm, stream),
                     std::nullopt);
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = false;
   // Create a future to track the scatter operation
@@ -822,18 +877,18 @@ c10::intrusive_ptr<Work> flagcxBackend::send(std::vector<at::Tensor> &tensors,
                                              int dstRank, int tag) {
   auto &tensor = tensors.back();
   auto flagcxDataType = getFlagcxDataType(tensor.scalar_type());
-  auto work = c10::make_intrusive<flagcxWork>(OpType::SEND, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::SEND, stream,
                                               handler_->devHandle);
   initComm(tensor.device());
   syncStream(tensor.device());
 
   // Perform the send operation
   C10D_FLAGCX_CHECK(flagcxSend(tensor.data_ptr(), tensor.numel(),
-                               flagcxDataType, dstRank, handler_->comm,
-                               stream_),
+                               flagcxDataType, dstRank, handler_->comm, stream),
                     std::nullopt);
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = (activeGroupCounter_ > 0);
   // Create a future to track the send operation
@@ -848,18 +903,18 @@ c10::intrusive_ptr<Work> flagcxBackend::recv(std::vector<at::Tensor> &tensors,
                                              int srcRank, int tag) {
   auto &tensor = tensors.back();
   auto flagcxDataType = getFlagcxDataType(tensor.scalar_type());
-  auto work = c10::make_intrusive<flagcxWork>(OpType::RECV, stream_,
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::RECV, stream,
                                               handler_->devHandle);
   initComm(tensor.device());
   syncStream(tensor.device());
 
   // Perform the recv operation
   C10D_FLAGCX_CHECK(flagcxRecv(tensor.data_ptr(), tensor.numel(),
-                               flagcxDataType, srcRank, handler_->comm,
-                               stream_),
+                               flagcxDataType, srcRank, handler_->comm, stream),
                     std::nullopt);
 
-  work->event_->record(stream_, deviceId_);
+  work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   work->coalesced_ = (activeGroupCounter_ > 0);
   // Create a future to track the recv operation
