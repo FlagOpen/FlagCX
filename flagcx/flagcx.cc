@@ -483,7 +483,6 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
           sendbuff, fwdbuff, count, datatype, op, comm->homo_inter_rank,
           comm->homo_comm, stream));
 
-      // inter-cluster sendrecv
       if (is_root_cluster && comm->homo_inter_rank != comm->homo_rank) {
         if (op == flagcxSum) {
           deviceAdaptor->deviceMemset(fwdbuff, 0,
@@ -491,6 +490,11 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
                                       flagcxMemDevice, stream);
         }
       }
+
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+
+      // inter-cluster sendrecv
       int cid = 0;
       flagcxGroupStart(comm);
       for (int i = 0; i < comm->nclusters; ++i) {
@@ -526,8 +530,7 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
       }
       flagcxGroupEnd(comm);
 
-      // sync stream to collect implicitly triggered ops by
-      // flagcxHeteroSend/Recv
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
       deviceAdaptor->streamSynchronize(stream);
 
       // intra-cluster reduce for root cluster
@@ -611,6 +614,9 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
             comm->homo_comm, stream));
       }
 
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+
       // inter-cluster sendrecv
       bool fwd_root =
           comm->cluster_inter_ranks[comm->cluster_ids[root]] != root;
@@ -648,8 +654,7 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
       }
       flagcxGroupEnd(comm);
 
-      // sync stream to collect implicitly triggered ops by
-      // flagcxHeteroSend/Recv
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
       deviceAdaptor->streamSynchronize(stream);
 
       // intra-cluster sendrecv if homo_inter_rank != root_rank in the root
@@ -774,6 +779,9 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
         flagcxGroupEnd(comm);
       }
 
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+
       // inter-cluster sendrecv
       flagcxGroupStart(comm);
       if (!is_root_cluster && comm->homo_inter_rank == comm->homo_rank) {
@@ -809,8 +817,7 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
       }
       flagcxGroupEnd(comm);
 
-      // sync stream to collect implicitly triggered ops by
-      // flagcxHeteroSend/Recv
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
       deviceAdaptor->streamSynchronize(stream);
 
       // intra-cluster scatter
@@ -865,6 +872,9 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
             stream));
       }
 
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+
       // inter-cluster sendrecv
       flagcxGroupStart(comm);
       if (comm->homo_inter_rank == comm->homo_rank) {
@@ -886,8 +896,7 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
       }
       flagcxGroupEnd(comm);
 
-      // sync stream to collect implicitly triggered ops by
-      // flagcxHeteroSend/Recv
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
       deviceAdaptor->streamSynchronize(stream);
 
       // intra-cluster bcast
@@ -1034,7 +1043,6 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
           sendbuff, recvbuff, count, datatype, op, comm->homo_inter_rank,
           comm->homo_comm, stream));
 
-      // inter-cluster sendrecv
       if (comm->homo_inter_rank != comm->homo_rank) {
         if (op == flagcxSum) {
           deviceAdaptor->deviceMemset(recvbuff, 0,
@@ -1042,6 +1050,11 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
                                       flagcxMemDevice, stream);
         }
       }
+
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+
+      // inter-cluster sendrecv
       int cid = 0;
       flagcxGroupStart(comm);
       for (int i = 0; i < comm->nclusters; ++i) {
@@ -1074,8 +1087,7 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
       }
       flagcxGroupEnd(comm);
 
-      // sync stream to collect implicitly triggered ops by
-      // flagcxHeteroSend/Recv
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
       deviceAdaptor->streamSynchronize(stream);
 
       // intra-cluster allreduce
@@ -1180,13 +1192,17 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
           sendbuff, tmpbuff, count, datatype, op, comm->homo_inter_rank,
           comm->homo_comm, stream));
 
-      // inter-cluster sendrecv
       if (comm->homo_inter_rank != comm->homo_rank) {
         if (op == flagcxSum) {
           deviceAdaptor->deviceMemset(tmpbuff, 0, size, flagcxMemDevice,
                                       stream);
         }
       }
+
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+
+      // inter-cluster sendrecv
       int cid = 0;
       flagcxGroupStart(comm);
       for (int i = 0; i < comm->nclusters; ++i) {
@@ -1219,8 +1235,7 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
       }
       flagcxGroupEnd(comm);
 
-      // sync stream to collect implicitly triggered ops by
-      // flagcxHeteroSend/Recv
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
       deviceAdaptor->streamSynchronize(stream);
 
       // intra-cluster reducescatter
@@ -1364,6 +1379,9 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
                    getFlagcxDataTypeSize(datatype) * offset * sendcount),
           sendcount, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
 
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+
       // inter-cluster sendrecv
       if (comm->homo_inter_rank == comm->homo_rank) {
         int offset_recv = 0;
@@ -1389,8 +1407,7 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
         flagcxGroupEnd(comm);
       }
 
-      // sync stream to collect implicitly triggered ops by
-      // flagcxHeteroSend/Recv
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
       deviceAdaptor->streamSynchronize(stream);
 
       // intra-cluster broadcast
@@ -1523,6 +1540,9 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff,
           static_cast<void *>(buffer_out + offset * size), count, datatype,
           comm->homo_comm, stream))
 
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+
       // inter-cluster sendrecv
       // TODO: use cluster_inter_rank to perform hetero sendrecv operation
       flagcxGroupStart(comm);
@@ -1538,8 +1558,7 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff,
       }
       flagcxGroupEnd(comm);
 
-      // sync stream to collect implicitly triggered ops by
-      // flagcxHeteroSend/Recv
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
       deviceAdaptor->streamSynchronize(stream);
     }
   }
