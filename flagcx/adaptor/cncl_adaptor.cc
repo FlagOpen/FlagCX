@@ -9,6 +9,7 @@ std::map<flagcxDataType_t, cnclDataType_t> f2c_datatype_map = {
     {flagcxInt64, cnclInt64},     {flagcxHalf, cnclHalf},
     {flagcxFloat16, cnclFloat16}, {flagcxBfloat16, cnclBfloat16},
     {flagcxFloat32, cnclFloat32}, {flagcxFloat, cnclFloat},
+    {flagcxDouble, cnclFloat},
 };
 
 std::map<flagcxRedOp_t, cnclReduceOp_t> f2c_reduceop_map = {
