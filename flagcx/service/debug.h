@@ -34,6 +34,7 @@ void flagcxDebugLog(flagcxDebugLogLevel level, unsigned long flags, const char *
 extern thread_local int flagcxDebugNoWarn;
 extern char flagcxLastError[];
 
+#define ENABLE_TRACE
 #define WARN(...) flagcxDebugLog(FLAGCX_LOG_WARN, FLAGCX_ALL, __FILE__, __LINE__, __VA_ARGS__)
 #define INFO(FLAGS, ...) flagcxDebugLog(FLAGCX_LOG_INFO, (FLAGS), __func__, __LINE__, __VA_ARGS__)
 #define TRACE_CALL(...) flagcxDebugLog(FLAGCX_LOG_TRACE, FLAGCX_CALL, __func__, __LINE__, __VA_ARGS__)
