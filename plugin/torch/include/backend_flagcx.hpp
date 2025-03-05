@@ -166,9 +166,11 @@ public:
   }
 
 protected:
+  flagcxStream_t getStreamByIndex(int streamId);
+  std::unique_ptr<flagcxEvent> &getEventByIndex(int eventId);
   void initComm(at::Device dev);
   void initComm();
-  void syncStream(at::Device device);
+  void syncStream(at::Device device, int index = 0);
   void groupStart();
   void groupEnd();
 
@@ -177,9 +179,9 @@ protected:
   int deviceId_;
   int status_; // 0: allocated, 1: initialized
   uint64_t activeGroupCounter_;
-  flagcxStream_t stream_ = nullptr;
+  std::unordered_map<int, flagcxStream_t> flagcxStreams_;
+  std::unordered_map<int, std::unique_ptr<flagcxEvent>> flagcxEvents_;
   flagcxHandlerGroup_t handler_ = nullptr;
-  std::unique_ptr<flagcxEvent> event_ = nullptr;
 
 private:
   // Helper that encapsulates work shared across all collective communication
