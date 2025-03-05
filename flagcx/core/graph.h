@@ -54,6 +54,7 @@ flagcxResult_t flagcxTopoCpuType(struct flagcxTopoSystem* system, int* arch, int
 flagcxResult_t flagcxTopoGetGpuCount(struct flagcxTopoSystem* system, int* count);
 flagcxResult_t flagcxTopoGetNetCount(struct flagcxTopoSystem* system, int* count);
 flagcxResult_t flagcxTopoGetNvsCount(struct flagcxTopoSystem* system, int* count);
+// TODO: get nearest NIC to GPU from a xml topology structure, might need to change function signature
 flagcxResult_t flagcxGetLocalNetFromGpu(int gpu, int *dev);
 flagcxResult_t flagcxTopoGetLocalGpu(struct flagcxTopoSystem* system, int64_t netId, int* gpuIndex);
 flagcxResult_t getLocalNetCountByBw(struct flagcxTopoSystem* system, int gpu, int *count);
