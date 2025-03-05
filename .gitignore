@@ -8,3 +8,6 @@ plugin/*/*.so
 
 # Ignore egg-info directory
 plugin/*/*.egg-info
+
+# Ignore vscode workspace folder
+.vscode
