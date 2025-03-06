@@ -892,7 +892,7 @@ c10::intrusive_ptr<Work> flagcxBackend::send(std::vector<at::Tensor> &tensors,
     // not coalesced
     work->event_->record(stream, deviceId_);
     work->deviceId_ = deviceId_;
-    work->coalesced_ = true;
+    work->coalesced_ = false;
     // Create a future to track the send operation
     std::vector<at::Device> devices{tensor.device()};
     work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -922,7 +922,7 @@ c10::intrusive_ptr<Work> flagcxBackend::recv(std::vector<at::Tensor> &tensors,
     // not coalesced
     work->event_->record(stream, deviceId_);
     work->deviceId_ = deviceId_;
-    work->coalesced_ = true;
+    work->coalesced_ = false;
     // Create a future to track the send operation
     std::vector<at::Device> devices{tensor.device()};
     work->future_ = c10::make_intrusive<c10::ivalue::Future>(
