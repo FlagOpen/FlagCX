@@ -888,15 +888,19 @@ c10::intrusive_ptr<Work> flagcxBackend::send(std::vector<at::Tensor> &tensors,
                                flagcxDataType, dstRank, handler_->comm, stream),
                     std::nullopt);
 
-  work->event_->record(stream, deviceId_);
-  work->deviceId_ = deviceId_;
-  work->coalesced_ = (activeGroupCounter_ > 0);
-  // Create a future to track the send operation
-  std::vector<at::Device> devices{tensor.device()};
-  work->future_ = c10::make_intrusive<c10::ivalue::Future>(
-      c10::ListType::create(c10::TensorType::get()), devices);
-  work->future_->markCompleted(c10::IValue(tensors));
-  return work;
+  if (activeGroupCounter_ <= 0) {
+    // not coalesced
+    work->event_->record(stream, deviceId_);
+    work->deviceId_ = deviceId_;
+    work->coalesced_ = true;
+    // Create a future to track the send operation
+    std::vector<at::Device> devices{tensor.device()};
+    work->future_ = c10::make_intrusive<c10::ivalue::Future>(
+        c10::ListType::create(c10::TensorType::get()), devices);
+    work->future_->markCompleted(c10::IValue(tensors));
+    return work;
+  }
+  return nullptr;
 }
 
 c10::intrusive_ptr<Work> flagcxBackend::recv(std::vector<at::Tensor> &tensors,
@@ -914,15 +918,19 @@ c10::intrusive_ptr<Work> flagcxBackend::recv(std::vector<at::Tensor> &tensors,
                                flagcxDataType, srcRank, handler_->comm, stream),
                     std::nullopt);
 
-  work->event_->record(stream, deviceId_);
-  work->deviceId_ = deviceId_;
-  work->coalesced_ = (activeGroupCounter_ > 0);
-  // Create a future to track the recv operation
-  std::vector<at::Device> devices{tensor.device()};
-  work->future_ = c10::make_intrusive<c10::ivalue::Future>(
-      c10::ListType::create(c10::TensorType::get()), devices);
-  work->future_->markCompleted(c10::IValue(tensors));
-  return work;
+  if (activeGroupCounter_ <= 0) {
+    // not coalesced
+    work->event_->record(stream, deviceId_);
+    work->deviceId_ = deviceId_;
+    work->coalesced_ = true;
+    // Create a future to track the send operation
+    std::vector<at::Device> devices{tensor.device()};
+    work->future_ = c10::make_intrusive<c10::ivalue::Future>(
+        c10::ListType::create(c10::TensorType::get()), devices);
+        work->future_->markCompleted(c10::IValue(tensors));
+    return work;
+  }
+  return nullptr;
 }
 
 c10::intrusive_ptr<Work>
