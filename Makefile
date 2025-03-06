@@ -97,7 +97,7 @@ else
 	HOST_CCL_LIB = /usr/local/lib
 	HOST_CCL_INCLUDE = /usr/local/include
 	HOST_CCL_LINK = 
-	HOST_CCL_ADAPTOR_FLAG =
+	HOST_CCL_ADAPTOR_FLAG = -DUSE_BOOTSTRAP_ADAPTOR
 endif
 
 LIBDIR := $(BUILDDIR)/lib

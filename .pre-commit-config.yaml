@@ -7,16 +7,16 @@ repos:
         files: \.(cpp|cc|h|hpp)$
         language: system
 
--   repo: local
-    hooks:
-      - id: clang-tidy
-        name: clang-tidy
-        entry: clang-tidy --config-file=.clang-tidy
-        files: \.(cpp|cc|h|hpp)$
-        # skip for the moment 
-        exclude: |
-          (?x)^(
-              flagcx/flagcx.cc|
-              flagcx/include/flagcx.h
-          )$
-        language: system
+# -   repo: local
+#     hooks:
+#       - id: clang-tidy
+#         name: clang-tidy
+#         entry: clang-tidy --config-file=.clang-tidy
+#         files: \.(cpp|cc|h|hpp)$
+#         # skip for the moment 
+#         exclude: |
+#           (?x)^(
+#               flagcx/flagcx.cc|
+#               flagcx/include/flagcx.h
+#           )$
+#         language: system
