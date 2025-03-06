@@ -25,13 +25,12 @@ public:
              flagcxDeviceHandle_t handler = nullptr,
              c10::intrusive_ptr<c10::ivalue::Future> future =
                  nullptr, // future of the output
-             int deviceId = 0,
-             bool coalesced = false)
+             int deviceId = 0)
       : Work(-1, // rank, only used by recvAnySource, irrelevant in this
                  // implementation
              opType),
         stream_(stream), handler_(handler), future_(std::move(future)),
-        deviceId_(deviceId), coalesced_(coalesced), isBarrierOp_(false) {
+        deviceId_(deviceId), isBarrierOp_(false) {
 #ifdef USE_NVIDIA_ADAPTOR
     event_ = std::make_unique<flagcxCudaEvent>();
 #elif USE_ILUVATAR_COREX_ADAPTOR
@@ -50,7 +49,6 @@ private:
   flagcxDeviceHandle_t handler_;
   c10::intrusive_ptr<c10::ivalue::Future> future_;
   int deviceId_;
-  bool coalesced_; // for group semantics, unused for now
   bool isBarrierOp_;
   std::unique_ptr<flagcxEvent> event_;
 };

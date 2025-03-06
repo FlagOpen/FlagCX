@@ -134,23 +134,15 @@ int64_t check_gpu_tensors_same_device(const std::vector<at::Tensor> &tensors) {
 } // namespace
 
 bool flagcxWork::isCompleted() {
-  if (!coalesced_) {
     return future_->completed();
-  }
-  return false;
 }
 
 bool flagcxWork::isSuccess() const {
-  if (!coalesced_) {
     return future_->hasValue();
-  }
-  return false;
 }
 
 bool flagcxWork::wait(std::chrono::milliseconds /* unused */) {
-  if (!coalesced_) {
-    event_->block(deviceId_);
-  }
+  event_->block(deviceId_);
   if (isBarrierOp_) {
     C10D_FLAGCX_CHECK(handler_->streamSynchronize(stream_), std::nullopt);
   }
@@ -295,7 +287,6 @@ c10::intrusive_ptr<Work> flagcxBackend::endCoalescing() {
       OpType::COALESCED, getStreamByIndex(0), handler_->devHandle);
   work->event_->record(getStreamByIndex(0), deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   // Currently, hetero coalesced ops require a barrier op to avoid hanging issue
   // TODO: remove this barrier op when the hanging issue is resolved
   int isHomo;
@@ -371,7 +362,6 @@ flagcxBackend::collectiveCoalesced(std::vector<at::Tensor> &inputs,
 
   work->event_->record(getStreamByIndex(0), deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   work->isBarrierOp_ = false;
   // Create a future to track the coalesced operation
   std::vector<at::Device> devices{inputs[0].device()};
@@ -417,7 +407,6 @@ flagcxBackend::allgather(std::vector<std::vector<at::Tensor>> &outputTensors,
 
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   // Create a future to track the allgather operation
   std::vector<at::Device> devices{inputTensor.device()};
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -447,7 +436,6 @@ flagcxBackend::_allgather_base(at::Tensor &outputTensor,
 
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   // Create a future to track the allgather operation
   std::vector<at::Device> devices{inputTensor.device()};
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -495,7 +483,6 @@ flagcxBackend::allreduce(std::vector<at::Tensor> &tensors,
 
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   // Create a future to track the allreduce operation
   std::vector<at::Device> devices{tensor.device()};
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -573,7 +560,6 @@ flagcxBackend::alltoall(std::vector<at::Tensor> &outputTensors,
 
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   // Create a future to track the alltoall operation
   std::vector<at::Device> devices{device};
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -599,7 +585,6 @@ c10::intrusive_ptr<Work> flagcxBackend::barrier(const BarrierOptions &opts) {
 
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   work->isBarrierOp_ = true;
   // Create a future to track the barrier operation
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -628,7 +613,6 @@ flagcxBackend::broadcast(std::vector<at::Tensor> &tensors,
 
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   // Create a future to track the broadcast operation
   std::vector<at::Device> devices{tensor.device()};
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -678,7 +662,6 @@ flagcxBackend::gather(std::vector<std::vector<at::Tensor>> &outputTensors,
 
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   // Create a future to track the gather operation
   std::vector<at::Device> devices{inputTensor.device()};
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -708,7 +691,6 @@ c10::intrusive_ptr<Work> flagcxBackend::reduce(std::vector<at::Tensor> &tensors,
 
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   // Create a future to track the reduce operation
   std::vector<at::Device> devices{tensor.device()};
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -755,7 +737,6 @@ c10::intrusive_ptr<Work> flagcxBackend::reduce_scatter(
 
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   // Create a future to track the reducescatter operation
   std::vector<at::Device> devices{outputTensor.device()};
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -792,7 +773,6 @@ flagcxBackend::_reduce_scatter_base(at::Tensor &outputTensor,
 
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   // Create a future to track the reducescatter operation
   std::vector<at::Device> devices{outputTensor.device()};
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -864,7 +844,6 @@ flagcxBackend::scatter(std::vector<at::Tensor> &outputTensors,
 
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
-  work->coalesced_ = false;
   // Create a future to track the scatter operation
   std::vector<at::Device> devices{outputTensor.device()};
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -892,7 +871,6 @@ c10::intrusive_ptr<Work> flagcxBackend::send(std::vector<at::Tensor> &tensors,
     // not coalesced
     work->event_->record(stream, deviceId_);
     work->deviceId_ = deviceId_;
-    work->coalesced_ = false;
     // Create a future to track the send operation
     std::vector<at::Device> devices{tensor.device()};
     work->future_ = c10::make_intrusive<c10::ivalue::Future>(
@@ -922,7 +900,6 @@ c10::intrusive_ptr<Work> flagcxBackend::recv(std::vector<at::Tensor> &tensors,
     // not coalesced
     work->event_->record(stream, deviceId_);
     work->deviceId_ = deviceId_;
-    work->coalesced_ = false;
     // Create a future to track the send operation
     std::vector<at::Device> devices{tensor.device()};
     work->future_ = c10::make_intrusive<c10::ivalue::Future>(
