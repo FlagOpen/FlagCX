@@ -86,7 +86,13 @@ bool is_homo_comm(flagcxComm_t comm) {
   return comm->comm_type == flagcxCommunicatorHomo;
 }
 
-bool has_host_comm() { return (cclAdaptors[flagcxCCLAdaptorHost] != NULL); }
+bool use_host_comm() {
+  char *useHostComm = getenv("FLAGCX_USE_HOST_COMM");
+  if (useHostComm) {
+    return std::stoi(useHostComm) == 1;
+  }
+  return false;
+}
 
 flagcxResult_t flagcxHandleInit(flagcxHandlerGroup_t *handler) {
   (*handler) = NULL;
@@ -318,7 +324,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
         flagcxHeteroCommInitRank(&(*comm)->hetero_comm, nranks, *commId, rank));
 
     // Init host cclAdaptor
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorHost]->commInitRank(
           &(*comm)->host_comm, nranks, commId, rank, state));
     }
@@ -355,7 +361,7 @@ flagcxResult_t flagcxCommDestroy(flagcxComm_t comm) {
   if (!is_homo_comm(comm)) {
     FLAGCXCHECK(flagcxHeteroCommDestroy(comm->hetero_comm));
     // Destroy homo comm
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       FLAGCXCHECK(
           cclAdaptors[flagcxCCLAdaptorHost]->commDestroy(comm->host_comm));
     }
@@ -452,7 +458,7 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
       // TODO: to be implemented.
       return flagcxNotSupported;
     }
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       // TODO: to be implemented.
       return flagcxNotSupported;
     } else {
@@ -566,7 +572,7 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
       // TODO: to be implemented.
       return flagcxNotSupported;
     }
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       // TODO: to be implemented.
       return flagcxNotSupported;
     } else {
@@ -710,7 +716,7 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
       // TODO: to be implemented.
       return flagcxNotSupported;
     }
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       // TODO: to be implemented
       return flagcxNotSupported;
     } else {
@@ -854,7 +860,7 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
       // TODO: to be implemented.
       return flagcxNotSupported;
     }
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       // TODO: to be implemented.
       return flagcxNotSupported;
     } else {
@@ -985,7 +991,7 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
       return wrapperAllReduceBootstrap(sendbuff, recvbuff, count, datatype, op,
                                        comm, stream);
     }
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       uint64_t timers[TIMERS_COLL_COUNT] = {0};
       timers[TIMER_COLL_TOTAL] = clockNano();
       void *buff_in;
@@ -1171,7 +1177,7 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
       return wrapperReduceScatterBootstrap(sendbuff, recvbuff, recvcount,
                                            datatype, op, comm, stream);
     }
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       // TODO: to be implemented
       return flagcxNotSupported;
     } else {
@@ -1320,7 +1326,7 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
       return wrapperAllGatherBootstrap(sendbuff, recvbuff, sendcount, datatype,
                                        comm, stream);
     }
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       uint64_t timers[TIMERS_COLL_COUNT] = {0};
       timers[TIMER_COLL_TOTAL] = clockNano();
       void *buff_in;
@@ -1479,7 +1485,7 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff,
       return wrapperAlltoAllBootstrap(sendbuff, recvbuff, count, datatype, comm,
                                       stream);
     }
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       uint64_t timers[TIMERS_COLL_COUNT] = {0};
       timers[TIMER_COLL_TOTAL] = clockNano();
       void *buff_in;
@@ -1573,7 +1579,7 @@ flagcxResult_t flagcxSend(const void *sendbuff, size_t count,
     return cclAdaptors[flagcxCCLAdaptorDevice]->send(
         sendbuff, count, datatype, peer, comm->homo_comm, stream);
   } else {
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       uint64_t timers[TIMERS_COLL_COUNT] = {0};
       timers[TIMER_COLL_TOTAL] = clockNano();
       void *buff_in;
@@ -1623,7 +1629,7 @@ flagcxResult_t flagcxRecv(void *recvbuff, size_t count,
     return cclAdaptors[flagcxCCLAdaptorDevice]->recv(
         recvbuff, count, datatype, peer, comm->homo_comm, stream);
   } else {
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       uint64_t timers[TIMERS_COLL_COUNT] = {0};
       timers[TIMER_COLL_TOTAL] = clockNano();
       void *buff_out;
@@ -1671,7 +1677,7 @@ flagcxResult_t flagcxGroupStart(flagcxComm_t comm) {
   if (is_homo_comm(comm)) {
     return cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
   } else {
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       cclAdaptors[flagcxCCLAdaptorHost]->groupStart();
     } else {
       FLAGCXCHECK(flagcxHeteroGroupStart());
@@ -1685,7 +1691,7 @@ flagcxResult_t flagcxGroupEnd(flagcxComm_t comm) {
   if (is_homo_comm(comm)) {
     return cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
   } else {
-    if (has_host_comm()) {
+    if (use_host_comm()) {
       cclAdaptors[flagcxCCLAdaptorHost]->groupEnd();
     } else {
       FLAGCXCHECK(flagcxHeteroGroupEnd());
