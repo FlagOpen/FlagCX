@@ -175,7 +175,9 @@ flagcxResult_t ixcudaAdaptorGetDeviceProperties(struct flagcxDevProps *props,
   props->pciBusId = devProp.pciBusID;
   props->pciDeviceId = devProp.pciDeviceID;
   props->pciDomainId = devProp.pciDomainID;
-  props->gdrSupported = devProp.gpuDirectRDMASupported;
+  // TODO: check if ix cudaDeviceProp has the same field
+  // props->gdrSupported = devProp.gpuDirectRDMASupported;
+  props->gdrSupported = 1;
 
   return flagcxSuccess;
 }

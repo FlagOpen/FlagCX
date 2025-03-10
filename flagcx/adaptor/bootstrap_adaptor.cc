@@ -149,6 +149,15 @@ flagcxResult_t bootstrapAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
 }
 
 // TODO: unsupported
+flagcxResult_t
+bootstrapAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
+                          size_t *sdispls, void *recvbuff, size_t *recvcounts,
+                          size_t *rdispls, flagcxDataType_t datatype,
+                          flagcxInnerComm_t comm, flagcxStream_t /*stream*/) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
 flagcxResult_t bootstrapAdaptorSend(const void *sendbuff, size_t count,
                                     flagcxDataType_t datatype, int peer,
                                     flagcxInnerComm_t comm,
@@ -189,7 +198,8 @@ struct flagcxCCLAdaptor bootstrapAdaptor = {
     bootstrapAdaptorReduce, bootstrapAdaptorGather, bootstrapAdaptorScatter,
     bootstrapAdaptorBroadcast, bootstrapAdaptorAllReduce,
     bootstrapAdaptorReduceScatter, bootstrapAdaptorAllGather,
-    bootstrapAdaptorAlltoAll, bootstrapAdaptorSend, bootstrapAdaptorRecv,
+    bootstrapAdaptorAlltoAll, bootstrapAdaptorAlltoAllv, bootstrapAdaptorSend,
+    bootstrapAdaptorRecv,
     // Group semantics
     bootstrapAdaptorGroupStart, bootstrapAdaptorGroupEnd};
 
