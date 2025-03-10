@@ -98,6 +98,8 @@ struct flagcxDeviceHandle {
   // Stream functions
   flagcxResult_t (*streamCreate)(flagcxStream_t *stream);
   flagcxResult_t (*streamDestroy)(flagcxStream_t stream);
+  flagcxResult_t (*streamCopy)(flagcxStream_t *newStream, void *oldStream);
+  flagcxResult_t (*streamFree)(flagcxStream_t stream);
   flagcxResult_t (*streamSynchronize)(flagcxStream_t stream);
   flagcxResult_t (*streamQuery)(flagcxStream_t stream);
 };
@@ -308,6 +310,20 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
 flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff,
                               size_t count, flagcxDataType_t datatype,
                               flagcxComm_t comm, flagcxStream_t stream);
+
+/*
+ * All-to-allv
+ *
+ * Each device may send different count values to other APUs into recvbuffer,
+ * receiving different count values from other APUs into sendbuffer.
+ *
+ * In-place operations will happen if sendbuff == recvbuff.
+ */
+flagcxResult_t flagcxAlltoAllv(const void *sendbuff, size_t *sendcounts,
+                               size_t *sdispls, void *recvbuff,
+                               size_t *recvcounts, size_t *rdispls,
+                               flagcxDataType_t datatype, flagcxComm_t comm,
+                               flagcxStream_t stream);
 
 /*
  * Send
