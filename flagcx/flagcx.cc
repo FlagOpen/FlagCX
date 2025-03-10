@@ -1571,6 +1571,67 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff,
   return flagcxSuccess;
 }
 
+flagcxResult_t flagcxAlltoAllv(const void *sendbuff, size_t *sendcounts,
+                               size_t *sdispls, void *recvbuff,
+                               size_t *recvcounts, size_t *rdispls,
+                               flagcxDataType_t datatype, flagcxComm_t comm,
+                               flagcxStream_t stream) {
+
+  FLAGCXCHECK(flagcxEnsureCommReady(comm));
+  if (is_homo_comm(comm)) {
+    return cclAdaptors[flagcxCCLAdaptorDevice]->alltoAllv(
+        sendbuff, sendcounts, sdispls, recvbuff, recvcounts, rdispls, datatype,
+        comm->homo_comm, stream);
+  } else {
+    if (use_host_comm()) {
+      // TODO: to be implemented
+      return flagcxNotSupported;
+    } else {
+      int size = getFlagcxDataTypeSize(datatype);
+      const char *buffer_in = static_cast<const char *>(sendbuff);
+      char *buffer_out = static_cast<char *>(recvbuff);
+
+      // intra-cluster alltoall
+      int offset = 0;
+      for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
+        offset += comm->cluster_sizes[i];
+      }
+      FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAllv(
+          static_cast<const void *>(buffer_in + sdispls[offset] * size),
+          sendcounts + offset, sdispls + offset,
+          static_cast<void *>(buffer_out + rdispls[offset] * size),
+          recvcounts + offset, rdispls + offset, datatype, comm->homo_comm,
+          stream))
+
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+
+      // inter-cluster sendrecv
+      // TODO: use cluster_inter_rank to perform hetero sendrecv operation
+      flagcxGroupStart(comm);
+      for (int r = 0; r < comm->nranks; ++r) {
+        if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r]) {
+          if (flagcxCCLAdaptorNeedSendrecv(sendcounts[r])) {
+            FLAGCXCHECK(flagcxHeteroSend(
+                static_cast<const void *>(buffer_in + sdispls[r] * size),
+                sendcounts[r], datatype, r, comm->hetero_comm, stream));
+          }
+          if (flagcxCCLAdaptorNeedSendrecv(recvcounts[r])) {
+            FLAGCXCHECK(flagcxHeteroRecv(
+                static_cast<void *>(buffer_out + rdispls[r] * size),
+                recvcounts[r], datatype, r, comm->hetero_comm, stream));
+          }
+        }
+      }
+      flagcxGroupEnd(comm);
+
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+    }
+  }
+  return flagcxSuccess;
+}
+
 flagcxResult_t flagcxSend(const void *sendbuff, size_t count,
                           flagcxDataType_t datatype, int peer,
                           flagcxComm_t comm, flagcxStream_t stream) {

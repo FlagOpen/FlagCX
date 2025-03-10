@@ -26,6 +26,8 @@ extern struct flagcxDeviceAdaptor ixcudaAdaptor;
 extern struct flagcxDeviceAdaptor mluAdaptor;
 extern struct flagcxDeviceAdaptor *deviceAdaptor;
 
+inline bool flagcxCCLAdaptorNeedSendrecv(size_t value) { return value != 0; }
+
 struct flagcxCCLAdaptor {
   const char name[32];
   // Basic functions
@@ -78,6 +80,11 @@ struct flagcxCCLAdaptor {
   flagcxResult_t (*alltoAll)(const void *sendbuff, void *recvbuff, size_t count,
                              flagcxDataType_t datatype, flagcxInnerComm_t comm,
                              flagcxStream_t stream);
+  flagcxResult_t (*alltoAllv)(const void *sendbuff, size_t *sendcounts,
+                              size_t *sdispls, void *recvbuff,
+                              size_t *recvcounts, size_t *rdispls,
+                              flagcxDataType_t datatype, flagcxInnerComm_t comm,
+                              flagcxStream_t stream);
   flagcxResult_t (*send)(const void *sendbuff, size_t count,
                          flagcxDataType_t datatype, int peer,
                          flagcxInnerComm_t comm, flagcxStream_t stream);

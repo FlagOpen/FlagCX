@@ -310,6 +310,20 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff,
                               flagcxComm_t comm, flagcxStream_t stream);
 
 /*
+ * All-to-allv
+ *
+ * Each device may send different count values to other APUs into recvbuffer,
+ * receiving different count values from other APUs into sendbuffer.
+ *
+ * In-place operations will happen if sendbuff == recvbuff.
+ */
+flagcxResult_t flagcxAlltoAllv(const void *sendbuff, size_t *sendcounts,
+                               size_t *sdispls, void *recvbuff,
+                               size_t *recvcounts, size_t *rdispls,
+                               flagcxDataType_t datatype, flagcxComm_t comm,
+                               flagcxStream_t stream);
+
+/*
  * Send
  *
  * Send data from sendbuff to rank peer.
