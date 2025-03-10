@@ -61,6 +61,7 @@ static struct flagcxDeviceHandle globalDeviceHandle {
       deviceAdaptor->getVendor,
       // Stream functions
       deviceAdaptor->streamCreate, deviceAdaptor->streamDestroy,
+      deviceAdaptor->streamCopy, deviceAdaptor->streamFree,
       deviceAdaptor->streamSynchronize, deviceAdaptor->streamQuery,
 };
 

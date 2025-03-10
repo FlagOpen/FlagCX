@@ -98,6 +98,8 @@ struct flagcxDeviceHandle {
   // Stream functions
   flagcxResult_t (*streamCreate)(flagcxStream_t *stream);
   flagcxResult_t (*streamDestroy)(flagcxStream_t stream);
+  flagcxResult_t (*streamCopy)(flagcxStream_t *newStream, void *oldStream);
+  flagcxResult_t (*streamFree)(flagcxStream_t stream);
   flagcxResult_t (*streamSynchronize)(flagcxStream_t stream);
   flagcxResult_t (*streamQuery)(flagcxStream_t stream);
 };

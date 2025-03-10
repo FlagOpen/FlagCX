@@ -132,6 +132,22 @@ flagcxResult_t cudaAdaptorStreamDestroy(flagcxStream_t stream) {
   return flagcxSuccess;
 }
 
+flagcxResult_t cudaAdaptorStreamCopy(flagcxStream_t *newStream,
+                                     void *oldStream) {
+  (*newStream) = NULL;
+  flagcxCalloc(newStream, 1);
+  memcpy((void *)*newStream, oldStream, sizeof(cudaStream_t));
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorStreamFree(flagcxStream_t stream) {
+  if (stream != NULL) {
+    free(stream);
+    stream = NULL;
+  }
+  return flagcxSuccess;
+}
+
 flagcxResult_t cudaAdaptorStreamSynchronize(flagcxStream_t stream) {
   if (stream != NULL) {
     DEVCHECK(cudaStreamSynchronize(stream->base));
@@ -203,8 +219,9 @@ struct flagcxDeviceAdaptor cudaAdaptor {
             // *memHandle);
       NULL, // flagcxResult_t (*hostShareMemFree)(void *ptr, void *memHandle);
       // Stream functions
-      cudaAdaptorStreamCreate, cudaAdaptorStreamDestroy,
-      cudaAdaptorStreamSynchronize, cudaAdaptorStreamQuery,
+      cudaAdaptorStreamCreate, cudaAdaptorStreamDestroy, cudaAdaptorStreamCopy,
+      cudaAdaptorStreamFree, cudaAdaptorStreamSynchronize,
+      cudaAdaptorStreamQuery,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,
