@@ -177,6 +177,7 @@ struct flagcxDeviceAdaptor mluAdaptor {
       NULL, // flagcxResult_t (*hostShareMemFree)(void *ptr, void *memHandle);
       // Stream functions
       mluAdaptorStreamCreate, mluAdaptorStreamDestroy,
+      mluAdaptorStreamCopy, mluAdaptorStreamFree, 
       mluAdaptorStreamSynchronize, mluAdaptorStreamQuery,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,

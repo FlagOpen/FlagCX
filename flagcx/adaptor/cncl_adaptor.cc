@@ -254,7 +254,7 @@ flagcxResult_t cnclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
   res = cnclGroupStart();
   for (int r = 0; r < nranks; r++) {
     if (flagcxCCLAdaptorNeedSendrecv(sendcounts[r])) {
-      res = cnclSend(static_cast<const void *>(buffer_in + sdispls[r] * size),
+      res = cnclSend(const_cast<void *>(static_cast<const void *>(buffer_in + sdispls[r] * size)),
                      sendcounts[r], f2c_datatype_map[datatype], r, comm->base,
                      stream->base);
     }
