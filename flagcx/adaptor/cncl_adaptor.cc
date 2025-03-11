@@ -58,9 +58,8 @@ flagcxResult_t cnclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
   if (*comm == NULL) {
     flagcxCalloc(comm, 1);
   }
-  unsigned int device_count = 0;
-  DEVCHECK(cnrtGetDeviceCount(&device_count));
-  int dev_id = rank % device_count;
+  int dev_id = 0;
+  DEVCHECK(cnrtGetDevice(&dev_id));
   return (flagcxResult_t)c2f_ret_map[cnclInitComms(
       &(*comm)->base, 1 /*num_comm*/, &dev_id /*dev_list*/, &rank /*rank_list*/,
       nranks, (cnclCliqueId *)commId)];
