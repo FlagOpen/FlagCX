@@ -21,7 +21,8 @@ FlagCX leverages native collective communications libraries to provide the full 
 | allgather     | ✓    | ✓      | ✓    | ✓       | ✓          |
 | reducescatter | ✓    | ✓      | ✓    | ✘       | ✓          |
 | alltoall      | ✓    | ✓      | ✓    | ✓       | ✓          |
-| group ops     | ✓    | ✓      | ✓    | ?       | ?          |
+| alltoallv     | ✓    | ✓      | ✓    | ✓       | ✓          |
+| group ops     | ✓    | ✓      | ✓    | ?       | ✘          |
 
 Note that `Homo` and `Hetero` modes refer to communications among homogeneous and heterogeneous clusters. All supported native collective communication libraries can be referenced through the links below:
 
@@ -48,6 +49,7 @@ FlagCX also develops plugins to integrate with upper-layer applications such as 
 | reduce_scatter                    | ✓       |
 | reduce_scatter_tensor_coalesced   | ✘       |
 | all_to_all                        | ✓       |
+| all_to_all_single                 | ✓       |
 
 ## Quick Start
 

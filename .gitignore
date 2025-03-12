@@ -5,6 +5,8 @@ test/*/build
 
 # Ignore compiled Python files and shared object files
 plugin/*/*.so
+plugin/*/*/*.so
+plugin/*/*/__pycache__
 
 # Ignore egg-info directory
 plugin/*/*.egg-info

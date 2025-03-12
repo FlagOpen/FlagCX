@@ -133,13 +133,9 @@ int64_t check_gpu_tensors_same_device(const std::vector<at::Tensor> &tensors) {
 
 } // namespace
 
-bool flagcxWork::isCompleted() {
-    return future_->completed();
-}
+bool flagcxWork::isCompleted() { return future_->completed(); }
 
-bool flagcxWork::isSuccess() const {
-    return future_->hasValue();
-}
+bool flagcxWork::isSuccess() const { return future_->hasValue(); }
 
 bool flagcxWork::wait(std::chrono::milliseconds /* unused */) {
   event_->block(deviceId_);
@@ -518,24 +514,30 @@ c10::intrusive_ptr<Work>
 flagcxBackend::alltoall(std::vector<at::Tensor> &outputTensors,
                         std::vector<at::Tensor> &inputTensors,
                         const AllToAllOptions & /* unused */) {
-  if (inputTensors.size() != outputTensors.size())
-    throw std::runtime_error("Input and output tensors size must be equal");
-  if (inputTensors[0].numel() != outputTensors[0].numel())
-    throw std::runtime_error(
-        "Input and output tensors must have the same number of elements");
-  if (!check_same_size(inputTensors) || !check_same_size(outputTensors))
-    throw std::runtime_error(
-        "flagcx only support same size alltoall operation");
-  if (getFlagcxDataType(inputTensors[0].scalar_type()) !=
-      getFlagcxDataType(outputTensors[0].scalar_type()))
-    throw std::runtime_error(
-        "Input and output tensors must have the same data type");
-  auto count = inputTensors[0].numel();
-  auto flagcxDataType = getFlagcxDataType(inputTensors[0].scalar_type());
+  TORCH_CHECK(inputTensors.size() == outputTensors.size(),
+              "Number of input and output tensors must be equal");
+  TORCH_CHECK(check_same_size(inputTensors) && check_same_size(outputTensors),
+              "All input and output tensors must be the same size");
+
+  auto count = outputTensors[0].numel();
   auto device = outputTensors[0].device();
+  auto flagcxDataType = getFlagcxDataType(outputTensors[0].scalar_type());
   auto stream = getStreamByIndex(0);
   auto work = c10::make_intrusive<flagcxWork>(OpType::ALLTOALL, stream,
                                               handler_->devHandle);
+
+  for (const auto i : c10::irange(outputTensors.size())) {
+    TORCH_CHECK(inputTensors[i].numel() == outputTensors[i].numel(),
+                "Tensors must have the same number of elements");
+    TORCH_CHECK(device == outputTensors[i].device() &&
+                    device == inputTensors[i].device(),
+                "Tensors must be on the same device");
+    TORCH_CHECK(
+        flagcxDataType == getFlagcxDataType(outputTensors[0].scalar_type()) &&
+            flagcxDataType == getFlagcxDataType(inputTensors[0].scalar_type()),
+        "Tensors must have the same data type");
+  }
+
   initComm(device);
   syncStream(device);
 
@@ -548,6 +550,7 @@ flagcxBackend::alltoall(std::vector<at::Tensor> &outputTensors,
     inputFlattened[j].copy_(inputTensors[j], true);
   }
 
+  // Perform the alltoall operation
   C10D_FLAGCX_CHECK(flagcxAlltoAll(inputFlattened.data_ptr(),
                                    outputFlattened.data_ptr(), count,
                                    flagcxDataType, handler_->comm, stream),
@@ -573,7 +576,60 @@ flagcxBackend::alltoall_base(at::Tensor &outputTensor, at::Tensor &inputTensor,
                              std::vector<int64_t> &outputSplitSizes,
                              std::vector<int64_t> &inputSplitSizes,
                              const AllToAllOptions & /* unused */) {
-  throw std::runtime_error("flagcxBackend does not support alltoall_base");
+  auto count = outputTensor.numel() / size_;
+  auto device = outputTensor.device();
+  auto flagcxDataType = getFlagcxDataType(outputTensor.scalar_type());
+  auto stream = getStreamByIndex(0);
+  auto work = c10::make_intrusive<flagcxWork>(OpType::ALLTOALL_BASE, stream,
+                                              handler_->devHandle);
+
+  TORCH_CHECK(device == outputTensor.device() && device == inputTensor.device(),
+              "Tensor must be on the same device");
+  TORCH_CHECK(flagcxDataType == getFlagcxDataType(outputTensor.scalar_type()) &&
+                  flagcxDataType ==
+                      getFlagcxDataType(inputTensor.scalar_type()),
+              "Tensor must have the same data type");
+
+  bool isEqualSize = (outputSplitSizes.empty() && inputSplitSizes.empty());
+
+  std::vector<size_t> inLengths(size_);
+  std::vector<size_t> outLengths(size_);
+  std::vector<size_t> inOffsets(size_);
+  std::vector<size_t> outOffsets(size_);
+
+  if (!isEqualSize) {
+    c10d::computeLengthsAndOffsets(inputSplitSizes, inputTensor, &inLengths,
+                                   &inOffsets);
+    c10d::computeLengthsAndOffsets(outputSplitSizes, outputTensor, &outLengths,
+                                   &outOffsets);
+  }
+
+  initComm(device);
+  syncStream(device);
+
+  if (isEqualSize) {
+    // Perform the alltoall operation
+    C10D_FLAGCX_CHECK(flagcxAlltoAll(inputTensor.data_ptr(),
+                                     outputTensor.data_ptr(), count,
+                                     flagcxDataType, handler_->comm, stream),
+                      std::nullopt);
+  } else {
+    // Perform the alltoallv operation
+    C10D_FLAGCX_CHECK(flagcxAlltoAllv(inputTensor.data_ptr(), inLengths.data(),
+                                      inOffsets.data(), outputTensor.data_ptr(),
+                                      outLengths.data(), outOffsets.data(),
+                                      flagcxDataType, handler_->comm, stream),
+                      std::nullopt);
+  }
+
+  work->event_->record(stream, deviceId_);
+  work->deviceId_ = deviceId_;
+  // Create a future to track the alltoall operation
+  std::vector<at::Device> devices{device};
+  work->future_ = c10::make_intrusive<c10::ivalue::Future>(
+      c10::ListType::create(c10::TensorType::get()), devices);
+  work->future_->markCompleted(c10::IValue(outputTensor));
+  return work;
 }
 
 c10::intrusive_ptr<Work> flagcxBackend::barrier(const BarrierOptions &opts) {
@@ -904,7 +960,7 @@ c10::intrusive_ptr<Work> flagcxBackend::recv(std::vector<at::Tensor> &tensors,
     std::vector<at::Device> devices{tensor.device()};
     work->future_ = c10::make_intrusive<c10::ivalue::Future>(
         c10::ListType::create(c10::TensorType::get()), devices);
-        work->future_->markCompleted(c10::IValue(tensors));
+    work->future_->markCompleted(c10::IValue(tensors));
     return work;
   }
   return nullptr;
