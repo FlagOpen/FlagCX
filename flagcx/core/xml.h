@@ -36,6 +36,8 @@ struct flagcxXml {
   struct flagcxXmlNode nodes[1];
 };
 
+#define FLAGCX_TOPO_XML_VERSION 1
+
 // read a xml file and convert it into a flagcxXml structure
 // TODO: implement the function
 flagcxResult_t flagcxTopoGetXmlFromFile(const char *xmlTopoFile,

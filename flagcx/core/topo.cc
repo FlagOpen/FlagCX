@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "bootstrap.h"
+#include "xml.h"
 
 #define BUSID_SIZE (sizeof("0000:00:00.0"))
 #define BUSID_REDUCED_SIZE (sizeof("0000:00"))
@@ -64,15 +65,74 @@ flagcxResult_t getLocalNetCountByBw(struct flagcxTopoSystem* system, int gpu, in
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxGetLocalNetFromGpu(int gpu, int *dev) {
-  char name[130];
-  const char* useNet = flagcxGetEnv("FLAGCX_USENET");
-  
-  if(useNet == NULL)
-    flagcxTopoGetLocalNet(gpu, name);
-  else
-    strcpy(name, useNet);
+// a temprarory function to get the local net from topo xml file.
+// devId: the device id of the GPU
+// netName: the name of the net
+// strlen: the length of the netName
+static flagcxResult_t flagcxGetLocalNetFromXml(int devId, char* netName, int strlen) {
+  flagcxResult_t ret = flagcxSuccess;
+  flagcxXmlNode* node = NULL;
+  int dev = -1;
+  // step 1: parse the xml file and load it into flagcxXml struct
+  struct flagcxXml* xml;
+  FLAGCXCHECK(xmlAlloc(&xml, FLAGCX_TOPO_XML_MAX_NODES));
+  const char* xmlTopoFile = flagcxGetEnv("FLAGCX_TOPO_FILE");
+  if (!xmlTopoFile) {
+    INFO(FLAGCX_ENV, "FLAGCX_TOPO_FILE environment variable not set");
+    return ret;
+  }
+  INFO(FLAGCX_ENV, "FLAGCX_TOPO_FILE set by environment to %s", xmlTopoFile);
+  FLAGCXCHECKGOTO(flagcxTopoGetXmlFromFile(xmlTopoFile, xml, 1), ret, fail);
 
+  // step 2: scan flagcxXml struct to find the netName for the given devId
+  FLAGCXCHECKGOTO(xmlFindTag(xml, "gpu", &node), ret, fail);
+  while (node != NULL) {
+    // find the gpu node with the right dev
+    FLAGCXCHECKGOTO(xmlGetAttrInt(node, "dev", &dev), ret, fail);
+    if (dev == devId) {
+      const char* str;
+      FLAGCXCHECKGOTO(xmlGetAttr(node, "net", &str), ret, fail);
+      if (str != NULL) {
+        INFO(FLAGCX_GRAPH, "GPU %d use net %s specified in topo file %s", dev, str, xmlTopoFile);
+        strncpy(netName, str, strlen - 1);
+        netName[strlen - 1] = '\0';
+        break;
+      } else {
+        WARN("GPU %d net attribute is not specified in topo file %s", dev, xmlTopoFile);
+        ret = flagcxInternalError;
+        goto fail;
+      }
+    }
+    flagcxXmlNode* next = NULL;
+    FLAGCXCHECKGOTO(xmlFindNextTag(xml, "gpu", node, &next), ret, fail);
+    node = next;
+  }
+  if (dev != devId) {
+    // device not found
+    WARN("GPU %d not found in topo file %s", devId, xmlTopoFile);
+    ret = flagcxInternalError;
+    goto fail;
+  }
+exit:
+  free(xml);
+  return ret;
+fail:
+  goto exit;
+}
+
+#define FLAGCX_MAX_NET_NAME 128
+flagcxResult_t flagcxGetLocalNetFromGpu(int gpu, int *dev) {
+  char name[FLAGCX_MAX_NET_NAME+1] = {0};
+  FLAGCXCHECK(flagcxGetLocalNetFromXml(gpu, name, FLAGCX_MAX_NET_NAME + 1));
+  if (strlen(name) == 0) {
+    const char* useNet = flagcxGetEnv("FLAGCX_USENET");
+    if(useNet != NULL) {
+      INFO(FLAGCX_GRAPH, "GPU %d use net %s specified in FLAGCX_USENET environment variable.", gpu, useNet);
+      strncpy(name, useNet, FLAGCX_MAX_NET_NAME);
+    } else {
+      flagcxTopoGetLocalNet(gpu, name);
+    }
+  }
   flagcxNetIb.getDevFromName(name, dev);
   return flagcxSuccess;
 }

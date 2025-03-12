@@ -115,8 +115,7 @@ static flagcxResult_t flagcxCommInitRankFunc(struct flagcxAsyncJob* job_) {
     FLAGCXCHECK(flagcxProxyInit(comm));
   }
   flagcxNetIb.init(NULL);
-  flagcxGetLocalNetFromGpu(comm->cudaDev, &comm->netDev);
-
+  FLAGCXCHECKGOTO(flagcxGetLocalNetFromGpu(comm->cudaDev, &comm->netDev), res, fail);
 exit:
   return res;
 fail:
@@ -158,7 +157,7 @@ static flagcxResult_t flagcxCommInitRankDev(flagcxHeteroComm_t* newcomm, int nra
   job->commId = commId; // C++ struct assignment
   job->myrank = myrank;
   job->cudaDev = cudaDev;
-  flagcxCommInitRankFunc(&job->base);
+  FLAGCXCHECKGOTO(flagcxCommInitRankFunc(&job->base), res, fail);
   free(job);
 exit:
   return flagcxGroupErrCheck(res);
