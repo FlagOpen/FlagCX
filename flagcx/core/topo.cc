@@ -129,8 +129,6 @@ flagcxResult_t flagcxGetLocalNetFromGpu(int gpu, int *dev) {
     if(useNet != NULL) {
       INFO(FLAGCX_GRAPH, "GPU %d use net %s specified in FLAGCX_USENET environment variable.", gpu, useNet);
       strncpy(name, useNet, FLAGCX_MAX_NET_NAME);
-    } else {
-      flagcxTopoGetLocalNet(gpu, name);
     }
   }
   flagcxNetIb.getDevFromName(name, dev);
