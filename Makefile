@@ -5,6 +5,7 @@ USE_NVIDIA ?= 0
 USE_ILUVATAR_COREX ?= 0
 USE_CAMBRICON ?= 0
 USE_GLOO ?= 0
+USE_BOOTSTRAP ?= 0
 
 # set to empty if not provided
 DEVICE_HOME ?=
@@ -93,6 +94,11 @@ ifeq ($(USE_GLOO), 1)
 	HOST_CCL_INCLUDE = $(HOST_CCL_HOME)/include
 	HOST_CCL_LINK = -lgloo
 	HOST_CCL_ADAPTOR_FLAG = -DUSE_GLOO_ADAPTOR
+else ifeq ($(USE_BOOTSTRAP), 1)
+	HOST_CCL_LIB = /usr/local/lib
+	HOST_CCL_INCLUDE = /usr/local/include
+	HOST_CCL_LINK = 
+	HOST_CCL_ADAPTOR_FLAG = -DUSE_BOOTSTRAP_ADAPTOR
 else
 	HOST_CCL_LIB = /usr/local/lib
 	HOST_CCL_INCLUDE = /usr/local/include

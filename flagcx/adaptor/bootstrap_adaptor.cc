@@ -1,4 +1,5 @@
 #include "bootstrap_adaptor.h"
+#include "bootstrap.h"
 
 #ifdef USE_BOOTSTRAP_ADAPTOR
 
@@ -26,17 +27,20 @@ flagcxResult_t bootstrapAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
                                             flagcxUniqueId_t /*commId*/,
                                             int rank,
                                             bootstrapState *bootstrap) {
-  // We don't need to do anything here
+  if (*comm == NULL) {
+    FLAGCXCHECK(flagcxCalloc(comm, 1));
+  }
+  (*comm)->base = bootstrap;
+
   return flagcxSuccess;
 }
 
 flagcxResult_t bootstrapAdaptorCommFinalize(flagcxInnerComm_t comm) {
-  // We don't need to do anything here
+  // Note that the bootstrap member is destroyed in the flagcxCommDestroy function
   return flagcxSuccess;
 }
 
 flagcxResult_t bootstrapAdaptorCommDestroy(flagcxInnerComm_t comm) {
-  // We don't need to do anything here
   return flagcxSuccess;
 }
 
@@ -113,39 +117,39 @@ flagcxResult_t bootstrapAdaptorBroadcast(const void *sendbuff, void *recvbuff,
   return flagcxNotSupported;
 }
 
-// TODO: unsupported
-flagcxResult_t
-bootstrapAdaptorAllReduce(const void *sendbuff, void *recvbuff, size_t count,
-                          flagcxDataType_t datatype, flagcxRedOp_t op,
-                          flagcxInnerComm_t comm, flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+flagcxResult_t bootstrapAdaptorAllReduce(const void *sendbuff, void *recvbuff, size_t count,
+                                        flagcxDataType_t datatype, flagcxRedOp_t op,
+                                        flagcxInnerComm_t comm, flagcxStream_t /*stream*/) {
+  FLAGCXCHECK(AllReduceBootstrap(comm->base, sendbuff, recvbuff, count, datatype, op));
+  return flagcxSuccess;
 }
 
-// TODO: unsupported
 flagcxResult_t bootstrapAdaptorReduceScatter(const void *sendbuff,
                                              void *recvbuff, size_t recvcount,
                                              flagcxDataType_t datatype,
                                              flagcxRedOp_t op,
                                              flagcxInnerComm_t comm,
                                              flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+  FLAGCXCHECK(ReduceScatterBootstrap(comm->base, sendbuff, recvbuff, recvcount, datatype, op));
+  return flagcxSuccess;
+
 }
 
-// TODO: unsupported
 flagcxResult_t bootstrapAdaptorAllGather(const void *sendbuff, void *recvbuff,
                                          size_t sendcount,
                                          flagcxDataType_t datatype,
                                          flagcxInnerComm_t comm,
                                          flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+  FLAGCXCHECK(AllGatherBootstrap(comm->base, sendbuff, recvbuff, sendcount, datatype));
+  return flagcxSuccess;
 }
 
-// TODO: unsupported
 flagcxResult_t bootstrapAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
                                         size_t count, flagcxDataType_t datatype,
                                         flagcxInnerComm_t comm,
                                         flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+  FLAGCXCHECK(AlltoAllBootstrap(comm->base, sendbuff, recvbuff, count, datatype));
+  return flagcxSuccess;
 }
 
 // TODO: unsupported
@@ -157,20 +161,21 @@ bootstrapAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
   return flagcxNotSupported;
 }
 
-// TODO: unsupported
+#define BOOTSTRAP_SEND_RECV_TAG -6767
 flagcxResult_t bootstrapAdaptorSend(const void *sendbuff, size_t count,
                                     flagcxDataType_t datatype, int peer,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+  FLAGCXCHECK(bootstrapSend(comm->base, peer, BOOTSTRAP_SEND_RECV_TAG, (void *)sendbuff, count * getFlagcxDataTypeSize(datatype)));
+  return flagcxSuccess;
 }
 
-// TODO: unsupported
 flagcxResult_t bootstrapAdaptorRecv(void *recvbuff, size_t count,
                                     flagcxDataType_t datatype, int peer,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+  FLAGCXCHECK(bootstrapRecv(comm->base, peer, BOOTSTRAP_SEND_RECV_TAG, recvbuff, count * getFlagcxDataTypeSize(datatype)));
+  return flagcxSuccess;
 }
 
 flagcxResult_t bootstrapAdaptorGroupStart() {
