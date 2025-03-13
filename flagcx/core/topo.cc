@@ -75,12 +75,12 @@ static flagcxResult_t flagcxGetLocalNetFromXml(int devId, char* netName, int str
   int dev = -1;
   // step 1: parse the xml file and load it into flagcxXml struct
   struct flagcxXml* xml;
-  FLAGCXCHECK(xmlAlloc(&xml, FLAGCX_TOPO_XML_MAX_NODES));
   const char* xmlTopoFile = flagcxGetEnv("FLAGCX_TOPO_FILE");
   if (!xmlTopoFile) {
     INFO(FLAGCX_ENV, "FLAGCX_TOPO_FILE environment variable not set");
     return ret;
   }
+  FLAGCXCHECK(xmlAlloc(&xml, FLAGCX_TOPO_XML_MAX_NODES));
   INFO(FLAGCX_ENV, "FLAGCX_TOPO_FILE set by environment to %s", xmlTopoFile);
   FLAGCXCHECKGOTO(flagcxTopoGetXmlFromFile(xmlTopoFile, xml, 1), ret, fail);
 
