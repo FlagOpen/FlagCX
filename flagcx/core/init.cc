@@ -4,45 +4,47 @@
  * See LICENSE.txt for license information
  ************************************************************************/
 
-#include <string.h>
-#include "flagcx.h"
-#include "type.h"
-#include "check.h"
+#include "adaptor.h"
 #include "bootstrap.h"
+#include "check.h"
 #include "collectives.h"
-#include "transport.h"
+#include "flagcx.h"
 #include "group.h"
 #include "net.h"
 #include "topo.h"
-#include "adaptor.h"
+#include "transport.h"
+#include "type.h"
+#include <string.h>
 
 static bool initialized = false;
 pthread_mutex_t initLock = PTHREAD_MUTEX_INITIALIZER;
 
 struct flagcxCommInitRankAsyncJob {
   struct flagcxAsyncJob base;
-  struct flagcxHeteroComm* comm;
-  struct flagcxHeteroComm** newcomm;
+  struct flagcxHeteroComm *comm;
+  struct flagcxHeteroComm **newcomm;
   int cudaDev;
   // For flagcxCommInitRank
   int nranks, myrank;
   flagcxUniqueId commId;
   // for flagcxCommSplit
-  struct flagcxHeteroComm* parent;
+  struct flagcxHeteroComm *parent;
   int color, key;
 };
 
-flagcxResult_t flagcxHeteroGetVersion(int* version) {
- if (version == NULL) return flagcxInvalidArgument;
- *version = FLAGCX_VERSION(1,0,0);
- return flagcxSuccess;
+flagcxResult_t flagcxHeteroGetVersion(int *version) {
+  if (version == NULL)
+    return flagcxInvalidArgument;
+  *version = FLAGCX_VERSION(1, 0, 0);
+  return flagcxSuccess;
 }
 
 static flagcxResult_t flagcxInit() {
-  if (__atomic_load_n(&initialized, __ATOMIC_ACQUIRE)) return flagcxSuccess;
+  if (__atomic_load_n(&initialized, __ATOMIC_ACQUIRE))
+    return flagcxSuccess;
   pthread_mutex_lock(&initLock);
   if (!initialized) {
-    FLAGCXCHECK(loadDeviceSymbol());
+    // FLAGCXCHECK(loadDeviceSymbol());
     FLAGCXCHECK(bootstrapNetInit());
     __atomic_store_n(&initialized, true, __ATOMIC_RELEASE);
   }
@@ -50,16 +52,17 @@ static flagcxResult_t flagcxInit() {
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxHeteroGetUniqueId(flagcxUniqueId* out) {
+flagcxResult_t flagcxHeteroGetUniqueId(flagcxUniqueId *out) {
   FLAGCXCHECK(flagcxInit());
-  flagcxResult_t res = bootstrapGetUniqueId((struct flagcxBootstrapHandle*)out);
+  flagcxResult_t res =
+      bootstrapGetUniqueId((struct flagcxBootstrapHandle *)out);
   return res;
 }
 
 static uint64_t hashUniqueId(flagcxUniqueId const &id) {
-  char const *bytes = (char const*)&id;
+  char const *bytes = (char const *)&id;
   uint64_t h = 0xdeadbeef;
-  for(int i=0; i < (int)sizeof(flagcxUniqueId); i++) {
+  for (int i = 0; i < (int)sizeof(flagcxUniqueId); i++) {
     h ^= h >> 32;
     h *= 0x8db3db47fa2994ad;
     h += bytes[i];
@@ -67,55 +70,128 @@ static uint64_t hashUniqueId(flagcxUniqueId const &id) {
   return h;
 }
 
-static flagcxResult_t flagcxCommInitRankFunc(struct flagcxAsyncJob* job_) {
-  struct flagcxCommInitRankAsyncJob* job = (struct flagcxCommInitRankAsyncJob*)job_;
+static flagcxResult_t fillPeerInfo(flagcxHeteroComm_t comm,
+                                   struct flagcxPeerInfo *info,
+                                   uint64_t commHash) {
+  info->rank = comm->rank;
+  info->cudaDev = comm->cudaDev;
+  info->hostHash = getHostHash() + commHash;
+  info->pidHash = getPidHash() + commHash;
+  info->busId = comm->busId;
+  info->comm = comm;
+
+  return flagcxSuccess;
+}
+
+static flagcxResult_t initTransportsRank(flagcxHeteroComm_t comm,
+                                         flagcxHeteroComm_t parent) {
+  INFO(FLAGCX_INIT, "inside initTransportsRank");
+  flagcxResult_t ret = flagcxSuccess;
+  int rank = comm->rank;
+  int nranks = comm->nRanks;
+  int nNodes = 1;
+
+  // fill peer info
+  FLAGCXCHECKGOTO(flagcxCalloc(&comm->peerInfo, nranks), ret, fail);
+  INFO(FLAGCX_INIT, "start fillPeerInfo");
+  FLAGCXCHECKGOTO(fillPeerInfo(comm, comm->peerInfo + rank, comm->commHash),
+                  ret, fail);
+  // Question: where did we initialize comm->bootstrap?
+  INFO(FLAGCX_INIT, "start bootstrapAllGather for peerInfo");
+  FLAGCXCHECKGOTO(bootstrapAllGather(comm->bootstrap, (void *)comm->peerInfo,
+                                     sizeof(struct flagcxPeerInfo)),
+                  ret, fail);
+
+  // check for duplicate GPUs
+  INFO(FLAGCX_INIT, "start check for duplicate GPUs");
+  for (int i = 0; i < nranks; i++) {
+    if (comm->peerInfo[i].hostHash != comm->peerInfo[rank].hostHash)
+      nNodes++;
+    if ((i != rank) &&
+        (comm->peerInfo[i].hostHash == comm->peerInfo[rank].hostHash) &&
+        (comm->peerInfo[i].busId == comm->peerInfo[rank].busId)) {
+      WARN("Duplicate GPU detected : rank %d and rank %d both on CUDA device "
+           "%lx",
+           rank, i, comm->peerInfo[rank].busId);
+      ret = flagcxInvalidUsage;
+      goto fail;
+    }
+  }
+
+  INFO(FLAGCX_INIT, "start flagcxTopoGetServerTopo");
+  FLAGCXCHECKGOTO(flagcxTopoGetServerTopo(comm, &comm->topo), ret, fail);
+
+  return ret;
+fail:
+  return flagcxInternalError;
+}
+
+static flagcxResult_t flagcxCommInitRankFunc(struct flagcxAsyncJob *job_) {
+  struct flagcxCommInitRankAsyncJob *job =
+      (struct flagcxCommInitRankAsyncJob *)job_;
   flagcxHeteroComm_t comm = job->comm;
   flagcxResult_t res = flagcxSuccess;
 
   if (!job->parent) {
     // New version of calling bootstrapInit
-    struct bootstrapState* state;
+    struct bootstrapState *state;
     FLAGCXCHECK(flagcxCalloc(&state, 1));
     state->rank = comm->rank;
     state->nranks = comm->nRanks;
     state->abortFlag = comm->abortFlag;
     comm->bootstrap = state;
-    state->magic = ((struct flagcxBootstrapHandle*)&job->commId)->magic;
-    comm->magic = ((struct flagcxBootstrapHandle*)&job->commId)->magic;
-    FLAGCXCHECKGOTO(bootstrapInit((struct flagcxBootstrapHandle*)&job->commId, state), res, fail);
+    state->magic = ((struct flagcxBootstrapHandle *)&job->commId)->magic;
+    comm->magic = ((struct flagcxBootstrapHandle *)&job->commId)->magic;
+    FLAGCXCHECKGOTO(
+        bootstrapInit((struct flagcxBootstrapHandle *)&job->commId, state), res,
+        fail);
   }
 
   if (!job->parent) {
     // Setting up proxy network
     int nranks = comm->nRanks;
-    for(int i=0;i<MAXCHANNELS;i++){
-      FLAGCXCHECK(flagcxCalloc(&comm->channels[i].peers, nranks));    
-      for(int r=0;r<nranks;r++)
-	    FLAGCXCHECK(flagcxCalloc(&comm->channels[i].peers[r], nranks));
+    for (int i = 0; i < MAXCHANNELS; i++) {
+      FLAGCXCHECK(flagcxCalloc(&comm->channels[i].peers, nranks));
+      for (int r = 0; r < nranks; r++)
+        FLAGCXCHECK(flagcxCalloc(&comm->channels[i].peers[r], nranks));
     }
     FLAGCXCHECK(flagcxCalloc(&comm->connectSend, nranks));
     FLAGCXCHECK(flagcxCalloc(&comm->connectRecv, nranks));
     FLAGCXCHECK(flagcxCalloc(&comm->proxyState, 1));
     FLAGCXCHECK(flagcxCalloc(&comm->tasks.peers, nranks));
     FLAGCXCHECK(flagcxCalloc(&comm->tasks.p2pOrder, nranks));
-    for(int i=0; i<MAXCHANNELS; i++){
-      FLAGCXCHECK(flagcxCalloc(&comm->proxyState->proxyOps[i].consPeers, nranks));
-      comm->proxyState->proxyOps[i].consNextChannel = reinterpret_cast<struct flagcxProxyOps*>(0x1);
-      comm->proxyState->proxyOps[i].prodNextChannel = reinterpret_cast<struct flagcxProxyOps*>(0x1);
+    for (int i = 0; i < MAXCHANNELS; i++) {
+      FLAGCXCHECK(
+          flagcxCalloc(&comm->proxyState->proxyOps[i].consPeers, nranks));
+      comm->proxyState->proxyOps[i].consNextChannel =
+          reinterpret_cast<struct flagcxProxyOps *>(0x1);
+      comm->proxyState->proxyOps[i].prodNextChannel =
+          reinterpret_cast<struct flagcxProxyOps *>(0x1);
       pthread_mutex_init(&comm->proxyState->proxyOps[i].mutex, 0);
-      for(int peer = 0; peer < nranks; peer++){
-	      comm->proxyState->proxyOps[i].consPeers[peer].nextPeer = reinterpret_cast<struct flagcxProxyOps::consPeer *>(0x1);
+      for (int peer = 0; peer < nranks; peer++) {
+        comm->proxyState->proxyOps[i].consPeers[peer].nextPeer =
+            reinterpret_cast<struct flagcxProxyOps::consPeer *>(0x1);
       }
     }
-  
-    comm->groupNext = reinterpret_cast<struct flagcxHeteroComm*>(0x1);
-    comm->preconnectNext = reinterpret_cast<struct flagcxHeteroComm*>(0x1);
+
+    comm->groupNext = reinterpret_cast<struct flagcxHeteroComm *>(0x1);
+    comm->preconnectNext = reinterpret_cast<struct flagcxHeteroComm *>(0x1);
     comm->proxyState->nRanks = comm->nRanks;
 
     FLAGCXCHECK(flagcxProxyInit(comm));
   }
+  INFO(FLAGCX_INIT, "getting busId for cudaDev %d", comm->cudaDev);
+  FLAGCXCHECK(getBusId(comm->cudaDev, &comm->busId));
+  INFO(FLAGCX_INIT, "getting commHash for rank %d", comm->rank);
+  comm->commHash = getHash(job->commId.internal, FLAGCX_UNIQUE_ID_BYTES);
+  INFO(FLAGCX_INIT, "commHash for rank %d is %lu", comm->rank, comm->commHash);
+  // TODO: put net init into a separate function
   flagcxNetIb.init(NULL);
-  FLAGCXCHECKGOTO(flagcxGetLocalNetFromGpu(comm->cudaDev, &comm->netDev), res, fail);
+  INFO(FLAGCX_INIT, "start initTransportsRank");
+  FLAGCXCHECKGOTO(initTransportsRank(comm, NULL), res, fail);
+  FLAGCXCHECKGOTO(flagcxGetLocalNetFromGpu(comm->cudaDev, &comm->netDev), res,
+                  fail);
+
 exit:
   return res;
 fail:
@@ -123,15 +199,20 @@ fail:
   goto exit;
 }
 
-static flagcxResult_t flagcxCommInitRankDev(flagcxHeteroComm_t* newcomm, int nranks, flagcxUniqueId commId, int myrank, int cudaDev, flagcxConfig_t *config) {
+static flagcxResult_t flagcxCommInitRankDev(flagcxHeteroComm_t *newcomm,
+                                            int nranks, flagcxUniqueId commId,
+                                            int myrank, int cudaDev,
+                                            flagcxConfig_t *config) {
   flagcxResult_t res = flagcxSuccess;
   flagcxHeteroComm_t comm = NULL;
   struct flagcxCommInitRankAsyncJob *job = NULL;
-  const char* env = flagcxGetEnv("FLAGCX_COMM_ID");
+  const char *env = flagcxGetEnv("FLAGCX_COMM_ID");
 
   if (env && myrank == 0) {
     INFO(FLAGCX_ENV, "FLAGCX_COMM_ID set by environment to %s", env);
-    FLAGCXCHECKGOTO(bootstrapCreateRoot((struct flagcxBootstrapHandle*)&commId, true), res, fail);
+    FLAGCXCHECKGOTO(
+        bootstrapCreateRoot((struct flagcxBootstrapHandle *)&commId, true), res,
+        fail);
   }
 
   if (nranks < 1 || myrank < 0 || myrank >= nranks) {
@@ -141,10 +222,13 @@ static flagcxResult_t flagcxCommInitRankDev(flagcxHeteroComm_t* newcomm, int nra
   }
 
   FLAGCXCHECKGOTO(flagcxCalloc(&comm, 1), res, fail);
-  comm->startMagic = comm->endMagic = FLAGCX_MAGIC; // Used to detect comm corruption.
-  FLAGCXCHECKGOTO(flagcxCalloc((uint32_t**)&comm->abortFlagRefCount, 1), res, fail);
+  comm->startMagic = comm->endMagic =
+      FLAGCX_MAGIC; // Used to detect comm corruption.
+  FLAGCXCHECKGOTO(flagcxCalloc((uint32_t **)&comm->abortFlagRefCount, 1), res,
+                  fail);
   *comm->abortFlagRefCount = 1;
-  /* start with flagcxInternalError and will be changed to flagcxSuccess if init succeeds. */
+  /* start with flagcxInternalError and will be changed to flagcxSuccess if init
+   * succeeds. */
   comm->initState = flagcxInternalError;
   comm->nRanks = nranks;
   comm->rank = myrank;
@@ -163,43 +247,49 @@ exit:
   return flagcxGroupErrCheck(res);
 fail:
   if (comm) {
-    if (comm->abortFlagRefCount) free(comm->abortFlagRefCount);
+    if (comm->abortFlagRefCount)
+      free(comm->abortFlagRefCount);
     free(comm);
   }
-  if (newcomm) *newcomm = NULL;
+  if (newcomm)
+    *newcomm = NULL;
   goto exit;
 }
 
-flagcxResult_t flagcxHeteroCommInitRank(flagcxHeteroComm_t* newcomm, int nranks, flagcxUniqueId commId, int myrank) {
+flagcxResult_t flagcxHeteroCommInitRank(flagcxHeteroComm_t *newcomm, int nranks,
+                                        flagcxUniqueId commId, int myrank) {
   FLAGCXCHECK(flagcxInit());
   int cudaDev = 0;
   flagcxConfig_t config;
   // flagcxGetDevice(&cudaDev);
   deviceAdaptor->getDevice(&cudaDev);
-  FLAGCXCHECK(flagcxCommInitRankDev(newcomm, nranks, commId, myrank, cudaDev, &config));
+  FLAGCXCHECK(
+      flagcxCommInitRankDev(newcomm, nranks, commId, myrank, cudaDev, &config));
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxHeteroCommCount(const flagcxHeteroComm_t comm, int* count) {
+flagcxResult_t flagcxHeteroCommCount(const flagcxHeteroComm_t comm,
+                                     int *count) {
   *count = comm->nRanks;
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxHeteroCommUserRank(const flagcxHeteroComm_t comm, int* rank) {
+flagcxResult_t flagcxHeteroCommUserRank(const flagcxHeteroComm_t comm,
+                                        int *rank) {
   *rank = comm->rank;
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxHeteroCommDestroy(flagcxHeteroComm_t comm){
+flagcxResult_t flagcxHeteroCommDestroy(flagcxHeteroComm_t comm) {
   flagcxProxyDestroy(comm);
-  for(int i=0;i<MAXCHANNELS;i++){
-    for(int r=0;r<comm->nRanks;r++){
+  for (int i = 0; i < MAXCHANNELS; i++) {
+    for (int r = 0; r < comm->nRanks; r++) {
       free(comm->channels[i].peers[r]);
     }
     free(comm->channels[i].peers);
   }
-  for(int i=0; i<MAXCHANNELS; i++){
-    free(comm->proxyState->proxyOps[i].consPeers);      
+  for (int i = 0; i < MAXCHANNELS; i++) {
+    free(comm->proxyState->proxyOps[i].consPeers);
   }
 
   free(comm->connectSend);
@@ -208,6 +298,7 @@ flagcxResult_t flagcxHeteroCommDestroy(flagcxHeteroComm_t comm){
   free(comm->tasks.peers);
   free(comm->tasks.p2pOrder);
   free(comm->abortFlagRefCount);
+  free(comm->peerInfo);
   free(comm);
 
   return flagcxSuccess;

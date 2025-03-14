@@ -176,9 +176,8 @@ struct flagcxDeviceAdaptor mluAdaptor {
             // *memHandle);
       NULL, // flagcxResult_t (*hostShareMemFree)(void *ptr, void *memHandle);
       // Stream functions
-      mluAdaptorStreamCreate, mluAdaptorStreamDestroy,
-      mluAdaptorStreamCopy, mluAdaptorStreamFree, 
-      mluAdaptorStreamSynchronize, mluAdaptorStreamQuery,
+      mluAdaptorStreamCreate, mluAdaptorStreamDestroy, mluAdaptorStreamCopy,
+      mluAdaptorStreamFree, mluAdaptorStreamSynchronize, mluAdaptorStreamQuery,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,
@@ -191,6 +190,8 @@ struct flagcxDeviceAdaptor mluAdaptor {
             // *props, int dev);
       NULL, // flagcxResult_t (*getDevicePciBusId)(char *pciBusId, int len, int
             // dev);
+      NULL, // flagcxResult_t (*getDeviceByPciBusId)(int *dev, const char
+            // *pciBusId);
       mluAdaptorLaunchHostFunc
 };
 

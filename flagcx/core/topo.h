@@ -31,17 +31,18 @@
 #define INTEL_P2P_OVERHEAD(bw) (bw * 6 / 5)
 
 #define FLAGCX_TOPO_NODE_TYPES 7
-#define GPU 0
+#define APU 0
 #define PCI 1
-#define NVS 2
+#define CCI 2
 #define CPU 3 // Actually NUMA domains
 #define NIC 4
 #define NET 5
+#define HBD 6
 extern const char *topoNodeTypeStr[];
 
 // We want link types and path types to match as much as possible
 #define LINK_LOC 0
-#define LINK_NVL 1
+#define LINK_CCI 1
 // Skipping 2 for PATH_NVB
 #define LINK_PCI 3
 // Skipping 4 for PATH_PXB
@@ -54,11 +55,11 @@ extern const char *topoLinkTypeStr[];
 // Local (myself)
 #define PATH_LOC 0
 
-// Connection traversing NVLink
-#define PATH_NVL 1
+// Connection traversing CCI link
+#define PATH_CCI 1
 
-// Connection through NVLink using an intermediate GPU
-#define PATH_NVB 2
+// Connection through CCI link using an intermediate APU
+#define PATH_CCB 2
 
 // Connection traversing at most a single PCIe bridge
 #define PATH_PIX 3
@@ -93,8 +94,12 @@ struct flagcxTopoLink {
 };
 #define FLAGCX_TOPO_MAX_LINKS 128
 #define FLAGCX_TOPO_MAX_HOPS (FLAGCX_TOPO_MAX_NODES * FLAGCX_TOPO_NODE_TYPES)
+#define FLAGCX_MAX_INTER_SERVER_HOPS                                           \
+  16 // TODO: decide on a decent number for this variable
+#define FLAGCX_MAX_SERVER_NUM                                                  \
+  16 // TODO: decide on a decent number for this variable
 
-struct flagcxTopoLinkList {
+struct flagcxTopoPath {
   struct flagcxTopoLink *list[FLAGCX_TOPO_MAX_HOPS];
   int count;
   float bw;
@@ -106,9 +111,9 @@ struct flagcxTopoLinkList {
 
 #define FLAGCX_TOPO_UNDEF (-1)
 
-#define FLAGCX_TOPO_ID_SYSTEM_ID(id) (id >> 56)
+#define FLAGCX_TOPO_ID_SERVER_ID(id) (id >> 56)
 #define FLAGCX_TOPO_ID_LOCAL_ID(id) (id & 0x00ffffffffffffff)
-#define FLAGCX_TOPO_ID(systemid, localid) (((int64_t)systemid << 56) + localid)
+#define FLAGCX_TOPO_ID(serverid, localid) (((int64_t)serverid << 56) + localid)
 
 struct flagcxTopoNode {
   int type;
@@ -118,18 +123,17 @@ struct flagcxTopoNode {
     struct {
       int dev; // NVML dev number
       int rank;
-      int cudaCompCap;
       int gdrSupport;
-    } gpu;
+      int vendor;
+    } apu;
     struct {
       int dev; // Plugin dev number
       uint64_t asic;
       int port;
+      int ip;
       float bw;
       float latency;
       int gdrSupport;
-      int collSupport;
-      int maxChannels;
     } net;
     struct {
       int arch;
@@ -144,7 +148,7 @@ struct flagcxTopoNode {
   int nlinks;
   struct flagcxTopoLink links[FLAGCX_TOPO_MAX_LINKS];
   // Pre-computed paths to GPUs and NICs
-  struct flagcxTopoLinkList *paths[FLAGCX_TOPO_NODE_TYPES];
+  struct flagcxTopoPath *paths[FLAGCX_TOPO_NODE_TYPES];
   // Used during search
   uint64_t used;
 };
@@ -154,13 +158,26 @@ struct flagcxTopoNodeSet {
   struct flagcxTopoNode nodes[FLAGCX_TOPO_MAX_NODES];
 };
 
-struct flagcxTopoSystem {
-  int systemId;
+struct flagcxTopoServer {
+  int serverId;
   uint64_t hostHashes[FLAGCX_TOPO_MAX_NODES];
   int nHosts;
   struct flagcxTopoNodeSet nodes[FLAGCX_TOPO_NODE_TYPES];
   float maxBw;
   float totalBw;
+};
+
+// inter-server topo sturcture might need to be changed
+struct flagcxInterServerRoute {
+  int numHops;
+  struct flagcxTopoNode *localNic;
+  float bxPerHop[FLAGCX_MAX_INTER_SERVER_HOPS];
+};
+
+struct flagcxInterServerTopoInfo {
+  int numServers;
+  struct flagcxTopoServer *servers[FLAGCX_MAX_SERVER_NUM];
+  char interServerTopoFile[256];
 };
 
 struct topoArgs {
@@ -179,102 +196,107 @@ struct flagcxDevProps {
   // int gdrSupported;
 };
 
-flagcxResult_t flagcxTopoGetNode(struct flagcxTopoSystem *system,
+flagcxResult_t flagcxTopoGetNode(struct flagcxTopoServer *serverTopo,
                                  struct flagcxTopoNode **node, int type,
                                  uint64_t id);
-flagcxResult_t flagcxTopoCreateNode(struct flagcxTopoSystem *system,
+flagcxResult_t flagcxTopoCreateNode(struct flagcxTopoServer *serverTopo,
                                     struct flagcxTopoNode **node, int type,
                                     uint64_t id);
-flagcxResult_t flagcxTopoRemoveNode(struct flagcxTopoSystem *system, int type,
-                                    int id);
+flagcxResult_t flagcxTopoRemoveNode(struct flagcxTopoServer *serverTopo,
+                                    int type, int id);
 flagcxResult_t flagcxTopoConnectNodes(struct flagcxTopoNode *node,
                                       struct flagcxTopoNode *remNode, int type,
                                       float bw);
-flagcxResult_t flagcxTopoPrintPaths(struct flagcxTopoSystem *system);
-flagcxResult_t flagcxTopoLoadSystem(const char *xmlTopoFile,
-                                    struct flagcxTopoSystem *system);
-flagcxResult_t flagcxTopoGetIntermediateRank(struct flagcxTopoSystem *system,
-                                             int rank, int64_t netId,
-                                             int *intermediateRank);
+flagcxResult_t flagcxTopoPrintPaths(struct flagcxTopoServer *serverTopo);
+flagcxResult_t flagcxTopoLoadServer(const char *xmlTopoFile,
+                                    struct flagcxTopoServer *serverTopo);
+flagcxResult_t
+flagcxTopoGetIntermediateRank(struct flagcxTopoServer *serverTopo, int rank,
+                              int64_t netId, int *intermediateRank);
 
 #define FLAGCX_TOPO_XML_MAX_NODES 256
 #define FLAGCX_GRAPH_XML_MAX_NODES 4096
-flagcxResult_t flagcxTopoGetSystemFromXml(struct flagcxXml *xml,
-                                          struct flagcxTopoSystem **topoSystem,
-                                          uint64_t localHostHash);
+flagcxResult_t
+flagcxTopoGetServerTopoFromXml(struct flagcxXml *xml,
+                               struct flagcxTopoServer **serverTopo,
+                               uint64_t localHostHash);
 flagcxResult_t flagcxTopoGetGraphFromXml(struct flagcxXmlNode *xmlGraphs,
-                                         struct flagcxTopoSystem *system,
+                                         struct flagcxTopoServer *serverTopo,
                                          struct flagcxTopoGraph *graph,
                                          int *nChannels);
 flagcxResult_t flagcxTopoGetXmlFromGraphs(int ngraphs,
                                           struct flagcxTopoGraph **graphs,
-                                          struct flagcxTopoSystem *system,
+                                          struct flagcxTopoServer *serverTopo,
                                           struct flagcxXml *xml);
+flagcxResult_t flagcxTopoGetXmlTopo(struct flagcxHeteroComm *comm,
+                                    struct flagcxXml *xml);
+flagcxResult_t flagcxTopoGetServerTopo(struct flagcxHeteroComm *comm,
+                                       struct flagcxTopoServer **serverTopo);
 
-flagcxResult_t flagcxTopoGetCompCap(struct flagcxTopoSystem *system, int *ccMin,
-                                    int *ccMax);
+flagcxResult_t flagcxTopoGetCompCap(struct flagcxTopoServer *serverTopo,
+                                    int *ccMin, int *ccMax);
 
-static flagcxResult_t flagcxTopoIdToIndex(struct flagcxTopoSystem *system,
-                                          int type, int64_t id, int *index) {
-  *index = -1;
-  for (int i = 0; i < system->nodes[type].count; i++) {
-    if (system->nodes[type].nodes[i].id == id) {
-      *index = i;
-      return flagcxSuccess;
-    }
-  }
-  return flagcxInternalError;
-}
+// static flagcxResult_t flagcxTopoIdToIndex(struct flagcxTopoServer*
+// serverTopo, int type, int64_t id, int* index) {
+//   *index = -1;
+//   for (int i=0; i<serverTopo->nodes[type].count; i++) {
+//     if (serverTopo->nodes[type].nodes[i].id == id) {
+//       *index = i;
+//       return flagcxSuccess;
+//     }
+//   }
+//   return flagcxInternalError;
+// }
 
-static flagcxResult_t flagcxTopoRankToIndex(struct flagcxTopoSystem *system,
-                                            int rank, int *index) {
-  *index = -1;
-  for (int i = 0; i < system->nodes[GPU].count; i++) {
-    if (system->nodes[GPU].nodes[i].gpu.rank == rank) {
-      *index = i;
-      return flagcxSuccess;
-    }
-  }
-  return flagcxInternalError;
-}
+// static flagcxResult_t flagcxTopoRankToIndex(struct flagcxTopoServer*
+// serverTopo, int rank, int* index) {
+//   *index = -1;
+//   for (int i=0; i<serverTopo->nodes[GPU].count; i++) {
+//     if (serverTopo->nodes[GPU].nodes[i].apu.rank == rank) {
+//       *index = i;
+//       return flagcxSuccess;
+//     }
+//   }
+//   return flagcxInternalError;
+// }
 
-static flagcxResult_t flagcxTopoDevToRank(struct flagcxTopoSystem *system,
-                                          int dev, int *rank) {
-  *rank = -1;
-  for (int i = 0; i < system->nodes[GPU].count; i++) {
-    if (FLAGCX_TOPO_ID_SYSTEM_ID(system->nodes[GPU].nodes[i].id) !=
-        system->systemId)
-      continue; // Only consider GPUs on our node
-    if (system->nodes[GPU].nodes[i].gpu.dev == dev) {
-      *rank = system->nodes[GPU].nodes[i].gpu.rank;
-      return flagcxSuccess;
-    }
-  }
-  return flagcxInternalError;
-}
+// static flagcxResult_t flagcxTopoDevToRank(struct flagcxTopoServer*
+// serverTopo, int dev, int* rank) {
+//   *rank = -1;
+//   for (int i=0; i<serverTopo->nodes[GPU].count; i++) {
+//     if (FLAGCX_TOPO_ID_SERVER_ID(serverTopo->nodes[GPU].nodes[i].id) !=
+//     serverTopo->serverId) continue; // Only consider GPUs on our node if
+//     (serverTopo->nodes[GPU].nodes[i].apu.dev == dev) {
+//       *rank = serverTopo->nodes[GPU].nodes[i].apu.rank;
+//       return flagcxSuccess;
+//     }
+//   }
+//   return flagcxInternalError;
+// }
 
-static flagcxResult_t flagcxTopoIdToNetDev(struct flagcxTopoSystem *system,
-                                           int64_t id, int *netDev) {
-  *netDev = -1;
-  for (int i = 0; i < system->nodes[NET].count; i++) {
-    if (system->nodes[NET].nodes[i].id == id) {
-      *netDev = system->nodes[NET].nodes[i].net.dev;
-      return flagcxSuccess;
-    }
-  }
-  WARN("Could not find NET with id %lx\n", id);
-  return flagcxInternalError;
-}
+// static flagcxResult_t flagcxTopoIdToNetDev(struct flagcxTopoServer*
+// serverTopo, int64_t id, int* netDev) {
+//   *netDev = -1;
+//   for (int i=0; i<serverTopo->nodes[NET].count; i++) {
+//     if (serverTopo->nodes[NET].nodes[i].id == id) {
+//       *netDev = serverTopo->nodes[NET].nodes[i].net.dev;
+//       return flagcxSuccess;
+//     }
+//   }
+//   WARN("Could not find NET with id %lx\n", id);
+//   return flagcxInternalError;
+// }
 
-// Returns NVLink bw in GB/s
-static float flagcxTopoNVLinkBw(int cudaCompCap) {
-  return cudaCompCap >= 90   ? SM90_NVLINK_BW
-         : cudaCompCap == 86 ? SM86_NVLINK_BW
-         : cudaCompCap >= 80 ? SM80_NVLINK_BW
-         : cudaCompCap >= 70 ? SM70_NVLINK_BW
-         : cudaCompCap >= 60 ? SM60_NVLINK_BW
-                             : SM80_NVLINK_BW;
-}
+// // Returns NVLink bw in GB/s
+// static float flagcxTopoNVLinkBw(int cudaCompCap) {
+//   return
+//     cudaCompCap >= 90 ? SM90_NVLINK_BW :
+//     cudaCompCap == 86 ? SM86_NVLINK_BW :
+//     cudaCompCap >= 80 ? SM80_NVLINK_BW :
+//     cudaCompCap >= 70 ? SM70_NVLINK_BW :
+//     cudaCompCap >= 60 ? SM60_NVLINK_BW :
+//     SM80_NVLINK_BW;
+// }
 
 // Mirror bits
 static bool isPow2(int val) { return (val & (val - 1)) == 0; }

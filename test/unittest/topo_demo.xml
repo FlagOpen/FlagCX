@@ -1,0 +1,10 @@
+<system version="1">
+    <gpu dev="0" net="mlx5_0"></gpu>
+    <gpu dev="1" net="mlx5_1"></gpu>
+    <gpu dev="2" net="mlx5_0"></gpu>
+    <gpu dev="3" net="mlx5_1"></gpu>
+    <gpu dev="4" net="mlx5_0"></gpu>
+    <gpu dev="5" net="mlx5_1"></gpu>
+    <gpu dev="6" net="mlx5_0"></gpu>
+    <gpu dev="7" net="mlx5_1"></gpu>
+</system>

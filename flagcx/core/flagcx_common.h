@@ -8,7 +8,9 @@
 #define FLAGCX_COMMON_H_
 
 #include "debug.h"
-typedef void (*flagcxDebugLogger_t)(flagcxDebugLogLevel level, unsigned long flags, const char *file, int line, const char *fmt, ...);
+typedef void (*flagcxDebugLogger_t)(flagcxDebugLogLevel level,
+                                    unsigned long flags, const char *file,
+                                    int line, const char *fmt, ...);
 
 #define FLAGCX_NUM_FUNCTIONS 5 // Send/Recv not included for now
 typedef enum {
@@ -37,5 +39,7 @@ typedef enum {
 #define FLAGCX_PROTO_LL 0
 #define FLAGCX_PROTO_LL128 1
 #define FLAGCX_PROTO_SIMPLE 2
+
+#define FLAGCX_DEVICE_PCI_BUSID_BUFFER_SIZE 16
 
 #endif

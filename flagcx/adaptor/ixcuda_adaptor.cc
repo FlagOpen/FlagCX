@@ -207,6 +207,15 @@ flagcxResult_t ixcudaAdaptorGetDevicePciBusId(char *pciBusId, int len,
   return flagcxSuccess;
 }
 
+flagcxResult_t ixcudaAdaptorGetDeviceByPciBusId(int *dev,
+                                                const char *pciBusId) {
+  if (dev == NULL || pciBusId == NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(cudaDeviceGetByPCIBusId(dev, pciBusId));
+  return flagcxSuccess;
+}
+
 struct flagcxDeviceAdaptor ixcudaAdaptor {
   "IXCUDA",
       // Basic functions
@@ -239,6 +248,9 @@ struct flagcxDeviceAdaptor ixcudaAdaptor {
       ixcudaAdaptorGetDevicePciBusId,   // flagcxResult_t
                                         // (*getDevicePciBusId)(char *pciBusId,
                                         // int len, int dev);
+      ixcudaAdaptorGetDeviceByPciBusId, // flagcxResult_t
+                                        // (*getDeviceByPciBusId)(int *dev,
+                                        // const char *pciBusId);
       ixcudaAdaptorLaunchHostFunc
 };
 

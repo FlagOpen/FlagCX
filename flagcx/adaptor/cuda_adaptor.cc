@@ -206,6 +206,14 @@ flagcxResult_t cudaAdaptorGetDevicePciBusId(char *pciBusId, int len, int dev) {
   return flagcxSuccess;
 }
 
+flagcxResult_t cudaAdaptorGetDeviceByPciBusId(int *dev, const char *pciBusId) {
+  if (dev == NULL || pciBusId == NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(cudaDeviceGetByPCIBusId(dev, pciBusId));
+  return flagcxSuccess;
+}
+
 struct flagcxDeviceAdaptor cudaAdaptor {
   "CUDA",
       // Basic functions
@@ -237,6 +245,9 @@ struct flagcxDeviceAdaptor cudaAdaptor {
                                       // flagcxDevProps *props, int dev);
       cudaAdaptorGetDevicePciBusId, // flagcxResult_t (*getDevicePciBusId)(char
                                     // *pciBusId, int len, int dev);
+      cudaAdaptorGetDeviceByPciBusId, // flagcxResult_t
+                                      // (*getDeviceByPciBusId)(int
+                                      // *dev, const char *pciBusId);
       cudaAdaptorLaunchHostFunc
 };
 

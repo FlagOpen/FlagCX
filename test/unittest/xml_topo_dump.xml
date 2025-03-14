@@ -1,0 +1,85 @@
+<system version="1">
+  <cpu host_hash="0x32416aa293763f1" numaid="0" affinity="00000000,ffffffff,00000000,ffffffff" arch="x86_64" vendor="GenuineIntel" familyid="6" modelid="106">
+    <pci busid="0000:0a:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+      <pci busid="0000:0c:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+        <pci busid="0000:0e:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x10de" subsystem_device="0x13b8">
+          <pci busid="0000:10:00.0" class="0x030200" vendor="0x10de" device="0x20f3" subsystem_vendor="0x10de" subsystem_device="0x179b">
+            <apu dev="0"/>
+          </pci>
+        </pci>
+      </pci>
+      <pci busid="0000:12:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+        <pci busid="0000:14:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x10de" subsystem_device="0x13b8">
+          <pci busid="0000:16:00.0" class="0x030200" vendor="0x10de" device="0x20f3" subsystem_vendor="0x10de" subsystem_device="0x179b">
+            <apu dev="1"/>
+          </pci>
+        </pci>
+      </pci>
+    </pci>
+    <pci busid="0000:43:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+      <pci busid="0000:45:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+        <pci busid="0000:47:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x10de" subsystem_device="0x13b8">
+          <pci busid="0000:49:00.0" class="0x030200" vendor="0x10de" device="0x20f3" subsystem_vendor="0x10de" subsystem_device="0x179b">
+            <apu dev="2"/>
+          </pci>
+        </pci>
+        <pci busid="0000:4b:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x10de" subsystem_device="0x13b8">
+          <pci busid="0000:4d:00.0" class="0x030200" vendor="0x10de" device="0x20f3" subsystem_vendor="0x10de" subsystem_device="0x179b">
+            <apu dev="3"/>
+          </pci>
+        </pci>
+      </pci>
+      <pci busid="0000:5d:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+        <pci busid="0000:5f:00.0" class="0x020700" vendor="0x15b3" device="0x101b" subsystem_vendor="0x15b3" subsystem_device="0x0007">
+          <nic>
+            <net name="mlx5_2"/>
+          </nic>
+        </pci>
+      </pci>
+    </pci>
+  </cpu>
+  <cpu host_hash="0x32416aa293763f1" numaid="1" affinity="ffffffff,00000000,ffffffff,00000000" arch="x86_64" vendor="GenuineIntel" familyid="6" modelid="106">
+    <pci busid="0000:82:00.0" class="0x020700" vendor="0x15b3" device="0x101b" subsystem_vendor="0x15b3" subsystem_device="0x0009">
+      <nic>
+        <net name="mlx5_4+mlx5_5"/>
+      </nic>
+    </pci>
+    <pci busid="0000:84:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+      <pci busid="0000:86:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+        <pci busid="0000:88:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x10de" subsystem_device="0x13b8">
+          <pci busid="0000:8a:00.0" class="0x030200" vendor="0x10de" device="0x20f3" subsystem_vendor="0x10de" subsystem_device="0x179b">
+            <apu dev="4"/>
+          </pci>
+        </pci>
+      </pci>
+      <pci busid="0000:8b:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+        <pci busid="0000:8d:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x10de" subsystem_device="0x13b8">
+          <pci busid="0000:8f:00.0" class="0x030200" vendor="0x10de" device="0x20f3" subsystem_vendor="0x10de" subsystem_device="0x179b">
+            <apu dev="5"/>
+          </pci>
+        </pci>
+      </pci>
+    </pci>
+    <pci busid="0000:c0:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+      <pci busid="0000:c2:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+        <pci busid="0000:c4:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x10de" subsystem_device="0x13b8">
+          <pci busid="0000:c6:00.0" class="0x030200" vendor="0x10de" device="0x20f3" subsystem_vendor="0x10de" subsystem_device="0x179b">
+            <apu dev="6"/>
+          </pci>
+        </pci>
+        <pci busid="0000:c8:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x10de" subsystem_device="0x13b8">
+          <pci busid="0000:ca:00.0" class="0x030200" vendor="0x10de" device="0x20f3" subsystem_vendor="0x10de" subsystem_device="0x179b">
+            <apu dev="7"/>
+          </pci>
+        </pci>
+      </pci>
+      <pci busid="0000:cb:00.0" class="0x060400" vendor="0x1000" device="0xc010" subsystem_vendor="0x1000" subsystem_device="0xa096">
+        <pci busid="0000:cd:00.0" class="0x020700" vendor="0x15b3" device="0x101b" subsystem_vendor="0x15b3" subsystem_device="0x0007">
+          <nic>
+            <net name="mlx5_8"/>
+          </nic>
+        </pci>
+      </pci>
+    </pci>
+  </cpu>
+</system>

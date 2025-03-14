@@ -49,7 +49,7 @@ flagcxResult_t flagcxTopoDumpXmlToFile(const char *xmlTopoFile,
 
 // auto-detect functions
 // TODO: implement the following 2 functions
-flagcxResult_t flagcxTopoFillGpu(struct flagcxXml *xml, const char *busId,
+flagcxResult_t flagcxTopoFillApu(struct flagcxXml *xml, const char *busId,
                                  struct flagcxXmlNode **gpuNode);
 flagcxResult_t flagcxTopoFillNet(struct flagcxXml *xml, const char *pciPath,
                                  const char *netName,
