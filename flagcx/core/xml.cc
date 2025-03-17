@@ -4,6 +4,8 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <float.h>
+#include <map>
+#include <queue>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -695,4 +697,95 @@ flagcxResult_t flagcxTopoDumpXmlToFile(const char *xmlTopoFile,
   FLAGCXCHECK(flagcxTopoDumpXmlRec(0, file, xml->nodes));
   fclose(file);
   return flagcxSuccess;
+<<<<<<< HEAD
+=======
+}
+
+flagcxResult_t xmlGetApuByIndex(struct flagcxXml *xml, int apu,
+                                struct flagcxXmlNode **apuNode) {
+  // iterate through all nodes in xml and find the apuNode with logical index ==
+  // apu
+  for (int i = 0; i < xml->maxIndex; i++) {
+    struct flagcxXmlNode *n = xml->nodes + i;
+    if (strcmp(n->name, "apu") == 0) {
+      int value = 0;
+      FLAGCXCHECK(xmlGetAttrInt(n, "dev", &value));
+      if (value == apu) {
+        *apuNode = n;
+        return flagcxSuccess;
+      }
+    }
+  }
+
+  return flagcxSuccess;
+}
+
+flagcxResult_t xmlFindClosestNetUnderCpu(struct flagcxXml *xml,
+                                         struct flagcxXmlNode *apuNode,
+                                         struct flagcxXmlNode **retNet) {
+  INFO(FLAGCX_INIT, "searching for local net node under one cpu node");
+  std::queue<struct flagcxXmlNode *> nodeQueue;
+  std::map<struct flagcxXmlNode *, bool> visited;
+  nodeQueue.push(apuNode);
+  visited[apuNode] = true;
+  while (!nodeQueue.empty()) {
+    struct flagcxXmlNode *node = nodeQueue.front();
+    nodeQueue.pop();
+    // INFO(FLAGCX_INIT, "node name = %s", node->name);
+    if (strcmp(node->name, "system") == 0) {
+      // do not go through root node, we are searching under one cpu node
+      continue;
+    }
+    if (strcmp(node->name, "net") == 0) {
+      // found a net node
+      *retNet = node;
+      break;
+    }
+    // push parent if parent is not visited
+    if (node->parent && !visited[node->parent]) {
+      nodeQueue.push(node->parent);
+      visited[node->parent] = true;
+    }
+    // push children if children are not visited
+    for (int i = 0; i < node->nSubs; i++) {
+      if (!visited[node->subs[i]]) {
+        nodeQueue.push(node->subs[i]);
+        visited[node->subs[i]] = true;
+      }
+    }
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t xmlFindClosestNetUnderServer(struct flagcxXml *xml,
+                                            struct flagcxXmlNode *apuNode,
+                                            struct flagcxXmlNode **retNet) {
+  INFO(FLAGCX_INIT, "searching for local net node under one server");
+  std::queue<struct flagcxXmlNode *> nodeQueue;
+  std::map<struct flagcxXmlNode *, bool> visited;
+  nodeQueue.push(apuNode);
+  visited[apuNode] = true;
+  while (!nodeQueue.empty()) {
+    struct flagcxXmlNode *node = nodeQueue.front();
+    nodeQueue.pop();
+    if (strcmp(node->name, "net") == 0) {
+      // found a net node
+      *retNet = node;
+      break;
+    }
+    // push parent if parent is not visited
+    if (node->parent && !visited[node->parent]) {
+      nodeQueue.push(node->parent);
+      visited[node->parent] = true;
+    }
+    // push children if children are not visited
+    for (int i = 0; i < node->nSubs; i++) {
+      if (!visited[node->subs[i]]) {
+        nodeQueue.push(node->subs[i]);
+        visited[node->subs[i]] = true;
+      }
+    }
+  }
+  return flagcxSuccess;
+>>>>>>> find_local_nic
 }

@@ -55,6 +55,15 @@ flagcxResult_t flagcxTopoFillNet(struct flagcxXml *xml, const char *pciPath,
                                  const char *netName,
                                  struct flagcxXmlNode **netNode);
 
+flagcxResult_t xmlGetApuByIndex(struct flagcxXml *xml, int apu,
+                                struct flagcxXmlNode **apuNode);
+flagcxResult_t xmlFindClosestNetUnderCpu(struct flagcxXml *xml,
+                                         struct flagcxXmlNode *apuNode,
+                                         struct flagcxXmlNode **retNet);
+flagcxResult_t xmlFindClosestNetUnderServer(struct flagcxXml *xml,
+                                            struct flagcxXmlNode *apuNode,
+                                            struct flagcxXmlNode **retNet);
+
 static size_t xmlMemSize(int maxNodes) {
   return offsetof(struct flagcxXml, nodes) +
          sizeof(struct flagcxXmlNode) * maxNodes;

@@ -75,7 +75,8 @@ flagcxResult_t flagcxTopoGetNvsCount(struct flagcxTopoServer *system,
                                      int *count);
 // TODO: get nearest NIC to GPU from a xml topology structure, might need to
 // change function signature
-flagcxResult_t flagcxGetLocalNetFromGpu(int gpu, int *dev);
+flagcxResult_t flagcxGetLocalNetFromGpu(int apu, int *dev,
+                                        struct flagcxHeteroComm *comm);
 flagcxResult_t flagcxTopoGetLocalGpu(struct flagcxTopoServer *system,
                                      int64_t netId, int *gpuIndex);
 flagcxResult_t getLocalNetCountByBw(struct flagcxTopoServer *system, int gpu,

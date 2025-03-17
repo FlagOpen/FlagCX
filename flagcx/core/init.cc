@@ -118,8 +118,11 @@ static flagcxResult_t initTransportsRank(flagcxHeteroComm_t comm,
     }
   }
 
-  INFO(FLAGCX_INIT, "start flagcxTopoGetServerTopo");
-  FLAGCXCHECKGOTO(flagcxTopoGetServerTopo(comm, &comm->topo), ret, fail);
+  // INFO(FLAGCX_INIT, "start flagcxTopoGetServerTopo");
+  // FLAGCXCHECKGOTO(flagcxTopoGetServerTopo(comm, &comm->topo), ret, fail);
+  INFO(FLAGCX_INIT, "start getting local net from gpu");
+  FLAGCXCHECKGOTO(flagcxGetLocalNetFromGpu(comm->cudaDev, &comm->netDev, comm),
+                  ret, fail);
 
   return ret;
 fail:
@@ -189,8 +192,6 @@ static flagcxResult_t flagcxCommInitRankFunc(struct flagcxAsyncJob *job_) {
   flagcxNetIb.init(NULL);
   INFO(FLAGCX_INIT, "start initTransportsRank");
   FLAGCXCHECKGOTO(initTransportsRank(comm, NULL), res, fail);
-  FLAGCXCHECKGOTO(flagcxGetLocalNetFromGpu(comm->cudaDev, &comm->netDev), res,
-                  fail);
 
 exit:
   return res;

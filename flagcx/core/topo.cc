@@ -80,8 +80,8 @@ flagcxResult_t flagcxTopoGetLocal(struct flagcxTopoServer *system, int type,
 // devId: the device id of the GPU
 // netName: the name of the net
 // strlen: the length of the netName
-static flagcxResult_t flagcxGetLocalNetFromXml(int devId, char *netName,
-                                               int strlen) {
+static flagcxResult_t flagcxGetLocalNetFromXmlFile(int devId, char *netName,
+                                                   int strlen) {
   flagcxResult_t ret = flagcxSuccess;
   flagcxXmlNode *node = NULL;
   int dev = -1;
@@ -135,19 +135,59 @@ fail:
 }
 
 #define FLAGCX_MAX_NET_NAME 128
-flagcxResult_t flagcxGetLocalNetFromGpu(int gpu, int *dev) {
+
+flagcxResult_t flagcxGetLocalNetFromXml(struct flagcxXml *xml, int apu,
+                                        char *name, int strlen) {
+  struct flagcxXmlNode *apuNode = NULL;
+  FLAGCXCHECK(xmlGetApuByIndex(xml, apu, &apuNode));
+  if (apuNode == NULL) {
+    WARN("invalid apu index %d", apu);
+    return flagcxInternalError;
+  }
+  struct flagcxXmlNode *netNode = NULL;
+  // first try to find the closest net under one CPU node
+  FLAGCXCHECK(xmlFindClosestNetUnderCpu(xml, apuNode, &netNode));
+  if (netNode == NULL) {
+    // if there is no net node that share the same CPU ancestor node with the
+    // APU try to find a net node from the server scope
+    FLAGCXCHECK(xmlFindClosestNetUnderServer(xml, apuNode, &netNode));
+  }
+  if (netNode != NULL) {
+    // found a net node
+    const char *str;
+    FLAGCXCHECK(xmlGetAttrStr(netNode, "name", &str)); // get net name
+    strncpy(name, str, strlen);
+    INFO(FLAGCX_INIT, "local net for apu %d is %s", apu, name);
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t flagcxGetLocalNetFromGpu(int apu, int *dev,
+                                        struct flagcxHeteroComm *comm) {
   char name[FLAGCX_MAX_NET_NAME + 1] = {0};
-  FLAGCXCHECK(flagcxGetLocalNetFromXml(gpu, name, FLAGCX_MAX_NET_NAME + 1));
+  // first try getting local net from existing xml file
+  FLAGCXCHECK(flagcxGetLocalNetFromXmlFile(apu, name, FLAGCX_MAX_NET_NAME + 1));
   if (strlen(name) == 0) {
+    // try building xml by topo detect and find closest nic based on xml topo
+    struct flagcxXml *xml;
+    FLAGCXCHECK(xmlAlloc(&xml, FLAGCX_TOPO_XML_MAX_NODES));
+    FLAGCXCHECK(flagcxTopoGetXmlTopo(comm, xml));
+    FLAGCXCHECK(
+        flagcxGetLocalNetFromXml(xml, apu, name, FLAGCX_MAX_NET_NAME + 1));
+    free(xml);
+  }
+  if (strlen(name) == 0) {
+    INFO(FLAGCX_GRAPH, "did not find local net for apu %d in xml topo", apu);
     const char *useNet = flagcxGetEnv("FLAGCX_USENET");
     if (useNet != NULL) {
       INFO(FLAGCX_GRAPH,
-           "GPU %d use net %s specified in FLAGCX_USENET environment variable.",
-           gpu, useNet);
+           "APU %d use net %s specified in FLAGCX_USENET environment variable.",
+           apu, useNet);
       strncpy(name, useNet, FLAGCX_MAX_NET_NAME);
     }
   }
   flagcxNetIb.getDevFromName(name, dev);
+
   return flagcxSuccess;
 }
 
@@ -253,6 +293,57 @@ flagcxResult_t flagcxGetLocalNetFromGpu(int gpu, int *dev) {
 //   return flagcxSuccess;
 // }
 
+// will remove this function when we finish the function that builds server topo
+flagcxResult_t flagcxTopoGetXmlTopo(struct flagcxHeteroComm *comm,
+                                    struct flagcxXml *xml) {
+  // create root node if we didn't get topo from xml file
+  if (xml->maxIndex == 0) {
+    INFO(FLAGCX_INIT, "creating root XML node");
+    // Create top tag
+    struct flagcxXmlNode *top;
+    // TODO: change root node name from "system" to "root"
+    FLAGCXCHECK(xmlAddNode(xml, NULL, "system", &top));
+    FLAGCXCHECK(xmlSetAttrInt(top, "version", FLAGCX_TOPO_XML_VERSION));
+  }
+
+  INFO(FLAGCX_INIT, "start detecting APUs");
+  for (int r = 0; r < comm->nRanks; r++) {
+    if (comm->peerInfo[r].hostHash == comm->peerInfo[comm->rank].hostHash) {
+      INFO(FLAGCX_INIT, "preparing to detect APU for rank %d", r);
+      char busId[FLAGCX_DEVICE_PCI_BUSID_BUFFER_SIZE];
+      INFO(FLAGCX_INIT, "converting busId to string");
+      FLAGCXCHECK(int64ToBusId(comm->peerInfo[r].busId, busId));
+      struct flagcxXmlNode *node;
+      FLAGCXCHECK(flagcxTopoFillApu(xml, busId, &node));
+      if (node == NULL) {
+        continue;
+      }
+      int devLogicalIdx = 0;
+      deviceAdaptor->getDeviceByPciBusId(&devLogicalIdx, busId);
+      FLAGCXCHECK(xmlSetAttrInt(node, "dev", devLogicalIdx));
+    }
+  }
+
+  int netDevCount = 0;
+  FLAGCXCHECK(flagcxNetIb.devices(&netDevCount));
+  for (int n = 0; n < netDevCount; n++) {
+    flagcxNetProperties_t props;
+    FLAGCXCHECK(flagcxNetIb.getProperties(n, &props));
+    struct flagcxXmlNode *netNode;
+    FLAGCXCHECK(flagcxTopoFillNet(xml, props.pciPath, props.name, &netNode));
+  }
+
+  if (comm->rank == 0) {
+    const char *xmlTopoFile = flagcxGetEnv("FLAGCX_TOPO_DUMP_FILE");
+    INFO(FLAGCX_ENV, "FLAGCX_TOPO_DUMP_FILE is %s", xmlTopoFile);
+    if (xmlTopoFile && comm->rank == 0) {
+      INFO(FLAGCX_INIT, "start dumping topo to xml file");
+      FLAGCXCHECK(flagcxTopoDumpXmlToFile(xmlTopoFile, xml));
+    }
+  }
+  return flagcxSuccess;
+}
+
 flagcxResult_t flagcxTopoGetServerTopo(struct flagcxHeteroComm *comm,
                                        struct flagcxTopoServer **serverTopo) {
   // TODO: first try to acquire topo from xml file
@@ -265,6 +356,7 @@ flagcxResult_t flagcxTopoGetServerTopo(struct flagcxHeteroComm *comm,
     INFO(FLAGCX_INIT, "creating root XML node");
     // Create top tag
     struct flagcxXmlNode *top;
+    // TODO: change root node name from "system" to "root"
     FLAGCXCHECK(xmlAddNode(xml, NULL, "system", &top));
     FLAGCXCHECK(xmlSetAttrInt(top, "version", FLAGCX_TOPO_XML_VERSION));
   }
