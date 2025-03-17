@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "event_flagcx.hpp"
+#include "stream_guard_flagcx.hpp"
 
 namespace c10d {
 

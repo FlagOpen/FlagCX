@@ -161,8 +161,9 @@ def test_allgather():
         dist.all_gather(z_list, z, group=FLAGCX_GROUP1)
         print(f"rank {MY_RANK} after all_gather with FLAGCX_GROUP1: z = {z}, z_list = {z_list}")
         all_rank_infos = [None] * WORLD_SIZE
-        cur_rank_info = {'rank': MY_RANK, 'device_type': f"cpu:gloo,{dev_name}:flagcx"}
-        dist.all_gather_object(all_rank_infos, cur_rank_info)
+        #cur_rank_info = {'rank': MY_RANK, 'device_type': f"cpu:gloo,{dev_name}:flagcx"}
+        cur_rank_info = [MY_RANK, MY_RANK+1]
+        dist.all_gather_object(all_rank_infos, cur_rank_info, group=FLAGCX_GROUP1)
         print(f"rank {MY_RANK} after all_gather_object with FLAGCX_GROUP1: all_rank_infos = {all_rank_infos}")
 
         # Perform all_gather_coalesced with FLAGCX_GROUP1
