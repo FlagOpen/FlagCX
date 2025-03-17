@@ -697,8 +697,6 @@ flagcxResult_t flagcxTopoDumpXmlToFile(const char *xmlTopoFile,
   FLAGCXCHECK(flagcxTopoDumpXmlRec(0, file, xml->nodes));
   fclose(file);
   return flagcxSuccess;
-<<<<<<< HEAD
-=======
 }
 
 flagcxResult_t xmlGetApuByIndex(struct flagcxXml *xml, int apu,
@@ -787,5 +785,4 @@ flagcxResult_t xmlFindClosestNetUnderServer(struct flagcxXml *xml,
     }
   }
   return flagcxSuccess;
->>>>>>> find_local_nic
 }
