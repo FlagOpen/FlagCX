@@ -167,7 +167,9 @@ flagcxResult_t flagcxGetLocalNetFromGpu(int apu, int *dev,
   char name[FLAGCX_MAX_NET_NAME + 1] = {0};
   // first try getting local net from existing xml file
   FLAGCXCHECK(flagcxGetLocalNetFromXmlFile(apu, name, FLAGCX_MAX_NET_NAME + 1));
-  if (strlen(name) == 0) {
+  const char *enable_topo_detect = flagcxGetEnv("FLAGCX_ENABLE_TOPO_DETECT");
+  if (strlen(name) == 0 && enable_topo_detect &&
+      strcmp(enable_topo_detect, "TRUE") == 0) {
     // try building xml by topo detect and find closest nic based on xml topo
     struct flagcxXml *xml;
     FLAGCXCHECK(xmlAlloc(&xml, FLAGCX_TOPO_XML_MAX_NODES));
