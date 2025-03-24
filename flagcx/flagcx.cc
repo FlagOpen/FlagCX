@@ -969,7 +969,8 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
 
       timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
       INFO(FLAGCX_COLL,
-           "Flagcx timings - %s AllReduce: rank %d nranks %d total %.2fms (memory alloc "
+           "Flagcx timings - %s AllReduce: rank %d nranks %d total %.2fms "
+           "(memory alloc "
            "%.2fms, memory free %.2fms, memory d2h %.2fms, memory h2d %.2fms, "
            "comm %.2fms)",
            cclAdaptors[flagcxCCLAdaptorHost]->name, comm->rank, comm->nranks,
@@ -1068,8 +1069,9 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
 
       // step 2: memcpy d2h
       timers[TIMER_COLL_MEM_D2H] = clockNano();
-      deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff), send_size,
-                                  flagcxMemcpyDeviceToHost, NULL, NULL);
+      deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff),
+                                  send_size, flagcxMemcpyDeviceToHost, NULL,
+                                  NULL);
       timers[TIMER_COLL_MEM_D2H] = clockNano() - timers[TIMER_COLL_MEM_D2H];
 
       // step 3: reducescatter
@@ -1092,7 +1094,8 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
 
       timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
       INFO(FLAGCX_COLL,
-           "Flagcx timings - %s ReduceScatter: rank %d nranks %d total %.2fms (memory alloc "
+           "Flagcx timings - %s ReduceScatter: rank %d nranks %d total %.2fms "
+           "(memory alloc "
            "%.2fms, memory free %.2fms, memory d2h %.2fms, memory h2d %.2fms, "
            "comm %.2fms)",
            cclAdaptors[flagcxCCLAdaptorHost]->name, comm->rank, comm->nranks,
@@ -1228,7 +1231,8 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
 
       timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
       INFO(FLAGCX_COLL,
-           "Flagcx timings - %s AllGather: rank %d nranks %d total %.2fms (memory alloc "
+           "Flagcx timings - %s AllGather: rank %d nranks %d total %.2fms "
+           "(memory alloc "
            "%.2fms, memory free %.2fms, memory d2h %.2fms, memory h2d %.2fms, "
            "comm %.2fms)",
            cclAdaptors[flagcxCCLAdaptorHost]->name, comm->rank, comm->nranks,
@@ -1334,7 +1338,8 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff,
 
       timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
       INFO(FLAGCX_COLL,
-           "Flagcx timings - %s AlltoAll: rank %d nranks %d total %.2fms (memory alloc "
+           "Flagcx timings - %s AlltoAll: rank %d nranks %d total %.2fms "
+           "(memory alloc "
            "%.2fms, memory free %.2fms, memory d2h %.2fms, memory h2d %.2fms, "
            "comm %.2fms)",
            cclAdaptors[flagcxCCLAdaptorHost]->name, comm->rank, comm->nranks,
@@ -1401,38 +1406,39 @@ flagcxResult_t flagcxAlltoAllv(const void *sendbuff, size_t *sendcounts,
       const char *buffer_in = static_cast<const char *>(sendbuff);
       char *buffer_out = static_cast<char *>(recvbuff);
 
-      // intra-cluster alltoall
       int offset = 0;
       for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
         offset += comm->cluster_sizes[i];
       }
-      FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAllv(
-          static_cast<const void *>(buffer_in + sdispls[offset] * size),
-          sendcounts + offset, sdispls + offset,
-          static_cast<void *>(buffer_out + rdispls[offset] * size),
-          recvcounts + offset, rdispls + offset, datatype, comm->homo_comm,
-          stream))
 
-      // TODO: use stream wait rather than stream sync to avoid cpu blocking
-      deviceAdaptor->streamSynchronize(stream);
-
-      // inter-cluster sendrecv
-      // TODO: use cluster_inter_rank to perform hetero sendrecv operation
+      // intra/inter-cluster sendrecv
       flagcxGroupStart(comm);
+      cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
       for (int r = 0; r < comm->nranks; ++r) {
-        if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r]) {
-          if (flagcxCCLAdaptorNeedSendrecv(sendcounts[r])) {
+        if (flagcxCCLAdaptorNeedSendrecv(sendcounts[r])) {
+          if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r]) {
             FLAGCXCHECK(flagcxHeteroSend(
                 static_cast<const void *>(buffer_in + sdispls[r] * size),
                 sendcounts[r], datatype, r, comm->hetero_comm, stream));
+          } else {
+            FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->send(
+                static_cast<const void *>(buffer_in + sdispls[r] * size),
+                sendcounts[r], datatype, r - offset, comm->homo_comm, stream));
           }
-          if (flagcxCCLAdaptorNeedSendrecv(recvcounts[r])) {
+        }
+        if (flagcxCCLAdaptorNeedSendrecv(recvcounts[r])) {
+          if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r]) {
             FLAGCXCHECK(flagcxHeteroRecv(
                 static_cast<void *>(buffer_out + rdispls[r] * size),
                 recvcounts[r], datatype, r, comm->hetero_comm, stream));
+          } else {
+            FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->recv(
+                static_cast<void *>(buffer_out + rdispls[r] * size),
+                recvcounts[r], datatype, r - offset, comm->homo_comm, stream));
           }
         }
       }
+      cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
       flagcxGroupEnd(comm);
 
       // TODO: use stream wait rather than stream sync to avoid cpu blocking
@@ -1479,7 +1485,8 @@ flagcxResult_t flagcxSend(const void *sendbuff, size_t count,
 
       timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
       INFO(FLAGCX_COLL,
-           "Flagcx timings - %s Send: rank %d nranks %d total %.2fms (memory alloc "
+           "Flagcx timings - %s Send: rank %d nranks %d total %.2fms (memory "
+           "alloc "
            "%.2fms, memory d2h %.2fms, comm %.2fms)",
            cclAdaptors[flagcxCCLAdaptorHost]->name, comm->rank, comm->nranks,
            timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6,
@@ -1530,7 +1537,8 @@ flagcxResult_t flagcxRecv(void *recvbuff, size_t count,
 
       timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
       INFO(FLAGCX_COLL,
-           "Flagcx timings - %s Recv: rank %d nranks %d total %.2fms (memory alloc "
+           "Flagcx timings - %s Recv: rank %d nranks %d total %.2fms (memory "
+           "alloc "
            "%.2fms, memory free %.2fms, memory h2d %.2fms, comm %.2fms)",
            cclAdaptors[flagcxCCLAdaptorHost]->name, comm->rank, comm->nranks,
            timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6,

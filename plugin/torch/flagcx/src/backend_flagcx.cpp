@@ -327,14 +327,18 @@ flagcxBackend::collectiveCoalesced(std::vector<at::Tensor> &inputs,
     if (isHomo) {
       flagcxGroupGuard guard(handler_->comm);
     }
-    flagcxStream_t stream;
+    // multi-stream may lead to queue sync error on mlu,
+    // more tests are required to confirm,
+    // so we disable multi-stream support for now
+    // flagcxStream_t stream;
+    flagcxStream_t stream = getStreamByIndex(0);
 
     for (const auto i : c10::irange(inputs.size())) {
-      if (isHomo) {
-        stream = getStreamByIndex(0);
-      } else {
-        stream = getStreamByIndex(i + 1);
-      }
+      // if (isHomo) {
+      //   stream = getStreamByIndex(0);
+      // } else {
+      //   stream = getStreamByIndex(i + 1);
+      // }
       // TODO: we need to record these input/output to prevent being freed
       // before the collective finished.
       auto inputTensor = inputs[i];
@@ -343,17 +347,17 @@ flagcxBackend::collectiveCoalesced(std::vector<at::Tensor> &inputs,
       C10D_FLAGCX_CHECK(fn(inputTensor, outputTensor, handler_->comm, stream),
                         std::nullopt);
 
-      if (!isHomo) {
-        auto &event = getEventByIndex(i + 1);
-        event->record(stream, deviceId_);
-      }
+      // if (!isHomo) {
+      //   auto &event = getEventByIndex(i + 1);
+      //   event->record(stream, deviceId_);
+      // }
     }
-    for (const auto i : c10::irange(inputs.size())) {
-      if (!isHomo) {
-        auto &event = getEventByIndex(i + 1);
-        event->block(getStreamByIndex(0), deviceId_);
-      }
-    }
+    // for (const auto i : c10::irange(inputs.size())) {
+    //   if (!isHomo) {
+    //     auto &event = getEventByIndex(i + 1);
+    //     event->block(getStreamByIndex(0), deviceId_);
+    //   }
+    // }
   }
 
   work->event_->record(getStreamByIndex(0), deviceId_);
