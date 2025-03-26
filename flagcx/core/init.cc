@@ -185,7 +185,7 @@ static flagcxResult_t flagcxCommInitRankFunc(struct flagcxAsyncJob *job_) {
     FLAGCXCHECK(flagcxProxyInit(comm));
   }
   flagcxNetIb.init(NULL);
-  if (env && strcmp(env, "TRUE")) {
+  if (env && strcmp(env, "TRUE") == 0) {
     INFO(FLAGCX_INIT, "getting busId for cudaDev %d", comm->cudaDev);
     FLAGCXCHECK(getBusId(comm->cudaDev, &comm->busId));
     INFO(FLAGCX_INIT, "getting commHash for rank %d", comm->rank);

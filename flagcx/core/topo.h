@@ -196,10 +196,10 @@ struct flagcxDevProps {
   // int gdrSupported;
 };
 
-flagcxResult_t flagcxTopoGetNode(struct flagcxTopoServer *serverTopo,
+flagcxResult_t flagcxTopoGetNode(struct flagcxTopoServer *topoServer,
                                  struct flagcxTopoNode **node, int type,
                                  uint64_t id);
-flagcxResult_t flagcxTopoCreateNode(struct flagcxTopoServer *serverTopo,
+flagcxResult_t flagcxTopoCreateNode(struct flagcxTopoServer *topoServer,
                                     struct flagcxTopoNode **node, int type,
                                     uint64_t id);
 flagcxResult_t flagcxTopoRemoveNode(struct flagcxTopoServer *serverTopo,
@@ -214,11 +214,13 @@ flagcxResult_t
 flagcxTopoGetIntermediateRank(struct flagcxTopoServer *serverTopo, int rank,
                               int64_t netId, int *intermediateRank);
 
+flagcxResult_t flagcxTopoPrint(struct flagcxTopoServer *topoServer);
+
 #define FLAGCX_TOPO_XML_MAX_NODES 256
 #define FLAGCX_GRAPH_XML_MAX_NODES 4096
 flagcxResult_t
 flagcxTopoGetServerTopoFromXml(struct flagcxXml *xml,
-                               struct flagcxTopoServer **serverTopo,
+                               struct flagcxTopoServer **topoServer,
                                uint64_t localHostHash);
 flagcxResult_t flagcxTopoGetGraphFromXml(struct flagcxXmlNode *xmlGraphs,
                                          struct flagcxTopoServer *serverTopo,
@@ -231,7 +233,7 @@ flagcxResult_t flagcxTopoGetXmlFromGraphs(int ngraphs,
 flagcxResult_t flagcxTopoGetXmlTopo(struct flagcxHeteroComm *comm,
                                     struct flagcxXml *xml);
 flagcxResult_t flagcxTopoGetServerTopo(struct flagcxHeteroComm *comm,
-                                       struct flagcxTopoServer **serverTopo);
+                                       struct flagcxTopoServer **topoServer);
 
 flagcxResult_t flagcxTopoGetCompCap(struct flagcxTopoServer *serverTopo,
                                     int *ccMin, int *ccMax);
