@@ -112,6 +112,7 @@ OBJDIR := $(BUILDDIR)/obj
 INCLUDEDIR := \
 	$(abspath flagcx/include) \
 	$(abspath flagcx/core) \
+	$(abspath flagcx/core/include) \
 	$(abspath flagcx/adaptor) \
 	$(abspath flagcx/service)
 
