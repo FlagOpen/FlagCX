@@ -467,6 +467,12 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
       // TODO: to be implemented.
       return flagcxNotSupported;
     } else {
+      // c2c validation
+      if (comm->homo_ranks <= 1) {
+        WARN("Flagcx C2C reduce op only supports comm->homo_ranks > 1");
+        return flagcxNotSupported;
+      }
+
       // op validation
       if (op != flagcxSum && op != flagcxMax && op != flagcxMin) {
         WARN("Unsupported reduction operation %d", op);
@@ -613,16 +619,18 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
       }
 
       // intra-cluster gather
-      if (is_root_cluster) {
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
-            sendbuff,
-            (void *)((char *)recvbuff +
-                     getFlagcxDataTypeSize(datatype) * offset * count),
-            count, datatype, root - offset, comm->homo_comm, stream));
-      } else {
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
-            sendbuff, fwdbuff, count, datatype, comm->homo_inter_rank,
-            comm->homo_comm, stream));
+      if (comm->homo_ranks > 1) {
+        if (is_root_cluster) {
+          FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
+              sendbuff,
+              (void *)((char *)recvbuff +
+                       getFlagcxDataTypeSize(datatype) * offset * count),
+              count, datatype, root - offset, comm->homo_comm, stream));
+        } else {
+          FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
+              sendbuff, fwdbuff, count, datatype, comm->homo_inter_rank,
+              comm->homo_comm, stream));
+        }
       }
 
       // TODO: use stream wait rather than stream sync to avoid cpu blocking
@@ -832,15 +840,18 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
       deviceAdaptor->streamSynchronize(stream);
 
       // intra-cluster scatter
-      if (is_root_cluster) {
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
-            (void *)((char *)sendbuff +
-                     getFlagcxDataTypeSize(datatype) * offset * count),
-            recvbuff, count, datatype, root - offset, comm->homo_comm, stream));
-      } else {
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
-            fwdbuff, recvbuff, count, datatype, comm->homo_inter_rank,
-            comm->homo_comm, stream));
+      if (comm->homo_ranks > 1) {
+        if (is_root_cluster) {
+          FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
+              (void *)((char *)sendbuff +
+                       getFlagcxDataTypeSize(datatype) * offset * count),
+              recvbuff, count, datatype, root - offset, comm->homo_comm,
+              stream));
+        } else {
+          FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
+              fwdbuff, recvbuff, count, datatype, comm->homo_inter_rank,
+              comm->homo_comm, stream));
+        }
       }
 
       if (comm->homo_rank == comm->homo_inter_rank && comm->rank != root) {
@@ -877,7 +888,7 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
       }
 
       // cluster w/ the root rank: intra-cluster bcast
-      if (is_root_cluster && comm->homo_inter_rank != root - offset) {
+      if (is_root_cluster && comm->homo_ranks > 1) {
         FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
             sendbuff, recvbuff, count, datatype, root - offset, comm->homo_comm,
             stream));
@@ -911,13 +922,9 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
       deviceAdaptor->streamSynchronize(stream);
 
       // intra-cluster bcast
-      if (!is_root_cluster) {
+      if (!is_root_cluster && comm->homo_ranks > 1) {
         FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
             recvbuff, recvbuff, count, datatype, comm->homo_inter_rank,
-            comm->homo_comm, stream));
-      } else if (comm->homo_inter_rank == root - offset) {
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
-            sendbuff, recvbuff, count, datatype, comm->homo_inter_rank,
             comm->homo_comm, stream));
       }
     }
@@ -982,6 +989,12 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
            timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
+      // c2c validation
+      if (comm->homo_ranks <= 1) {
+        WARN("Flagcx C2C allreduce op only supports comm->homo_ranks > 1");
+        return flagcxNotSupported;
+      }
+
       // op validation
       if (op != flagcxSum && op != flagcxMax && op != flagcxMin) {
         WARN("Unsupported reduction operation %d", op);
@@ -1175,6 +1188,12 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
            timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
+      // c2c validation
+      if (comm->homo_ranks <= 1) {
+        WARN("Flagcx C2C reducescatter op only supports comm->homo_ranks > 1");
+        return flagcxNotSupported;
+      }
+
       // op validation
       if (op != flagcxSum && op != flagcxMax && op != flagcxMin) {
         WARN("Unsupported reduction operation %d", op);
@@ -1317,11 +1336,14 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
       for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
         offset += comm->cluster_sizes[i];
       }
-      FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
-          sendbuff,
-          (void *)((char *)recvbuff +
-                   getFlagcxDataTypeSize(datatype) * offset * sendcount),
-          sendcount, datatype, comm->homo_inter_rank, comm->homo_comm, stream));
+      if (comm->homo_ranks > 1) {
+        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
+            sendbuff,
+            (void *)((char *)recvbuff +
+                     getFlagcxDataTypeSize(datatype) * offset * sendcount),
+            sendcount, datatype, comm->homo_inter_rank, comm->homo_comm,
+            stream));
+      }
 
       // TODO: use stream wait rather than stream sync to avoid cpu blocking
       deviceAdaptor->streamSynchronize(stream);
@@ -1355,9 +1377,11 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
       deviceAdaptor->streamSynchronize(stream);
 
       // intra-cluster broadcast
-      FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
-          recvbuff, recvbuff, sendcount * comm->nranks, datatype,
-          comm->homo_inter_rank, comm->homo_comm, stream));
+      if (comm->homo_ranks > 1) {
+        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
+            recvbuff, recvbuff, sendcount * comm->nranks, datatype,
+            comm->homo_inter_rank, comm->homo_comm, stream));
+      }
     }
   }
   return flagcxSuccess;
@@ -1428,10 +1452,12 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff,
       for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
         offset += comm->cluster_sizes[i];
       }
-      FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(
-          static_cast<const void *>(buffer_in + offset * size),
-          static_cast<void *>(buffer_out + offset * size), count, datatype,
-          comm->homo_comm, stream))
+      if (comm->homo_ranks > 1) {
+        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(
+            static_cast<const void *>(buffer_in + offset * size),
+            static_cast<void *>(buffer_out + offset * size), count, datatype,
+            comm->homo_comm, stream))
+      }
 
       // TODO: use stream wait rather than stream sync to avoid cpu blocking
       deviceAdaptor->streamSynchronize(stream);
