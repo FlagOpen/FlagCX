@@ -129,15 +129,6 @@ RUN cd ${WORK_DIR} && \
     make USE_NVIDIA=1
 
 ##############################################################################
-# Build Test Performance Code
-##############################################################################
-ENV CUDA_HOME=/usr/local/cuda
-ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
-RUN cd ${WORK_DIR}/FlagCX/test/perf && \
-
- make USE_NVIDIA=1
-
-##############################################################################
 # Final Cleanup
 ##############################################################################
 RUN rm -rf ${STAGE_DIR}/*
