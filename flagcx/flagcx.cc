@@ -183,6 +183,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
   (*comm)->homo_rank = -1;
   (*comm)->homo_root_rank = -1;
   (*comm)->homo_ranks = -1;
+  (*comm)->has_single_rank_homo_comm = -1;
   (*comm)->magic = 0;
   (*comm)->abortFlag = 0;
   (*comm)->bootstrap = NULL;
@@ -280,15 +281,29 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
   }
   (*comm)->homo_inter_rank = clusterInterRanks[clusterIdData[rank]] - start;
 
+  // Update comm has_single_rank_homo_comm
+  for (int i = 0; i < (*comm)->nclusters; ++i) {
+    if ((*comm)->cluster_sizes[i] == 1) {
+      (*comm)->has_single_rank_homo_comm = 1;
+    }
+  }
+  if ((*comm)->has_single_rank_homo_comm == -1) {
+    (*comm)->has_single_rank_homo_comm = 0;
+  }
+  if ((*comm)->has_single_rank_homo_comm == 1 && is_homo_comm(*comm)) {
+    // no need to record it for homo comm
+    (*comm)->has_single_rank_homo_comm = 0;
+  }
+
   INFO(FLAGCX_INIT,
        "rank = %d, nranks = %d, nclusters = %d, cluster_id = %d, cluster_size "
        "= %d, cluster_inter_rank = %d, homo_rank = %d, homo_root_rank = %d, "
-       "homo_inter_rank = %d, homo_ranks = %d",
+       "homo_inter_rank = %d, homo_ranks = %d, has_single_rank_homo_comm = %d",
        rank, nranks, (*comm)->nclusters, (*comm)->cluster_ids[rank],
        (*comm)->cluster_sizes[(*comm)->cluster_ids[rank]],
        (*comm)->cluster_inter_ranks[(*comm)->cluster_ids[rank]],
        (*comm)->homo_rank, (*comm)->homo_root_rank, (*comm)->homo_inter_rank,
-       (*comm)->homo_ranks);
+       (*comm)->homo_ranks, (*comm)->has_single_rank_homo_comm);
 
   // Reset commId and homo root rank calls underlying GetUniqueId function for
   // initialization of homo communicator
@@ -329,7 +344,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
         flagcxHeteroCommInitRank(&(*comm)->hetero_comm, nranks, *commId, rank));
 
     // Init host cclAdaptor
-    if (use_host_comm()) {
+    if (use_host_comm() || (*comm)->has_single_rank_homo_comm) {
       FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorHost]->commInitRank(
           &(*comm)->host_comm, nranks, commId, rank, state));
     }
@@ -463,16 +478,14 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
       // TODO: to be implemented.
       return flagcxNotSupported;
     }
-    if (use_host_comm()) {
-      // TODO: to be implemented.
+    if (use_host_comm() || comm->has_single_rank_homo_comm) {
+      // c2c validation
+      if (comm->has_single_rank_homo_comm) {
+        WARN("Host comm is required to perform C2C reduce op when "
+             "comm->has_single_rank_homo_comm is True");
+      }
       return flagcxNotSupported;
     } else {
-      // c2c validation
-      if (comm->homo_ranks <= 1) {
-        WARN("Flagcx C2C reduce op only supports comm->homo_ranks > 1");
-        return flagcxNotSupported;
-      }
-
       // op validation
       if (op != flagcxSum && op != flagcxMax && op != flagcxMin) {
         WARN("Unsupported reduction operation %d", op);
@@ -941,7 +954,13 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
     return cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
         sendbuff, recvbuff, count, datatype, op, comm->homo_comm, stream);
   } else {
-    if (use_host_comm()) {
+    if (use_host_comm() || comm->has_single_rank_homo_comm) {
+      // c2c validation
+      if (comm->has_single_rank_homo_comm) {
+        WARN("Host comm is required to perform C2C allreduce op when "
+             "comm->has_single_rank_homo_comm is True");
+      }
+
       uint64_t timers[TIMERS_COLL_COUNT] = {0};
       timers[TIMER_COLL_TOTAL] = clockNano();
       void *buff_in;
@@ -989,12 +1008,6 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
            timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
-      // c2c validation
-      if (comm->homo_ranks <= 1) {
-        WARN("Flagcx C2C allreduce op only supports comm->homo_ranks > 1");
-        return flagcxNotSupported;
-      }
-
       // op validation
       if (op != flagcxSum && op != flagcxMax && op != flagcxMin) {
         WARN("Unsupported reduction operation %d", op);
@@ -1138,7 +1151,13 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
     return cclAdaptors[flagcxCCLAdaptorDevice]->reduceScatter(
         sendbuff, recvbuff, recvcount, datatype, op, comm->homo_comm, stream);
   } else {
-    if (use_host_comm()) {
+    if (use_host_comm() || comm->has_single_rank_homo_comm) {
+      // c2c validation
+      if (comm->has_single_rank_homo_comm) {
+        WARN("Host comm is required to perform C2C reducescatter op when "
+             "comm->has_single_rank_homo_comm is True");
+      }
+
       uint64_t timers[TIMERS_COLL_COUNT] = {0};
       timers[TIMER_COLL_TOTAL] = clockNano();
       void *buff_in;
@@ -1188,12 +1207,6 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
            timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
-      // c2c validation
-      if (comm->homo_ranks <= 1) {
-        WARN("Flagcx C2C reducescatter op only supports comm->homo_ranks > 1");
-        return flagcxNotSupported;
-      }
-
       // op validation
       if (op != flagcxSum && op != flagcxMax && op != flagcxMin) {
         WARN("Unsupported reduction operation %d", op);
