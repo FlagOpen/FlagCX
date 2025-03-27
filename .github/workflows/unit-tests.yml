@@ -2,6 +2,10 @@
 
 name: UNIT TESTS
 
+concurrency:
+  group: ${{ github.event.pull_request.number }}-${{ github.actor }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [ "main" ]
