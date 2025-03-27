@@ -1,5 +1,4 @@
 #!/bin/bash
-
 TEST_DIR="/workspace/FlagCX"
 BUILD_DIR="$TEST_DIR/build"
 
@@ -29,4 +28,3 @@ if [ $? -ne 0 ]; then
     echo "Test execution failed!"
     exit 1
 fi
-
