@@ -1,0 +1,27 @@
+# Basic examples, adjust according to your own needs
+
+name: UNIT TESTS
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  unit-test:
+    runs-on: self-hosted
+    container:
+      image: localhost:5000/flagscale:cuda-12.4.1-python-3.12-torch-2.5.1-commit-e05f659
+      ports:
+        - 80
+      options: --gpus all --shm-size=500g --hostname flagcx_cicd --user root
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Unit Test
+        run: |
+          echo "Run installation script"
+          echp "Run test script"
+          
