@@ -23,5 +23,5 @@ jobs:
       - name: Run Unit Test
         run: |
           echo "Run installation script"
-          echp "Run test script"
+          echo "Run test script"
           
