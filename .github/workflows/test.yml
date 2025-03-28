@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
-      options: --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+      options: --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
