@@ -34,5 +34,6 @@ jobs:
 
       - name: Run Auto Test Script in Container
         run: |
-          test/scripts/auto_script.sh
+          cd /__w/FlagCX/FlagCX
+          ./test/scripts/auto_script.sh
 
