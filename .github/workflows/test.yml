@@ -35,10 +35,10 @@ jobs:
       - name: Check the current working directory
         run: |
           echo "Current directory: $(pwd)"
-          ls -l test/script
+          ls -l ./test/script
       - name: Run Auto Test Script in Container
         run: |
           cd /__w/FlagCX/FlagCX
-          ./test/scripts/auto_script.sh
+          ./test/script/auto_script.sh
 
 
