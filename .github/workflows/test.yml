@@ -38,7 +38,7 @@ jobs:
           ls -l ./test/script
 
       - name: Ensure script has execute permissions
-        run: chmod +x /__w/FlagCX/FlagCX/test/scripts/auto_script.sh
+        run: chmod +x /__w/FlagCX/FlagCX/test/script/auto_script.sh
 
       - name: Run Auto Test Script in Container
         run: |
