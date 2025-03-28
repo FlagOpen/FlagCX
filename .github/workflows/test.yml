@@ -1,3 +1,4 @@
+# .github/workflows/test.yml
 name: Run Container and Execute Tests
 
 on:
@@ -10,10 +11,10 @@ on:
 
 jobs:
   test-in-container:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
-      image: nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
-      options: --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+      image: localhost:5000/flagscale:cuda-12.4.1-python-3.12-torch-2.5.1-commit-e05f659
+      options: --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -31,19 +32,8 @@ jobs:
           submodules: false
           set-safe-directory: true
 
-      # 调试：检查当前工作目录和文件结构
-      - name: Check the current working directory
-        run: |
-          echo "Current directory: $(pwd)"
-          ls -l
-
-      # 确保脚本有执行权限
-      - name: Ensure script has execute permissions
-        run: chmod +x /__w/FlagCX/FlagCX/test/scripts/auto_script.sh
-
-      # 运行自动化测试脚本
       - name: Run Auto Test Script in Container
         run: |
-          cd /__w/FlagCX/FlagCX
-          ./test/scripts/auto_script.sh
+          test/scripts/auto_script.sh
+
 
