@@ -353,4 +353,42 @@ static flagcxResult_t xmlRemoveNode(struct flagcxXmlNode *node) {
   return flagcxSuccess;
 }
 
+// Dictionary for STR -> INT conversions. No dictionary size information,
+// there needs to be a last element with str == NULL.
+struct kvDict {
+  const char *str;
+  int value;
+};
+
+static flagcxResult_t kvConvertToInt(const char *str, int *value,
+                                     struct kvDict *dict) {
+  struct kvDict *d = dict;
+  while (d->str) {
+    if (strncmp(str, d->str, strlen(d->str)) == 0) {
+      *value = d->value;
+      return flagcxSuccess;
+    }
+    d++;
+  }
+  INFO(FLAGCX_GRAPH,
+       "KV Convert to int : could not find value of '%s' in dictionary, "
+       "falling back to %d",
+       str, d->value);
+  *value = d->value;
+  return flagcxSuccess;
+}
+static flagcxResult_t kvConvertToStr(int value, const char **str,
+                                     struct kvDict *dict) {
+  struct kvDict *d = dict;
+  while (d->str) {
+    if (value == d->value) {
+      *str = d->str;
+      return flagcxSuccess;
+    }
+    d++;
+  }
+  WARN("KV Convert to str : could not find value %d in dictionary", value);
+  return flagcxInternalError;
+}
+
 #endif // FLAGCX_XML_H_
