@@ -1,34 +1,38 @@
-name: Build Docker Image and Run Tests in Container
+# .github/workflows/test.yml
+name: Run Container and Execute Tests
 
 on:
   push:
     branches:
-      - main  
+      - main
   pull_request:
     branches:
-      - main  
+      - main
 
 jobs:
-  build-and-run:
-    runs-on: ubuntu-latest  
-
+  test-in-container:
+    runs-on: ubuntu-latest
+    container:
+      image: nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
+      options: --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          ssh-strict: true
+          ssh-user: git
+          persist-credentials: true
+          clean: true
+          sparse-checkout-cone-mode: true
+          fetch-tags: false
+          show-progress: true
+          lfs: false
+          submodules: false
+          set-safe-directory: true
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build Docker Image
+      - name: Run Auto Test Script in Container
         run: |
-          docker build -f Dockerfile -t flagcx/flagcx:latest . 
+          test/scripts/auto_script.sh
 
-      - name: Run Tests in Docker Container
-        run: |
-          docker run -d  -it --name flagcx-test --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
-          flagcx/flagcx:latest 
-          
-          docker exec flagcx-test bash -c "chmod +x /workspace/FlagCX/test/scripts/auto_script.sh && /workspace/FlagCX/test/scripts/auto_script.sh"
-     
-          docker stop flagcx-test
-          docker rm flagcx-test
