@@ -1,4 +1,3 @@
-# .github/workflows/test.yml
 name: Run Container and Execute Tests
 
 on:
@@ -31,6 +30,15 @@ jobs:
           lfs: false
           submodules: false
           set-safe-directory: true
+
+      - name: Ensure script has execute permissions
+        run: chmod +x /__w/FlagCX/FlagCX/test/scripts/auto_script.sh
+
+      - name: Check directory structure in container
+        run: |
+          cd /__w/FlagCX/FlagCX
+          echo "Current directory: $(pwd)"
+          ls -l test/scripts
 
       - name: Run Auto Test Script in Container
         run: |
