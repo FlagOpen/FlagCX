@@ -35,7 +35,7 @@ jobs:
       - name: Check the current working directory
         run: |
           echo "Current directory: $(pwd)"
-          ls -l /test
+          ls -l test
       - name: Run Auto Test Script in Container
         run: |
           test/scripts/auto_script.sh
