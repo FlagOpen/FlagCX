@@ -120,6 +120,13 @@ flagcxResult_t flagcxTopoConnectNodes(struct flagcxTopoNode *node,
   return flagcxSuccess;
 }
 
+flagcxResult_t flagcxTopoFlattenBcmSwitches(struct flagcxTopoServer *server) {
+  /*
+  TODO(xinlong): implement this function
+  */
+  return flagcxSuccess;
+}
+
 // flagcxResult_t getLocalNetCountByBw(struct flagcxTopoServer* system, int gpu,
 // int *count) {
 //   int localNetCount = 0, netCountByBw = 0;
@@ -457,11 +464,14 @@ flagcxResult_t flagcxTopoAddNet(struct flagcxXmlNode *xmlNet,
   FLAGCXCHECK(flagcxTopoCreateNode(topoServer, &net, NET,
                                    FLAGCX_TOPO_ID(serverId, dev)));
   net->net.dev = dev;
-  // NCCL gets the net device's guid here, but we can't guarantee that net
-  // device from all vendors have guid we'll use the net device's index for now
-
-  // TODO: add other attributes of this net device here, like speed, latency
-  // etc.
+  /*
+  TODO(xinlong): set properties of net node in server topo
+  - guid
+  - speed
+  - latency
+  - port
+  - maxConn
+  */
 
   FLAGCXCHECK(flagcxTopoConnectNodes(nic, net, LINK_NET, 0));
   FLAGCXCHECK(flagcxTopoConnectNodes(net, nic, LINK_NET, 0));
@@ -562,7 +572,9 @@ flagcxResult_t flagcxTopoAddPci(struct flagcxXmlNode *xmlPci,
   }
 
   if (node) {
-    // TODO: add bw and speed in the future
+    /*
+    TODO(xinlong): get link bandwidth from link_width and link_speed attributes
+    */
     FLAGCXCHECK(flagcxTopoConnectNodes(node, parent, LINK_PCI, 0));
     FLAGCXCHECK(flagcxTopoConnectNodes(parent, node, LINK_PCI, 0));
   }
@@ -650,6 +662,7 @@ flagcxTopoGetServerTopoFromXml(struct flagcxXml *xml,
   }
 
   // TODO: add CCI links, connect cpu nodes etc.
+  FLAGCXCHECK(flagcxTopoFlattenBcmSwitches(*topoServer));
 
   return flagcxSuccess;
 }
@@ -763,6 +776,15 @@ flagcxResult_t flagcxTopoGetServerTopo(struct flagcxHeteroComm *comm,
     FLAGCXCHECK(flagcxNetIb.getProperties(n, &props));
     struct flagcxXmlNode *netNode;
     FLAGCXCHECK(flagcxTopoFillNet(xml, props.pciPath, props.name, &netNode));
+    /*
+    TODO(xinlong): set net device's properties here
+    - speed
+    - latency
+    - port
+    - guid
+    - dev
+    - maxConn
+    */
   }
 
   if (comm->rank == 0) {
