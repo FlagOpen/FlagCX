@@ -161,6 +161,38 @@ flagcxResult_t mluAdaptorLaunchHostFunc(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
+flagcxResult_t mluAdaptorGetDeviceProperties(struct flagcxDevProps *props,
+                                              int dev) {
+  if (props == NULL) {
+    return flagcxInvalidArgument;
+  }
+  cnrtDeviceProp_t devProp;
+  DEVCHECK(cnrtGetDeviceProperties(&devProp, dev));
+
+  strncpy(props->name, devProp.name, sizeof(props->name) - 1);
+  props->name[sizeof(props->name) - 1] = '\0';
+  props->pciBusId = devProp.pciBusID;
+  props->pciDeviceId = devProp.pciDeviceID;
+  props->pciDomainId = devProp.pciDomainID;
+
+  return flagcxSuccess;
+}
+
+flagcxResult_t mluAdaptorGetDevicePciBusId(char *pciBusId, int len, int dev) {
+  if (pciBusId == NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(cnrtDeviceGetPCIBusId(pciBusId, len, dev));
+  return flagcxSuccess;
+}
+
+flagcxResult_t mluAdaptorGetDeviceByPciBusId(int *dev, const char *pciBusId) {
+  if (dev == NULL || pciBusId == NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(cnrtDeviceGetByPCIBusId(dev, pciBusId));
+  return flagcxSuccess;
+}
 struct flagcxDeviceAdaptor mluAdaptor {
   "MLU",
       // Basic functions
@@ -186,12 +218,13 @@ struct flagcxDeviceAdaptor mluAdaptor {
       NULL, // flagcxResult_t (*copyArgsInit)(void **args);
       NULL, // flagcxResult_t (*copyArgsFree)(void *args);
       // Others
-      NULL, // flagcxResult_t (*getDeviceProperties)(struct flagcxDevProps
-            // *props, int dev);
-      NULL, // flagcxResult_t (*getDevicePciBusId)(char *pciBusId, int len, int
-            // dev);
-      NULL, // flagcxResult_t (*getDeviceByPciBusId)(int *dev, const char
-            // *pciBusId);
+      mluAdaptorGetDeviceProperties, // flagcxResult_t (*getDeviceProperties)(struct flagcxDevProps
+                                     // *props, int dev);
+      mluAdaptorGetDevicePciBusId, // flagcxResult_t (*getDevicePciBusId)(char 
+                                   // *pciBusId, int len, int dev);
+      mluAdaptorGetDeviceByPciBusId, // flagcxResult_t 
+                                     // (*getDeviceByPciBusId)(int
+                                     // *dev, const char *pciBusId);
       mluAdaptorLaunchHostFunc
 };
 
