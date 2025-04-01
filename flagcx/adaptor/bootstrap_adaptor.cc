@@ -83,14 +83,6 @@ flagcxResult_t bootstrapAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
   return flagcxNotSupported;
 }
 
-// TODO: unsupported
-flagcxResult_t bootstrapAdaptorReduce(const void *sendbuff, void *recvbuff,
-                                      size_t count, flagcxDataType_t datatype,
-                                      flagcxRedOp_t op, int root,
-                                      flagcxInnerComm_t comm,
-                                      flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
-}
 
 // TODO: unsupported
 flagcxResult_t bootstrapAdaptorGather(const void *sendbuff, void *recvbuff,
@@ -121,6 +113,13 @@ flagcxResult_t bootstrapAdaptorAllReduce(const void *sendbuff, void *recvbuff, s
                                         flagcxDataType_t datatype, flagcxRedOp_t op,
                                         flagcxInnerComm_t comm, flagcxStream_t /*stream*/) {
   FLAGCXCHECK(AllReduceBootstrap(comm->base, sendbuff, recvbuff, count, datatype, op));
+  return flagcxSuccess;
+}
+
+flagcxResult_t bootstrapAdaptorReduce(const void *sendbuff, void *recvbuff, size_t count,
+                                        flagcxDataType_t datatype, flagcxRedOp_t op, int root,
+                                        flagcxInnerComm_t comm, flagcxStream_t /*stream*/) {
+  FLAGCXCHECK(ReduceBootstrap(comm->base, sendbuff, recvbuff, count, datatype, op, root));
   return flagcxSuccess;
 }
 

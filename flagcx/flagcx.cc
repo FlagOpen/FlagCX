@@ -484,7 +484,56 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
         WARN("Host comm is required to perform C2C reduce op when "
              "comm->has_single_rank_homo_comm is True");
       }
-      return flagcxNotSupported;
+      uint64_t timers[TIMERS_COLL_COUNT] = {0};
+      timers[TIMER_COLL_TOTAL] = clockNano();
+      void *buff_in;
+      void *buff_out;
+      size_t size = count * getFlagcxDataTypeSize(datatype);
+
+      // step 1: malloc host buffer
+      timers[TIMER_COLL_ALLOC] = clockNano();
+      deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost, NULL);
+      deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost, NULL);
+      timers[TIMER_COLL_ALLOC] = clockNano() - timers[TIMER_COLL_ALLOC];
+
+      // step 2: memcpy d2h
+      timers[TIMER_COLL_MEM_D2H] = clockNano();
+      deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff), size,
+                                  flagcxMemcpyDeviceToHost, NULL, NULL);
+      timers[TIMER_COLL_MEM_D2H] = clockNano() - timers[TIMER_COLL_MEM_D2H];
+
+      // step 3: reduce
+      timers[TIMER_COLL_COMM] = clockNano();
+      cclAdaptors[flagcxCCLAdaptorHost]->reduce(
+          buff_in, buff_out, count, datatype, op, root, comm->host_comm, NULL);
+      timers[TIMER_COLL_COMM] = clockNano() - timers[TIMER_COLL_COMM];
+
+      // step 4: memcpy h2d
+      timers[TIMER_COLL_MEM_H2D] = clockNano();
+      if(comm->rank == root) {
+        deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size,
+                                  flagcxMemcpyHostToDevice, NULL, NULL);
+      }
+      timers[TIMER_COLL_MEM_H2D] = clockNano() - timers[TIMER_COLL_MEM_H2D];
+
+      // step 5: free host buffer
+      timers[TIMER_COLL_FREE] = clockNano();
+      deviceAdaptor->deviceFree(buff_in, flagcxMemHost, NULL);
+      deviceAdaptor->deviceFree(buff_out, flagcxMemHost, NULL);
+      timers[TIMER_COLL_FREE] = clockNano() - timers[TIMER_COLL_FREE];
+
+      timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
+      INFO(FLAGCX_COLL,
+           "Flagcx timings - %s AllReduce: rank %d nranks %d total %.2fms "
+           "(memory alloc "
+           "%.2fms, memory free %.2fms, memory d2h %.2fms, memory h2d %.2fms, "
+           "comm %.2fms)",
+           cclAdaptors[flagcxCCLAdaptorHost]->name, comm->rank, comm->nranks,
+           timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6,
+           timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
+           timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
+
+      return flagcxSuccess;
     } else {
       // op validation
       if (op != flagcxSum && op != flagcxMax && op != flagcxMin) {

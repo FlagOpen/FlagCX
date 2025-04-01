@@ -653,6 +653,56 @@ flagcxResult_t bootstrapRingAllReduce(struct flagcxSocket* prevSocket, struct fl
   return flagcxSuccess;
 }
 
+flagcxResult_t bootstrapRingReduce(void* commState, struct flagcxSocket* prevSocket, struct flagcxSocket* nextSocket, int rank, int nranks,
+  const char* sendbuff, char* recvbuff, size_t count, flagcxDataType_t datatype, flagcxRedOp_t op, int root) {
+
+  // The ring algorithm works as follows.
+  //
+  // The given input is split into a number of chunks equal to the
+  // number of processes. Once the reducescatter has finished, every
+  // process hosts one chunk of reduced output, in sequential order
+  // (rank 0 has chunk 0, rank 1 has chunk 1, etc.). As the input may
+  // not be divisible by the number of processes, the chunk on the
+  // final ranks may have partial output or may be empty.
+  //
+
+  size_t size = count * getFlagcxDataTypeSize(datatype);
+  size_t ChunkBytes = std::max((size+nranks-1)/nranks, MIN_CHUNK_SIZE);
+  // Ensure that min chunk size is a multiple of the element size.
+  ChunkBytes = roundUp(ChunkBytes, getFlagcxDataTypeSize(datatype));
+  INFO(FLAGCX_COLL, "rank %d nranks %d; size=%lu; typesize=%lu; ChunkBytes=%lu", rank, nranks, size, getFlagcxDataTypeSize(datatype), ChunkBytes);
+
+  // step 1: split the data and prepare offset and length array
+  std::vector<size_t> offset(nranks, 0);
+  std::vector<size_t> length(nranks, 0);
+  for (size_t i = 0; i < nranks; ++i) {
+    if (ChunkBytes * i >= size) {
+      offset[i] = size;
+      length[i] = 0;
+      continue;
+    }
+    offset[i] = ChunkBytes * i;
+    length[i] = ChunkBytes * (i + 1) >= size ? size - ChunkBytes * i : ChunkBytes;
+  }
+
+  // step 2: reduce scatter
+  FLAGCXCHECK(bootstrapRingReduceScatter(prevSocket, nextSocket, rank, nranks, sendbuff, recvbuff + offset[rank], offset.data(), length.data(), datatype, op));
+
+  // step 3: gather
+  const int bootstrapTag = -9993;
+  if(rank == root){
+    for(int i = 0; i < nranks; i++){
+      if(i == rank) continue;
+      FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag, recvbuff + offset[i], length[i]));
+    }
+  }
+  else{
+    FLAGCXCHECK(bootstrapSend(commState, root, bootstrapTag, recvbuff + offset[rank], length[rank]));
+  }
+
+  return flagcxSuccess;
+}
+
 flagcxResult_t AllReduceBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t count,
                                   flagcxDataType_t datatype, flagcxRedOp_t op) {
   struct bootstrapState* state = (struct bootstrapState*)commState;
@@ -667,6 +717,23 @@ flagcxResult_t AllReduceBootstrap(void* commState, const void* sendbuff, void* r
   FLAGCXCHECK(bootstrapRingAllReduce(&state->ringRecvSocket, &state->ringSendSocket, rank, nranks,
                                     (char*)sendbuff, (char*)recvbuff, count, datatype, op));
 
+  return flagcxSuccess;
+}
+
+flagcxResult_t ReduceBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t count,
+                                flagcxDataType_t datatype, flagcxRedOp_t op, int root) {
+  struct bootstrapState* state = (struct bootstrapState*)commState;
+  int rank = state->rank;
+  int nranks = state->nranks;
+  
+  if (nranks == 1) {
+    if (sendbuff != recvbuff) {
+      memcpy(recvbuff, sendbuff, count * getFlagcxDataTypeSize(datatype));
+    }
+    return flagcxSuccess;
+  }
+  FLAGCXCHECK(bootstrapRingReduce(commState, &state->ringRecvSocket, &state->ringSendSocket, rank, nranks,
+      (char*)sendbuff, (char*)recvbuff, count, datatype, op, root));
   return flagcxSuccess;
 }
 
