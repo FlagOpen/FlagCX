@@ -184,6 +184,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
   (*comm)->homo_root_rank = -1;
   (*comm)->homo_ranks = -1;
   (*comm)->has_single_rank_homo_comm = -1;
+  (*comm)->support_multi_nic = -1;
   (*comm)->magic = 0;
   (*comm)->abortFlag = 0;
   (*comm)->bootstrap = NULL;
@@ -295,15 +296,22 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     (*comm)->has_single_rank_homo_comm = 0;
   }
 
+  char *enableMultiNicSupport = getenv("FLAGCX_ENABLE_MULTI_NIC_SUPPORT");
+  if (enableMultiNicSupport) {
+    (*comm)->support_multi_nic = std::stoi(enableMultiNicSupport);
+  }
+
   INFO(FLAGCX_INIT,
        "rank = %d, nranks = %d, nclusters = %d, cluster_id = %d, cluster_size "
        "= %d, cluster_inter_rank = %d, homo_rank = %d, homo_root_rank = %d, "
-       "homo_inter_rank = %d, homo_ranks = %d, has_single_rank_homo_comm = %d",
+       "homo_inter_rank = %d, homo_ranks = %d, has_single_rank_homo_comm = %d, "
+       "support_multi_nic = %d",
        rank, nranks, (*comm)->nclusters, (*comm)->cluster_ids[rank],
        (*comm)->cluster_sizes[(*comm)->cluster_ids[rank]],
        (*comm)->cluster_inter_ranks[(*comm)->cluster_ids[rank]],
        (*comm)->homo_rank, (*comm)->homo_root_rank, (*comm)->homo_inter_rank,
-       (*comm)->homo_ranks, (*comm)->has_single_rank_homo_comm);
+       (*comm)->homo_ranks, (*comm)->has_single_rank_homo_comm,
+       (*comm)->support_multi_nic);
 
   // Reset commId and homo root rank calls underlying GetUniqueId function for
   // initialization of homo communicator
@@ -510,9 +518,9 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
 
       // step 4: memcpy h2d
       timers[TIMER_COLL_MEM_H2D] = clockNano();
-      if(comm->rank == root) {
+      if (comm->rank == root) {
         deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size,
-                                  flagcxMemcpyHostToDevice, NULL, NULL);
+                                    flagcxMemcpyHostToDevice, NULL, NULL);
       }
       timers[TIMER_COLL_MEM_H2D] = clockNano() - timers[TIMER_COLL_MEM_H2D];
 
@@ -1063,7 +1071,7 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
         return flagcxInvalidArgument;
       }
 
-      if (comm->homo_inter_rank >= 0) {
+      if (comm->support_multi_nic < 0) {
         // intra-cluster reduce
         FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(
             sendbuff, recvbuff, count, datatype, op, comm->homo_inter_rank,
@@ -1268,7 +1276,7 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
       size_t size = count * getFlagcxDataTypeSize(datatype);
       deviceAdaptor->deviceMalloc(&tmpbuff, size, flagcxMemDevice, stream);
 
-      if (comm->homo_inter_rank >= 0) {
+      if (comm->support_multi_nic < 0) {
         // intra-cluster reduce
         FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(
             sendbuff, tmpbuff, count, datatype, op, comm->homo_inter_rank,
@@ -1473,7 +1481,7 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
         offset += comm->cluster_sizes[i];
       }
 
-      if (comm->homo_inter_rank >= 0) {
+      if (comm->support_multi_nic < 0) {
         // intra-cluster gather
         if (comm->homo_ranks > 1) {
           FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
