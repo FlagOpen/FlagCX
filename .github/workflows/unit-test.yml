@@ -38,7 +38,8 @@ jobs:
 
       - name: Enter test/unittest and run `make` for unit tests
         run: |
-          cd /__w/FlagCX/FlagCX/test/unittest  
+          cd /__w/FlagCX/FlagCX/test/unittest 
+          export MPI_HOME=/usr/local/mpi 
           make
 
       - name: Run unit tests with mpirun
