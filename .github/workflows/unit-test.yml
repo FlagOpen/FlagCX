@@ -27,15 +27,11 @@ jobs:
           fetch-tags: false
           show-progress: true
           lfs: false
-          submodules: false
+          submodules: true
           set-safe-directory: true
-      - name: Initialize and update submodules
+      - name: Check the current working directory
         run: |
-          apt-get update -y
-          apt-get install  -y git cmake
-          ls -l /__w/FlagCX/FlagCX/external/googletest
-          cd /__w/FlagCX/FlagCX
-          git submodule update --init --recursive
+          ls -l ./external/googletest
 
       - name: Build Google Test
         run: |
