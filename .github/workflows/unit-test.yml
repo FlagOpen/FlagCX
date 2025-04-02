@@ -27,8 +27,13 @@ jobs:
           fetch-tags: false
           show-progress: true
           lfs: false
-          submodules: false
+          submodules: true
           set-safe-directory: true
+      - name: Initialize and update submodules
+        run: |
+          cd /__w/FlagCX/FlagCX
+          git submodule update --init --recursive  
+
       - name: Build Google Test
         run: |
           cd /__w/FlagCX/FlagCX/external/googletest
