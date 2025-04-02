@@ -29,6 +29,13 @@ jobs:
           lfs: false
           submodules: false
           set-safe-directory: true
+      - name: Build Google Test
+        run: |
+          cd /__w/FlagCX/FlagCX/external/googletest
+          mkdir -p build
+          cd build
+          cmake ..
+          make
 
       - name: Run `make` to build the project
         run: |
