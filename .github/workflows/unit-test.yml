@@ -55,5 +55,6 @@ jobs:
 
       - name: Run unit tests with mpirun
         run: |
+          cd /__w/FlagCX/FlagCX/test/unittest
           mpirun -np 8 ./build/bin/main  
 
