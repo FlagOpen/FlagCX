@@ -10,10 +10,10 @@ on:
 
 jobs:
   unit-test:
-    runs-on: self-hosted 
+    runs-on:  ubuntu-latest
     container:
-      image: localhost:5000/flagscale:cuda-12.4.1-python-3.12-torch-2.5.1-commit-e05f659
-      options: --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+      image: nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
+      options:  --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -27,11 +27,12 @@ jobs:
           fetch-tags: false
           show-progress: true
           lfs: false
-          submodules: true
+          submodules: false
           set-safe-directory: true
       - name: Initialize and update submodules
         run: |
           cd /__w/FlagCX/FlagCX
+          ls -l external/googletest
           git submodule update --init --recursive  
 
       - name: Build Google Test
