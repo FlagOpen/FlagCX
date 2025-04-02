@@ -31,8 +31,8 @@ jobs:
           set-safe-directory: true
       - name: Initialize and update submodules
         run: |
-          sudo apt-get update -y
-          sudo apt-get install  -y git cmake
+          apt-get update -y
+          apt-get install  -y git cmake
           ls -l /__w/FlagCX/FlagCX/external/googletest
           cd /__w/FlagCX/FlagCX
           git submodule update --init --recursive
