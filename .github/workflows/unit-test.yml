@@ -27,7 +27,7 @@ jobs:
           fetch-tags: false
           show-progress: true
           lfs: false
-          submodules: false
+          submodules: true
           set-safe-directory: true
       - name: Initialize and update submodules
         run: |
