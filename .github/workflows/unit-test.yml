@@ -31,9 +31,8 @@ jobs:
           set-safe-directory: true
       - name: Initialize and update submodules
         run: |
-          cd /__w/FlagCX/FlagCX
-          ls -l external/googletest
-          git submodule update --init --recursive  
+          cd /__w/FlagCX/FlagCX/external/googletest
+          ls 
 
       - name: Build Google Test
         run: |
