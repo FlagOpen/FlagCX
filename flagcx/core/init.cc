@@ -118,8 +118,8 @@ static flagcxResult_t initTransportsRank(flagcxHeteroComm_t comm,
     }
   }
 
-  // INFO(FLAGCX_INIT, "start flagcxTopoGetServerTopo");
-  // FLAGCXCHECKGOTO(flagcxTopoGetServerTopo(comm, &comm->topo), ret, fail);
+  INFO(FLAGCX_INIT, "start flagcxTopoGetServerTopo");
+  FLAGCXCHECKGOTO(flagcxTopoGetServerTopo(comm, &comm->topo), ret, fail);
   INFO(FLAGCX_INIT, "start getting local net from gpu");
   FLAGCXCHECKGOTO(flagcxGetLocalNetFromGpu(comm->cudaDev, &comm->netDev, comm),
                   ret, fail);
