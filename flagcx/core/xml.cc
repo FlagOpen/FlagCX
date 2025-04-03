@@ -378,9 +378,8 @@ flagcxResult_t flagcxTopoGetXmlFromSys(struct flagcxXmlNode *pciNode,
       flagcxTopoSetAttrFromSys(pciNode, path, "subsystem_device",
                                "subsystem_device");
   }
-  /*
-  TODO(xinlong): get link speed and link width of PCI link
-  */
+  flagcxTopoSetAttrFromSys(pciNode, path, "max_link_speed", "link_speed");
+  flagcxTopoSetAttrFromSys(pciNode, path, "max_link_width", "link_width");
 
   struct flagcxXmlNode *parent = pciNode->parent;
   if (parent == NULL) {

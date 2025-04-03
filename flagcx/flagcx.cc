@@ -518,9 +518,9 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
 
       // step 4: memcpy h2d
       timers[TIMER_COLL_MEM_H2D] = clockNano();
-      if (comm->rank == root) {
+      if(comm->rank == root) {
         deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size,
-                                    flagcxMemcpyHostToDevice, NULL, NULL);
+                                  flagcxMemcpyHostToDevice, NULL, NULL);
       }
       timers[TIMER_COLL_MEM_H2D] = clockNano() - timers[TIMER_COLL_MEM_H2D];
 
