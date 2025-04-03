@@ -1,0 +1,60 @@
+name: Unit Tests in Container
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  unit-test:
+    runs-on: self-hosted
+    container:
+      image: localhost:5000/flagscale:cuda-12.4.1-python-3.12-torch-2.5.1-commit-e05f659
+      options: --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          ssh-strict: true
+          ssh-user: git
+          persist-credentials: true
+          clean: true
+          fetch-tags: false
+          show-progress: true
+          lfs: false
+          submodules: true
+          set-safe-directory: true
+      - name: Check the current working directory
+        run: |
+          ls -l ./external/googletest
+
+      - name: Build Google Test
+        run: |
+          cd /__w/FlagCX/FlagCX/external/googletest
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+
+      - name: Run `make` to build the project
+        run: |
+          cd /__w/FlagCX/FlagCX  
+          export MPI_HOME=/usr/local/mpi
+          make USE_NVIDIA=1  
+
+      - name: Enter test/unittest and run `make` for unit tests
+        run: |
+          cd /__w/FlagCX/FlagCX/test/unittest 
+          export MPI_HOME=/usr/local/mpi 
+          make
+
+      - name: Run unit tests with mpirun
+        run: |
+          cd /__w/FlagCX/FlagCX/test/unittest
+          mpirun -np 8 ./build/bin/main  
+
