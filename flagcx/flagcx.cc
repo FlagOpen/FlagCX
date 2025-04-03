@@ -63,6 +63,11 @@ static struct flagcxDeviceHandle globalDeviceHandle {
       deviceAdaptor->streamCreate, deviceAdaptor->streamDestroy,
       deviceAdaptor->streamCopy, deviceAdaptor->streamFree,
       deviceAdaptor->streamSynchronize, deviceAdaptor->streamQuery,
+      deviceAdaptor->streamWaitEvent,
+      // Event functions
+      deviceAdaptor->eventCreate, deviceAdaptor->eventDestroy,
+      deviceAdaptor->eventRecord, deviceAdaptor->eventSynchronize,
+      deviceAdaptor->eventQuery,
 };
 
 flagcxResult_t flagcxEnsureCommReady(flagcxComm_t comm) {
@@ -532,7 +537,7 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
 
       timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
       INFO(FLAGCX_COLL,
-           "Flagcx timings - %s AllReduce: rank %d nranks %d total %.2fms "
+           "Flagcx timings - %s Reduce: rank %d nranks %d total %.2fms "
            "(memory alloc "
            "%.2fms, memory free %.2fms, memory d2h %.2fms, memory h2d %.2fms, "
            "comm %.2fms)",

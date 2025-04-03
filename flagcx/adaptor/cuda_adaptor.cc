@@ -170,6 +170,67 @@ flagcxResult_t cudaAdaptorStreamQuery(flagcxStream_t stream) {
   return res;
 }
 
+flagcxResult_t cudaAdaptorStreamWaitEvent(flagcxStream_t stream,
+                                          flagcxEvent_t event) {
+  if (stream != NULL && event != NULL) {
+    DEVCHECK(
+        cudaStreamWaitEvent(stream->base, event->base, cudaEventWaitDefault));
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorEventCreate(flagcxEvent_t *event) {
+  (*event) = NULL;
+  flagcxCalloc(event, 1);
+  DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
+                                    cudaEventDisableTiming));
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorEventDestroy(flagcxEvent_t event) {
+  if (event != NULL) {
+    DEVCHECK(cudaEventDestroy(event->base));
+    free(event);
+    event = NULL;
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorEventRecord(flagcxEvent_t event,
+                                      flagcxStream_t stream) {
+  if (event != NULL) {
+    if (stream != NULL) {
+      DEVCHECK(cudaEventRecordWithFlags(event->base, stream->base,
+                                        cudaEventRecordDefault));
+    } else {
+      DEVCHECK(cudaEventRecordWithFlags(event->base));
+    }
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorEventSynchronize(flagcxEvent_t event) {
+  if (event != NULL) {
+    DEVCHECK(cudaEventSynchronize(event->base));
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorEventQuery(flagcxEvent_t event) {
+  flagcxResult_t res = flagcxSuccess;
+  if (event != NULL) {
+    cudaError error = cudaEventQuery(event->base);
+    if (error == cudaSuccess) {
+      res = flagcxSuccess;
+    } else if (error == cudaErrorNotReady) {
+      res = flagcxInProgress;
+    } else {
+      res = flagcxUnhandledDeviceError;
+    }
+  }
+  return res;
+}
+
 flagcxResult_t cudaAdaptorLaunchHostFunc(flagcxStream_t stream,
                                          void (*fn)(void *), void *args) {
   if (stream != NULL) {
@@ -231,7 +292,10 @@ struct flagcxDeviceAdaptor cudaAdaptor {
       // Stream functions
       cudaAdaptorStreamCreate, cudaAdaptorStreamDestroy, cudaAdaptorStreamCopy,
       cudaAdaptorStreamFree, cudaAdaptorStreamSynchronize,
-      cudaAdaptorStreamQuery,
+      cudaAdaptorStreamQuery, cudaAdaptorStreamWaitEvent,
+      // Event functions
+      cudaAdaptorEventCreate, cudaAdaptorEventDestroy, cudaAdaptorEventRecord,
+      cudaAdaptorEventSynchronize, cudaAdaptorEventQuery,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,

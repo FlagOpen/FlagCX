@@ -78,6 +78,8 @@ typedef flagcxUniqueId *flagcxUniqueId_t;
 typedef struct flagcxComm *flagcxComm_t;
 /* Opaque handle to flagcxStream */
 typedef struct flagcxStream *flagcxStream_t;
+/* Opaque handle to flagcxEvent */
+typedef struct flagcxEvent *flagcxEvent_t;
 
 struct flagcxDeviceHandle {
   // Basic functions
@@ -102,6 +104,13 @@ struct flagcxDeviceHandle {
   flagcxResult_t (*streamFree)(flagcxStream_t stream);
   flagcxResult_t (*streamSynchronize)(flagcxStream_t stream);
   flagcxResult_t (*streamQuery)(flagcxStream_t stream);
+  flagcxResult_t (*streamWaitEvent)(flagcxStream_t stream, flagcxEvent_t event);
+  // Event functions
+  flagcxResult_t (*eventCreate)(flagcxEvent_t *event);
+  flagcxResult_t (*eventDestroy)(flagcxEvent_t event);
+  flagcxResult_t (*eventRecord)(flagcxEvent_t event, flagcxStream_t stream);
+  flagcxResult_t (*eventSynchronize)(flagcxEvent_t event);
+  flagcxResult_t (*eventQuery)(flagcxEvent_t event);
 };
 typedef struct flagcxDeviceHandle *flagcxDeviceHandle_t;
 

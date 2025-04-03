@@ -162,7 +162,7 @@ flagcxResult_t mluAdaptorLaunchHostFunc(flagcxStream_t stream,
 }
 
 flagcxResult_t mluAdaptorGetDeviceProperties(struct flagcxDevProps *props,
-                                              int dev) {
+                                             int dev) {
   if (props == NULL) {
     return flagcxInvalidArgument;
   }
@@ -210,6 +210,9 @@ struct flagcxDeviceAdaptor mluAdaptor {
       // Stream functions
       mluAdaptorStreamCreate, mluAdaptorStreamDestroy, mluAdaptorStreamCopy,
       mluAdaptorStreamFree, mluAdaptorStreamSynchronize, mluAdaptorStreamQuery,
+      NULL,
+      // Event functions
+      NULL, NULL, NULL, NULL, NULL,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,
@@ -218,11 +221,12 @@ struct flagcxDeviceAdaptor mluAdaptor {
       NULL, // flagcxResult_t (*copyArgsInit)(void **args);
       NULL, // flagcxResult_t (*copyArgsFree)(void *args);
       // Others
-      mluAdaptorGetDeviceProperties, // flagcxResult_t (*getDeviceProperties)(struct flagcxDevProps
-                                     // *props, int dev);
-      mluAdaptorGetDevicePciBusId, // flagcxResult_t (*getDevicePciBusId)(char 
-                                   // *pciBusId, int len, int dev);
-      mluAdaptorGetDeviceByPciBusId, // flagcxResult_t 
+      mluAdaptorGetDeviceProperties, // flagcxResult_t
+                                     // (*getDeviceProperties)(struct
+                                     // flagcxDevProps *props, int dev);
+      mluAdaptorGetDevicePciBusId,   // flagcxResult_t (*getDevicePciBusId)(char
+                                     // *pciBusId, int len, int dev);
+      mluAdaptorGetDeviceByPciBusId, // flagcxResult_t
                                      // (*getDeviceByPciBusId)(int
                                      // *dev, const char *pciBusId);
       mluAdaptorLaunchHostFunc

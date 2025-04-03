@@ -1,24 +1,30 @@
 #ifdef USE_NVIDIA_ADAPTOR
 
-#include "nccl.h"
-#include "flagcx.h"
-#include "comm.h"
-#include "alloc.h"
 #include "adaptor.h"
-#include <map>
+#include "alloc.h"
+#include "comm.h"
+#include "flagcx.h"
+#include "nccl.h"
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <map>
 struct flagcxInnerComm {
-    ncclComm_t base;
+  ncclComm_t base;
 };
 
 struct flagcxStream {
-    cudaStream_t base;
+  cudaStream_t base;
 };
 
-#define DEVCHECK(func) {                                         \
-   int ret = func;                                               \
-   if(ret != cudaSuccess) return flagcxUnhandledDeviceError;     \
-}
+struct flagcxEvent {
+  cudaEvent_t base;
+};
+
+#define DEVCHECK(func)                                                         \
+  {                                                                            \
+    int ret = func;                                                            \
+    if (ret != cudaSuccess)                                                    \
+      return flagcxUnhandledDeviceError;                                       \
+  }
 
 #endif // USE_NVIDIA_ADAPTOR

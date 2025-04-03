@@ -2,25 +2,31 @@
 #ifndef SRC_ADAPTOR_API_MLU_ADAPTOR_H
 #define SRC_ADAPTOR_API_MLU_ADAPTOR_H
 
+#include "adaptor.h"
+#include "alloc.h"
 #include "cncl.h"
 #include "cnrt.h"
-#include "flagcx.h"
 #include "comm.h"
-#include "alloc.h"
-#include "adaptor.h"
+#include "flagcx.h"
 #include <map>
 struct flagcxInnerComm {
-    cnclComm_t base;
+  cnclComm_t base;
 };
 
 struct flagcxStream {
-    cnrtQueue_t base;
+  cnrtQueue_t base;
 };
 
-#define DEVCHECK(func) {                                         \
-   int ret = func;                                               \
-   if(ret != cnrtSuccess) return flagcxUnhandledDeviceError;     \
-}
+struct flagcxEvent {
+  cnrtNotifier_t base;
+};
 
-#endif //SRC_ADAPTOR_API_MLU_ADAPTOR_H
+#define DEVCHECK(func)                                                         \
+  {                                                                            \
+    int ret = func;                                                            \
+    if (ret != cnrtSuccess)                                                    \
+      return flagcxUnhandledDeviceError;                                       \
+  }
+
+#endif // SRC_ADAPTOR_API_MLU_ADAPTOR_H
 #endif // USE_CAMBRICON_ADAPTOR
