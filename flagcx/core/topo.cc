@@ -56,6 +56,33 @@ flagcxResult_t flagcxTopoGetLocal(struct flagcxTopoServer *system, int type,
   return flagcxSuccess;
 }
 
+static flagcxResult_t flagcxTopoGetInterCpuBw(struct flagcxTopoNode *cpu,
+                                              float *bw) {
+  *bw = LOC_BW;
+  if (cpu->cpu.arch == FLAGCX_TOPO_CPU_ARCH_POWER) {
+    *bw = P9_BW;
+    return flagcxSuccess;
+  }
+  if (cpu->cpu.arch == FLAGCX_TOPO_CPU_ARCH_ARM) {
+    *bw = ARM_BW;
+    return flagcxSuccess;
+  }
+  if (cpu->cpu.arch == FLAGCX_TOPO_CPU_ARCH_X86 &&
+      cpu->cpu.vendor == FLAGCX_TOPO_CPU_VENDOR_INTEL) {
+    *bw = cpu->cpu.model == FLAGCX_TOPO_CPU_TYPE_SKL ? SKL_QPI_BW : QPI_BW;
+  }
+  if (cpu->cpu.arch == FLAGCX_TOPO_CPU_ARCH_X86 &&
+      cpu->cpu.vendor == FLAGCX_TOPO_CPU_VENDOR_AMD) {
+    *bw = AMD_BW;
+  }
+  if (cpu->cpu.arch == FLAGCX_TOPO_CPU_ARCH_X86 &&
+      cpu->cpu.vendor == FLAGCX_TOPO_CPU_VENDOR_ZHAOXIN) {
+    *bw = cpu->cpu.model == FLAGCX_TOPO_CPU_TYPE_YONGFENG ? YONGFENG_ZPI_BW
+                                                          : ZPI_BW;
+  }
+  return flagcxSuccess;
+}
+
 flagcxResult_t flagcxTopoGetNode(struct flagcxTopoServer *server,
                                  struct flagcxTopoNode **node, int type,
                                  uint64_t id) {
@@ -125,6 +152,7 @@ flagcxResult_t flagcxTopoConnectNodes(struct flagcxTopoNode *node,
   return flagcxSuccess;
 }
 
+
 static flagcxResult_t flagcxTopoIdToIndex(struct flagcxTopoServer* server, int type, int64_t id, int* index) {
   *index = -1;
   for (int i=0; i<server->nodes[type].count; i++) {
@@ -157,6 +185,23 @@ flagcxResult_t flagcxTopoRemoveNode(struct flagcxTopoServer* server, int type, i
   }
   memmove(delNode, delNode+1, (server->nodes[type].count-index-1)*sizeof(struct flagcxTopoNode));
   server->nodes[type].count--;
+  return flagcxSuccess;
+}
+
+flagcxResult_t flagcxTopoConnectCpus(struct flagcxTopoServer *topoServer) {
+  for (int i = 0; i < topoServer->nodes[CPU].count; i++) {
+    struct flagcxTopoNode *cpu1 = topoServer->nodes[CPU].nodes + i;
+    for (int j = 0; j < topoServer->nodes[CPU].count; j++) {
+      struct flagcxTopoNode *cpu2 = topoServer->nodes[CPU].nodes + j;
+      if (i == j || (FLAGCX_TOPO_ID_SERVER_ID(cpu1->id) !=
+                     FLAGCX_TOPO_ID_SERVER_ID(cpu2->id))) {
+        continue;
+      }
+      float bw;
+      FLAGCXCHECK(flagcxTopoGetInterCpuBw(cpu1, &bw));
+      FLAGCXCHECK(flagcxTopoConnectNodes(cpu1, cpu2, LINK_SYS, bw));
+    }
+  }
   return flagcxSuccess;
 }
 
@@ -717,7 +762,6 @@ flagcxResult_t flagcxTopoAddCpu(struct flagcxXmlNode *xmlCpu,
 
   FLAGCXCHECK(xmlGetAttrStr(xmlCpu, "arch", &str));
   FLAGCXCHECK(flagcxTopoGetCpuArch(str, &cpu->cpu.arch));
-  // only support x86 cpu for now?
   if (cpu->cpu.arch == FLAGCX_TOPO_CPU_ARCH_X86) {
     FLAGCXCHECK(xmlGetAttrStr(xmlCpu, "vendor", &str));
     FLAGCXCHECK(flagcxTopoGetCpuVendor(str, &cpu->cpu.vendor));
@@ -728,6 +772,12 @@ flagcxResult_t flagcxTopoAddCpu(struct flagcxXmlNode *xmlCpu,
       cpu->cpu.model = (familyId == 6 && modelId >= 0x55)
                            ? FLAGCX_TOPO_CPU_TYPE_SKL
                            : FLAGCX_TOPO_CPU_INTEL_BDW;
+    } else if (cpu->cpu.vendor == FLAGCX_TOPO_CPU_VENDOR_ZHAOXIN) {
+      int familyId, modelId;
+      FLAGCXCHECK(xmlGetAttrInt(xmlCpu, "familyid", &familyId));
+      FLAGCXCHECK(xmlGetAttrInt(xmlCpu, "modelid", &modelId));
+      if (familyId == 7 && modelId == 0x5B)
+        cpu->cpu.model = FLAGCX_TOPO_CPU_TYPE_YONGFENG;
     }
   }
   for (int s = 0; s < xmlCpu->nSubs; s++) {
@@ -772,6 +822,7 @@ flagcxTopoGetServerTopoFromXml(struct flagcxXml *xml,
 
   // TODO: add CCI links, connect cpu nodes etc.
   FLAGCXCHECK(flagcxTopoFlattenBcmSwitches(*topoServer));
+  FLAGCXCHECK(flagcxTopoConnectCpus(*topoServer));
 
   return flagcxSuccess;
 }
