@@ -135,7 +135,6 @@ struct flagcxTopoNode {
       float latency;
       int gdrSupport;
       int maxConn;
-      int speed;
       int64_t guid;
     } net;
     struct {
