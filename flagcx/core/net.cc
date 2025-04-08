@@ -134,6 +134,7 @@ flagcxResult_t flagcxSendProxyFree(sendNetResources *resources) {
   flagcxNetIb.deregMr(resources->netSendComm, resources->mhandles[0]);
   flagcxNetIb.closeSend(resources->netSendComm);
   deviceAdaptor->gdrMemFree(resources->buffers[0], NULL);
+  deviceAdaptor->streamDestroy(resources->cpStream);
   return flagcxSuccess;
 }
 
@@ -142,5 +143,6 @@ flagcxResult_t flagcxRecvProxyFree(recvNetResources *resources) {
   flagcxNetIb.closeRecv(resources->netRecvComm);
   flagcxNetIb.closeListen(resources->netListenComm);
   deviceAdaptor->gdrMemFree(resources->buffers[0], NULL);
+  deviceAdaptor->streamDestroy(resources->cpStream);
   return flagcxSuccess;
 }

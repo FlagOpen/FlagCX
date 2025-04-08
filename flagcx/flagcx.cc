@@ -1805,6 +1805,9 @@ flagcxResult_t flagcxSend(const void *sendbuff, size_t count,
            timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6,
            timers[TIMER_COLL_MEM_D2H] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+
       FLAGCXCHECK(flagcxHeteroSend(sendbuff, count, datatype, peer,
                                    comm->hetero_comm, stream));
     }
@@ -1858,6 +1861,9 @@ flagcxResult_t flagcxRecv(void *recvbuff, size_t count,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_H2D] / 1e6,
            timers[TIMER_COLL_COMM] / 1e6);
     } else {
+      // TODO: use stream wait rather than stream sync to avoid cpu blocking
+      deviceAdaptor->streamSynchronize(stream);
+
       FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, peer,
                                    comm->hetero_comm, stream));
     }

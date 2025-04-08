@@ -173,8 +173,7 @@ flagcxResult_t ixcudaAdaptorStreamQuery(flagcxStream_t stream) {
 flagcxResult_t ixcudaAdaptorStreamWaitEvent(flagcxStream_t stream,
                                             flagcxEvent_t event) {
   if (stream != NULL && event != NULL) {
-    DEVCHECK(
-        cudaStreamWaitEvent(stream->base, event->base, cudaEventWaitDefault));
+    DEVCHECK(cudaStreamWaitEvent(stream->base, event->base, 0));
   }
   return flagcxSuccess;
 }
@@ -200,10 +199,9 @@ flagcxResult_t ixcudaAdaptorEventRecord(flagcxEvent_t event,
                                         flagcxStream_t stream) {
   if (event != NULL) {
     if (stream != NULL) {
-      DEVCHECK(cudaEventRecordWithFlags(event->base, stream->base,
-                                        cudaEventRecordDefault));
+      DEVCHECK(cudaEventRecord(event->base, stream->base));
     } else {
-      DEVCHECK(cudaEventRecordWithFlags(event->base));
+      DEVCHECK(cudaEventRecord(event->base));
     }
   }
   return flagcxSuccess;

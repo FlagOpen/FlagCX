@@ -159,7 +159,6 @@ static void flagcxProgressQueEmptyCheck(struct flagcxProxyState *proxyState) {
 inline void *flagcxProxyProgress(void *proxyState_) {
   struct flagcxProxyState *proxyState = (flagcxProxyState *)proxyState_;
   bool commplete = false;
-  // flagcxSetDevice(proxyState->cudaDev);
   deviceAdaptor->setDevice(proxyState->cudaDev);
 
   int stop = 0;
@@ -183,12 +182,9 @@ inline void *flagcxProxyProgress(void *proxyState_) {
               struct flagcxProxyOp *op = flagcxIntruQueueHead(queue);
               struct sendNetResources *resources =
                   (sendNetResources *)op->connection->transportResources;
-              resources->cpStream = op->cpStream;
               flagcxProxySend(resources, op->recvbuff, op->nbytes, &op->args);
               if (op->args.done) {
                 flagcxIntruQueueDelete(queue, op);
-                deviceAdaptor->streamDestroy(op->cpStream);
-                deviceAdaptor->eventDestroy(op->event);
                 free(op);
               }
             }
@@ -198,12 +194,9 @@ inline void *flagcxProxyProgress(void *proxyState_) {
               struct flagcxProxyOp *op = flagcxIntruQueueHead(queue);
               struct recvNetResources *resources =
                   (recvNetResources *)op->connection->transportResources;
-              resources->cpStream = op->cpStream;
               flagcxProxyRecv(resources, op->recvbuff, op->nbytes, &op->args);
               if (op->args.done) {
                 flagcxIntruQueueDelete(queue, op);
-                deviceAdaptor->streamDestroy(op->cpStream);
-                deviceAdaptor->eventDestroy(op->event);
                 free(op);
               }
             }

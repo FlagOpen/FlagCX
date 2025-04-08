@@ -146,10 +146,6 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.chunkSteps = (p2p->bytes + CHUNCKSIZE - 1) / (CHUNCKSIZE);
           op->args.sendStepMask = MAXSENDSTEP - 1;
           op->stream = p2p->stream;
-          FLAGCXCHECK(deviceAdaptor->streamCreate(&op->cpStream));
-          FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
-          FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
-          FLAGCXCHECK(deviceAdaptor->streamWaitEvent(op->cpStream, op->event));
           FLAGCXCHECK(deviceAdaptor->launchHostFunc(op->stream, cpuAsyncLaunch,
                                                     &op->args.hlArgs));
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));
@@ -173,10 +169,6 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.chunkSteps = (p2p->bytes + CHUNCKSIZE - 1) / (CHUNCKSIZE);
           op->args.sendStepMask = MAXSENDSTEP - 1;
           op->stream = p2p->stream;
-          FLAGCXCHECK(deviceAdaptor->streamCreate(&op->cpStream));
-          FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
-          FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
-          FLAGCXCHECK(deviceAdaptor->streamWaitEvent(op->cpStream, op->event));
           FLAGCXCHECK(deviceAdaptor->launchHostFunc(op->stream, cpuAsyncLaunch,
                                                     &op->args.hlArgs));
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));

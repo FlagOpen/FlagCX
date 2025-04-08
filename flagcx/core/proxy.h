@@ -157,8 +157,6 @@ struct flagcxProxyOp {
   flagcxHeteroComm_t comm;
   flagcxProxyArgs args;
   flagcxStream_t stream;
-  flagcxStream_t cpStream;
-  flagcxEvent_t event;
 };
 
 #define FLAGCX_MAX_NETDEVS 128
