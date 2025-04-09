@@ -10,10 +10,10 @@ on:
 
 jobs:
   unit-test:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     container:
-      image: localhost:5000/flagscale:cuda-12.4.1-python-3.12-torch-2.5.1-commit-e05f659
-      options: --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+      image: nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
+      options:  --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -29,9 +29,20 @@ jobs:
           lfs: false
           submodules: true
           set-safe-directory: true
-      - name: Check the current working directory
+
+      - name: Set up clang-format
         run: |
-          ls -l ./external/googletest
+          sudo apt-get update
+          sudo apt-get install clang-format
+
+      - name: Run clang-format check
+        run: |
+          find . -name "*.cpp" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" | xargs clang-format -n --style=file
+
+      - name: Check formatting
+        run: |
+          git diff --exit-code
+        continue-on-error: false  
 
       - name: Build Google Test
         run: |
@@ -43,18 +54,18 @@ jobs:
 
       - name: Run `make` to build the project
         run: |
-          cd /__w/FlagCX/FlagCX  
+          cd /__w/FlagCX/FlagCX
           export MPI_HOME=/usr/local/mpi
-          make USE_NVIDIA=1  
+          make USE_NVIDIA=1
 
       - name: Enter test/unittest and run `make` for unit tests
         run: |
-          cd /__w/FlagCX/FlagCX/test/unittest 
-          export MPI_HOME=/usr/local/mpi 
+          cd /__w/FlagCX/FlagCX/test/unittest
+          export MPI_HOME=/usr/local/mpi
           make
 
       - name: Run unit tests with mpirun
         run: |
           cd /__w/FlagCX/FlagCX/test/unittest
-          mpirun -np 8 ./build/bin/main  
+          mpirun -np 8 ./build/bin/main
 

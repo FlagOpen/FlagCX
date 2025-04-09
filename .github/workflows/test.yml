@@ -1,4 +1,3 @@
-# .github/workflows/test.yml
 name: Run Container and Execute Tests
 
 on:
@@ -11,10 +10,10 @@ on:
 
 jobs:
   test-in-container:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     container:
-      image: localhost:5000/flagscale:cuda-12.4.1-python-3.12-torch-2.5.1-commit-e05f659
-      options: --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+      image: nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
+      options:  --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -25,17 +24,25 @@ jobs:
           ssh-user: git
           persist-credentials: true
           clean: true
-          sparse-checkout-cone-mode: true
           fetch-tags: false
           show-progress: true
           lfs: false
           submodules: false
           set-safe-directory: true
 
-      - name: Check the current working directory
+      - name: Set up clang-format
         run: |
-          echo "Current directory: $(pwd)"
-          ls -l ./test/script
+          apt-get update -y
+          apt-get install -y clang-format
+
+      - name: Run clang-format check
+        run: |
+          find . -name "*.cpp" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" | xargs clang-format -n --style=file
+
+      - name: Check formatting
+        run: |
+          git diff --exit-code
+        continue-on-error: false  
 
       - name: Ensure script has execute permissions
         run: chmod +x /__w/FlagCX/FlagCX/test/script/auto_script.sh
@@ -44,5 +51,4 @@ jobs:
         run: |
           cd /__w/FlagCX/FlagCX
           ./test/script/auto_script.sh
-
 

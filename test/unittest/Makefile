@@ -7,7 +7,7 @@ INCLUDEDIR := \
         $(abspath include) \
         $(abspath coll/include) \
         $(abspath topo/include) \
-        $(abspath ../../external/googletest/googletest/include)  
+        $(abspath ../../third-party/googletest/googletest/include)  
 
 LIBSRCFILES := \
         $(wildcard *.cpp) \
@@ -16,7 +16,7 @@ LIBSRCFILES := \
 
 BINOBJ := $(LIBSRCFILES:%.cpp=$(OBJDIR)/%.o)
 
-GTEST_DIR := ../../external/googletest
+GTEST_DIR := ../../third-party/googletest
 GTEST_LIB := $(GTEST_DIR)/build/lib  
 
 TARGET = main
