@@ -41,6 +41,7 @@ jobs:
 
       - name: Check formatting
         run: |
+          apt-get install -y git
           git diff --exit-code
         continue-on-error: false  
 

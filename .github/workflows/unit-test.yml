@@ -32,8 +32,8 @@ jobs:
 
       - name: Set up clang-format
         run: |
-          sudo apt-get update
-          sudo apt-get install clang-format
+          apt-get update -y
+          apt-get install clang-format -y
 
       - name: Run clang-format check
         run: |
@@ -41,12 +41,13 @@ jobs:
 
       - name: Check formatting
         run: |
+          apt-get install -y git
           git diff --exit-code
         continue-on-error: false  
 
       - name: Build Google Test
         run: |
-          cd /__w/FlagCX/FlagCX/external/googletest
+          cd /__w/FlagCX/FlagCX/third-party/googletest
           mkdir -p build
           cd build
           cmake ..
