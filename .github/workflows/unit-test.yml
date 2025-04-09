@@ -27,7 +27,7 @@ jobs:
           fetch-tags: false
           show-progress: true
           lfs: false
-          submodules: true
+          submodules: false
           set-safe-directory: true
 
       - name: Set up clang-format
