@@ -1,5 +1,12 @@
 [<img src="flagopen.png">](https://flagopen.baai.ac.cn/)
 
+## Latest News
+- **[2025/04]** Released [v0.1](https://github.com/FlagOpen/FlagCX/tree/release/v0.1): 
+  - Supports five native communications libraries with automatic topology detection.
+  - Delivers 11 heterogeneous collective communication algorithms, including both P2P and collective ops.
+  - Provides a full-stack open-source solution, FlagScale + FlagCX, for efficient heterogeneous training.
+  - Natively integrated into PaddlePaddle [v3.0.0](https://github.com/PaddlePaddle/Paddle/tree/v3.0.0), with support for both dynamic and static graphs.
+
 ## About
 
 [FlagCX](https://github.com/FlagOpen/FlagCX.git) is a scalable and adaptive cross-chip communication library developed with the backing of the Beijing Academy of Artificial Intelligence (BAAI).
@@ -8,48 +15,49 @@ FlagCX is also a part of [FlagAI-Open](https://flagopen.baai.ac.cn/), an open-so
 
 FlagCX leverages native collective communications libraries to provide the full support of single-chip communications on different platforms. In addition to its native x-CCL support, FlagCX provides an original device-buffer RDMA design to offer advanced support for cross-chip high-performance sendrecev operations (`CORE` module), which can also be integrated with native x-CCL backends to enable optimized cross-chip collective communications. A comprehensive list of currently supported communication backends and their different capabilities are listed as follows:
 
-| Backend       | NCCL | IXCCL  | CNCL | GLOO    | CORE+x-CCL |
-|:--------------|:-----|:-------|:-----|:--------|:-----------|
-| Mode          | Homo | Homo   | Homo | Hetero  | Hetero     |
-| send          | ✓    | ✓      | ✓    | ✓       | ✓          |
-| recv          | ✓    | ✓      | ✓    | ✓       | ✓          |
-| broadcast     | ✓    | ✓      | ✓    | ✘       | ✓          |
-| gather        | ✓    | ✓      | ✓    | ✘       | ✓          |
-| scatter       | ✓    | ✓      | ✓    | ✘       | ✓          |
-| reduce        | ✓    | ✓      | ✓    | ✘       | ✓          |
-| allreduce     | ✓    | ✓      | ✓    | ✓       | ✓          |
-| allgather     | ✓    | ✓      | ✓    | ✓       | ✓          |
-| reducescatter | ✓    | ✓      | ✓    | ✘       | ✓          |
-| alltoall      | ✓    | ✓      | ✓    | ✓       | ✓          |
-| alltoallv     | ✓    | ✓      | ✓    | ✓       | ✓          |
-| group ops     | ✓    | ✓      | ✓    | ?       | ✘          |
+| Backend       | NCCL | IXCCL  | CNCL | BOOTSTRAP | GLOO    | CORE+x-CCL |
+|:--------------|:-----|:-------|:-----|:--------  |:--------|:-----------|
+| Mode          | Homo | Homo   | Homo | Hetero    | Hetero  | Hetero     |
+| send          | ✓    | ✓      | ✓    | ✓         | ✓       | ✓          |
+| recv          | ✓    | ✓      | ✓    | ✓         | ✓       | ✓          |
+| broadcast     | ✓    | ✓      | ✓    | ✘         | ✘       | ✓          |
+| gather        | ✓    | ✓      | ✓    | ✘         | ✘       | ✓          |
+| scatter       | ✓    | ✓      | ✓    | ✘         | ✘       | ✓          |
+| reduce        | ✓    | ✓      | ✓    | ✓         | ✘       | ✓          |
+| allreduce     | ✓    | ✓      | ✓    | ✓         | ✓       | ✓          |
+| allgather     | ✓    | ✓      | ✓    | ✓         | ✓       | ✓          |
+| reducescatter | ✓    | ✓      | ✓    | ✓         | ✘       | ✓          |
+| alltoall      | ✓    | ✓      | ✓    | ✓         | ✓       | ✓          |
+| alltoallv     | ✓    | ✓      | ✓    | ✘         | ✓       | ✓          |
+| group ops     | ✓    | ✓      | ✓    | ✘         | ✘       | ✘          |
 
-Note that `Homo` and `Hetero` modes refer to communications among homogeneous and heterogeneous clusters. All supported native collective communication libraries can be referenced through the links below:
+Note that `Homo` and `Hetero` modes refer to communications among homogeneous and heterogeneous clusters. Except for `BOOTSTRAP` (which is constructed by FlagCX `bootstrap` component), all other native collective communications libraries can be referenced through the links below:
 
 - [NCCL](https://github.com/NVIDIA/nccl), NVIDIA Collective Communications Library.
 - [IXCCL](https://www.iluvatar.com/software?fullCode=cpjs-rj-rjz), Iluvatar Corex Collective Communications Library.
 - [CNCL](https://www.cambricon.com/docs/sdk_1.7.0/cncl_1.2.1/user_guide/index.html#), Cambricon Communications Library.
 - [GLOO](https://github.com/facebookincubator/gloo), Gloo Collective Communications Library.
 
-FlagCX also develops plugins to integrate with upper-layer applications such as PyTorch based on its unified APIs. The table below presents the communication operations currently supported by the plugins of their corresponding frameworks, where the `batch_XXX` and `XXX_coalesced` ops refer to the usage of group primitives.
+FlagCX also integrates with upper-layer applications such as PyTorch and PaddlePaddle based on its unified APIs. The table below presents all supported frameworks by FlagCX and their related communication operations, where the `batch_XXX` and `XXX_coalesced` ops refer to the usage of group primitives.
 
-| Plugin                            | PyTorch |
-|:----------------------------------|:--------|
-| send                              | ✓       |
-| recv                              | ✓       |
-| batch_isend_irecv                 | ✓       |
-| broadcast                         | ✓       |
-| all_reduce                        | ✓       |
-| all_reduce_coalesced              | ✘       |
-| reduce                            | ✓       |
-| all_gather                        | ✓       |
-| all_gather_into_tensor_coalesced  | ✘       |
-| gather                            | ✓       |
-| scatter                           | ✓       |
-| reduce_scatter                    | ✓       |
-| reduce_scatter_tensor_coalesced   | ✘       |
-| all_to_all                        | ✓       |
-| all_to_all_single                 | ✓       |
+| Framework                         | PyTorch                      | PaddlePaddle |
+|:----------------------------------|:-----------------------------|:-------------|
+| send                              | ✓                            |✓             |
+| recv                              | ✓                            |✓             |
+| batch_isend_irecv                 | ✓                            |✓             |
+| broadcast                         | ✓                            |✓             |
+| all_reduce                        | ✓                            |✓             |
+| all_reduce_coalesced              | ✓ (in order, no aggregation) |✘             |
+| reduce                            | ✓                            |✓             |
+| all_gather                        | ✓                            |✓             |
+| all_gather_into_tensor_coalesced  | ✓ (in order, no aggregation) |✘             |
+| gather                            | ✓                            |✓             |
+| scatter                           | ✓                            |✓             |
+| reduce_scatter                    | ✓                            |✓             |
+| reduce_scatter_tensor_coalesced   | ✓ (in order, no aggregation) |✘             |
+| all_to_all                        | ✓                            |✓             |
+| all_to_all_single                 | ✓                            |✓             |
+| barrier                           | ✓                            |✓             |
 
 ## Quick Start
 
