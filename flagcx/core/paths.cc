@@ -72,10 +72,7 @@ static flagcxResult_t flagcxTopoSetPaths(struct flagcxTopoNode *baseNode,
                             &remPath));
         float bw = std::min(path->bw, link->bw);
 
-        // allow routing through a GPU only as 1 hop
-        // if (node != baseNode && node->type == GPU &&
-        //     (ncclParamNvbDisable() || link->type != LINK_NVL || remNode->type
-        //     != GPU || path->count > 1)) continue;
+        // allow routing through a APU only as 1 hop (not supported)
 
         if ((remPath->bw == 0 || remPath->count > path->count) &&
             remPath->bw < bw) {
@@ -102,7 +99,7 @@ static flagcxResult_t flagcxTopoSetPaths(struct flagcxTopoNode *baseNode,
 
           // Start with path type = link type. PATH and LINK types are supposed
           // to match. Don't consider LINK_NET as we only care about the
-          // NIC->GPU path.
+          // NIC->APU path.
           int type = link->type == LINK_NET ? LINK_LOC : link->type;
           // Differentiate between one and multiple PCI switches
           if (node->type == PCI && remNode->type == PCI)
