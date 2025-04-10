@@ -32,6 +32,12 @@ jobs:
           submodules: false
           set-safe-directory: true
 
+      - name: Install Git
+        run: apt-get update -y  && apt-get install -y git
+
+      - name: Check Git Status
+        run: git status
+          
       - name: Set up Python and Install Dependencies
         run: |
           apt update -y
