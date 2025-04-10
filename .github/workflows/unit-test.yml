@@ -13,7 +13,7 @@ jobs:
     runs-on: self-hosted
     container:
       image: localhost:5000/flagscale:cuda-12.4.1-python-3.12-torch-2.5.1-commit-e05f659
-      options: --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+      options:  --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -29,13 +29,23 @@ jobs:
           lfs: false
           submodules: true
           set-safe-directory: true
-      - name: Check the current working directory
+
+      - name: Install Dependencies
         run: |
-          ls -l ./external/googletest
+          apt update -y
+          apt-get install -y python3 python3-pip python3-venv git clang-format
+          python3 -m venv venv
+          bash -c "source venv/bin/activate && pip install pre-commit && pre-commit install"
+
+      - name: Run Code Format Check with pre-commit
+        run: |
+          source venv/bin/activate
+          pre-commit run --all-files
+        continue-on-error: false
 
       - name: Build Google Test
         run: |
-          cd /__w/FlagCX/FlagCX/external/googletest
+          cd /__w/FlagCX/FlagCX/third-party/googletest
           mkdir -p build
           cd build
           cmake ..
@@ -43,18 +53,18 @@ jobs:
 
       - name: Run `make` to build the project
         run: |
-          cd /__w/FlagCX/FlagCX  
+          cd /__w/FlagCX/FlagCX
           export MPI_HOME=/usr/local/mpi
-          make USE_NVIDIA=1  
+          make USE_NVIDIA=1
 
       - name: Enter test/unittest and run `make` for unit tests
         run: |
-          cd /__w/FlagCX/FlagCX/test/unittest 
-          export MPI_HOME=/usr/local/mpi 
+          cd /__w/FlagCX/FlagCX/test/unittest
+          export MPI_HOME=/usr/local/mpi
           make
 
       - name: Run unit tests with mpirun
         run: |
           cd /__w/FlagCX/FlagCX/test/unittest
-          mpirun -np 8 ./build/bin/main  
+          mpirun -np 8 ./build/bin/main
 
