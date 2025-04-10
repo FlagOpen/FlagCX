@@ -41,7 +41,6 @@ jobs:
           . venv/bin/activate
           cd /__w/FlagCX/FlagCX
           git config --global --add safe.directory /__w/FlagCX/FlagCX
-          git status
           pip install pre-commit
           pre-commit install
 
@@ -52,6 +51,9 @@ jobs:
           apt update -y
           apt-get install clang-format -y 
           pre-commit run --all-files
+          git diff
+          git add .
+          git commit -m "Auto-format code"
         continue-on-error: false
 
       - name: Check the current working directory
