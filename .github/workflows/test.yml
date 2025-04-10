@@ -12,8 +12,9 @@ jobs:
   test-in-container:
     runs-on: ubuntu-latest
     container:
-      image: nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
+      image:  nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
       options:  --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -24,27 +25,30 @@ jobs:
           ssh-user: git
           persist-credentials: true
           clean: true
+          sparse-checkout-cone-mode: true
           fetch-tags: false
           show-progress: true
           lfs: false
           submodules: false
           set-safe-directory: true
 
-      - name: Set up clang-format
+      - name: Set up Python and Install Dependencies
         run: |
-          apt-get update -y
-          apt-get install -y clang-format
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install pre-commit
+          pre-commit install  
 
-      - name: Run clang-format check
+      - name: Run Code Format Check with pre-commit
         run: |
-          find . -name "*.cpp" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" | xargs clang-format -n --style=file
-
-      - name: Check formatting
-        run: |
-          apt-get install -y git
-          git status
-          git diff --exit-code
+          source venv/bin/activate
+          pre-commit run --all-files
         continue-on-error: false  
+
+      - name: Check the current working directory
+        run: |
+          echo "Current directory: $(pwd)"
+          ls -l ./test/script
 
       - name: Ensure script has execute permissions
         run: chmod +x /__w/FlagCX/FlagCX/test/script/auto_script.sh
