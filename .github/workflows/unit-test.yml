@@ -46,6 +46,8 @@ jobs:
         run: |
           cd /__w/FlagCX/FlagCX
           . venv/bin/activate
+          apt update -y
+          apt-get install clang-format -y
           pre-commit run --all-files
         continue-on-error: false
 
