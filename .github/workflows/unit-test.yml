@@ -32,7 +32,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          ll -h
+          ls -l .git
           apt update -y
           apt-get install -y python3 python3-pip python3-venv git clang-format
           python3 -m venv venv
