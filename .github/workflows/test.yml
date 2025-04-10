@@ -40,12 +40,13 @@ jobs:
           python3 -m venv venv
           . venv/bin/activate
           cd /__w/FlagCX/FlagCX
-          ls -l .git
+          git status
           pip install pre-commit
           pre-commit install
 
       - name: Run Code Format Check with pre-commit
         run: |
+          cd /__w/FlagCX/FlagCX
           . venv/bin/activate
           pre-commit run --all-files
         continue-on-error: false
