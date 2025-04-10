@@ -37,9 +37,7 @@ jobs:
           apt update -y
           apt-get install -y python3 python3-pip python3-venv
           python3 -m venv venv
-          source venv/bin/activate
-          pip install pre-commit
-          pre-commit install  
+          bash -c "source venv/bin/activate && pip install pre-commit && pre-commit install"
 
       - name: Run Code Format Check with pre-commit
         run: |
