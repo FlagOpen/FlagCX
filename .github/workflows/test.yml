@@ -36,7 +36,9 @@ jobs:
         run: apt-get update -y  && apt-get install -y git
 
       - name: Check Git Status
-        run: git status
+        run: |
+          git status
+          ls -la
           
       - name: Set up Python and Install Dependencies
         run: |
