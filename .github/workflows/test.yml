@@ -10,10 +10,10 @@ on:
 
 jobs:
   test-in-container:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
-      image:  nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
-      options:  --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+      image:  localhost:5000/flagscale:cuda-12.4.1-python-3.12-torch-2.5.1-commit-e05f659
+      options: --gpus all  --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
 
     steps:
       - name: Checkout Code
@@ -32,18 +32,11 @@ jobs:
           submodules: false
           set-safe-directory: true
 
-      - name: Install Git
-        run: apt-get update -y  && apt-get install -y git
-
-      - name: Check Git Status
-        run: |
-          ls -la
-          git status
           
       - name: Set up Python and Install Dependencies
         run: |
           apt update -y
-          apt-get install -y python3 python3-pip python3-venv
+          apt-get install -y python3 python3-pip python3-venv git
           python3 -m venv venv
           bash -c "source venv/bin/activate && pip install pre-commit && pre-commit install"
 

@@ -10,10 +10,10 @@ on:
 
 jobs:
   unit-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
-      image: nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
-      options:  --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+      image: localhost:5000/flagscale:cuda-12.4.1-python-3.12-torch-2.5.1-commit-e05f659
+      options:  --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -27,24 +27,21 @@ jobs:
           fetch-tags: false
           show-progress: true
           lfs: false
-          submodules: false
+          submodules: true
           set-safe-directory: true
 
-      - name: Set up clang-format
+      - name: Install Dependencies
         run: |
-          apt-get update -y
-          apt-get install clang-format -y
+          apt update -y
+          apt-get install -y python3 python3-pip python3-venv git clang-format
+          python3 -m venv venv
+          bash -c "source venv/bin/activate && pip install pre-commit && pre-commit install"
 
-      - name: Run clang-format check
+      - name: Run Code Format Check with pre-commit
         run: |
-          find . -name "*.cpp" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" | xargs clang-format -n --style=file
-
-      - name: Check formatting
-        run: |
-          apt-get install -y git
-          git status
-          git diff --exit-code
-        continue-on-error: false  
+          source venv/bin/activate
+          pre-commit run --all-files
+        continue-on-error: false
 
       - name: Build Google Test
         run: |
