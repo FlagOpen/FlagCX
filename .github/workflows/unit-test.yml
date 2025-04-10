@@ -30,17 +30,18 @@ jobs:
           submodules: true
           set-safe-directory: true
 
-      - name: Install Dependencies
+      - name: Set up Python and Install Dependencies
         run: |
-          ls -l .git
           apt update -y
-          apt-get install -y python3 python3-pip python3-venv git clang-format
+          apt-get install -y python3 python3-pip python3-venv git
           python3 -m venv venv
-          bash -c "source venv/bin/activate && pip install pre-commit && pre-commit install"
+          . venv/bin/activate
+          pip install pre-commit
+          pre-commit install
 
       - name: Run Code Format Check with pre-commit
         run: |
-          source venv/bin/activate
+          . venv/bin/activate
           pre-commit run --all-files
         continue-on-error: false
 
