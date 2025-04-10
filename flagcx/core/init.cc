@@ -119,7 +119,11 @@ static flagcxResult_t initTransportsRank(flagcxHeteroComm_t comm,
   }
 
   INFO(FLAGCX_INIT, "start flagcxTopoGetServerTopo");
-  FLAGCXCHECKGOTO(flagcxTopoGetServerTopo(comm, &comm->topo), ret, fail);
+  FLAGCXCHECKGOTO(flagcxTopoGetServerTopo(comm, &comm->topoServer), ret, fail);
+  FLAGCXCHECKGOTO(flagcxTopoComputePaths(comm->topoServer, comm), ret, fail);
+  if (comm->rank == 0) {
+    FLAGCXCHECK(flagcxTopoPrint(comm->topoServer));
+  }
   INFO(FLAGCX_INIT, "start getting local net from gpu");
   FLAGCXCHECKGOTO(flagcxGetLocalNetFromGpu(comm->cudaDev, &comm->netDev, comm),
                   ret, fail);
@@ -306,6 +310,7 @@ flagcxResult_t flagcxHeteroCommDestroy(flagcxHeteroComm_t comm) {
   free(comm->tasks.peers);
   free(comm->tasks.p2pOrder);
   free(comm->abortFlagRefCount);
+  free(comm->topoServer);
   free(comm->peerInfo);
   free(comm);
 

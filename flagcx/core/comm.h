@@ -173,7 +173,7 @@ struct flagcxHeteroComm {
   int *topParentLocalRanks;
   struct flagcxChannel channels[MAXCHANNELS];
   struct flagcxPeerInfo *peerInfo;
-  struct flagcxTopoServer *topo;
+  struct flagcxTopoServer *topoServer;
 
   flagcxNet_t *flagcxNet;
   flagcxCollNet_t *flagcxCollNet;

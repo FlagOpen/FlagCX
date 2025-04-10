@@ -204,19 +204,21 @@ flagcxResult_t flagcxTopoGetNode(struct flagcxTopoServer *topoServer,
 flagcxResult_t flagcxTopoCreateNode(struct flagcxTopoServer *topoServer,
                                     struct flagcxTopoNode **node, int type,
                                     uint64_t id);
-flagcxResult_t flagcxTopoRemoveNode(struct flagcxTopoServer *serverTopo,
+flagcxResult_t flagcxTopoRemoveNode(struct flagcxTopoServer *topoServer,
                                     int type, int id);
 flagcxResult_t flagcxTopoConnectNodes(struct flagcxTopoNode *node,
                                       struct flagcxTopoNode *remNode, int type,
                                       float bw);
-flagcxResult_t flagcxTopoPrintPaths(struct flagcxTopoServer *serverTopo);
+flagcxResult_t flagcxTopoPrintPaths(struct flagcxTopoServer *topoServer);
 flagcxResult_t flagcxTopoLoadServer(const char *xmlTopoFile,
-                                    struct flagcxTopoServer *serverTopo);
+                                    struct flagcxTopoServer *topoServer);
 flagcxResult_t
-flagcxTopoGetIntermediateRank(struct flagcxTopoServer *serverTopo, int rank,
+flagcxTopoGetIntermediateRank(struct flagcxTopoServer *topoServer, int rank,
                               int64_t netId, int *intermediateRank);
 
 flagcxResult_t flagcxTopoPrint(struct flagcxTopoServer *topoServer);
+
+flagcxResult_t flagcxTopoPrintPaths(struct flagcxTopoServer *topoServer);
 
 #define FLAGCX_TOPO_XML_MAX_NODES 256
 #define FLAGCX_GRAPH_XML_MAX_NODES 4096
@@ -225,19 +227,19 @@ flagcxTopoGetServerTopoFromXml(struct flagcxXml *xml,
                                struct flagcxTopoServer **topoServer,
                                uint64_t localHostHash);
 flagcxResult_t flagcxTopoGetGraphFromXml(struct flagcxXmlNode *xmlGraphs,
-                                         struct flagcxTopoServer *serverTopo,
+                                         struct flagcxTopoServer *topoServer,
                                          struct flagcxTopoGraph *graph,
                                          int *nChannels);
 flagcxResult_t flagcxTopoGetXmlFromGraphs(int ngraphs,
                                           struct flagcxTopoGraph **graphs,
-                                          struct flagcxTopoServer *serverTopo,
+                                          struct flagcxTopoServer *topoServer,
                                           struct flagcxXml *xml);
 flagcxResult_t flagcxTopoGetXmlTopo(struct flagcxHeteroComm *comm,
                                     struct flagcxXml *xml);
 flagcxResult_t flagcxTopoGetServerTopo(struct flagcxHeteroComm *comm,
                                        struct flagcxTopoServer **topoServer);
 
-flagcxResult_t flagcxTopoGetCompCap(struct flagcxTopoServer *serverTopo,
+flagcxResult_t flagcxTopoGetCompCap(struct flagcxTopoServer *topoServer,
                                     int *ccMin, int *ccMax);
 
 // static flagcxResult_t flagcxTopoIdToIndex(struct flagcxTopoServer*
@@ -318,7 +320,7 @@ static int mirrorBits(int val, int pow2) {
 #define DEVICE_TOPO_API_EXTERN extern
 #endif
 
-DEVICE_TOPO_API_EXTERN flagcxResult_t (*flagcxTopoGetLocalNet)(int gpu,
-                                                               char *name);
+// DEVICE_TOPO_API_EXTERN flagcxResult_t (*flagcxTopoGetLocalNet)(int gpu,
+//                                                                char *name);
 
 #endif
