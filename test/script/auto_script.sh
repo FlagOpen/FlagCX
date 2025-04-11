@@ -20,7 +20,7 @@ if [ $? -ne 0 ]; then
 fi
 
 
-mpirun -np 8 ./test_alltoall -b 128M -e 2G -f 2 -p 1
+mpirun -np 8 -x NCCL_DEBUG=TRACE -x NCCL_DEBUG_SUBSYS=ALL  ./test_alltoall -b 128M -e 2G -f 2 -p 1
 if [ $? -ne 0 ]; then
     echo "test_alltoall execution failed!"
     exit 1
