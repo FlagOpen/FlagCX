@@ -118,7 +118,7 @@ struct flagcxTransportComm {
 
 struct flagcxTransport {
   const char name[8];
-  flagcxResult_t (*canConnect)(int *, struct flagcxTopoServer *topo,
+  flagcxResult_t (*canConnect)(int *, struct flagcxTopoServer *topoServer,
                                struct flagcxTopoGraph *graph,
                                struct flagcxPeerInfo *,
                                struct flagcxPeerInfo *);
