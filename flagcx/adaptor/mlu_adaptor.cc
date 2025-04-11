@@ -193,6 +193,68 @@ flagcxResult_t mluAdaptorGetDeviceByPciBusId(int *dev, const char *pciBusId) {
   DEVCHECK(cnrtDeviceGetByPCIBusId(dev, pciBusId));
   return flagcxSuccess;
 }
+
+flagcxResult_t mluAdaptorStreamWaitEvent(flagcxStream_t stream,
+                                          flagcxEvent_t event) {
+  if (stream != NULL && event != NULL) {
+    DEVCHECK(
+      cnrtQueueWaitNotifier(event->base, stream->base, CNRT_NOTIFIER_WAIT_DEFAULT);  
+    )
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t mluAdaptorEventCreate(flagcxEvent_t *event) {
+  (*event) = NULL;
+  flagcxCalloc(event, 1);
+  DEVCHECK(cnrtNotifierCreateWithFlags((cnrtNotifier_t *)(*event),
+                                       CNRT_NOTIFIER_DISABLE_TIMING_ALL));
+  return flagcxSuccess;
+}
+
+flagcxResult_t mluAdaptorEventDestroy(flagcxEvent_t event) {
+  if (event != NULL) {
+    DEVCHECK(cnrtNotifierDestroy(event->base));
+    free(event);
+    event = NULL;
+  }
+  return flagcxSuccess;
+}
+
+
+flagcxResult_t mluAdaptorEventRecord(flagcxEvent_t event,
+                                      flagcxStream_t stream) {
+  if (event != NULL) {
+    if (stream != NULL) {
+      DEVCHECK(cnrtPlaceNotifierWithFlags(event->base, stream->base,
+                                         CNRT_NOTIFIER_PLACE_DEFAULT));
+    }
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t mluAdaptorEventSynchronize(flagcxEvent_t event) {
+  if (event != NULL) {
+    DEVCHECK(cnrtWaitNotifier(event->base));
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t mluAdaptorEventQuery(flagcxEvent_t event) {
+  flagcxResult_t res = flagcxSuccess;
+  if (event != NULL) {
+    cnrtRet_t error = cnrtQueryNotifier(event->base);
+    if (error == cnrtSuccess) {
+      res = flagcxSuccess;
+    } else if (error == cnrtErrorBusy) {
+      res = flagcxInProgress;
+    } else {
+      res = flagcxUnhandledDeviceError;
+    }
+  }
+  return res;
+}
+
 struct flagcxDeviceAdaptor mluAdaptor {
   "MLU",
       // Basic functions
@@ -210,9 +272,10 @@ struct flagcxDeviceAdaptor mluAdaptor {
       // Stream functions
       mluAdaptorStreamCreate, mluAdaptorStreamDestroy, mluAdaptorStreamCopy,
       mluAdaptorStreamFree, mluAdaptorStreamSynchronize, mluAdaptorStreamQuery,
-      NULL,
+      mluAdaptorStreamWaitEvent,
       // Event functions
-      NULL, NULL, NULL, NULL, NULL,
+      mluAdaptorEventCreate, mluAdaptorEventDestroy, mluAdaptorEventRecord,
+      mluAdaptorEventSynchronize, mluAdaptorEventQuery,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,
