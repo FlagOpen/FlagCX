@@ -50,11 +50,7 @@ jobs:
           . venv/bin/activate
           apt update -y
           apt-get install clang-format -y 
-          pre-commit run --all-files
-          git diff --exit-code || (
-            git add .  
-            git commit -m "Auto-format code"  
-          )
+          pre-commit run --from-ref origin/${{ github.event.pull reguest.base.ref }} --to-ref HEAD
         continue-on-error: false
 
       - name: Check the current working directory
