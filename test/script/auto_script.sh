@@ -32,7 +32,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-
 mpirun -np 8 ./test_sendrecv -b 128M -e 2G -f 2 -p 1
 if [ $? -ne 0 ]; then
     echo "test_sendrecv execution failed!"
