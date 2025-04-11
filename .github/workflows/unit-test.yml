@@ -48,7 +48,10 @@ jobs:
           . venv/bin/activate
           apt update -y
           apt-get install clang-format -y
-          pre-commit run --from-ref origin/main --to-ref HEAD
+          from_ref=${GITHUB_HEAD_REF}
+          to_ref=${GITHUB_BASE_REF}
+
+          pre-commit run --from-ref "origin/$from_ref" --to-ref "origin/$to_ref"
         continue-on-error: false
 
       - name: Build Google Test
