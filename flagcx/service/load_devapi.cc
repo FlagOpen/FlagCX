@@ -29,20 +29,3 @@ void *dlsymCheck(void *handle, const char *funcName) {
   do {                                                                         \
     api = (typeof(api))dlsymCheck(handle, #api);                               \
   } while (0);
-
-flagcxResult_t loadDeviceSymbol() {
-  void *libHandle = dlopen("./libmylib.so", RTLD_LAZY);
-  if (libHandle == nullptr) {
-    /*
-    const char* useNet = flagcxGetEnv("FLAGCX_USENET");
-    if(useNet == NULL){
-        INFO(FLAGCX_INIT, "fail to open libmylib.so");
-        return flagcxRemoteError;
-    }
-    */
-    return flagcxSuccess;
-  }
-
-  // LOADSYMBOL(libHandle, flagcxTopoGetLocalNet);
-  return flagcxSuccess;
-}
