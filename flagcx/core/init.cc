@@ -310,7 +310,9 @@ flagcxResult_t flagcxHeteroCommDestroy(flagcxHeteroComm_t comm) {
   free(comm->tasks.peers);
   free(comm->tasks.p2pOrder);
   free(comm->abortFlagRefCount);
-  free(comm->topoServer);
+  if (comm->topoServer) {
+    flagcxTopoFree(comm->topoServer);
+  }
   free(comm->peerInfo);
   free(comm);
 

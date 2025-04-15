@@ -229,3 +229,8 @@ flagcxResult_t flagcxTopoPrintPaths(struct flagcxTopoServer *topoServer) {
   }
   return flagcxSuccess;
 }
+
+void flagcxTopoFree(struct flagcxTopoServer *topoServer) {
+  flagcxTopoRemovePaths(topoServer);
+  free(topoServer);
+}
