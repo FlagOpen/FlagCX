@@ -174,6 +174,7 @@ struct flagcxHeteroComm {
   struct flagcxChannel channels[MAXCHANNELS];
   struct flagcxPeerInfo *peerInfo;
   struct flagcxTopoServer *topoServer;
+  struct flagcxInterServerTopo *interServerTopo;
 
   flagcxNet_t *flagcxNet;
   flagcxCollNet_t *flagcxCollNet;

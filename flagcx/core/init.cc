@@ -101,6 +101,8 @@ static flagcxResult_t initTransportsRank(flagcxHeteroComm_t comm,
   FLAGCXCHECKGOTO(bootstrapAllGather(comm->bootstrap, (void *)comm->peerInfo,
                                      sizeof(struct flagcxPeerInfo)),
                   ret, fail);
+  FLAGCXCHECKGOTO(bootstrapBarrier(comm->bootstrap, rank, nranks, 0), ret,
+                  fail);
 
   // check for duplicate GPUs
   INFO(FLAGCX_INIT, "start check for duplicate GPUs");
@@ -127,6 +129,11 @@ static flagcxResult_t initTransportsRank(flagcxHeteroComm_t comm,
   INFO(FLAGCX_INIT, "start getting local net from gpu");
   FLAGCXCHECKGOTO(flagcxGetLocalNetFromGpu(comm->cudaDev, &comm->netDev, comm),
                   ret, fail);
+
+  INFO(FLAGCX_INIT, "start getting topoServer from other servers");
+  FLAGCXCHECKGOTO(
+      flagcxGetInterServerTopo(comm, &comm->interServerTopo, comm->topoServer),
+      ret, fail);
 
   return ret;
 fail:
@@ -312,6 +319,9 @@ flagcxResult_t flagcxHeteroCommDestroy(flagcxHeteroComm_t comm) {
   free(comm->abortFlagRefCount);
   if (comm->topoServer) {
     flagcxTopoFree(comm->topoServer);
+  }
+  if (comm->interServerTopo) {
+    flagcxInterServerTopoFree(comm->interServerTopo);
   }
   free(comm->peerInfo);
   free(comm);

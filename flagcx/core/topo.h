@@ -9,6 +9,8 @@
 
 #include "core.h"
 #include "graph.h"
+#include <unordered_map>
+#include <unordered_set>
 
 #define LOC_BW 5000.0
 #define SM60_NVLINK_BW 18.0
@@ -125,6 +127,8 @@ struct flagcxTopoNode {
       int rank;
       int gdrSupport;
       int vendor;
+      int interServerRouteCnt;
+      struct flagcxInterServerRoute *interServerRoutes[FLAGCX_TOPO_MAX_NODES];
     } apu;
     struct {
       int dev; // Plugin dev number
@@ -169,16 +173,29 @@ struct flagcxTopoServer {
   float totalBw;
 };
 
+struct flagcxSwitch {
+  float downBw;
+  float upBw;
+  bool isSpine;
+};
+
 // inter-server topo sturcture might need to be changed
 struct flagcxInterServerRoute {
   int numHops;
   struct flagcxTopoNode *localNic;
-  float bxPerHop[FLAGCX_MAX_INTER_SERVER_HOPS];
+  struct flagcxTopoNode *remoteNic;
+  int remoteRank;
+  float interBw;
+  struct flagcxSwitch *switchInfos[FLAGCX_MAX_INTER_SERVER_HOPS];
 };
 
-struct flagcxInterServerTopoInfo {
+struct flagcxInterServerTopo {
   int numServers;
-  struct flagcxTopoServer *servers[FLAGCX_MAX_SERVER_NUM];
+  struct flagcxTopoServer
+      *servers; // contain topology of all servers except current server, topo
+                // of current server is stored in comm->topoServer
+  std::unordered_map<int, std::unordered_set<uint64_t>>
+      serverIdToNetMap; // serverId: [netGuid0, netGuid1, ...]
   char interServerTopoFile[256];
 };
 
@@ -196,6 +213,57 @@ struct flagcxDevProps {
   int pciDomainId;
   // remove unused field for now
   // int gdrSupported;
+};
+
+struct flatTopoLink {
+  int type;
+  float bw;
+  int remNodeIdx;
+  int remNodeType;
+};
+
+struct flatTopoNode {
+  int type;
+  int64_t id;
+  // Type specific data
+  union {
+    struct {
+      int dev; // NVML dev number
+      int rank;
+      int vendor;
+    } apu;
+    struct {
+      int dev; // Plugin dev number
+      uint64_t asic;
+      int port;
+      float bw;
+      float latency;
+      int maxConn;
+      int64_t guid;
+    } net;
+    struct {
+      int arch;
+      int vendor;
+      int model;
+    } cpu;
+    struct {
+      uint64_t device;
+    } pci;
+  };
+  int nlinks;
+  struct flatTopoLink links[FLAGCX_TOPO_MAX_LINKS];
+};
+
+struct flatTopoNodeSet {
+  int count;
+  struct flatTopoNode nodes[FLAGCX_TOPO_MAX_NODES];
+};
+
+struct flatTopoServer {
+  int serverId;
+  uint64_t hostHashes[FLAGCX_TOPO_MAX_NODES];
+  int nHosts;
+  struct flatTopoNodeSet nodes[FLAGCX_TOPO_NODE_TYPES];
 };
 
 flagcxResult_t flagcxTopoGetNode(struct flagcxTopoServer *topoServer,
@@ -219,6 +287,11 @@ flagcxTopoGetIntermediateRank(struct flagcxTopoServer *topoServer, int rank,
 flagcxResult_t flagcxTopoPrint(struct flagcxTopoServer *topoServer);
 
 flagcxResult_t flagcxTopoPrintPaths(struct flagcxTopoServer *topoServer);
+
+flagcxResult_t
+flagcxGetInterServerTopo(struct flagcxHeteroComm *comm,
+                         struct flagcxInterServerTopo **interServerTopo,
+                         struct flagcxTopoServer *topoServer);
 
 #define FLAGCX_TOPO_XML_MAX_NODES 256
 #define FLAGCX_GRAPH_XML_MAX_NODES 4096

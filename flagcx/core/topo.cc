@@ -14,6 +14,7 @@
 #include "transport.h"
 #include "xml.h"
 #include <fcntl.h>
+#include <map>
 
 #define BUSID_SIZE (sizeof("0000:00:00.0"))
 #define BUSID_REDUCED_SIZE (sizeof("0000:00"))
@@ -1014,5 +1015,294 @@ flagcxResult_t flagcxTopoGetServerTopo(struct flagcxHeteroComm *comm,
       xml, topoServer, comm->peerInfo[comm->rank].hostHash));
 
   free(xml);
+  return flagcxSuccess;
+}
+
+static flagcxResult_t flattenLink(struct flagcxTopoServer *topoServer,
+                                  struct flagcxTopoLink *link,
+                                  struct flatTopoLink *flatLink) {
+  flatLink->type = link->type;
+  flatLink->bw = link->bw;
+  flagcxTopoNode *remNode = link->remNode;
+  int remNodeIdx;
+  FLAGCXCHECK(
+      flagcxTopoIdToIndex(topoServer, remNode->type, remNode->id, &remNodeIdx));
+  flatLink->remNodeIdx = remNodeIdx;
+  flatLink->remNodeType = remNode->type;
+  return flagcxSuccess;
+}
+
+static flagcxResult_t unflattenLink(struct flagcxTopoServer *topoServer,
+                                    struct flagcxTopoLink *link,
+                                    struct flatTopoLink *flatLink) {
+  link->type = flatLink->type;
+  link->bw = flatLink->bw;
+  int remNodeIdx = flatLink->remNodeIdx;
+  int remNodeType = flatLink->remNodeType;
+  flagcxTopoNode *remNode = &(topoServer->nodes[remNodeType].nodes[remNodeIdx]);
+  link->remNode = remNode;
+  return flagcxSuccess;
+}
+
+static flagcxResult_t flattenNode(struct flagcxTopoServer *topoServer,
+                                  struct flagcxTopoNode *node,
+                                  struct flatTopoNode *flatNode) {
+  flatNode->type = node->type;
+  flatNode->id = node->id;
+  flatNode->nlinks = node->nlinks;
+  if (node->type == APU) {
+    flatNode->apu.dev = node->apu.dev;
+    flatNode->apu.rank = node->apu.rank;
+    flatNode->apu.vendor = node->apu.vendor;
+  } else if (node->type == CPU) {
+    flatNode->cpu.arch = node->cpu.arch;
+    flatNode->cpu.vendor = node->cpu.vendor;
+    flatNode->cpu.model = node->cpu.model;
+  } else if (node->type == PCI) {
+    flatNode->pci.device = node->pci.device;
+  } else if (node->type == NET) {
+    flatNode->net.dev = node->net.dev;
+    flatNode->net.asic = node->net.asic;
+    flatNode->net.guid = node->net.guid;
+    flatNode->net.port = node->net.port;
+    flatNode->net.bw = node->net.bw;
+    flatNode->net.latency = node->net.latency;
+    flatNode->net.maxConn = node->net.maxConn;
+  }
+  return flagcxSuccess;
+}
+
+static flagcxResult_t unflattenNode(struct flagcxTopoServer *topoServer,
+                                    struct flagcxTopoNode *node,
+                                    struct flatTopoNode *flatNode) {
+  node->type = flatNode->type;
+  node->id = flatNode->id;
+  node->nlinks = flatNode->nlinks;
+  if (node->type == APU) {
+    node->apu.dev = flatNode->apu.dev;
+    node->apu.rank = flatNode->apu.rank;
+    node->apu.vendor = flatNode->apu.vendor;
+  } else if (node->type == CPU) {
+    node->cpu.arch = flatNode->cpu.arch;
+    node->cpu.vendor = flatNode->cpu.vendor;
+    node->cpu.model = flatNode->cpu.model;
+  } else if (node->type == PCI) {
+    node->pci.device = flatNode->pci.device;
+  } else if (node->type == NET) {
+    node->net.dev = flatNode->net.dev;
+    node->net.asic = flatNode->net.asic;
+    node->net.guid = flatNode->net.guid;
+    node->net.port = flatNode->net.port;
+    node->net.bw = flatNode->net.bw;
+    node->net.latency = flatNode->net.latency;
+    node->net.maxConn = flatNode->net.maxConn;
+  }
+  return flagcxSuccess;
+}
+
+static flagcxResult_t flattenNodeSet(struct flagcxTopoServer *topoServer,
+                                     struct flagcxTopoNodeSet *nodeSet,
+                                     struct flatTopoNodeSet *flatNodeSet) {
+  flatNodeSet->count = nodeSet->count;
+  for (int n = 0; n < flatNodeSet->count; n++) {
+    FLAGCXCHECK(
+        flattenNode(topoServer, &nodeSet->nodes[n], &flatNodeSet->nodes[n]));
+  }
+  return flagcxSuccess;
+}
+
+static flagcxResult_t unflattenNodeSet(struct flagcxTopoServer *topoServer,
+                                       struct flagcxTopoNodeSet *nodeSet,
+                                       struct flatTopoNodeSet *flatNodeSet) {
+  nodeSet->count = flatNodeSet->count;
+  for (int n = 0; n < nodeSet->count; n++) {
+    FLAGCXCHECK(
+        unflattenNode(topoServer, &nodeSet->nodes[n], &flatNodeSet->nodes[n]));
+  }
+  return flagcxSuccess;
+}
+
+static flagcxResult_t flattenTopoServer(struct flagcxTopoServer *topoServer,
+                                        struct flatTopoServer *flatTopo) {
+  flatTopo->serverId = topoServer->serverId;
+  INFO(FLAGCX_GRAPH, "FLATTEN_SERVER: serverId = [%d]", flatTopo->serverId);
+  flatTopo->nHosts = topoServer->nHosts;
+  INFO(FLAGCX_GRAPH, "FLATTEN_SERVER: nHosts = [%d]", flatTopo->nHosts);
+  for (int h = 0; h < topoServer->nHosts; h++) {
+    flatTopo->hostHashes[h] = topoServer->hostHashes[h];
+  }
+
+  // flatten node set
+  for (int t = 0; t < FLAGCX_TOPO_NODE_TYPES; t++) {
+    INFO(FLAGCX_GRAPH, "FLATTEN_SERVER: start flattening node set of type [%d]",
+         t);
+    FLAGCXCHECK(
+        flattenNodeSet(topoServer, &topoServer->nodes[t], &flatTopo->nodes[t]));
+  }
+  // need to flatten all nodes first before flattening links
+  for (int t = 0; t < FLAGCX_TOPO_NODE_TYPES; t++) {
+    for (int n = 0; n < topoServer->nodes[t].count; n++) {
+      for (int l = 0; l < topoServer->nodes[t].nodes[n].nlinks; l++) {
+        struct flagcxTopoLink *link = &topoServer->nodes[t].nodes[n].links[l];
+        struct flatTopoLink *flatLink = &flatTopo->nodes[t].nodes[n].links[l];
+        FLAGCXCHECK(flattenLink(topoServer, link, flatLink));
+      }
+    }
+  }
+  return flagcxSuccess;
+}
+
+static flagcxResult_t unflattenTopoServer(struct flagcxTopoServer *topoServer,
+                                          struct flatTopoServer *flatTopo) {
+  topoServer->serverId = flatTopo->serverId;
+  topoServer->nHosts = flatTopo->nHosts;
+  INFO(FLAGCX_GRAPH, "UNFLATTEN_SERVER: assigning host hashes");
+  for (int h = 0; h < topoServer->nHosts; h++) {
+    topoServer->hostHashes[h] = flatTopo->hostHashes[h];
+  }
+
+  // unflatten node set
+  INFO(FLAGCX_GRAPH, "UNFLATTEN_SERVER: start unflattening node set");
+  for (int t = 0; t < FLAGCX_TOPO_NODE_TYPES; t++) {
+    FLAGCXCHECK(unflattenNodeSet(topoServer, &topoServer->nodes[t],
+                                 &flatTopo->nodes[t]));
+  }
+
+  // need to unflatten all nodes first before flattening links
+  INFO(FLAGCX_GRAPH, "UNFLATTEN_SERVER: start unflattening links");
+  for (int t = 0; t < FLAGCX_TOPO_NODE_TYPES; t++) {
+    for (int n = 0; n < flatTopo->nodes[t].count; n++) {
+      for (int l = 0; l < flatTopo->nodes[t].nodes[n].nlinks; l++) {
+        struct flagcxTopoLink *link = &topoServer->nodes[t].nodes[n].links[l];
+        struct flatTopoLink *flatLink = &flatTopo->nodes[t].nodes[n].links[l];
+        FLAGCXCHECK(unflattenLink(topoServer, link, flatLink));
+      }
+    }
+  }
+
+  return flagcxSuccess;
+}
+
+static flagcxResult_t
+flagcxTopoReorderServerId(struct flatTopoServer *flatTopoServer, int nRanks) {
+  // get all host hashes
+  std::map<uint64_t, int> hostHashToServerId;
+  int serverId = 0;
+  int nHosts = 0;
+  for (int i = 0; i < nRanks; i++) {
+    // get host hash of server
+    uint64_t hostHash =
+        flatTopoServer[i].hostHashes[flatTopoServer[i].serverId];
+    auto it = hostHashToServerId.find(hostHash);
+    if (it == hostHashToServerId.end()) {
+      // assign new serverId
+      flatTopoServer[i].serverId = serverId;
+      // if we haven't seen this host hash before, add it to the map
+      hostHashToServerId[hostHash] = serverId;
+      serverId++;
+      nHosts++;
+    } else {
+      // if we have seen this host hash before, reorder serverId
+      flatTopoServer[i].serverId = it->second;
+    }
+  }
+  for (int i = 0; i < nRanks; i++) {
+    // clear original host hash array
+    memset(flatTopoServer[i].hostHashes, 0,
+           sizeof(uint64_t) * FLAGCX_TOPO_MAX_NODES);
+    flatTopoServer[i].nHosts = nHosts;
+    for (auto it = hostHashToServerId.begin(); it != hostHashToServerId.end();
+         ++it) {
+      // reorder host hashes
+      flatTopoServer[i].hostHashes[it->second] = it->first;
+    }
+  }
+  return flagcxSuccess;
+}
+
+// modify nodeIds based on new serverId
+static flagcxResult_t flagcxModifyNodeIds(struct flagcxTopoServer *topoServer,
+                                          uint64_t serverId) {
+  for (int t = 0; t < FLAGCX_TOPO_NODE_TYPES; t++) {
+    for (int n = 0; n < topoServer->nodes[t].count; n++) {
+      auto localId = FLAGCX_TOPO_ID_LOCAL_ID(topoServer->nodes[t].nodes[n].id);
+      topoServer->nodes[t].nodes[n].id = FLAGCX_TOPO_ID(serverId, localId);
+    }
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t
+flagcxGetInterServerTopo(struct flagcxHeteroComm *comm,
+                         struct flagcxInterServerTopo **interServerTopo,
+                         struct flagcxTopoServer *topoServer) {
+  int rank = comm->rank;
+  int nRanks = comm->nRanks;
+  uint64_t currRankHostHash = topoServer->hostHashes[topoServer->serverId];
+  FLAGCXCHECK(flagcxCalloc(interServerTopo, 1));
+  flagcxInterServerTopo *interServer = *interServerTopo;
+  flatTopoServer *flatServerData;
+  FLAGCXCHECK(flagcxCalloc(&flatServerData, nRanks));
+  // we need to flatten topoServer first to remove all pointer types in the
+  // structure before copying and trasferring it to other ranks
+  FLAGCXCHECK(flattenTopoServer(topoServer, flatServerData + rank));
+  FLAGCXCHECK(bootstrapAllGather(comm->bootstrap, (void *)flatServerData,
+                                 sizeof(flatTopoServer)));
+  FLAGCXCHECK(bootstrapBarrier(comm->bootstrap, rank, nRanks, 0));
+
+  // reorder serverId
+  FLAGCXCHECK(flagcxTopoReorderServerId(flatServerData, nRanks));
+
+  // get unique flatServers
+  std::map<int, flatTopoServer *> flatServerMap;
+  flatServerMap[flatServerData[0].serverId] = &flatServerData[0];
+  int serverCount = 1;
+  for (int i = 1; i < nRanks; i++) {
+    auto it = flatServerMap.find(flatServerData[i].serverId);
+    if (it != flatServerMap.end()) {
+      continue;
+    }
+    flatServerMap[flatServerData[i].serverId] = &flatServerData[i];
+    serverCount++;
+  }
+  // unflatten the flatServers to topoServers
+  flagcxTopoServer *topoServers;
+  FLAGCXCHECK(flagcxCalloc(&topoServers, serverCount));
+  int i = 0;
+  for (auto it = flatServerMap.begin(); it != flatServerMap.end(); ++it, i++) {
+    flatTopoServer *server = it->second;
+    if (server->hostHashes[server->serverId] == currRankHostHash) {
+      // this is the current server, no need to flatten, but neet to change
+      // serverId, and node ids
+      topoServer->serverId = server->serverId;
+      topoServer->nHosts = server->nHosts;
+      memcpy(topoServer->hostHashes, server->hostHashes,
+             sizeof(uint64_t) * FLAGCX_TOPO_MAX_NODES);
+      FLAGCXCHECK(flagcxModifyNodeIds(topoServer, server->serverId));
+      continue;
+    }
+    FLAGCXCHECK(unflattenTopoServer(topoServers + i, server));
+    FLAGCXCHECK(flagcxModifyNodeIds(topoServers + i, server->serverId));
+    // reconstruct paths because we didn't send path info in allgather
+    FLAGCXCHECK(flagcxTopoComputePaths(topoServers + i, comm));
+  }
+  interServer->numServers = serverCount;
+  interServer->servers = topoServers;
+
+  // verify final topoServers
+  // if (rank == 0) {
+  //   for (int i = 0; i < serverCount; i++) {
+  //     if (topoServer->serverId == i) {
+  //       FLAGCXCHECK(flagcxTopoPrint(topoServer));
+  //     } else {
+  //       FLAGCXCHECK(flagcxTopoPrint(topoServers + i));
+  //     }
+  //   }
+  // }
+
+  // TODO: read interserver topo file and construct interserver route
+
+  // record all net guid and serverId mappings
+  free(flatServerData);
   return flagcxSuccess;
 }
