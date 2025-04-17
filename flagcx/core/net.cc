@@ -5,6 +5,7 @@
 
 flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
+  if(!__atomic_load_n(&args->eventReady, __ATOMIC_RELAXED)) return flagcxSuccess;
   if (args->transmitted < args->chunkSteps) {
     int stepMask = args->sendStepMask;
 
@@ -46,17 +47,18 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
         args->transmitted++;
       }
     }
-  } else if (!__atomic_load_n(&args->hlArgs.retLaunch, __ATOMIC_RELAXED)) {
-    if (!args->hlArgs.stopLaunch)
-      args->hlArgs.stopLaunch = 1;
-  } else
+  } 
+  else {
+    __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
     args->done = true;
+  }
 
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
+  if(!__atomic_load_n(&args->eventReady, __ATOMIC_RELAXED)) return flagcxSuccess;
   if (args->copied < args->chunkSteps) {
     int stepMask = args->sendStepMask;
     if (args->posted < args->chunkSteps &&
@@ -121,11 +123,11 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
       }
     }
 
-  } else if (!__atomic_load_n(&args->hlArgs.retLaunch, __ATOMIC_RELAXED)) {
-    if (!args->hlArgs.stopLaunch)
-      args->hlArgs.stopLaunch = 1;
-  } else
+  } 
+  else {
+    __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
     args->done = true;
+  }
 
   return flagcxSuccess;
 }

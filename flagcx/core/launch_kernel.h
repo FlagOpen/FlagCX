@@ -22,6 +22,7 @@ struct hostLaunchArgs{
 };
 
 void cpuAsyncLaunch(void *_args);
+void cpuStreamWait(void *_args);
 
 #endif
 

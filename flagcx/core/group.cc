@@ -15,6 +15,7 @@
 #include "type.h"
 #include <pthread.h>
 #include <stdio.h>
+#include <queue>
 
 __thread int flagcxGroupDepth = 0;
 __thread bool flagcxGroupJobAbortFlag = false;
@@ -84,6 +85,12 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
       *asyncJobsMain = gjob->asyncJobsPtr;
   // volatile bool *groupAbortFlag = gjob->abortFlagPtr;
 
+  struct hostFuncArgs {
+    flagcxStream_t stream;
+    void *args;
+  };
+  std::queue<struct hostFuncArgs> hostFuncQueue;
+
   if (groupCommPreconnectHeadMain != nullptr) {
     struct flagcxHeteroComm *comm = groupCommPreconnectHeadMain;
     do {
@@ -146,8 +153,10 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.chunkSteps = (p2p->bytes + CHUNCKSIZE - 1) / (CHUNCKSIZE);
           op->args.sendStepMask = MAXSENDSTEP - 1;
           op->stream = p2p->stream;
-          FLAGCXCHECK(deviceAdaptor->launchHostFunc(op->stream, cpuAsyncLaunch,
-                                                    &op->args.hlArgs));
+          flagcxCalloc((bool **)&op->args.hlArgs, 1);
+          hostFuncQueue.push({op->stream, (void *)op->args.hlArgs});
+          FLAGCXCHECK(deviceAdaptor->launchHostFunc(op->stream, cpuStreamWait,
+                                                    (void *)&op->args.eventReady));
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));
           free(p2p);
         }
@@ -169,8 +178,10 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.chunkSteps = (p2p->bytes + CHUNCKSIZE - 1) / (CHUNCKSIZE);
           op->args.sendStepMask = MAXSENDSTEP - 1;
           op->stream = p2p->stream;
-          FLAGCXCHECK(deviceAdaptor->launchHostFunc(op->stream, cpuAsyncLaunch,
-                                                    &op->args.hlArgs));
+          flagcxCalloc((bool **)&op->args.hlArgs, 1);
+          hostFuncQueue.push({op->stream, (void *)op->args.hlArgs});
+          FLAGCXCHECK(deviceAdaptor->launchHostFunc(op->stream, cpuStreamWait,
+                                                    (void *)&op->args.eventReady));
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));
           free(p2p);
         }
@@ -178,6 +189,13 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
       comm->tasks.p2pOrderSteps = 0;
       comm = comm->groupNext;
     } while (comm != nullptr);
+  }
+
+  while (!hostFuncQueue.empty()) {
+    struct hostFuncArgs args;
+    args = hostFuncQueue.front();
+    hostFuncQueue.pop();
+    FLAGCXCHECK(deviceAdaptor->launchHostFunc(args.stream, cpuAsyncLaunch, args.args));
   }
 
   while (!flagcxIntruQueueEmpty(asyncJobsMain)) {
