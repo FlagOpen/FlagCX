@@ -4,6 +4,8 @@
 #include "bootstrap.h"
 #include "flagcx.h"
 
+#include <vector>
+
 /* Opaque handle to flagcxInnerComm */
 typedef struct flagcxInnerComm *flagcxInnerComm_t;
 
@@ -17,6 +19,7 @@ typedef enum {
 } flagcxCommunicatorType_t;
 
 struct flagcxComm {
+  // TODO: adjust code format
   int rank;
   int nranks;
   int nclusters;
@@ -31,12 +34,18 @@ struct flagcxComm {
   volatile uint32_t *abortFlag;
   int *cluster_sizes;
   int *cluster_ids;
-  int *cluster_inter_ranks;
   int *globalrank2homorank;
+  int *cluster_inter_ranks;
   bootstrapState *bootstrap;
   flagcxInnerComm_t host_comm;
   flagcxInnerComm_t homo_comm;
   flagcxHeteroComm_t hetero_comm;
+  // experimental for multi-nic support
+  int homoInterRootRank;
+  int homoInterMyRank;
+  int homoInterRanks;
+  std::vector<std::vector<int>> clusterInterRankList;
+  flagcxInnerComm_t homoInterComm;
 };
 
 #endif // end include guard
