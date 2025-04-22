@@ -422,7 +422,7 @@ inline uint32_t flagcxCommIntraBarrierOut(struct flagcxHeteroComm *comm) {
 static inline flagcxRedOp_t flagcxUserRedOpMangle(flagcxHeteroComm *comm,
                                                   flagcxRedOp_t op) {
   // Preserve the built-in values.
-  if (int(op) < int(flagcxNumOps))
+  if (int(op) < int(flagcxNumRedOps))
     return op;
   uint64_t h = reinterpret_cast<uint64_t>(comm);
   h ^= h >> 32;
@@ -432,7 +432,7 @@ static inline flagcxRedOp_t flagcxUserRedOpMangle(flagcxHeteroComm *comm,
   int op1 = int(h) ^ int(op);
   // Since builtin values are preserved, we also have to preserve their
   // preimage.
-  return op1 < int(flagcxNumOps) ? op : flagcxRedOp_t(op1);
+  return op1 < int(flagcxNumRedOps) ? op : flagcxRedOp_t(op1);
 }
 
 flagcxResult_t flagcxCommEnsureReady(flagcxHeteroComm_t comm);

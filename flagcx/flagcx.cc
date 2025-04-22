@@ -2,6 +2,7 @@
 #include "adaptor.h"
 #include "alloc.h"
 #include "bootstrap.h"
+#include "c2c_algo.h"
 #include "check.h"
 #include "cluster.h"
 #include "comm.h"
@@ -1139,6 +1140,15 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
            timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
+      // Experimental for multi-nic support
+      // Construct flagcxC2cPlanner and find corresponding strategy
+      flagcxC2cPlanner planner(
+          comm->cluster_ids[comm->rank], comm->rank, comm->homo_rank,
+          comm->homo_root_rank, comm->homo_ranks, comm->homoInterMyRank,
+          comm->homoInterRootRank, comm->homoInterRanks, count,
+          flagcxCommOpAllReduce, op, comm->clusterInterRankList);
+      planner.findStrategy();
+
       // op validation
       if (op != flagcxSum && op != flagcxMax && op != flagcxMin) {
         WARN("Unsupported reduction operation %d", op);

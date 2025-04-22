@@ -43,18 +43,34 @@ typedef enum {
 } flagcxDataType_t;
 
 /* Reduction operation selector */
-typedef enum { flagcxNumOps_dummy = 5 } flagcxRedOp_dummy_t;
+typedef enum { flagcxNumRedOps_dummy = 5 } flagcxRedOp_dummy_t;
 typedef enum {
   flagcxSum = 0,
   flagcxProd = 1,
   flagcxMax = 2,
   flagcxMin = 3,
   flagcxAvg = 4,
-  flagcxNumOps = 5,
+  flagcxNumRedOps = 5,
   flagcxMaxRedOp = 0x7fffffff >> (32 - 8 * sizeof(flagcxRedOp_dummy_t))
 } flagcxRedOp_t;
 
 size_t getFlagcxDataTypeSize(flagcxDataType_t dtype);
+
+/* Communication operation type */
+typedef enum {
+  flagcxCommOpSend = 0,
+  flagcxCommOpRecv = 1,
+  flagcxCommOpBroadcast = 2,
+  flagcxCommOpGather = 3,
+  flagcxCommOpScatter = 4,
+  flagcxCommOpReduce = 5,
+  flagcxCommOpAllReduce = 6,
+  flagcxCommOpAllGather = 7,
+  flagcxCommOpReduceScatter = 8,
+  flagcxCommOpAlltoAll = 9,
+  flagcxCommOpAlltoAllv = 10,
+  flagcxNumCommOps = 11
+} flagcxCommOp_t;
 
 typedef enum {
   flagcxMemcpyHostToDevice = 0,
