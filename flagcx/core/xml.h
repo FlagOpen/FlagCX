@@ -257,6 +257,19 @@ static flagcxResult_t xmlSetAttrLong(struct flagcxXmlNode *node,
   return flagcxSuccess;
 }
 
+static flagcxResult_t xmlInitAttrUint64(struct flagcxXmlNode *node,
+                                        const char *attrName,
+                                        const uint64_t value) {
+  int index;
+  FLAGCXCHECK(xmlGetAttrIndex(node, attrName, &index));
+  if (index == -1) {
+    index = node->nAttrs++;
+    strncpy(node->attrs[index].key, attrName, MAX_STR_LEN);
+    snprintf(node->attrs[index].value, MAX_STR_LEN, "0x%lx", value);
+  }
+  return flagcxSuccess;
+}
+
 static flagcxResult_t xmlUnsetAttr(struct flagcxXmlNode *node,
                                    const char *attrName) {
   int index;

@@ -1,0 +1,11 @@
+<interserver_route>
+    <nic_pairs>
+        <pair>
+            <nic1 guid="0xf6e65d0003d23fb8" />
+            <nic2 guid="0xaee85d0003d23fb8" />
+            <interSwitch count="1">
+                <switch downBw="25" upBw="25" upLink="1" downLink="1" isTop="1"/>
+            </interSwitch>
+        </pair>
+    </nic_pairs>
+</interserver_route>

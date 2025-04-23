@@ -245,5 +245,14 @@ void flagcxInterServerTopoFree(struct flagcxInterServerTopo *interServerTopo) {
     flagcxTopoRemovePaths(interServerTopo->servers + i);
   }
   free(interServerTopo->servers);
-  free(interServerTopo);
+  // free interserver routes
+  for (auto localRankIter = interServerTopo->routeMap.begin();
+       localRankIter != interServerTopo->routeMap.end(); ++localRankIter) {
+    auto remoteRoutes = localRankIter->second;
+    for (auto remoteRankIter = remoteRoutes.begin();
+         remoteRankIter != remoteRoutes.end(); ++remoteRankIter) {
+      free(remoteRankIter->second);
+    }
+  }
+  delete interServerTopo;
 }
