@@ -1075,8 +1075,6 @@ static flagcxResult_t flattenNode(struct flagcxTopoServer *topoServer,
     flatNode->net.dev = node->net.dev;
     // flatNode->net.asic = node->net.asic;
     flatNode->net.guid = node->net.guid;
-    INFO(FLAGCX_GRAPH, "FLATTEN_NET: flattenNode net guid=[%lx]",
-         node->net.guid);
     flatNode->net.port = node->net.port;
     flatNode->net.bw = node->net.bw;
     flatNode->net.latency = node->net.latency;
