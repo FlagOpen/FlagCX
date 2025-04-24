@@ -10,12 +10,17 @@
 #include <map>
 #include <string>
 
+// homoType: 0, pre; 1, homoInter; 2, post,
+// mode: 0, multiNic+eachNicPerRank; 1, normal; 2, single-nic
+flagcxCommOp_t getC2cHomoCommOp(flagcxCommOp_t commOp, int homoType, int mode);
+
 struct flagcxBufferInfo {
 public:
   flagcxBufferInfo(int offset, int count, int clusterIdToSend, int isRecv,
-                   int isScheduled, int peerRank)
+                   int isScheduled, int peerRank, int loopId)
       : offset_(offset), count_(count), clusterIdToSend_(clusterIdToSend),
-        isRecv_(isRecv), isScheduled_(isScheduled), peerRank_(peerRank) {}
+        isRecv_(isRecv), isScheduled_(isScheduled), peerRank_(peerRank),
+        loopId_(loopId) {}
   ~flagcxBufferInfo() {}
 
   int offset_;
@@ -24,6 +29,7 @@ public:
   int isRecv_;          // 0: send, 1: recv
   int isScheduled_;     // 0: un-scheduled, 1: scheduled
   int peerRank_;
+  int loopId_;
 };
 
 class flagcxInterRankBufferInfoManager {
@@ -39,7 +45,7 @@ public:
   std::list<flagcxBufferInfo> &getBufferInfoList(int clusterId, int rank);
   void pushBackBufferInfo(int clusterId, int rank, int offset, int count,
                           int clusterIdToSend, int isRecv, int isScheduled,
-                          int peerRank);
+                          int peerRank, int loopId);
   void popFrontBufferInfo(int clusterId, int rank);
   void resetBufferInfo();
   void printBufferInfo(int step); // 0: intial, 1: internal, 2: final
@@ -52,36 +58,33 @@ public:
 
 class flagcxC2cP2pOp {
 public:
-  flagcxC2cP2pOp(int rank, int offset, int peerRank, int peerOffset, int count,
-                 int isRecv);
+  flagcxC2cP2pOp(int rank, int peerRank, int offset, int count, int isRecv);
   ~flagcxC2cP2pOp();
 
-  flagcxResult_t run(const void *sendbuff, void *recvbuff,
-                     flagcxDataType_t datatype, flagcxComm_t comm,
+  flagcxResult_t run(void *buff, flagcxDataType_t datatype, flagcxComm_t comm,
                      flagcxStream_t stream);
 
   int rank_;
-  int offset_;
   int peerRank_;
-  int peerOffset_;
+  int offset_;
   int count_;
   int isRecv_; // 0: send, 1: recv
 };
 
 class flagcxC2cHomoFunc {
 public:
-  flagcxC2cHomoFunc(int rank, int rootRank, int offset, int count,
+  flagcxC2cHomoFunc(int rootRank, int offset, int count, int isHomoInterComm,
                     flagcxCommOp_t commOp);
   ~flagcxC2cHomoFunc();
 
   flagcxResult_t run(const void *sendbuff, void *recvbuff,
-                     flagcxDataType_t datatype, int root, flagcxComm_t comm,
-                     flagcxStream_t stream);
+                     flagcxDataType_t datatype, flagcxRedOp_t redOp, int root,
+                     flagcxComm_t comm, flagcxStream_t stream);
 
-  int rank_;
   int rootRank_;
   int offset_;
   int count_;
+  int isHomoInterComm_;
   flagcxCommOp_t commOp_;
 };
 
@@ -90,53 +93,68 @@ public:
   flagcxC2cHeteroFunc();
   ~flagcxC2cHeteroFunc();
 
-  void addP2pOp(int rank, int offset, int peerRank, int peerOffset, int count,
-                int isRecv);
-  flagcxResult_t run(const void *sendbuff, void *recvbuff,
-                     flagcxDataType_t datatype, flagcxComm_t comm,
+  void addP2pOp(int rank, int peerRank, int offset, int count, int isRecv);
+  flagcxResult_t run(void *buff, flagcxDataType_t datatype, flagcxComm_t comm,
                      flagcxStream_t stream);
 
 private:
   std::vector<flagcxC2cP2pOp> p2pOps_;
 };
 
+class flagcxC2cRefreshFunc {
+public:
+  flagcxC2cRefreshFunc();
+  flagcxC2cRefreshFunc(int offset, int count, int totalCount,
+                       flagcxRedOp_t redOp);
+  ~flagcxC2cRefreshFunc();
+
+  flagcxResult_t run(void *buff, flagcxDataType_t datatype,
+                     flagcxStream_t stream);
+
+  int offset_;
+  int count_;
+  int totalCount_;
+  flagcxRedOp_t redOp_;
+};
+
 class flagcxC2cPlanner {
 public:
-  flagcxC2cPlanner(int clusterId, int rank, int homoMyRank, int homoRootRank,
-                   int homoRanks, int homoInterMyRank, int homoInterRootRank,
-                   int homoInterRanks, int totalCount, flagcxCommOp_t commOp,
-                   flagcxRedOp_t redOp,
-                   std::vector<std::vector<int>> &clusterInterRankList);
+  flagcxC2cPlanner(int totalCount, flagcxComm_t comm, flagcxCommOp_t commOp,
+                   flagcxRedOp_t redOp);
   ~flagcxC2cPlanner();
 
   flagcxResult_t refresh(
       int isSendRecv); // 0: refresh recv info only; 1: refresh send+recv info
   flagcxResult_t findStrategy();
   flagcxResult_t execute(const void *sendbuff, void *recvbuff,
-                         flagcxDataType_t datatype, int root, flagcxComm_t comm,
+                         flagcxDataType_t datatype, int root,
                          flagcxStream_t stream);
 
 private:
-  int clusterId_;
-  int rank_; // global rank
-  int homoMyRank_;
-  int homoRootRank_;
-  int homoRanks_;
-  int homoInterMyRank_;
-  int homoInterRootRank_;
-  int homoInterRanks_;
   int totalCount_;
+  flagcxComm_t comm_;
   flagcxCommOp_t commOp_;
   flagcxRedOp_t redOp_;
   std::vector<std::vector<int>> &clusterInterRankList_;
   flagcxInterRankBufferInfoManager interRankBufferInfoManager_;
+  int &clusterId_;
+  int &rank_; // global rank
+  int &homoMyRank_;
+  int &homoRootRank_;
+  int &homoRanks_;
+  int &homoInterMyRank_;
+  int &homoInterRootRank_;
+  int &homoInterRanks_;
   int multiNic_;
   int eachNicPerRank_;
-  int preHomoFuncLoops_;           // number of loops for preHomoFunc
-  int heteroAndPostHomoFuncLoops_; // number of loops for heteroFunc and
-                                   // postHomoFunc
+  int preHomoFuncLoops_;            // number of loops for preHomoFunc
+  int heteroAndHomoInterFuncLoops_; // number of loops for heteroFunc and
+                                    // homoInterFunc
+  int postHomoFuncLoops_;           // number of loops for postHomoFunc
+  flagcxC2cRefreshFunc refreshFunc_;
   std::vector<flagcxC2cHomoFunc> preHomoFuncList_;
   std::vector<flagcxC2cHeteroFunc> heteroFuncList_;
+  std::vector<flagcxC2cHomoFunc> homoInterFuncList_;
   std::vector<flagcxC2cHomoFunc> postHomoFuncList_;
 };
 

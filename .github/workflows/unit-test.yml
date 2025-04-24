@@ -48,8 +48,11 @@ jobs:
           . venv/bin/activate
           apt update -y
           apt-get install clang-format -y
+          git fetch --all
           from_ref=${GITHUB_HEAD_REF}
           to_ref=${GITHUB_BASE_REF}
+
+          echo "From branch: $from_ref, To branch: $to_ref"
 
           pre-commit run --from-ref "origin/$from_ref" --to-ref "origin/$to_ref"
         continue-on-error: false

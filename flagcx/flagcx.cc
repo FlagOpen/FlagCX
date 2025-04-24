@@ -1140,144 +1140,17 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
            timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
-      // Experimental for multi-nic support
-      // Construct flagcxC2cPlanner and find corresponding strategy
-      flagcxC2cPlanner planner(
-          comm->cluster_ids[comm->rank], comm->rank, comm->homo_rank,
-          comm->homo_root_rank, comm->homo_ranks, comm->homoInterMyRank,
-          comm->homoInterRootRank, comm->homoInterRanks, count,
-          flagcxCommOpAllReduce, op, comm->clusterInterRankList);
-      planner.findStrategy();
-
       // op validation
       if (op != flagcxSum && op != flagcxMax && op != flagcxMin) {
         WARN("Unsupported reduction operation %d", op);
         return flagcxInvalidArgument;
       }
 
-      if (comm->support_multi_nic < 0) {
-        // intra-cluster reduce
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(
-            sendbuff, recvbuff, count, datatype, op, comm->homo_inter_rank,
-            comm->homo_comm, stream));
-
-        if (comm->homo_inter_rank != comm->homo_rank) {
-          if (op == flagcxSum) {
-            deviceAdaptor->deviceMemset(recvbuff, 0,
-                                        count * getFlagcxDataTypeSize(datatype),
-                                        flagcxMemDevice, stream);
-          }
-        }
-
-        // TODO: use stream wait rather than stream sync to avoid cpu blocking
-        deviceAdaptor->streamSynchronize(stream);
-
-        // inter-cluster sendrecv
-        int cid = 0;
-        flagcxGroupStart(comm);
-        for (int i = 0; i < comm->nclusters; ++i) {
-          if (comm->cluster_ids[comm->rank] == i)
-            continue;
-          // TODO: better to add an assertation ensuring that comm->ncluster <=
-          // comm->homo_ranks
-          int homo_rank_to_recv_from_cluster =
-              (comm->homo_inter_rank - cid - 1 + comm->homo_ranks) %
-              comm->homo_ranks;
-          if (comm->homo_rank == homo_rank_to_recv_from_cluster) {
-            FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype,
-                                         comm->cluster_inter_ranks[i],
-                                         comm->hetero_comm, stream));
-          }
-          int homo_rank_to_send_to_cluster =
-              (comm->globalrank2homorank[comm->cluster_inter_ranks[i]] - cid -
-               1 + comm->cluster_sizes[i]) %
-              comm->cluster_sizes[i];
-          int global_rank_to_send_to_cluster =
-              homo_rank_to_send_to_cluster -
-              comm->globalrank2homorank[comm->cluster_inter_ranks[i]] +
-              comm->cluster_inter_ranks[i];
-          if (comm->homo_inter_rank == comm->homo_rank) {
-            FLAGCXCHECK(flagcxHeteroSend(recvbuff, count, datatype,
-                                         global_rank_to_send_to_cluster,
-                                         comm->hetero_comm, stream));
-          }
-          cid += 1;
-        }
-        flagcxGroupEnd(comm);
-
-        // TODO: use stream wait rather than stream sync to avoid cpu blocking
-        deviceAdaptor->streamSynchronize(stream);
-
-        // intra-cluster allreduce
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
-            recvbuff, recvbuff, count, datatype, op, comm->homo_comm, stream));
-      } else {
-        // ensure that all clusters have same sizes
-        for (int i = 0; i < comm->nclusters; ++i) {
-          assert(comm->cluster_sizes[0] == comm->cluster_sizes[i]);
-        }
-
-        size_t recvcount = count / comm->homo_ranks;
-        size_t offset_step = recvcount * getFlagcxDataTypeSize(datatype);
-
-        // intra-cluster reducescatter
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduceScatter(
-            sendbuff,
-            static_cast<void *>(static_cast<char *>(recvbuff) +
-                                offset_step * comm->homo_rank),
-            recvcount, datatype, op, comm->homo_comm, stream));
-
-        if (op == flagcxSum) {
-          deviceAdaptor->deviceMemset(recvbuff, 0,
-                                      offset_step * comm->homo_rank,
-                                      flagcxMemDevice, stream);
-          deviceAdaptor->deviceMemset(
-              static_cast<void *>(static_cast<char *>(recvbuff) +
-                                  offset_step * (comm->homo_rank + 1)),
-              0, offset_step * (comm->homo_ranks - comm->homo_rank - 1),
-              flagcxMemDevice, stream);
-        }
-
-        // TODO: use stream wait rather than stream sync to avoid cpu blocking
-        deviceAdaptor->streamSynchronize(stream);
-
-        // inter-cluster sendrecv
-        int cid = 0;
-        int start = 0;
-        flagcxGroupStart(comm);
-        for (int i = 0; i < comm->nclusters; ++i) {
-          if (comm->cluster_ids[comm->rank] == i) {
-            start += comm->cluster_sizes[i];
-            continue;
-          } else {
-            cid = (comm->cluster_ids[comm->rank] - i + comm->nclusters) %
-                  comm->nclusters;
-          }
-          int recv_from_cluster_homo_rank =
-              (comm->homo_rank - cid + comm->homo_ranks) % comm->homo_ranks;
-          FLAGCXCHECK(flagcxHeteroRecv(
-              static_cast<void *>(static_cast<char *>(recvbuff) +
-                                  offset_step * recv_from_cluster_homo_rank),
-              recvcount, datatype, recv_from_cluster_homo_rank + start,
-              comm->hetero_comm, stream));
-          int send_to_cluster_homo_rank =
-              (comm->homo_rank + cid) % comm->homo_ranks;
-          FLAGCXCHECK(flagcxHeteroSend(
-              static_cast<void *>(static_cast<char *>(recvbuff) +
-                                  offset_step * comm->homo_rank),
-              recvcount, datatype, send_to_cluster_homo_rank + start,
-              comm->hetero_comm, stream));
-          start += comm->cluster_sizes[i];
-        }
-        flagcxGroupEnd(comm);
-
-        // TODO: use stream wait rather than stream sync to avoid cpu blocking
-        deviceAdaptor->streamSynchronize(stream);
-
-        // intra-cluster allreduce
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
-            recvbuff, recvbuff, count, datatype, op, comm->homo_comm, stream));
-      }
+      // Experimental for multi-nic support
+      // Construct flagcxC2cPlanner and find corresponding strategy
+      flagcxC2cPlanner planner(count, comm, flagcxCommOpAllReduce, op);
+      planner.findStrategy();
+      planner.execute(sendbuff, recvbuff, datatype, -1, stream);
     }
   }
   return flagcxSuccess;
