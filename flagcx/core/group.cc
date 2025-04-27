@@ -52,7 +52,7 @@ flagcxResult_t flagcxPreconnectFunc(struct flagcxAsyncJob *job_) {
   struct flagcxPreconnectJob *job = (struct flagcxPreconnectJob *)job_;
   struct flagcxHeteroComm *comm = job->comm;
   if (comm->proxyState->initialized == 0) {
-    flagcxProxyInit(comm);
+    FLAGCXCHECK(flagcxProxyInit(comm));
   }
   FLAGCXCHECK(flagcxTransportP2pSetup(comm, NULL, 0));
   return flagcxSuccess;
