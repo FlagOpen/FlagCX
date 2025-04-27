@@ -329,6 +329,11 @@ struct flagcxProxyState {
 
   // Queue of expected responses from the proxy
   struct flagcxExpectedProxyResponse *expectedResponses;
+
+  // flag indicating if the proxy is initialized.
+  // This flag is used for lazy initialization of the proxy.
+  // Cooperate with FLAGCX_RUNTIME_PROXY environment variable.
+  int initialized;
 };
 
 enum proxyConnectState {

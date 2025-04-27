@@ -193,7 +193,15 @@ static flagcxResult_t flagcxCommInitRankFunc(struct flagcxAsyncJob *job_) {
     comm->preconnectNext = reinterpret_cast<struct flagcxHeteroComm *>(0x1);
     comm->proxyState->nRanks = comm->nRanks;
 
-    FLAGCXCHECK(flagcxProxyInit(comm));
+    bool runtimeProxy = false;
+    const char *runtimeEnv = flagcxGetEnv("FLAGCX_RUNTIME_PROXY");
+    if (runtimeEnv) {
+      runtimeProxy = (std::stoi(runtimeEnv) == 1) ? true : false;
+    }
+    INFO(FLAGCX_INIT, "Flagcx RuntimeProxy flag set to %d", runtimeProxy);
+    if (!runtimeProxy) {
+      FLAGCXCHECK(flagcxProxyInit(comm));
+    }
   }
   flagcxNetIb.init(NULL);
   if (env && strcmp(env, "TRUE") == 0) {

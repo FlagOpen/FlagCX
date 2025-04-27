@@ -562,7 +562,7 @@ fail:
 }
 
 flagcxResult_t flagcxProxyInit(struct flagcxHeteroComm *comm) {
-
+  INFO(FLAGCX_INIT, "rank=%d flagcxProxyInit called.", comm->rank);
   FLAGCXCHECK(flagcxSocketInit(&comm->proxyState->ipcSock, &bootstrapNetIfAddr,
                                comm->magic, flagcxSocketTypeProxy, NULL, 1));
   FLAGCXCHECK(flagcxSocketListen(&comm->proxyState->ipcSock));
@@ -581,6 +581,7 @@ flagcxResult_t flagcxProxyInit(struct flagcxHeteroComm *comm) {
                  (void *)comm);
   pthread_create(&comm->proxyState->progressState.thread, NULL,
                  flagcxProxyProgress, comm->proxyState);
+  comm->proxyState->initialized = 1;
   return flagcxSuccess;
 }
 
@@ -657,11 +658,13 @@ flagcxResult_t flagcxProxyFree(struct flagcxHeteroComm *comm) {
 }
 
 flagcxResult_t flagcxProxyDestroy(struct flagcxHeteroComm *comm) {
-  int type = flagcxProxyMsgStop;
-  flagcxSocketSend(&comm->proxyState->peerSock, &type, sizeof(int));
-  comm->proxyState->progressState.stop = 1;
-  pthread_join(comm->proxyState->thread, nullptr);
-  pthread_join(comm->proxyState->progressState.thread, nullptr);
-  flagcxProxyFree(comm);
+  if (comm->proxyState->initialized == 1) {
+    int type = flagcxProxyMsgStop;
+    flagcxSocketSend(&comm->proxyState->peerSock, &type, sizeof(int));
+    comm->proxyState->progressState.stop = 1;
+    pthread_join(comm->proxyState->thread, nullptr);
+    pthread_join(comm->proxyState->progressState.thread, nullptr);
+    flagcxProxyFree(comm);
+  }
   return flagcxSuccess;
 }
