@@ -319,6 +319,9 @@ flagcxResult_t flagcxTopoGetServerTopo(struct flagcxHeteroComm *comm,
 flagcxResult_t flagcxTopoGetCompCap(struct flagcxTopoServer *topoServer,
                                     int *ccMin, int *ccMax);
 
+flagcxResult_t flagcxGetNicDistance(struct flagcxTopoServer *topoServer,
+                                    int rank, int *nicDistance);
+
 // static flagcxResult_t flagcxTopoIdToIndex(struct flagcxTopoServer*
 // serverTopo, int type, int64_t id, int* index) {
 //   *index = -1;
