@@ -362,8 +362,15 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
   (*comm)->clusterInterRankList.resize((*comm)->nclusters);
   int *nicDistanceData;
   FLAGCXCHECK(flagcxCalloc(&nicDistanceData, nranks));
-  FLAGCXCHECK(flagcxGetNicDistance((*comm)->hetero_comm->topoServer, rank,
-                                   nicDistanceData + rank));
+  const char *enableTopoDetect = flagcxGetEnv("FLAGCX_ENABLE_TOPO_DETECT");
+  if (enableTopoDetect && strcmp(enableTopoDetect, "TRUE") == 0 &&
+      (*comm)->hetero_comm != NULL) { // safety check, because topo detect is
+                                      // only enabled in hetero comm mode
+    FLAGCXCHECK(flagcxGetNicDistance((*comm)->hetero_comm->topoServer, rank,
+                                     nicDistanceData + rank));
+  } else {
+    nicDistanceData[rank] = rank % 2 + 1;
+  }
   FLAGCXCHECK(bootstrapAllGather(state, (void *)nicDistanceData, sizeof(int)));
   FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
   for (int i = 0; i < (*comm)->nclusters; ++i) {
