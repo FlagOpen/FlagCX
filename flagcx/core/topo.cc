@@ -522,6 +522,12 @@ flagcxResult_t flagcxGetLocalNetFromGpu(int apu, int *dev,
 
 flagcxResult_t flagcxGetNicDistance(struct flagcxTopoServer *topoServer,
                                     int rank, int *nicDistance) {
+
+  const char *enableTopoDetect = flagcxGetEnv("FLAGCX_ENABLE_TOPO_DETECT");
+  if (enableTopoDetect == NULL || strcmp(enableTopoDetect, "TRUE") != 0) {
+    *nicDistance = rank % 2 + 1; // default value when topo detect is disabled
+    return flagcxSuccess;
+  }
   int netDev;
   FLAGCXCHECK(flagcxTopoGetLocalNet(topoServer, rank, &netDev));
   int apuIdx;
