@@ -352,97 +352,113 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     }
   }
 
-  char *enableMultiNicSupport = getenv("FLAGCX_ENABLE_MULTI_NIC_SUPPORT");
-  if (enableMultiNicSupport) {
-    (*comm)->support_multi_nic = std::stoi(enableMultiNicSupport);
-  }
+  INFO(
+      FLAGCX_INIT,
+      "rank = %d, nranks = %d, nclusters = %d, cluster_id = %d, cluster_size "
+      "= %d, cluster_inter_rank = %d, homo_rank = %d, homo_root_rank = %d, "
+      "homo_inter_rank = %d, homo_ranks = %d, has_single_rank_homo_comm = %d, ",
+      rank, nranks, (*comm)->nclusters, (*comm)->cluster_ids[rank],
+      (*comm)->cluster_sizes[(*comm)->cluster_ids[rank]],
+      (*comm)->cluster_inter_ranks[(*comm)->cluster_ids[rank]],
+      (*comm)->homo_rank, (*comm)->homo_root_rank, (*comm)->homo_inter_rank,
+      (*comm)->homo_ranks, (*comm)->has_single_rank_homo_comm);
 
-  // Experimental for multi-nic support
-  // Collect nic distance to ranks
-  (*comm)->clusterInterRankList.resize((*comm)->nclusters);
-  int *nicDistanceData;
-  FLAGCXCHECK(flagcxCalloc(&nicDistanceData, nranks));
-  const char *enableTopoDetect = flagcxGetEnv("FLAGCX_ENABLE_TOPO_DETECT");
-  if (enableTopoDetect && strcmp(enableTopoDetect, "TRUE") == 0 &&
-      (*comm)->hetero_comm != NULL) { // safety check, because topo detect is
-                                      // only enabled in hetero comm mode
-    FLAGCXCHECK(flagcxGetNicDistance((*comm)->hetero_comm->topoServer, rank,
-                                     nicDistanceData + rank));
-  } else {
-    nicDistanceData[rank] = rank % 2 + 1;
-  }
-  FLAGCXCHECK(bootstrapAllGather(state, (void *)nicDistanceData, sizeof(int)));
-  FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
-  for (int i = 0; i < (*comm)->nclusters; ++i) {
-    int minDistance = INT_MAX;
-    std::unordered_map<int, std::vector<int>> nicDistanceToRanks;
-    for (int j = 0; j < nranks; ++j) {
-      if (clusterIdData[j] != i) {
-        continue;
+  if (!is_homo_comm(*comm)) {
+    char *enableMultiNicSupport = getenv("FLAGCX_ENABLE_MULTI_NIC_SUPPORT");
+    if (enableMultiNicSupport) {
+      (*comm)->support_multi_nic = std::stoi(enableMultiNicSupport);
+    }
+
+    // Experimental for multi-nic support
+    // Collect nic distance to ranks
+    (*comm)->clusterInterRankList.resize((*comm)->nclusters);
+    int *nicDistanceData;
+    FLAGCXCHECK(flagcxCalloc(&nicDistanceData, nranks));
+    const char *enableTopoDetect = flagcxGetEnv("FLAGCX_ENABLE_TOPO_DETECT");
+    if (enableTopoDetect && strcmp(enableTopoDetect, "TRUE") ==
+                                0) { // safety check nic distance is only
+                                     // available after topo detection
+      FLAGCXCHECK(flagcxGetNicDistance((*comm)->hetero_comm->topoServer, rank,
+                                       nicDistanceData + rank));
+    } else {
+      nicDistanceData[rank] = rank % 2 + 1;
+    }
+    FLAGCXCHECK(
+        bootstrapAllGather(state, (void *)nicDistanceData, sizeof(int)));
+    FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
+    for (int i = 0; i < (*comm)->nclusters; ++i) {
+      int minDistance = INT_MAX;
+      std::unordered_map<int, std::vector<int>> nicDistanceToRanks;
+      for (int j = 0; j < nranks; ++j) {
+        if (clusterIdData[j] != i) {
+          continue;
+        }
+        int val = nicDistanceData[j];
+        nicDistanceToRanks[val].push_back(j);
+        minDistance = std::min(minDistance, val);
       }
-      int val = nicDistanceData[j];
-      nicDistanceToRanks[val].push_back(j);
-      minDistance = std::min(minDistance, val);
+      (*comm)->clusterInterRankList[i] =
+          std::move(nicDistanceToRanks[minDistance]);
     }
-    (*comm)->clusterInterRankList[i] =
-        std::move(nicDistanceToRanks[minDistance]);
-  }
-  // Set homoInterMyRank, homoInterRootRank and homoInterRanks
-  auto &myClusterInterRanks =
-      (*comm)->clusterInterRankList[clusterIdData[rank]];
-  for (size_t i = 0; i < myClusterInterRanks.size(); ++i) {
-    if (rank == myClusterInterRanks[i]) {
-      (*comm)->homoInterMyRank = i;
+    // Set homoInterMyRank, homoInterRootRank and homoInterRanks
+    auto &myClusterInterRanks =
+        (*comm)->clusterInterRankList[clusterIdData[rank]];
+    for (size_t i = 0; i < myClusterInterRanks.size(); ++i) {
+      if (rank == myClusterInterRanks[i]) {
+        (*comm)->homoInterMyRank = i;
+      }
     }
-  }
-  if ((*comm)->homoInterMyRank != -1) {
-    (*comm)->homoInterRootRank = myClusterInterRanks[0];
-    (*comm)->homoInterRanks = myClusterInterRanks.size();
-  }
+    if ((*comm)->homoInterMyRank != -1) {
+      (*comm)->homoInterRootRank = myClusterInterRanks[0];
+      (*comm)->homoInterRanks = myClusterInterRanks.size();
+    }
 
-  INFO(FLAGCX_INIT,
-       "rank = %d, nranks = %d, nclusters = %d, cluster_id = %d, cluster_size "
-       "= %d, "
-       "cluster_inter_rank = %d, homo_rank = %d, homo_root_rank = %d, "
-       "homo_inter_rank = %d, homo_ranks = %d, "
-       "has_single_rank_homo_comm = %d, support_multi_nic = %d, "
-       "homoInterRootRank = %d, homoInterMyRank = %d, homoInterRanks = %d",
-       rank, nranks, (*comm)->nclusters, (*comm)->cluster_ids[rank],
-       (*comm)->cluster_sizes[(*comm)->cluster_ids[rank]],
-       (*comm)->cluster_inter_ranks[(*comm)->cluster_ids[rank]],
-       (*comm)->homo_rank, (*comm)->homo_root_rank, (*comm)->homo_inter_rank,
-       (*comm)->homo_ranks, (*comm)->has_single_rank_homo_comm,
-       (*comm)->homo_ranks, (*comm)->homoInterRootRank,
-       (*comm)->homoInterMyRank, (*comm)->homoInterRanks);
+    INFO(
+        FLAGCX_INIT,
+        "rank = %d, nranks = %d, nclusters = %d, cluster_id = %d, cluster_size "
+        "= %d, "
+        "cluster_inter_rank = %d, homo_rank = %d, homo_root_rank = %d, "
+        "homo_inter_rank = %d, homo_ranks = %d, "
+        "has_single_rank_homo_comm = %d, support_multi_nic = %d, "
+        "homoInterRootRank = %d, homoInterMyRank = %d, homoInterRanks = %d",
+        rank, nranks, (*comm)->nclusters, (*comm)->cluster_ids[rank],
+        (*comm)->cluster_sizes[(*comm)->cluster_ids[rank]],
+        (*comm)->cluster_inter_ranks[(*comm)->cluster_ids[rank]],
+        (*comm)->homo_rank, (*comm)->homo_root_rank, (*comm)->homo_inter_rank,
+        (*comm)->homo_ranks, (*comm)->has_single_rank_homo_comm,
+        (*comm)->homo_ranks, (*comm)->homoInterRootRank,
+        (*comm)->homoInterMyRank, (*comm)->homoInterRanks);
 
-  // Experimental for multi-nic support
-  // Reset commId and homo inter root rank calls underlying GetUniqueId function
-  // for initialization of homo inter communicator
-  memset((void *)commId, 0, sizeof(flagcxUniqueId));
-  memset((void *)uniqueIdData, 0, nranks * sizeof(flagcxUniqueId));
-  // Let homoInterRootRank call underlying GetUniqueId function
-  // for initialization of homo inter communicator
-  if (rank == (*comm)->homoInterRootRank) {
-    cclAdaptors[flagcxCCLAdaptorDevice]->getUniqueId(&commId);
-    memcpy((void *)&uniqueIdData[rank], (void *)commId, sizeof(flagcxUniqueId));
-  }
-  // Collect uniqueIdData globally
-  FLAGCXCHECK(
-      bootstrapAllGather(state, (void *)uniqueIdData, sizeof(flagcxUniqueId)));
-  FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
-  // Call cclAdaptor->commInitRank
-  if ((*comm)->homoInterRootRank != -1) {
-    memcpy((void *)commId, (void *)&uniqueIdData[(*comm)->homoInterRootRank],
-           sizeof(flagcxUniqueId));
-    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->commInitRank(
-        &(*comm)->homoInterComm, (*comm)->homoInterRanks, commId,
-        (*comm)->homoInterMyRank, NULL));
+    // Experimental for multi-nic support
+    // Reset commId and homo inter root rank calls underlying GetUniqueId
+    // function for initialization of homo inter communicator
+    memset((void *)commId, 0, sizeof(flagcxUniqueId));
+    memset((void *)uniqueIdData, 0, nranks * sizeof(flagcxUniqueId));
+    // Let homoInterRootRank call underlying GetUniqueId function
+    // for initialization of homo inter communicator
+    if (rank == (*comm)->homoInterRootRank) {
+      cclAdaptors[flagcxCCLAdaptorDevice]->getUniqueId(&commId);
+      memcpy((void *)&uniqueIdData[rank], (void *)commId,
+             sizeof(flagcxUniqueId));
+    }
+    // Collect uniqueIdData globally
+    FLAGCXCHECK(bootstrapAllGather(state, (void *)uniqueIdData,
+                                   sizeof(flagcxUniqueId)));
+    FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
+    // Call cclAdaptor->commInitRank
+    if ((*comm)->homoInterRootRank != -1) {
+      memcpy((void *)commId, (void *)&uniqueIdData[(*comm)->homoInterRootRank],
+             sizeof(flagcxUniqueId));
+      FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->commInitRank(
+          &(*comm)->homoInterComm, (*comm)->homoInterRanks, commId,
+          (*comm)->homoInterMyRank, NULL));
+    }
+    free(nicDistanceData);
   }
 
   free(clusterInterRankData);
   free(uniqueIdData);
   free(vendorData);
-  free(nicDistanceData);
 
   return flagcxSuccess;
 }
