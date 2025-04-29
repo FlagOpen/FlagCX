@@ -73,8 +73,8 @@ public:
 
 class flagcxC2cHomoFunc {
 public:
-  flagcxC2cHomoFunc(int rootRank, int offset, int count, int isHomoInterComm,
-                    flagcxCommOp_t commOp);
+  flagcxC2cHomoFunc(int rootRank, int sendOffset, int recvOffset, int count,
+                    int isHomoInterComm, flagcxCommOp_t commOp);
   ~flagcxC2cHomoFunc();
 
   flagcxResult_t run(const void *sendbuff, void *recvbuff,
@@ -82,7 +82,8 @@ public:
                      flagcxComm_t comm, flagcxStream_t stream);
 
   int rootRank_;
-  int offset_;
+  int sendOffset_;
+  int recvOffset_;
   int count_;
   int isHomoInterComm_;
   flagcxCommOp_t commOp_;
@@ -119,8 +120,8 @@ public:
 
 class flagcxC2cPlanner {
 public:
-  flagcxC2cPlanner(int totalCount, flagcxComm_t comm, flagcxCommOp_t commOp,
-                   flagcxRedOp_t redOp);
+  flagcxC2cPlanner(int totalCount, int recvCount, flagcxComm_t comm,
+                   flagcxCommOp_t commOp, flagcxRedOp_t redOp);
   ~flagcxC2cPlanner();
 
   flagcxResult_t refresh(
@@ -131,7 +132,8 @@ public:
                          flagcxStream_t stream);
 
 private:
-  int totalCount_;
+  int totalCount_; // equal to sendCount_
+  int recvCount_;
   flagcxComm_t comm_;
   flagcxCommOp_t commOp_;
   flagcxRedOp_t redOp_;

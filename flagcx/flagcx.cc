@@ -1171,7 +1171,7 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
 
       // Experimental for multi-nic support
       // Construct flagcxC2cPlanner and find corresponding strategy
-      flagcxC2cPlanner planner(count, comm, flagcxCommOpAllReduce, op);
+      flagcxC2cPlanner planner(count, count, comm, flagcxCommOpAllReduce, op);
       planner.findStrategy();
       planner.execute(sendbuff, recvbuff, datatype, -1, stream);
     }
