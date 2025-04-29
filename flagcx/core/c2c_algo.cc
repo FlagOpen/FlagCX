@@ -194,29 +194,29 @@ void flagcxInterRankBufferInfoManager::printBufferInfo(int step) {
       for (auto bufferIt = rankIt->second.begin();
            bufferIt != rankIt->second.end(); ++bufferIt) {
         if (step == 0) {
-          INFO(FLAGCX_COLL,
-               "Initial InterRankBufferInfo: cluster_id = %d, rank = %d, "
-               "offset = %d, count = %d, clusterIdToSend = %d, "
-               "isRecv = %d, isScheduled = %d, peerRank = %d, loopId = %d",
-               clusterIt->first, rankIt->first, bufferIt->offset_,
-               bufferIt->count_, bufferIt->clusterIdToSend_, bufferIt->isRecv_,
-               bufferIt->isScheduled_, bufferIt->peerRank_, bufferIt->loopId_);
+          TRACE_CALL(
+              "Initial InterRankBufferInfo: cluster_id = %d, rank = %d, "
+              "offset = %d, count = %d, clusterIdToSend = %d, "
+              "isRecv = %d, isScheduled = %d, peerRank = %d, loopId = %d",
+              clusterIt->first, rankIt->first, bufferIt->offset_,
+              bufferIt->count_, bufferIt->clusterIdToSend_, bufferIt->isRecv_,
+              bufferIt->isScheduled_, bufferIt->peerRank_, bufferIt->loopId_);
         } else if (step == 1) {
-          INFO(FLAGCX_COLL,
-               "Internal InterRankBufferInfo: cluster_id = %d, rank = %d, "
-               "offset = %d, count = %d, clusterIdToSend = %d, "
-               "isRecv = %d, isScheduled = %d, peerRank = %d, loopId = %d",
-               clusterIt->first, rankIt->first, bufferIt->offset_,
-               bufferIt->count_, bufferIt->clusterIdToSend_, bufferIt->isRecv_,
-               bufferIt->isScheduled_, bufferIt->peerRank_, bufferIt->loopId_);
+          TRACE_CALL(
+              "Internal InterRankBufferInfo: cluster_id = %d, rank = %d, "
+              "offset = %d, count = %d, clusterIdToSend = %d, "
+              "isRecv = %d, isScheduled = %d, peerRank = %d, loopId = %d",
+              clusterIt->first, rankIt->first, bufferIt->offset_,
+              bufferIt->count_, bufferIt->clusterIdToSend_, bufferIt->isRecv_,
+              bufferIt->isScheduled_, bufferIt->peerRank_, bufferIt->loopId_);
         } else if (step == 2) {
-          INFO(FLAGCX_COLL,
-               "Final InterRankBufferInfo: cluster_id = %d, rank = %d, "
-               "offset = %d, count = %d, clusterIdToSend = %d, "
-               "isRecv = %d, isScheduled = %d, peerRank = %d, loopId = %d",
-               clusterIt->first, rankIt->first, bufferIt->offset_,
-               bufferIt->count_, bufferIt->clusterIdToSend_, bufferIt->isRecv_,
-               bufferIt->isScheduled_, bufferIt->peerRank_, bufferIt->loopId_);
+          TRACE_CALL(
+              "Final InterRankBufferInfo: cluster_id = %d, rank = %d, "
+              "offset = %d, count = %d, clusterIdToSend = %d, "
+              "isRecv = %d, isScheduled = %d, peerRank = %d, loopId = %d",
+              clusterIt->first, rankIt->first, bufferIt->offset_,
+              bufferIt->count_, bufferIt->clusterIdToSend_, bufferIt->isRecv_,
+              bufferIt->isScheduled_, bufferIt->peerRank_, bufferIt->loopId_);
         }
       }
     }
@@ -231,10 +231,10 @@ flagcxC2cP2pOp::~flagcxC2cP2pOp() {}
 
 flagcxResult_t flagcxC2cP2pOp::run(void *buff, flagcxDataType_t datatype,
                                    flagcxComm_t comm, flagcxStream_t stream) {
-  INFO(FLAGCX_COLL,
-       "flagcxC2cP2pOp run: rank = %d, peerRank = %d, offset = %d, count = %d, "
-       "isRecv = %d, datatype = %d",
-       comm->rank, peerRank_, offset_, count_, isRecv_, datatype);
+  TRACE_CALL(
+      "flagcxC2cP2pOp run: rank = %d, peerRank = %d, offset = %d, count = %d, "
+      "isRecv = %d, datatype = %d",
+      comm->rank, peerRank_, offset_, count_, isRecv_, datatype);
   void *ptr =
       static_cast<char *>(buff) + offset_ * getFlagcxDataTypeSize(datatype);
   if (isRecv_) {
@@ -261,8 +261,7 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
   if (isHomoInterComm_ && comm->homoInterMyRank == -1) {
     return flagcxSuccess;
   }
-  INFO(
-      FLAGCX_COLL,
+  TRACE_CALL(
       "flagcxC2cHomoFunc run: rank = %d, rootRank = %d, offset = %d, count = "
       "%d, "
       "isHomoInterComm = %d, commOp = %d, datatype = %d, redOp = %d, root = %d",
@@ -358,11 +357,19 @@ flagcxC2cPlanner::flagcxC2cPlanner(int totalCount, flagcxComm_t comm,
       homoRanks_(comm->homo_ranks), homoInterMyRank_(comm->homoInterMyRank),
       homoInterRootRank_(comm->homoInterRootRank),
       homoInterRanks_(comm->homoInterRanks) {
-  // if inter ranks in all clusters equal to 1 （单网卡）
+  // if inter ranks in all clusters equal to 1 （single-nic）
   multiNic_ = 0;
   for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
     if (clusterInterRankList_[i].size() != 1) {
       multiNic_ = 1;
+      break;
+    }
+  }
+
+  // if inter ranks in a cluster is superier to totalCount_ (single-nic)
+  for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
+    if (clusterInterRankList_[i].size() > totalCount_) {
+      multiNic_ = 0;
       break;
     }
   }

@@ -1,14 +1,14 @@
 #ifndef FLAGCX_ADAPTOR_H_
 #define FLAGCX_ADAPTOR_H_
+
+#include "bootstrap.h"
+#include "flagcx.h"
+#include "global_comm.h"
 #include "topo.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "bootstrap.h"
-#include "flagcx.h"
-#include "global_comm.h"
 
 #define NCCLADAPTORS 2
 #define flagcxCCLAdaptorHost 0
