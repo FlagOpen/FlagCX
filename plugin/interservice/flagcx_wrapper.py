@@ -299,6 +299,24 @@ class FLAGCXLibrary:
             ctypes.byref(unique_id)))
         return unique_id
 
+    def unique_id_from_bytes(self, data: bytes) -> flagcxUniqueId:
+        """
+        Reconstructs an `ncclUniqueId` object from bytes data.
+        Args:
+            data: Must be a 128-byte data block (matching NCCL's unique_id).
+        Returns:
+            ncclUniqueId: The reconstructed NCCL Unique ID object.
+        Raises:
+            ValueError: If the input data length is not 128 bytes.
+        """
+        if len(data) != 256:
+            raise ValueError(
+                f"Expected 256 bytes for ncclUniqueId, got {len(data)} bytes")
+
+        unique_id = flagcxUniqueId()
+        ctypes.memmove(ctypes.addressof(unique_id.internal), data, 256)
+        return unique_id
+
     def flagcxCommInitRank(self, world_size: int, unique_id: flagcxUniqueId,
                          rank: int) -> flagcxComm_t:
         comm = flagcxComm_t()
