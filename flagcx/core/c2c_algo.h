@@ -158,6 +158,7 @@ private:
   std::vector<flagcxC2cHeteroFunc> heteroFuncList_;
   std::vector<flagcxC2cHomoFunc> homoInterFuncList_;
   std::vector<flagcxC2cHomoFunc> postHomoFuncList_;
+  void *scratchBuffer_; // used for intermediate processing
 };
 
 #endif // end include guard

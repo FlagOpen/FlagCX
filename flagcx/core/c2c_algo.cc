@@ -385,9 +385,14 @@ flagcxC2cPlanner::flagcxC2cPlanner(int totalCount, int recvCount,
       break;
     }
   }
+
+  // TODO: init scratch buffer
+  scratchBuffer_ = nullptr;
 }
 
-flagcxC2cPlanner::~flagcxC2cPlanner() {}
+flagcxC2cPlanner::~flagcxC2cPlanner() {
+  // TODO: destroy scratch buffer
+}
 
 flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
   if (isSendRecv) {
