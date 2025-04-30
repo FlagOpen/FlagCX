@@ -372,7 +372,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     // Experimental for multi-nic support
     // Collect nic distance to ranks
     (*comm)->clusterInterRankList.resize((*comm)->nclusters);
-    int *nicDistanceData;
+    struct flagcxNicDistance *nicDistanceData;
     FLAGCXCHECK(flagcxCalloc(&nicDistanceData, nranks));
     const char *enableTopoDetect = flagcxGetEnv("FLAGCX_ENABLE_TOPO_DETECT");
     if (enableTopoDetect && strcmp(enableTopoDetect, "TRUE") ==
@@ -381,20 +381,26 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
       FLAGCXCHECK(flagcxGetNicDistance((*comm)->hetero_comm->topoServer, rank,
                                        nicDistanceData + rank));
     } else {
-      nicDistanceData[rank] = rank % 2 + 1;
+      nicDistanceData[rank].distance = rank % 2 + 1;
+      nicDistanceData[rank].netDev = rank; // give a dummy value
     }
-    FLAGCXCHECK(
-        bootstrapAllGather(state, (void *)nicDistanceData, sizeof(int)));
+    FLAGCXCHECK(bootstrapAllGather(state, (void *)nicDistanceData,
+                                   sizeof(flagcxNicDistance)));
     FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
     for (int i = 0; i < (*comm)->nclusters; ++i) {
       int minDistance = INT_MAX;
       std::unordered_map<int, std::vector<int>> nicDistanceToRanks;
+      std::unordered_map<int, std::unordered_set<int>> nicDistanceToNic;
       for (int j = 0; j < nranks; ++j) {
         if (clusterIdData[j] != i) {
           continue;
         }
-        int val = nicDistanceData[j];
-        nicDistanceToRanks[val].push_back(j);
+        int val = nicDistanceData[j].distance;
+        int netDev = nicDistanceData[j].netDev;
+        if (nicDistanceToNic[val].find(netDev) == nicDistanceToNic[val].end()) {
+          nicDistanceToRanks[val].push_back(j);
+          nicDistanceToNic[val].insert(netDev);
+        }
         minDistance = std::min(minDistance, val);
       }
       (*comm)->clusterInterRankList[i] =

@@ -521,7 +521,8 @@ flagcxResult_t flagcxGetLocalNetFromGpu(int apu, int *dev,
 }
 
 flagcxResult_t flagcxGetNicDistance(struct flagcxTopoServer *topoServer,
-                                    int rank, int *nicDistance) {
+                                    int rank,
+                                    struct flagcxNicDistance *distInfo) {
   int netDev;
   FLAGCXCHECK(flagcxTopoGetLocalNet(topoServer, rank, &netDev));
   int apuIdx;
@@ -530,7 +531,8 @@ flagcxResult_t flagcxGetNicDistance(struct flagcxTopoServer *topoServer,
       topoServer->nodes[APU].nodes[apuIdx].paths[NET];
   for (int i = 0; i < topoServer->nodes[NET].count; i++) {
     if (topoServer->nodes[NET].nodes[i].net.dev == netDev) {
-      *nicDistance = paths[i].type; // distance represented by path type
+      distInfo->distance = paths[i].type;
+      distInfo->netDev = netDev;
       return flagcxSuccess;
     }
   }

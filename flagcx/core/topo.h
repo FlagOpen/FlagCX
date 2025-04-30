@@ -270,6 +270,11 @@ struct flatTopoServer {
   struct flatTopoNodeSet nodes[FLAGCX_TOPO_NODE_TYPES];
 };
 
+struct flagcxNicDistance {
+  int distance;
+  int netDev;
+};
+
 flagcxResult_t flagcxTopoGetNode(struct flagcxTopoServer *topoServer,
                                  struct flagcxTopoNode **node, int type,
                                  uint64_t id);
@@ -320,7 +325,8 @@ flagcxResult_t flagcxTopoGetCompCap(struct flagcxTopoServer *topoServer,
                                     int *ccMin, int *ccMax);
 
 flagcxResult_t flagcxGetNicDistance(struct flagcxTopoServer *topoServer,
-                                    int rank, int *nicDistance);
+                                    int rank,
+                                    struct flagcxNicDistance *distInfo);
 
 // static flagcxResult_t flagcxTopoIdToIndex(struct flagcxTopoServer*
 // serverTopo, int type, int64_t id, int* index) {
