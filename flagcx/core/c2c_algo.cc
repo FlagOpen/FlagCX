@@ -397,8 +397,9 @@ flagcxC2cPlanner::~flagcxC2cPlanner() {
 flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
   if (isSendRecv) {
     interRankBufferInfoManager_.resetBufferInfo();
-    size_t nClusterInterRanks = multiNic_ ? clusterInterRankList_.size() : 1;
     for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
+      size_t nClusterInterRanks =
+          multiNic_ ? clusterInterRankList_[i].size() : 1;
       int sendCount = totalCount_ / nClusterInterRanks;
       int sendRes = totalCount_ % nClusterInterRanks;
       for (size_t j = 0; j < nClusterInterRanks; ++j) {
@@ -432,6 +433,175 @@ flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
       }
     }
     interRankBufferInfoManager_.printBufferInfo(1);
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t flagcxC2cPlanner::searchHeteroSendRecvOps(int searchMethod,
+                                                         int loopId) {
+  // cluster j send to cluster z, cluster z recv from cluster j
+  for (size_t j = 0; j < clusterInterRankList_.size(); ++j) {
+    for (size_t z = j + 1; z < clusterInterRankList_.size(); ++z) {
+      for (size_t r1 = 0; r1 < clusterInterRankList_[j].size(); ++r1) {
+        auto &jList = interRankBufferInfoManager_.getBufferInfoList(
+            j, clusterInterRankList_[j][r1]);
+        for (auto it = jList.begin(); it != jList.end();) {
+          int erased = 0;
+          if (!it->isScheduled_ && !it->isRecv_) {
+            for (size_t r2 = 0; r2 < clusterInterRankList_[z].size(); ++r2) {
+              size_t newR2 = (searchMethod == 1)
+                                 ? (r2 + r1) % clusterInterRankList_[z].size()
+                                 : r2;
+              if (interRankBufferInfoManager_.checkIfPossibleToPush(
+                      z, clusterInterRankList_[z][newR2], it->offset_,
+                      it->count_)) {
+                interRankBufferInfoManager_.pushBackBufferInfo(
+                    z, clusterInterRankList_[z][newR2], it->offset_, it->count_,
+                    0, 1, 1, clusterInterRankList_[j][r1], loopId);
+                it->isScheduled_ = 1;
+                it->peerRank_ = clusterInterRankList_[z][newR2];
+                it->loopId_ = loopId;
+                break;
+              }
+            }
+            if (!it->isScheduled_) {
+              int splitCount = 0;
+              int maxSplitCount = 0;
+              int pushMode = 0;
+              int finalPushMode = 0;
+              int splitRank = clusterInterRankList_[z][0];
+              for (size_t r2 = 0; r2 < clusterInterRankList_[z].size(); ++r2) {
+                size_t newR2 = (r2 + r1) % clusterInterRankList_[z].size();
+                if (interRankBufferInfoManager_.checkIfPossibleToSplitAndPush(
+                        z, clusterInterRankList_[z][newR2], it->offset_,
+                        it->count_, &splitCount, &pushMode)) {
+                  if (maxSplitCount < splitCount) {
+                    maxSplitCount = splitCount;
+                    finalPushMode = pushMode;
+                    splitRank = clusterInterRankList_[z][newR2];
+                  }
+                }
+              }
+              if (maxSplitCount > 0) {
+                if (finalPushMode == 0) {
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      z, splitRank, it->offset_, maxSplitCount, 0, 1, 1,
+                      clusterInterRankList_[j][r1], loopId);
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      j, clusterInterRankList_[j][r1], it->offset_,
+                      maxSplitCount, it->clusterIdToSend_, 0, 1, splitRank,
+                      loopId);
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      j, clusterInterRankList_[j][r1],
+                      it->offset_ + maxSplitCount, it->count_ - maxSplitCount,
+                      it->clusterIdToSend_, 0, 0, -1, -1);
+                } else if (finalPushMode == 1) {
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      z, splitRank, it->offset_ + it->count_ - maxSplitCount,
+                      maxSplitCount, 0, 1, 1, clusterInterRankList_[j][r1],
+                      loopId);
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      j, clusterInterRankList_[j][r1],
+                      it->offset_ + it->count_ - maxSplitCount, maxSplitCount,
+                      it->clusterIdToSend_, 0, 1, splitRank, loopId);
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      j, clusterInterRankList_[j][r1], it->offset_,
+                      it->count_ - maxSplitCount, it->clusterIdToSend_, 0, 0,
+                      -1, -1);
+                }
+                it = jList.erase(it);
+                erased = 1;
+              }
+            }
+          }
+          if (!erased) {
+            it++;
+          }
+        }
+      }
+    }
+  }
+  // cluster z send to cluster j, cluster j recv from cluster z
+  for (size_t j = 0; j < clusterInterRankList_.size(); ++j) {
+    for (size_t z = j + 1; z < clusterInterRankList_.size(); ++z) {
+      for (size_t r1 = 0; r1 < clusterInterRankList_[z].size(); ++r1) {
+        auto &zList = interRankBufferInfoManager_.getBufferInfoList(
+            z, clusterInterRankList_[z][r1]);
+        for (auto it = zList.begin(); it != zList.end();) {
+          int erased = 0;
+          if (!it->isScheduled_ && !it->isRecv_) {
+            for (size_t r2 = 0; r2 < clusterInterRankList_[j].size(); ++r2) {
+              size_t newR2 = (searchMethod == 1)
+                                 ? (r2 + r1) % clusterInterRankList_[j].size()
+                                 : r2;
+              if (interRankBufferInfoManager_.checkIfPossibleToPush(
+                      j, clusterInterRankList_[j][newR2], it->offset_,
+                      it->count_)) {
+                interRankBufferInfoManager_.pushBackBufferInfo(
+                    j, clusterInterRankList_[j][newR2], it->offset_, it->count_,
+                    0, 1, 1, clusterInterRankList_[z][r1], loopId);
+                it->isScheduled_ = 1;
+                it->peerRank_ = clusterInterRankList_[j][newR2];
+                it->loopId_ = loopId;
+                break;
+              }
+            }
+            if (!it->isScheduled_) {
+              int splitCount = 0;
+              int maxSplitCount = 0;
+              int pushMode = 0;
+              int finalPushMode = 0;
+              int splitRank = clusterInterRankList_[j][0];
+              for (size_t r2 = 0; r2 < clusterInterRankList_[j].size(); ++r2) {
+                size_t newR2 = (r2 + r1) % clusterInterRankList_[j].size();
+                if (interRankBufferInfoManager_.checkIfPossibleToSplitAndPush(
+                        j, clusterInterRankList_[j][newR2], it->offset_,
+                        it->count_, &splitCount, &pushMode)) {
+                  if (maxSplitCount < splitCount) {
+                    maxSplitCount = splitCount;
+                    finalPushMode = pushMode;
+                    splitRank = clusterInterRankList_[j][newR2];
+                  }
+                }
+              }
+              if (maxSplitCount > 0) {
+                if (finalPushMode == 0) {
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      j, splitRank, it->offset_, maxSplitCount, 0, 1, 1,
+                      clusterInterRankList_[z][r1], loopId);
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      z, clusterInterRankList_[z][r1], it->offset_,
+                      maxSplitCount, it->clusterIdToSend_, 0, 1, splitRank,
+                      loopId);
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      z, clusterInterRankList_[z][r1],
+                      it->offset_ + maxSplitCount, it->count_ - maxSplitCount,
+                      it->clusterIdToSend_, 0, 0, -1, -1);
+                } else if (finalPushMode == 1) {
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      j, splitRank, it->offset_ + it->count_ - maxSplitCount,
+                      maxSplitCount, 0, 1, 1, clusterInterRankList_[z][r1],
+                      loopId);
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      z, clusterInterRankList_[z][r1],
+                      it->offset_ + it->count_ - maxSplitCount, maxSplitCount,
+                      it->clusterIdToSend_, 0, 1, splitRank, loopId);
+                  interRankBufferInfoManager_.pushBackBufferInfo(
+                      z, clusterInterRankList_[z][r1], it->offset_,
+                      it->count_ - maxSplitCount, it->clusterIdToSend_, 0, 0,
+                      -1, -1);
+                }
+                it = zList.erase(it);
+                erased = 1;
+              }
+            }
+          }
+          if (!erased) {
+            it++;
+          }
+        }
+      }
+    }
   }
   return flagcxSuccess;
 }
@@ -488,170 +658,8 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     // determine hetero send/recv strategies
     heteroAndHomoInterFuncLoops_ = 1;
     for (int i = 0; i < heteroAndHomoInterFuncLoops_; ++i) {
-      for (size_t j = 0; j < clusterInterRankList_.size(); ++j) {
-        for (size_t z = j + 1; z < clusterInterRankList_.size(); ++z) {
-          // cluster j send to cluster z, cluster z recv from cluster j
-          for (size_t r1 = 0; r1 < clusterInterRankList_[j].size(); ++r1) {
-            auto &jList = interRankBufferInfoManager_.getBufferInfoList(
-                j, clusterInterRankList_[j][r1]);
-            for (auto it = jList.begin(); it != jList.end();) {
-              int erased = 0;
-              if (!it->isScheduled_ && !it->isRecv_) {
-                for (size_t r2 = 0; r2 < clusterInterRankList_[z].size();
-                     ++r2) {
-                  if (interRankBufferInfoManager_.checkIfPossibleToPush(
-                          z, clusterInterRankList_[z][r2], it->offset_,
-                          it->count_)) {
-                    interRankBufferInfoManager_.pushBackBufferInfo(
-                        z, clusterInterRankList_[z][r2], it->offset_,
-                        it->count_, 0, 1, 1, clusterInterRankList_[j][r1], i);
-                    it->isScheduled_ = 1;
-                    it->peerRank_ = clusterInterRankList_[z][r2];
-                    it->loopId_ = i;
-                    break;
-                  }
-                }
-                if (!it->isScheduled_) {
-                  int splitCount = 0;
-                  int maxSplitCount = 0;
-                  int pushMode = 0;
-                  int finalPushMode = 0;
-                  int splitRank = clusterInterRankList_[z][0];
-                  for (size_t r2 = 0; r2 < clusterInterRankList_[z].size();
-                       ++r2) {
-                    if (interRankBufferInfoManager_
-                            .checkIfPossibleToSplitAndPush(
-                                z, clusterInterRankList_[z][r2], it->offset_,
-                                it->count_, &splitCount, &pushMode)) {
-                      if (maxSplitCount < splitCount) {
-                        maxSplitCount = splitCount;
-                        finalPushMode = pushMode;
-                        splitRank = clusterInterRankList_[z][r2];
-                      }
-                    }
-                  }
-                  if (maxSplitCount > 0) {
-                    if (finalPushMode == 0) {
-                      interRankBufferInfoManager_.pushBackBufferInfo(
-                          z, splitRank, it->offset_, maxSplitCount, 0, 1, 1,
-                          clusterInterRankList_[j][r1], i);
-                      interRankBufferInfoManager_.pushBackBufferInfo(
-                          j, clusterInterRankList_[j][r1], it->offset_,
-                          maxSplitCount, it->clusterIdToSend_, 0, 1, splitRank,
-                          i);
-                      interRankBufferInfoManager_.pushBackBufferInfo(
-                          j, clusterInterRankList_[j][r1],
-                          it->offset_ + maxSplitCount,
-                          it->count_ - maxSplitCount, it->clusterIdToSend_, 0,
-                          0, -1, -1);
-                    } else if (finalPushMode == 1) {
-                      interRankBufferInfoManager_.pushBackBufferInfo(
-                          z, splitRank,
-                          it->offset_ + it->count_ - maxSplitCount,
-                          maxSplitCount, 0, 1, 1, clusterInterRankList_[j][r1],
-                          i);
-                      interRankBufferInfoManager_.pushBackBufferInfo(
-                          j, clusterInterRankList_[j][r1],
-                          it->offset_ + it->count_ - maxSplitCount,
-                          maxSplitCount, it->clusterIdToSend_, 0, 1, splitRank,
-                          i);
-                      interRankBufferInfoManager_.pushBackBufferInfo(
-                          j, clusterInterRankList_[j][r1], it->offset_,
-                          it->count_ - maxSplitCount, it->clusterIdToSend_, 0,
-                          0, -1, -1);
-                    }
-                    it = jList.erase(it);
-                    erased = 1;
-                  }
-                }
-              }
-              if (!erased) {
-                it++;
-              }
-            }
-            // cluster z send to cluster j, cluster j recv from cluster z
-            for (size_t r1 = 0; r1 < clusterInterRankList_[z].size(); ++r1) {
-              auto &zList = interRankBufferInfoManager_.getBufferInfoList(
-                  z, clusterInterRankList_[z][r1]);
-              for (auto it = zList.begin(); it != zList.end();) {
-                int erased = 0;
-                if (!it->isScheduled_ && !it->isRecv_) {
-                  for (size_t r2 = 0; r2 < clusterInterRankList_[j].size();
-                       ++r2) {
-                    if (interRankBufferInfoManager_.checkIfPossibleToPush(
-                            j, clusterInterRankList_[j][r2], it->offset_,
-                            it->count_)) {
-                      interRankBufferInfoManager_.pushBackBufferInfo(
-                          j, clusterInterRankList_[j][r2], it->offset_,
-                          it->count_, 0, 1, 1, clusterInterRankList_[z][r1], i);
-                      it->isScheduled_ = 1;
-                      it->peerRank_ = clusterInterRankList_[j][r2];
-                      it->loopId_ = i;
-                      break;
-                    }
-                  }
-                  if (!it->isScheduled_) {
-                    int splitCount = 0;
-                    int maxSplitCount = 0;
-                    int pushMode = 0;
-                    int finalPushMode = 0;
-                    int splitRank = clusterInterRankList_[j][0];
-                    for (size_t r2 = 0; r2 < clusterInterRankList_[j].size();
-                         ++r2) {
-                      if (interRankBufferInfoManager_
-                              .checkIfPossibleToSplitAndPush(
-                                  j, clusterInterRankList_[j][r2], it->offset_,
-                                  it->count_, &splitCount, &pushMode)) {
-                        if (maxSplitCount < splitCount) {
-                          maxSplitCount = splitCount;
-                          finalPushMode = pushMode;
-                          splitRank = clusterInterRankList_[j][r2];
-                        }
-                      }
-                    }
-                    if (maxSplitCount > 0) {
-                      if (finalPushMode == 0) {
-                        interRankBufferInfoManager_.pushBackBufferInfo(
-                            j, splitRank, it->offset_, maxSplitCount, 0, 1, 1,
-                            clusterInterRankList_[z][r1], i);
-                        interRankBufferInfoManager_.pushBackBufferInfo(
-                            z, clusterInterRankList_[z][r1], it->offset_,
-                            maxSplitCount, it->clusterIdToSend_, 0, 1,
-                            splitRank, i);
-                        interRankBufferInfoManager_.pushBackBufferInfo(
-                            z, clusterInterRankList_[z][r1],
-                            it->offset_ + maxSplitCount,
-                            it->count_ - maxSplitCount, it->clusterIdToSend_, 0,
-                            0, -1, -1);
-                      } else if (finalPushMode == 1) {
-                        interRankBufferInfoManager_.pushBackBufferInfo(
-                            j, splitRank,
-                            it->offset_ + it->count_ - maxSplitCount,
-                            maxSplitCount, 0, 1, 1,
-                            clusterInterRankList_[z][r1], i);
-                        interRankBufferInfoManager_.pushBackBufferInfo(
-                            z, clusterInterRankList_[z][r1],
-                            it->offset_ + it->count_ - maxSplitCount,
-                            maxSplitCount, it->clusterIdToSend_, 0, 1,
-                            splitRank, i);
-                        interRankBufferInfoManager_.pushBackBufferInfo(
-                            z, clusterInterRankList_[z][r1], it->offset_,
-                            it->count_ - maxSplitCount, it->clusterIdToSend_, 0,
-                            0, -1, -1);
-                      }
-                      it = zList.erase(it);
-                      erased = 1;
-                    }
-                  }
-                }
-                if (!erased) {
-                  it++;
-                }
-              }
-            }
-          }
-        }
-      }
+      // search by BFS or DFS
+      searchHeteroSendRecvOps(1, i);
 
       int scheduleCompleted = 1;
       for (size_t j = 0; j < clusterInterRankList_.size(); ++j) {

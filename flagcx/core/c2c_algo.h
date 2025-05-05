@@ -126,6 +126,8 @@ public:
 
   flagcxResult_t refresh(
       int isSendRecv); // 0: refresh recv info only; 1: refresh send+recv info
+  flagcxResult_t searchHeteroSendRecvOps(int searchMethod,
+                                         int loopId); // 0: DFS; 1: BFS
   flagcxResult_t findStrategy();
   flagcxResult_t execute(const void *sendbuff, void *recvbuff,
                          flagcxDataType_t datatype, int root,
