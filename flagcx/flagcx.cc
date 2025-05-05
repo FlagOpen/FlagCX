@@ -385,7 +385,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
                                        nicDistanceData + rank));
     } else {
       nicDistanceData[rank].distance = rank % 2 + 1;
-      nicDistanceData[rank].netDev = rank; // give a dummy value
+      nicDistanceData[rank].netGuid = rank; // give a dummy value
     }
     FLAGCXCHECK(bootstrapAllGather(state, (void *)nicDistanceData,
                                    sizeof(flagcxNicDistance)));
@@ -393,16 +393,17 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     for (int i = 0; i < (*comm)->nclusters; ++i) {
       int minDistance = INT_MAX;
       std::unordered_map<int, std::vector<int>> nicDistanceToRanks;
-      std::unordered_map<int, std::unordered_set<int>> nicDistanceToNic;
+      std::unordered_map<int, std::unordered_set<uint64_t>> nicDistanceToNic;
       for (int j = 0; j < nranks; ++j) {
         if (clusterIdData[j] != i) {
           continue;
         }
         int val = nicDistanceData[j].distance;
-        int netDev = nicDistanceData[j].netDev;
-        if (nicDistanceToNic[val].find(netDev) == nicDistanceToNic[val].end()) {
+        uint64_t netGuid = nicDistanceData[j].netGuid;
+        if (nicDistanceToNic[val].find(netGuid) ==
+            nicDistanceToNic[val].end()) {
           nicDistanceToRanks[val].push_back(j);
-          nicDistanceToNic[val].insert(netDev);
+          nicDistanceToNic[val].insert(netGuid);
         }
         minDistance = std::min(minDistance, val);
       }

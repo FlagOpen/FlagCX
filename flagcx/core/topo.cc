@@ -532,7 +532,7 @@ flagcxResult_t flagcxGetNicDistance(struct flagcxTopoServer *topoServer,
   for (int i = 0; i < topoServer->nodes[NET].count; i++) {
     if (topoServer->nodes[NET].nodes[i].net.dev == netDev) {
       distInfo->distance = paths[i].type;
-      distInfo->netDev = netDev;
+      distInfo->netGuid = topoServer->nodes[NET].nodes[i].net.guid;
       return flagcxSuccess;
     }
   }

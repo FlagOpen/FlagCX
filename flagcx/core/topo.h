@@ -272,7 +272,7 @@ struct flatTopoServer {
 
 struct flagcxNicDistance {
   int distance;
-  int netDev;
+  uint64_t netGuid;
 };
 
 flagcxResult_t flagcxTopoGetNode(struct flagcxTopoServer *topoServer,
