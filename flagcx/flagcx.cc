@@ -1367,122 +1367,32 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
            timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
-      int offset = 0;
-      for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
-        offset += comm->cluster_sizes[i];
-      }
-
-      if (comm->support_multi_nic < 0) {
-        // intra-cluster gather
-        if (comm->homo_ranks > 1) {
-          FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
-              sendbuff,
-              (void *)((char *)recvbuff +
-                       getFlagcxDataTypeSize(datatype) * offset * sendcount),
-              sendcount, datatype, comm->homo_inter_rank, comm->homo_comm,
-              stream));
-        }
-
-        // TODO: use stream wait rather than stream sync to avoid cpu blocking
-        deviceAdaptor->streamSynchronize(stream);
-
-        // inter-cluster sendrecv
-        if (comm->homo_inter_rank == comm->homo_rank) {
-          int offset_recv = 0;
-          flagcxGroupStart(comm);
-          for (int i = 0; i < comm->nclusters; ++i) {
-            if (comm->cluster_ids[comm->rank] == i) {
-              offset_recv += comm->cluster_sizes[i];
-              continue;
-            }
-            FLAGCXCHECK(flagcxHeteroSend(
-                (void *)((char *)recvbuff +
-                         getFlagcxDataTypeSize(datatype) * offset * sendcount),
-                sendcount * comm->cluster_sizes[comm->cluster_ids[comm->rank]],
-                datatype, comm->cluster_inter_ranks[i], comm->hetero_comm,
-                stream));
-            FLAGCXCHECK(flagcxHeteroRecv(
-                (void *)((char *)recvbuff + getFlagcxDataTypeSize(datatype) *
-                                                offset_recv * sendcount),
-                sendcount * comm->cluster_sizes[i], datatype,
-                comm->cluster_inter_ranks[i], comm->hetero_comm, stream));
-            offset_recv += comm->cluster_sizes[i];
-          }
-          flagcxGroupEnd(comm);
-        }
-
-        // TODO: use stream wait rather than stream sync to avoid cpu blocking
-        deviceAdaptor->streamSynchronize(stream);
-
-        // intra-cluster broadcast
-        if (comm->homo_ranks > 1) {
-          FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
-              recvbuff, recvbuff, sendcount * comm->nranks, datatype,
-              comm->homo_inter_rank, comm->homo_comm, stream));
-        }
+      // Experimental for multi-nic support
+      // Construct flagcxC2cPlanner and find corresponding strategy
+      flagcxC2cPlanner planner;
+      uint64_t count = sendcount * comm->nranks;
+      auto hashValue = getC2cCommPatternHash(
+          sendcount, flagcxCommOpAllGather, flagcxRedNoOp, comm);
+      if (!planCache.get(hashValue, planner)) {
+        INFO(FLAGCX_COLL,
+             "AllGather communication pattern "
+             "(sendcount, count, commOp, redOp, comm) = (%ld, %ld, %d, %d, "
+             "%ld), hashValue = %ld",
+             sendcount, count, flagcxCommOpAllGather, flagcxRedNoOp,
+             (size_t)((uintptr_t)comm), hashValue);
+        planner = flagcxC2cPlanner(count, count, comm, flagcxCommOpAllGather,
+                                   flagcxRedNoOp);
+        FLAGCXCHECK(planner.findStrategy());
+        planCache.put(hashValue, planner);
       } else {
-        // ensure that all clusters have same sizes
-        for (int i = 0; i < comm->nclusters; ++i) {
-          assert(comm->cluster_sizes[0] == comm->cluster_sizes[i]);
-        }
-
-        if (comm->homo_ranks > 1) {
-          FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->allGather(
-              sendbuff,
-              (void *)((char *)recvbuff +
-                       getFlagcxDataTypeSize(datatype) * offset * sendcount),
-              sendcount, datatype, comm->homo_comm, stream));
-        }
-
-        // TODO: use stream wait rather than stream sync to avoid cpu blocking
-        deviceAdaptor->streamSynchronize(stream);
-
-        // inter-cluster sendrecv
-        int offset_recv = 0;
-        flagcxGroupStart(comm);
-        for (int i = 0; i < comm->nclusters; ++i) {
-          if (comm->cluster_ids[comm->rank] == i) {
-            offset_recv += comm->cluster_sizes[i];
-            continue;
-          }
-          FLAGCXCHECK(flagcxHeteroSend(
-              (void *)((char *)recvbuff + getFlagcxDataTypeSize(datatype) *
-                                              (offset + comm->homo_rank) *
-                                              sendcount),
-              sendcount, datatype, offset_recv + comm->homo_rank,
-              comm->hetero_comm, stream));
-          FLAGCXCHECK(flagcxHeteroRecv(
-              (void *)((char *)recvbuff + getFlagcxDataTypeSize(datatype) *
-                                              (offset_recv + comm->homo_rank) *
-                                              sendcount),
-              sendcount, datatype, offset_recv + comm->homo_rank,
-              comm->hetero_comm, stream));
-          offset_recv += comm->cluster_sizes[i];
-        }
-        flagcxGroupEnd(comm);
-
-        // TODO: use stream wait rather than stream sync to avoid cpu blocking
-        deviceAdaptor->streamSynchronize(stream);
-
-        // intra-cluster allgather
-        if (comm->homo_ranks > 1) {
-          offset = 0;
-          for (int i = 0; i < comm->nclusters; ++i) {
-            if (comm->cluster_ids[comm->rank] == i) {
-              offset += comm->cluster_sizes[i];
-              continue;
-            }
-            FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->allGather(
-                (void *)((char *)recvbuff + getFlagcxDataTypeSize(datatype) *
-                                                (offset + comm->homo_rank) *
-                                                sendcount),
-                (void *)((char *)recvbuff +
-                         getFlagcxDataTypeSize(datatype) * offset * sendcount),
-                sendcount, datatype, comm->homo_comm, stream));
-            offset += comm->cluster_sizes[i];
-          }
-        }
+        INFO(FLAGCX_COLL,
+             "Found available plan with communication pattern "
+             "(sendcount, commOp, redOp, comm) = (%ld, %d, %d, %ld), hashValue "
+             "= %ld",
+             sendcount, flagcxCommOpAllGather, flagcxRedNoOp,
+             (size_t)((uintptr_t)comm), hashValue);
       }
+      FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, -1, stream));
     }
   }
   return flagcxSuccess;
