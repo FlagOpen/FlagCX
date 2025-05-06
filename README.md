@@ -36,8 +36,8 @@ Note that `Homo` and `Hetero` modes refer to communications among homogeneous an
 - [NCCL](https://github.com/NVIDIA/nccl), NVIDIA Collective Communications Library.
 - [IXCCL](https://www.iluvatar.com/software?fullCode=cpjs-rj-rjz), Iluvatar Corex Collective Communications Library.
 - [CNCL](https://www.cambricon.com/docs/sdk_1.7.0/cncl_1.2.1/user_guide/index.html#), Cambricon Communications Library.
-- [GLOO](https://github.com/facebookincubator/gloo), Gloo Collective Communications Library.
 - [MCCL](https://developer.metax-tech.com/softnova/metax), Metax Collective Communications Library.
+- [GLOO](https://github.com/facebookincubator/gloo), Gloo Collective Communications Library.
 
 FlagCX also integrates with upper-layer applications such as PyTorch and PaddlePaddle based on its unified APIs. The table below presents all supported frameworks by FlagCX and their related communication operations, where the `batch_XXX` and `XXX_coalesced` ops refer to the usage of group primitives.
 
