@@ -39,7 +39,14 @@ flagcxCommOp_t getC2cHomoCommOp(flagcxCommOp_t commOp, int homoType, int mode) {
         case 1:
           return flagcxCommOpAllReduce;
         case 2:
-          return flagcxCommOpAllReduce;
+          switch (mode) {
+            case 0:
+              return flagcxCommNonOp;
+            case 1:
+              return flagcxCommOpAllReduce;
+            case 2:
+              return flagcxCommNonOp;
+          }
       }
     case flagcxCommOpAllGather:
       return flagcxCommOpAllGather;
@@ -50,7 +57,7 @@ flagcxCommOp_t getC2cHomoCommOp(flagcxCommOp_t commOp, int homoType, int mode) {
     case flagcxCommOpAlltoAllv:
       return flagcxCommOpAlltoAllv;
     default:
-      return flagcxCommOpAllReduce;
+      return flagcxCommNonOp;
   }
 }
 
@@ -300,18 +307,13 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
           const_cast<const void *>(static_cast<void *>(
               static_cast<char *>(const_cast<void *>(sendbuff)) +
               sendOffset_ * getFlagcxDataTypeSize(datatype))),
-          static_cast<void *>(
-              static_cast<char *>(recvbuff) +
-              (recvOffset_ + count_ *
-                                 (isHomoInterComm_ ? comm->homoInterMyRank
-                                                   : comm->homo_rank) *
-                                 getFlagcxDataTypeSize(datatype))),
+          static_cast<void *>(static_cast<char *>(recvbuff) +
+                              recvOffset_ * getFlagcxDataTypeSize(datatype)),
           count_, datatype, redOp,
           isHomoInterComm_ ? comm->homoInterComm : comm->homo_comm, stream);
     default:
       return flagcxSuccess;
   }
-  return flagcxSuccess;
 }
 
 flagcxC2cHeteroFunc::flagcxC2cHeteroFunc() {}
@@ -368,6 +370,12 @@ flagcxC2cPlanner::flagcxC2cPlanner(int totalCount, int recvCount,
       homoRanks_(comm->homo_ranks), homoInterMyRank_(comm->homoInterMyRank),
       homoInterRootRank_(comm->homoInterRootRank),
       homoInterRanks_(comm->homoInterRanks) {
+  // calculate clusterOffset_
+  clusterOffset_ = 0;
+  for (int i = 0; i < clusterId_; ++i) {
+    clusterOffset_ += comm_->cluster_sizes[i];
+  }
+
   // if inter ranks in all clusters equal to 1 （single-nic）
   multiNic_ = 0;
   for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
@@ -393,14 +401,9 @@ flagcxC2cPlanner::flagcxC2cPlanner(int totalCount, int recvCount,
       break;
     }
   }
-
-  // TODO: init scratch buffer
-  scratchBuffer_ = nullptr;
 }
 
-flagcxC2cPlanner::~flagcxC2cPlanner() {
-  // TODO: destroy scratch buffer
-}
+flagcxC2cPlanner::~flagcxC2cPlanner() {}
 
 flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
   if (isSendRecv) {
@@ -641,8 +644,8 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
             interRankBufferInfoManager_.getBufferInfoList(clusterId_, rank_)
                 .front();
         if (preHomoFuncCommOp == flagcxCommOpReduceScatter) {
-          preHomoFuncList_.emplace_back(-1, 0, 0, buffer.count_, 0,
-                                        preHomoFuncCommOp);
+          preHomoFuncList_.emplace_back(-1, 0, homoMyRank_ * buffer.count_,
+                                        buffer.count_, 0, preHomoFuncCommOp);
         }
       }
     } else {
@@ -711,24 +714,27 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     }
 
     // setup homoInterFuncs
-    flagcxCommOp_t homoInterFuncCommOp = getC2cHomoCommOp(commOp_, 1, 1);
+    flagcxCommOp_t homoInterFuncCommOp = eachNicPerRank_
+                                             ? getC2cHomoCommOp(commOp_, 1, 0)
+                                             : getC2cHomoCommOp(commOp_, 1, 1);
     for (int i = 0; i < heteroAndHomoInterFuncLoops_; ++i) {
       if (homoInterFuncCommOp == flagcxCommOpAllReduce) {
-        homoInterFuncList_.emplace_back(-1, 0, 0, recvCount_, 1,
+        homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1,
                                         homoInterFuncCommOp);
       }
     }
 
     // setup postHomoFuncs
-    flagcxCommOp_t postHomoFuncCommOp = getC2cHomoCommOp(commOp_, 2, 1);
-    if (eachNicPerRank_) {
-      postHomoFuncLoops_ = 0;
-    } else {
-      postHomoFuncLoops_ = 1;
-    }
+    flagcxCommOp_t postHomoFuncCommOp = eachNicPerRank_
+                                            ? getC2cHomoCommOp(commOp_, 2, 0)
+                                            : getC2cHomoCommOp(commOp_, 2, 1);
+    postHomoFuncLoops_ = (postHomoFuncCommOp == flagcxCommNonOp) ? 0 : 1;
     for (int i = 0; i < postHomoFuncLoops_; ++i) {
       if (postHomoFuncCommOp == flagcxCommOpAllReduce) {
         postHomoFuncList_.emplace_back(-1, 0, 0, recvCount_, 0,
+                                       postHomoFuncCommOp);
+      } else if (postHomoFuncCommOp == flagcxCommOpReduceScatter) {
+        postHomoFuncList_.emplace_back(-1, clusterOffset_, 0, recvCount_, 0,
                                        postHomoFuncCommOp);
       }
     }
@@ -789,17 +795,18 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     flagcxCommOp_t homoInterFuncCommOp = getC2cHomoCommOp(commOp_, 1, 2);
     for (int i = 0; i < heteroAndHomoInterFuncLoops_; ++i) {
       if (homoInterFuncCommOp == flagcxCommOpAllReduce) {
-        homoInterFuncList_.emplace_back(-1, 0, 0, recvCount_, 1,
+        homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_,
+                                        0, // use homo comm instead
                                         homoInterFuncCommOp);
       }
     }
 
     // setup postHomoFuncs
     flagcxCommOp_t postHomoFuncCommOp = getC2cHomoCommOp(commOp_, 2, 2);
-    postHomoFuncLoops_ = 1;
+    postHomoFuncLoops_ = postHomoFuncCommOp == flagcxCommNonOp ? 0 : 1;
     for (int i = 0; i < postHomoFuncLoops_; ++i) {
-      if (postHomoFuncCommOp == flagcxCommOpAllReduce) {
-        postHomoFuncList_.emplace_back(-1, 0, 0, recvCount_, 0,
+      if (postHomoFuncCommOp == flagcxCommOpReduceScatter) {
+        postHomoFuncList_.emplace_back(-1, clusterOffset_, 0, recvCount_, 0,
                                        postHomoFuncCommOp);
       }
     }
@@ -811,7 +818,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
                                          flagcxDataType_t datatype, int root,
                                          flagcxStream_t stream) {
   // redOp validation
-  if (redOp_ < flagcxNumRedOps) {
+  if (redOp_ != flagcxRedNonOp) {
     if (redOp_ != flagcxSum && redOp_ != flagcxMax && redOp_ != flagcxMin) {
       WARN("Unsupported reduction operation %d", redOp_);
       return flagcxInvalidArgument;

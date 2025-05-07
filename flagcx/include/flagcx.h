@@ -50,6 +50,7 @@ typedef enum {
   flagcxMax = 2,
   flagcxMin = 3,
   flagcxAvg = 4,
+  flagcxRedNonOp = 5,
   flagcxNumRedOps = 5,
   flagcxMaxRedOp = 0x7fffffff >> (32 - 8 * sizeof(flagcxRedOp_dummy_t))
 } flagcxRedOp_t;
@@ -69,6 +70,7 @@ typedef enum {
   flagcxCommOpReduceScatter = 8,
   flagcxCommOpAlltoAll = 9,
   flagcxCommOpAlltoAllv = 10,
+  flagcxCommNonOp = 11,
   flagcxNumCommOps = 11
 } flagcxCommOp_t;
 

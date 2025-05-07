@@ -202,6 +202,7 @@ private:
   int homoInterMyRank_;
   int homoInterRootRank_;
   int homoInterRanks_;
+  int clusterOffset_;
   int multiNic_;
   int eachNicPerRank_;
   int preHomoFuncLoops_;            // number of loops for preHomoFunc
