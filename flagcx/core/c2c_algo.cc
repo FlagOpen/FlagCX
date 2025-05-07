@@ -1,5 +1,13 @@
 #include "c2c_algo.h"
 
+int getC2cCommPatternHash(int count, flagcxCommOp_t commOp,
+                          flagcxRedOp_t redOp) {
+  std::size_t h1 = std::hash<int>()(count);
+  std::size_t h2 = std::hash<int>()(commOp);
+  std::size_t h3 = std::hash<int>()(redOp);
+  return static_cast<int>(h1 ^ (h2 << 1) ^ (h3 << 2));
+}
+
 // homoType: 0, pre; 1, homoInter; 2, post,
 // mode: 0, multiNic+eachNicPerRank; 1, normal; 2, single-nic
 // For now, we only support AllReduce operator mapping

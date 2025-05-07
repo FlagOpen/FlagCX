@@ -14,6 +14,9 @@
 #include <string.h>
 #include <unordered_map>
 
+#define FLAGCX_CACHE_CAPACITY 16
+static flagcxLRUCache<int, flagcxC2cPlanner> planCache(FLAGCX_CACHE_CAPACITY);
+
 size_t getFlagcxDataTypeSize(flagcxDataType_t dtype) {
   switch (dtype) {
     // case flagcxInt8:
@@ -1177,8 +1180,24 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
 
       // Experimental for multi-nic support
       // Construct flagcxC2cPlanner and find corresponding strategy
-      flagcxC2cPlanner planner(count, count, comm, flagcxCommOpAllReduce, op);
-      planner.findStrategy();
+      flagcxC2cPlanner planner;
+      auto hashValue = getC2cCommPatternHash(count, flagcxCommOpAllReduce, op);
+      if (!planCache.get(hashValue, planner)) {
+        INFO(FLAGCX_COLL,
+             "No available plan is found, create a new one with "
+             "communication pattern "
+             "(count, commOp, redOp) = (%ld, %d, %d), hashValue = %d",
+             count, flagcxCommOpAllReduce, op, hashValue);
+        planner =
+            flagcxC2cPlanner(count, count, comm, flagcxCommOpAllReduce, op);
+        planner.findStrategy();
+        planCache.put(hashValue, planner);
+      } else {
+        INFO(FLAGCX_COLL,
+             "Found available planwith communication pattern "
+             "(count, commOp, redOp) = (%ld, %d, %d), hashValue = %d",
+             count, flagcxCommOpAllReduce, op, hashValue);
+      }
       planner.execute(sendbuff, recvbuff, datatype, -1, stream);
     }
   }
