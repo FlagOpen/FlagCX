@@ -38,9 +38,34 @@ RUN apt-get update && \
         tmux tzdata \
         unzip \
         vim \
+        openssh-server openssh-client \
         wget && \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /var/run/sshd && \
+
+    echo "Port 3217" >> /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    echo "UseDNS no" >> /etc/ssh/sshd_config && \
+    echo "Port 3217" >> /etc/ssh/ssh_config && \
+    echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config && \
+    echo "UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config && \
+    ssh-keygen -A && \
+    mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh && \
+    ssh-keygen -t rsa -f /root/.ssh/id_rsa -q -N "" && \
+    cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && \
+    chmod 600 /root/.ssh/authorized_keys && \
+    echo "ALL ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+    echo '#!/bin/sh\n/etc/init.d/ssh start\n/bin/bash' > /start.sh && \
+    chmod +x /start.sh
+
+EXPOSE 3217
+
+CMD ["/start.sh"]
 
 ##############################################################################
 # Install Python
