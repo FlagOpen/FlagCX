@@ -1172,12 +1172,6 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
            timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
-      // op validation
-      if (op != flagcxSum && op != flagcxMax && op != flagcxMin) {
-        WARN("Unsupported reduction operation %d", op);
-        return flagcxInvalidArgument;
-      }
-
       // Experimental for multi-nic support
       // Construct flagcxC2cPlanner and find corresponding strategy
       flagcxC2cPlanner planner;
@@ -1190,7 +1184,7 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
              count, flagcxCommOpAllReduce, op, hashValue);
         planner =
             flagcxC2cPlanner(count, count, comm, flagcxCommOpAllReduce, op);
-        planner.findStrategy();
+        FLAGCXCHECK(planner.findStrategy());
         planCache.put(hashValue, planner);
       } else {
         INFO(FLAGCX_COLL,
@@ -1198,7 +1192,7 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
              "(count, commOp, redOp) = (%ld, %d, %d), hashValue = %d",
              count, flagcxCommOpAllReduce, op, hashValue);
       }
-      planner.execute(sendbuff, recvbuff, datatype, -1, stream);
+      FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, -1, stream));
     }
   }
   return flagcxSuccess;

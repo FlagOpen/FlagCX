@@ -810,6 +810,14 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
 flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
                                          flagcxDataType_t datatype, int root,
                                          flagcxStream_t stream) {
+  // redOp validation
+  if (redOp_ < flagcxNumRedOps) {
+    if (redOp_ != flagcxSum && redOp_ != flagcxMax && redOp_ != flagcxMin) {
+      WARN("Unsupported reduction operation %d", redOp_);
+      return flagcxInvalidArgument;
+    }
+  }
+
   // execute preHomoFuncs
   for (int i = 0; i < preHomoFuncLoops_; ++i) {
     preHomoFuncList_[i].run(sendbuff, recvbuff, datatype, redOp_, root, comm_,
