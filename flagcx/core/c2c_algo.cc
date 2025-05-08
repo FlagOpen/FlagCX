@@ -1,11 +1,13 @@
 #include "c2c_algo.h"
+#include <cstdint>
 
-int getC2cCommPatternHash(int count, flagcxCommOp_t commOp,
-                          flagcxRedOp_t redOp) {
-  std::size_t h1 = std::hash<int>()(count);
-  std::size_t h2 = std::hash<int>()(commOp);
-  std::size_t h3 = std::hash<int>()(redOp);
-  return static_cast<int>(h1 ^ (h2 << 1) ^ (h3 << 2));
+size_t getC2cCommPatternHash(size_t count, flagcxCommOp_t commOp,
+                             flagcxRedOp_t redOp, flagcxComm_t comm) {
+  std::size_t h1 = std::hash<size_t>()(count);
+  std::size_t h2 = std::hash<size_t>()(commOp);
+  std::size_t h3 = std::hash<size_t>()(redOp);
+  std::size_t h4 = std::hash<size_t>()((size_t)((uintptr_t)comm));
+  return static_cast<size_t>(h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3));
 }
 
 // homoType: 0, pre; 1, homoInter; 2, post,

@@ -12,8 +12,8 @@
 #include <string>
 #include <unordered_map>
 
-int getC2cCommPatternHash(int count, flagcxCommOp_t commOp,
-                          flagcxRedOp_t redOp);
+size_t getC2cCommPatternHash(size_t count, flagcxCommOp_t commOp,
+                             flagcxRedOp_t redOp, flagcxComm_t comm);
 
 template <typename Key, typename Value>
 class flagcxLRUCache {

@@ -16,7 +16,8 @@
 #include <unordered_map>
 
 #define FLAGCX_CACHE_CAPACITY 16
-static flagcxLRUCache<int, flagcxC2cPlanner> planCache(FLAGCX_CACHE_CAPACITY);
+static flagcxLRUCache<size_t, flagcxC2cPlanner>
+    planCache(FLAGCX_CACHE_CAPACITY);
 
 size_t getFlagcxDataTypeSize(flagcxDataType_t dtype) {
   switch (dtype) {
@@ -1180,25 +1181,31 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
       // Experimental for multi-nic support
       // Construct flagcxC2cPlanner and find corresponding strategy
       flagcxC2cPlanner planner;
-      auto hashValue = getC2cCommPatternHash(count, flagcxCommOpAllReduce, op);
+      auto hashValue =
+          getC2cCommPatternHash(count, flagcxCommOpAllReduce, op, comm);
       if (!planCache.get(hashValue, planner)) {
         INFO(FLAGCX_COLL,
              "No available plan is found, create a new one with "
              "communication pattern "
-             "(count, commOp, redOp) = (%ld, %d, %d), hashValue = %d",
-             count, flagcxCommOpAllReduce, op, hashValue);
+             "(count, commOp, redOp, comm) = (%ld, %d, %d, %ld), hashValue = "
+             "%ld",
+             count, flagcxCommOpAllReduce, op, (size_t)((uintptr_t)comm),
+             hashValue);
         planner =
             flagcxC2cPlanner(count, count, comm, flagcxCommOpAllReduce, op);
         FLAGCXCHECK(planner.findStrategy());
         planCache.put(hashValue, planner);
-        flagcxAlgoTimeEstimator estimator(planner, datatype);
-        float time = 0.0;
-        FLAGCXCHECK(estimator.getAlgoTime(&time));
+        // TODO: add estimator part
+        // flagcxAlgoTimeEstimator estimator(planner, datatype);
+        // float time = 0.0;
+        // FLAGCXCHECK(estimator.getAlgoTime(&time));
       } else {
         INFO(FLAGCX_COLL,
-             "Found available planwith communication pattern "
-             "(count, commOp, redOp) = (%ld, %d, %d), hashValue = %d",
-             count, flagcxCommOpAllReduce, op, hashValue);
+             "Found available plan with communication pattern "
+             "(count, commOp, redOp, comm) = (%ld, %d, %d, %ld), hashValue = "
+             "%ld",
+             count, flagcxCommOpAllReduce, op, (size_t)((uintptr_t)comm),
+             hashValue);
       }
       FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, -1, stream));
     }
@@ -1275,22 +1282,26 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
       // Construct flagcxC2cPlanner and find corresponding strategy
       flagcxC2cPlanner planner;
       auto hashValue =
-          getC2cCommPatternHash(recvcount, flagcxCommOpReduceScatter, op);
+          getC2cCommPatternHash(recvcount, flagcxCommOpReduceScatter, op, comm);
       if (!planCache.get(hashValue, planner)) {
         INFO(FLAGCX_COLL,
              "No available plan is found, create a new one with "
              "communication pattern "
-             "(count, commOp, redOp) = (%ld, %d, %d), hashValue = %d",
-             recvcount, flagcxCommOpReduceScatter, op, hashValue);
+             "(count, commOp, redOp, comm) = (%ld, %d, %d, %ld), hashValue = "
+             "%ld",
+             recvcount, flagcxCommOpReduceScatter, op,
+             (size_t)((uintptr_t)comm), hashValue);
         planner = flagcxC2cPlanner(comm->nranks * recvcount, recvcount, comm,
                                    flagcxCommOpReduceScatter, op);
         FLAGCXCHECK(planner.findStrategy());
         planCache.put(hashValue, planner);
       } else {
         INFO(FLAGCX_COLL,
-             "Found available planwith communication pattern "
-             "(count, commOp, redOp) = (%ld, %d, %d), hashValue = %d",
-             recvcount, flagcxCommOpReduceScatter, op, hashValue);
+             "Found available plan with communication pattern "
+             "(count, commOp, redOp, comm) = (%ld, %d, %d, %ld), hashValue = "
+             "%ld",
+             recvcount, flagcxCommOpReduceScatter, op,
+             (size_t)((uintptr_t)comm), hashValue);
       }
       FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, -1, stream));
     }
