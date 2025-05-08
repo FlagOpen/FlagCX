@@ -473,7 +473,8 @@ flagcxResult_t flagcxPollProxyResponse(struct flagcxHeteroComm *comm,
 }
 
 static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
-                                         flagcxProxyAsyncOp *op) {
+                                         flagcxProxyAsyncOp *op,
+                                         int *asyncOpCount) {
   int done = 0;
   // flagcxResult_t res = flagcxInternalError;
   if (op->type == flagcxProxyMsgConnect) {
@@ -529,6 +530,7 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
     }
 
     asyncProxyOpDequeue(opHead, op);
+    (*asyncOpCount)--;
     return flagcxSuccess;
   }
 
@@ -568,7 +570,8 @@ error:
 
 static flagcxResult_t proxyServiceInitOp(int type, struct flagcxSocket *sock,
                                          struct flagcxProxyAsyncOp **opHead,
-                                         flagcxHeteroComm_t comm) {
+                                         flagcxHeteroComm_t comm,
+                                         int *asyncOpCount) {
   struct flagcxProxyAsyncOp *asyncOp;
   FLAGCXCHECK(flagcxCalloc(&asyncOp, 1));
 
@@ -590,8 +593,8 @@ static flagcxResult_t proxyServiceInitOp(int type, struct flagcxSocket *sock,
     FLAGCXCHECK(flagcxCalloc(&asyncOp->respBuff, asyncOp->respSize));
 
   FLAGCXCHECK(asyncProxyOpEnqueue(opHead, asyncOp));
-
-  FLAGCXCHECK(proxyProgressAsync(opHead, asyncOp));
+  (*asyncOpCount)++;
+  FLAGCXCHECK(proxyProgressAsync(opHead, asyncOp, asyncOpCount));
   return flagcxSuccess;
 }
 
@@ -648,43 +651,55 @@ void *flagcxProxyService(void *args) {
   flagcxResult_t res;
   struct flagcxProxyAsyncOp *opHead = NULL;
   int stop = 0;
+  int asyncOpCount = 0;
 
-  // flagcxSetDevice(comm->cudaDev);
   deviceAdaptor->setDevice(comm->cudaDev);
   FLAGCXCHECKGOTO(flagcxSocketInit(&sock), res, out);
   FLAGCXCHECKGOTO(flagcxSocketAccept(&sock, &comm->proxyState->ipcSock), res,
                   out);
 
-  // pthread_create(&comm->proxyState->progressState.thread, NULL,
-  // flagcxProxyProgress, comm->proxyState);
-
   char proxyMsg[10];
   flagcxSocketRecv(&sock, proxyMsg, 10);
   INFO(FLAGCX_INIT, "proxy msg : \033[31m%s\033[0m", proxyMsg);
 
+  // Only one local rank is allowed.
+  struct pollfd pollfds[1];
+  pollfds[0].fd = sock.fd;
+  pollfds[0].events = POLLIN;
+
   while (!stop || (stop && opHead)) {
-    int type, closed;
-    res = flagcxSocketTryRecv(&sock, &type, sizeof(int), &closed,
-                              false /*blocking*/);
-    if (res != flagcxSuccess && res != flagcxInProgress) {
-      WARN("[Service thread] Could not receive type from localRank %d, res=%u, "
-           "closed=%d",
-           comm->rank, res, closed);
-    } else if (closed) {
-      INFO(FLAGCX_NET, "[Service thread] Connection closed by localRank %d",
-           comm->rank);
-    } else if (res == flagcxSuccess) {
-      if (type == flagcxProxyMsgStop) {
-        stop = 1;
-      } else if (proxyMatchOpType(type)) {
-        res = proxyServiceInitOp(type, &sock, &opHead, comm);
+    int ret;
+    do {
+      ret = poll(pollfds, 1, asyncOpCount ? 0 : 500);
+    } while (ret < 0 && errno == EINTR);
+    if (ret < 0) {
+      WARN("[Proxy Service] Poll failed: %s", strerror(errno));
+      return NULL;
+    }
+    if (pollfds[0].revents & POLLIN) {
+      int type, closed;
+      res = flagcxSocketTryRecv(&sock, &type, sizeof(int), &closed,
+                                false /*blocking*/);
+      if (res != flagcxSuccess && res != flagcxInProgress) {
+        WARN("[Service thread] Could not receive type from localRank %d, res=%u, "
+             "closed=%d",
+             comm->rank, res, closed);
+      } else if (closed) {
+        INFO(FLAGCX_NET, "[Service thread] Connection closed by localRank %d",
+             comm->rank);
+      } else if (res == flagcxSuccess) {
+        if (type == flagcxProxyMsgStop) {
+          stop = 1;
+        } else if (proxyMatchOpType(type)) {
+          res = proxyServiceInitOp(type, &sock, &opHead, comm, &asyncOpCount);
+        }
       }
     }
     struct flagcxProxyAsyncOp *list;
     list = opHead;
     while (list) {
       struct flagcxProxyAsyncOp *opNext = list->next;
-      FLAGCXCHECKGOTO(proxyProgressAsync(&opHead, list), res, out);
+      FLAGCXCHECKGOTO(proxyProgressAsync(&opHead, list, &asyncOpCount), res, out);
       list = opNext;
     }
   }
