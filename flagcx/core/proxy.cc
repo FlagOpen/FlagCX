@@ -108,6 +108,7 @@ static flagcxResult_t SaveProxy(struct flagcxHeteroComm *comm,
     flagcxProdProgChannelListEnList(&comm->proxyState->prodProgChannelHead,
                                     proxyOps);
     flagcxIntruQueueEnqueue(queue, op);
+    pthread_cond_signal(&comm->proxyState->cond);
     pthread_mutex_unlock(&comm->proxyState->mutex);
   }
   return flagcxSuccess;
@@ -132,6 +133,8 @@ flagcxResult_t flagcxProxySaveOp(struct flagcxHeteroComm *comm,
   return flagcxSuccess;
 }
 
+// Only for double check purpose, we can check if the progress queue is empty
+// It is safe to not call this function in the progress thread.
 static void flagcxProgressQueEmptyCheck(struct flagcxProxyState *proxyState) {
   bool error = 0;
   if (!flagcxProdProgChannelListEmpty(proxyState->prodProgChannelHead) ||
@@ -156,95 +159,151 @@ static void flagcxProgressQueEmptyCheck(struct flagcxProxyState *proxyState) {
     INFO(FLAGCX_INIT, "progress queue is not empty");
 }
 
+// process all the ProxyOps in the consumer queue
+// idle is set to 1 if no operations are pending
+// if idle is set to 0, it means there are pending operations
+// For simplicity, if these are any pending operations in queue, we set idle to 0
+static flagcxResult_t progressOps(struct flagcxProxyState* proxyState, int* idle) {
+  *idle = 1;
+  if (!flagcxConsProgChannelListEmpty(proxyState->consProgChannelHead)) {
+    struct flagcxProxyOps *proxyOps = proxyState->consProgChannelHead;
+    do {
+      struct flagcxProxyOps *next = proxyOps->consNextChannel;
+
+      if (!flagcxProgPeerListEmpty(proxyOps->consProgPeerHead)) {
+        struct flagcxProxyOps::consPeer *peer = proxyOps->consProgPeerHead;
+        do {
+          struct flagcxProxyOps::consPeer *next = peer->nextPeer;
+          struct flagcxIntruQueue<struct flagcxProxyOp, &flagcxProxyOp::next>
+              *queue;
+          queue = &peer->sendQueue;
+          if (!flagcxIntruQueueEmpty(queue)) {
+            *idle &= 0;
+            struct flagcxProxyOp *op = flagcxIntruQueueHead(queue);
+            struct sendNetResources *resources =
+                (sendNetResources *)op->connection->transportResources;
+            flagcxProxySend(resources, op->recvbuff, op->nbytes, &op->args);
+            if (op->args.done) {
+              flagcxIntruQueueDelete(queue, op);
+              free(op);
+            }
+          }
+          queue = &peer->recvQueue;
+          if (!flagcxIntruQueueEmpty(queue)) {
+            *idle &= 0;
+            struct flagcxProxyOp *op = flagcxIntruQueueHead(queue);
+            struct recvNetResources *resources =
+                (recvNetResources *)op->connection->transportResources;
+            flagcxProxyRecv(resources, op->recvbuff, op->nbytes, &op->args);
+            if (op->args.done) {
+              flagcxIntruQueueDelete(queue, op);
+              free(op);
+            }
+          }
+          if (flagcxIntruQueueEmpty(&peer->sendQueue) &&
+              flagcxIntruQueueEmpty(&peer->recvQueue)) {
+            flagcxProgPeerListDelete(&proxyOps->consProgPeerHead, peer);
+          }
+          peer = next;
+        } while (peer != NULL);
+      }
+      if (flagcxProgPeerListEmpty(proxyOps->consProgPeerHead)) {
+        flagcxConsProgChannelListDelete(&proxyState->consProgChannelHead,
+                                        proxyOps);
+      }
+      proxyOps = next;
+    } while (proxyOps != NULL);
+  }
+  return flagcxSuccess;
+}
+
+// get proxy operations from the producer queue
+// and move them to the consumer queue
+// added means the number of operations fetched from producer queue and added to the consumer queue.
+static flagcxResult_t flagcxProxyGetPostedOps(struct flagcxProxyState* proxyState, int* added) {
+  struct flagcxProxyProgressState* state = &proxyState->progressState;
+  // No need to block waiting for the lock to be available. Exit, continue progress, and come back later.
+  if (pthread_mutex_trylock(&proxyState->mutex) != 0) {
+    *added = 0;
+    return flagcxSuccess;
+  }
+
+  // If we have ops to progress, no need to block waiting for something to arrive
+  if (flagcxConsProgChannelListEmpty(proxyState->consProgChannelHead)) {
+    while (flagcxProdProgChannelListEmpty(proxyState->prodProgChannelHead) && state->stop == 0) {
+      pthread_cond_wait(&proxyState->cond, &proxyState->mutex);
+    }
+    if (state->stop != 0) {
+      pthread_mutex_unlock(&proxyState->mutex);
+      *added = 0;
+      return flagcxSuccess;
+    }
+  }
+
+  // Put anything available right now in the producer queue into the consumer queue.
+  while (!flagcxProdProgChannelListEmpty(proxyState->prodProgChannelHead)) {
+    struct flagcxProxyOps *proxyOps =
+        flagcxProdProgChannelListDeList(&proxyState->prodProgChannelHead);
+
+    flagcxConsProgChannelListEnList(&proxyState->consProgChannelHead,
+                                    proxyOps);
+    struct flagcxIntruQueue<struct flagcxProxyOp, &flagcxProxyOp::next>
+        *queue;
+    queue = &proxyOps->prodPeers.sendQueue;
+    while (!flagcxIntruQueueEmpty(queue)) {
+      struct flagcxProxyOp *op = flagcxIntruQueueDequeue(queue);
+      flagcxProgPeerListEnList(&proxyOps->consProgPeerHead,
+                               &proxyOps->consPeers[op->root]);
+      flagcxIntruQueueEnqueue(&proxyOps->consPeers[op->root].sendQueue, op);
+      (*added)++;
+    }
+    queue = &proxyOps->prodPeers.recvQueue;
+    while (!flagcxIntruQueueEmpty(queue)) {
+      struct flagcxProxyOp *op = flagcxIntruQueueDequeue(queue);
+      flagcxProgPeerListEnList(&proxyOps->consProgPeerHead,
+                               &proxyOps->consPeers[op->root]);
+      flagcxIntruQueueEnqueue(&proxyOps->consPeers[op->root].recvQueue, op);
+      (*added)++;
+    }
+  }
+  pthread_mutex_unlock(&proxyState->mutex);
+  return flagcxSuccess;
+}
+
+FLAGCX_PARAM(ProgressAppendOpFreq, "PROGRESS_APPENDOP_FREQ", 8);
+
 inline void *flagcxProxyProgress(void *proxyState_) {
   struct flagcxProxyState *proxyState = (flagcxProxyState *)proxyState_;
-  bool commplete = false;
+  // flag indicating if there is any in-operating operation
+  int idle = 1;
+  /* Too frequent call of ncclProxyGetPostedOps() will result in perf regression for small message
+   * communication. proxyOpAppendCounter is a counter that helps us decide if we need to append proxy ops.
+   * After each progress, proxyOpAppendCounter will increase by 1 and compare with environment variable
+   * ncclParamProgressAppendOpFreq(). If they are equal, we will append proxy ops. This will decrease the
+   * frequency of calling ncclProxyGetPostedOps() and reduce the perf impact. */
+  int proxyOpAppendCounter = 0;
   deviceAdaptor->setDevice(proxyState->cudaDev);
+  struct flagcxProxyProgressState* state = &proxyState->progressState;
 
-  int stop = 0;
-  while (!stop || !commplete) {
-    stop = proxyState->progressState.stop;
-    commplete = true;
-    if (!flagcxConsProgChannelListEmpty(proxyState->consProgChannelHead)) {
-      struct flagcxProxyOps *proxyOps = proxyState->consProgChannelHead;
-      do {
-        struct flagcxProxyOps *next = proxyOps->consNextChannel;
+  while (state->stop == 0 || idle == 0) {
+    idle = 1;
+    // consume the operations in the consumer queue
+    progressOps(proxyState, &idle);
 
-        if (!flagcxProgPeerListEmpty(proxyOps->consProgPeerHead)) {
-          struct flagcxProxyOps::consPeer *peer = proxyOps->consProgPeerHead;
-          do {
-            struct flagcxProxyOps::consPeer *next = peer->nextPeer;
-            struct flagcxIntruQueue<struct flagcxProxyOp, &flagcxProxyOp::next>
-                *queue;
-            queue = &peer->sendQueue;
-            if (!flagcxIntruQueueEmpty(queue)) {
-              commplete = false;
-              struct flagcxProxyOp *op = flagcxIntruQueueHead(queue);
-              struct sendNetResources *resources =
-                  (sendNetResources *)op->connection->transportResources;
-              flagcxProxySend(resources, op->recvbuff, op->nbytes, &op->args);
-              if (op->args.done) {
-                flagcxIntruQueueDelete(queue, op);
-                free(op);
-              }
-            }
-            queue = &peer->recvQueue;
-            if (!flagcxIntruQueueEmpty(queue)) {
-              commplete = false;
-              struct flagcxProxyOp *op = flagcxIntruQueueHead(queue);
-              struct recvNetResources *resources =
-                  (recvNetResources *)op->connection->transportResources;
-              flagcxProxyRecv(resources, op->recvbuff, op->nbytes, &op->args);
-              if (op->args.done) {
-                flagcxIntruQueueDelete(queue, op);
-                free(op);
-              }
-            }
-            if (flagcxIntruQueueEmpty(&peer->sendQueue) &&
-                flagcxIntruQueueEmpty(&peer->recvQueue)) {
-              flagcxProgPeerListDeLete(&proxyOps->consProgPeerHead, peer);
-            }
-            peer = next;
-          } while (peer != NULL);
-        }
-        if (flagcxProgPeerListEmpty(proxyOps->consProgPeerHead)) {
-          flagcxConsProgChannelListDeLete(&proxyState->consProgChannelHead,
-                                          proxyOps);
-        }
-        proxyOps = next;
-      } while (proxyOps != NULL);
-    }
-    pthread_mutex_lock(&proxyState->mutex);
-
-    while (!flagcxProdProgChannelListEmpty(proxyState->prodProgChannelHead)) {
-      commplete = false;
-      struct flagcxProxyOps *proxyOps =
-          flagcxProdProgChannelListDeList(&proxyState->prodProgChannelHead);
-
-      flagcxConsProgChannelListEnList(&proxyState->consProgChannelHead,
-                                      proxyOps);
-      struct flagcxIntruQueue<struct flagcxProxyOp, &flagcxProxyOp::next>
-          *queue;
-      queue = &proxyOps->prodPeers.sendQueue;
-      while (!flagcxIntruQueueEmpty(queue)) {
-        struct flagcxProxyOp *op = flagcxIntruQueueDequeue(queue);
-        flagcxProgPeerListEnList(&proxyOps->consProgPeerHead,
-                                 &proxyOps->consPeers[op->root]);
-        flagcxIntruQueueEnqueue(&proxyOps->consPeers[op->root].sendQueue, op);
+    if (idle || (++proxyOpAppendCounter == flagcxParamProgressAppendOpFreq())) {
+      int added = 0;
+      proxyOpAppendCounter = 0;
+      if (state->stop == 0) {
+        // move all the operations from the producer queue to the consumer queue
+        flagcxProxyGetPostedOps(proxyState, &added);
       }
-      queue = &proxyOps->prodPeers.recvQueue;
-      while (!flagcxIntruQueueEmpty(queue)) {
-        struct flagcxProxyOp *op = flagcxIntruQueueDequeue(queue);
-        flagcxProgPeerListEnList(&proxyOps->consProgPeerHead,
-                                 &proxyOps->consPeers[op->root]);
-        flagcxIntruQueueEnqueue(&proxyOps->consPeers[op->root].recvQueue, op);
+      if (added == 0) {
+        sched_yield(); // No request progressed. Let others run.
       }
     }
-    pthread_mutex_unlock(&proxyState->mutex);
   }
 
   flagcxProgressQueEmptyCheck(proxyState);
-
   return NULL;
 }
 
@@ -451,9 +510,7 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
          "proxyProgressAsync opId=%p op.type=%d op.reqBuff=%p op.respSize=%d "
          "done",
          op->opId, op->type, op->reqBuff, op->respSize);
-    if (op->type == flagcxProxyMsgSetup)
-      __atomic_store_n(&op->connection->state, connSetupDone, __ATOMIC_RELEASE);
-    else if (op->type == flagcxProxyMsgConnect)
+    if (op->type == flagcxProxyMsgConnect)
       __atomic_store_n(&op->connection->state, connConnected, __ATOMIC_RELEASE);
 
     /* if setup or connect is done, we should not return any error at this point
@@ -661,7 +718,10 @@ flagcxResult_t flagcxProxyDestroy(struct flagcxHeteroComm *comm) {
   if (comm->proxyState->initialized == 1) {
     int type = flagcxProxyMsgStop;
     flagcxSocketSend(&comm->proxyState->peerSock, &type, sizeof(int));
+    pthread_mutex_lock(&comm->proxyState->mutex);
     comm->proxyState->progressState.stop = 1;
+    pthread_cond_signal(&comm->proxyState->cond);
+    pthread_mutex_unlock(&comm->proxyState->mutex);
     pthread_join(comm->proxyState->thread, nullptr);
     pthread_join(comm->proxyState->progressState.thread, nullptr);
     flagcxProxyFree(comm);
