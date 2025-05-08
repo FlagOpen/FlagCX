@@ -41,23 +41,37 @@ flagcxCommOp_t getC2cHomoCommOp(flagcxCommOp_t commOp, int homoType, int mode) {
         case 2:
           switch (mode) {
             case 0:
-              return flagcxCommNonOp;
+              return flagcxCommNoOp;
             case 1:
               return flagcxCommOpAllReduce;
             case 2:
-              return flagcxCommNonOp;
+              return flagcxCommNoOp;
           }
       }
     case flagcxCommOpAllGather:
       return flagcxCommOpAllGather;
     case flagcxCommOpReduceScatter:
-      return flagcxCommOpReduceScatter;
+      switch (homoType) {
+        case 0:
+          switch (mode) {
+            case 0:
+              return flagcxCommOpReduceScatter;
+            case 1:
+              return flagcxCommOpReduce;
+            case 2:
+              return flagcxCommOpReduce;
+          }
+        case 1:
+          return flagcxCommOpAllReduce;
+        case 2:
+          return flagcxCommOpReduceScatter;
+      }
     case flagcxCommOpAlltoAll:
       return flagcxCommOpAlltoAll;
     case flagcxCommOpAlltoAllv:
       return flagcxCommOpAlltoAllv;
     default:
-      return flagcxCommNonOp;
+      return flagcxCommNoOp;
   }
 }
 
@@ -344,6 +358,9 @@ flagcxC2cRefreshFunc::~flagcxC2cRefreshFunc() {}
 
 flagcxResult_t flagcxC2cRefreshFunc::run(void *buff, flagcxDataType_t datatype,
                                          flagcxStream_t stream) {
+  TRACE_CALL("flagcxC2cRefreshFunc run: offset = %d, count = %d, "
+             "datatype = %d, redOp = %d",
+             offset_, count_, datatype, redOp_);
   if (redOp_ == flagcxSum) {
     deviceAdaptor->deviceMemset(buff, 0,
                                 offset_ * getFlagcxDataTypeSize(datatype),
@@ -728,14 +745,14 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     flagcxCommOp_t postHomoFuncCommOp = eachNicPerRank_
                                             ? getC2cHomoCommOp(commOp_, 2, 0)
                                             : getC2cHomoCommOp(commOp_, 2, 1);
-    postHomoFuncLoops_ = (postHomoFuncCommOp == flagcxCommNonOp) ? 0 : 1;
+    postHomoFuncLoops_ = (postHomoFuncCommOp == flagcxCommNoOp) ? 0 : 1;
     for (int i = 0; i < postHomoFuncLoops_; ++i) {
       if (postHomoFuncCommOp == flagcxCommOpAllReduce) {
         postHomoFuncList_.emplace_back(-1, 0, 0, recvCount_, 0,
                                        postHomoFuncCommOp);
       } else if (postHomoFuncCommOp == flagcxCommOpReduceScatter) {
-        postHomoFuncList_.emplace_back(-1, clusterOffset_, 0, recvCount_, 0,
-                                       postHomoFuncCommOp);
+        postHomoFuncList_.emplace_back(-1, clusterOffset_ * recvCount_, 0,
+                                       recvCount_, 0, postHomoFuncCommOp);
       }
     }
   } else {
@@ -803,11 +820,11 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
 
     // setup postHomoFuncs
     flagcxCommOp_t postHomoFuncCommOp = getC2cHomoCommOp(commOp_, 2, 2);
-    postHomoFuncLoops_ = postHomoFuncCommOp == flagcxCommNonOp ? 0 : 1;
+    postHomoFuncLoops_ = postHomoFuncCommOp == flagcxCommNoOp ? 0 : 1;
     for (int i = 0; i < postHomoFuncLoops_; ++i) {
       if (postHomoFuncCommOp == flagcxCommOpReduceScatter) {
-        postHomoFuncList_.emplace_back(-1, clusterOffset_, 0, recvCount_, 0,
-                                       postHomoFuncCommOp);
+        postHomoFuncList_.emplace_back(-1, clusterOffset_ * recvCount_, 0,
+                                       recvCount_, 0, postHomoFuncCommOp);
       }
     }
   }
@@ -818,47 +835,63 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
                                          flagcxDataType_t datatype, int root,
                                          flagcxStream_t stream) {
   // redOp validation
-  if (redOp_ != flagcxRedNonOp) {
+  if (redOp_ != flagcxRedNoOp) {
     if (redOp_ != flagcxSum && redOp_ != flagcxMax && redOp_ != flagcxMin) {
       WARN("Unsupported reduction operation %d", redOp_);
       return flagcxInvalidArgument;
     }
   }
 
+  // init scratch buffer if needed
+  if (commOp_ == flagcxCommOpReduceScatter) {
+    deviceAdaptor->deviceMalloc(&scratchBuffer_,
+                                totalCount_ * getFlagcxDataTypeSize(datatype),
+                                flagcxMemDevice, stream);
+  } else {
+    scratchBuffer_ = nullptr;
+  }
+
+  void *recvTmpBuff = (scratchBuffer_ == nullptr) ? recvbuff : scratchBuffer_;
+
   // execute preHomoFuncs
   for (int i = 0; i < preHomoFuncLoops_; ++i) {
-    preHomoFuncList_[i].run(sendbuff, recvbuff, datatype, redOp_, root, comm_,
-                            stream);
+    preHomoFuncList_[i].run(sendbuff, recvTmpBuff, datatype, redOp_, root,
+                            comm_, stream);
   }
 
   for (int i = 0; i < heteroAndHomoInterFuncLoops_; ++i) {
     // execute refreshFunc
-    refreshFunc_.run(recvbuff, datatype, stream);
+    refreshFunc_.run(recvTmpBuff, datatype, stream);
 
     // TODO: use stream wait rather than stream sync to avoid cpu blocking
     // deviceAdaptor->streamSynchronize(stream);
 
     // execute heteroFuncs
-    heteroFuncList_[i].run(recvbuff, datatype, comm_, stream);
+    heteroFuncList_[i].run(recvTmpBuff, datatype, comm_, stream);
 
     // TODO: use stream wait rather than stream sync to avoid cpu blocking
     deviceAdaptor->streamSynchronize(stream);
 
     // execute homoInterFuncs
-    homoInterFuncList_[i].run(recvbuff, recvbuff, datatype, redOp_, root, comm_,
-                              stream);
+    homoInterFuncList_[i].run(recvTmpBuff, recvTmpBuff, datatype, redOp_, root,
+                              comm_, stream);
   }
 
   // execute postHomoFuns
   // we assume that there may be multiple post homo-funcs,
   // but now postHomoFuncLoops_ can only be set to 0 and 1
   for (int i = 0; i < postHomoFuncLoops_; ++i) {
-    // for single-nic mode, there is not need to call refresh func
-    if (multiNic_) {
-      refreshFunc_.run(recvbuff, datatype, stream);
-    }
-    postHomoFuncList_[i].run(recvbuff, recvbuff, datatype, redOp_, root, comm_,
-                             stream);
+    // execute refresh func
+    refreshFunc_.run(recvTmpBuff, datatype, stream);
+
+    // execute postHomoFunc
+    postHomoFuncList_[i].run(recvTmpBuff, recvbuff, datatype, redOp_, root,
+                             comm_, stream);
+  }
+
+  // free scratch buffer if needed
+  if (scratchBuffer_ != nullptr) {
+    deviceAdaptor->deviceFree(scratchBuffer_, flagcxMemDevice, stream);
   }
 
   return flagcxSuccess;
