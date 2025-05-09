@@ -448,7 +448,7 @@ inline type* flagcx##listName##ListDeList(type **head){         \
   ret->next = reinterpret_cast<type *>(0x1);                  \
   return ret;                                                 \
 }                                                             \
-inline void flagcx##listName##ListDeLete(type **head, type *x){ \
+inline void flagcx##listName##ListDelete(type **head, type *x){ \
   if(x->prev) x->prev->next = x->next;                        \
   if(x->next) x->next->prev = x->prev;                        \
   if(*head == x) *head = x->next;                             \

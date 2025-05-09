@@ -175,6 +175,15 @@ static flagcxResult_t flagcxCommInitRankFunc(struct flagcxAsyncJob *job_) {
     FLAGCXCHECK(flagcxCalloc(&comm->proxyState, 1));
     FLAGCXCHECK(flagcxCalloc(&comm->tasks.peers, nranks));
     FLAGCXCHECK(flagcxCalloc(&comm->tasks.p2pOrder, nranks));
+     // Setup mutex/cond to work inter-process
+     pthread_mutexattr_t mutexAttr;
+     pthread_mutexattr_init(&mutexAttr);
+     pthread_mutexattr_setpshared(&mutexAttr, PTHREAD_PROCESS_SHARED);
+     pthread_mutex_init(&comm->proxyState->mutex, &mutexAttr);
+     pthread_condattr_t condAttr;
+     pthread_condattr_setpshared(&condAttr, PTHREAD_PROCESS_SHARED);
+     pthread_cond_init(&comm->proxyState->cond, &condAttr);
+
     for (int i = 0; i < MAXCHANNELS; i++) {
       FLAGCXCHECK(
           flagcxCalloc(&comm->proxyState->proxyOps[i].consPeers, nranks));
