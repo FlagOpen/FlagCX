@@ -477,7 +477,7 @@ flagcxResult_t flagcxC2cPlanner::searchHeteroSendRecvOps(int searchMethod,
             j, clusterInterRankList_[j][r1]);
         for (auto it = jList.begin(); it != jList.end();) {
           int erased = 0;
-          if (!it->isScheduled_ && !it->isRecv_) {
+          if (!it->isScheduled_ && !it->isRecv_ && it->clusterIdToSend_ == z) {
             for (size_t r2 = 0; r2 < clusterInterRankList_[z].size(); ++r2) {
               size_t newR2 = (searchMethod == 1)
                                  ? (r2 + r1) % clusterInterRankList_[z].size()
@@ -559,7 +559,7 @@ flagcxResult_t flagcxC2cPlanner::searchHeteroSendRecvOps(int searchMethod,
             z, clusterInterRankList_[z][r1]);
         for (auto it = zList.begin(); it != zList.end();) {
           int erased = 0;
-          if (!it->isScheduled_ && !it->isRecv_) {
+          if (!it->isScheduled_ && !it->isRecv_ && it->clusterIdToSend_ == j) {
             for (size_t r2 = 0; r2 < clusterInterRankList_[j].size(); ++r2) {
               size_t newR2 = (searchMethod == 1)
                                  ? (r2 + r1) % clusterInterRankList_[j].size()
@@ -705,15 +705,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         }
       }
 
-      if (!scheduleCompleted) {
-        refresh(0);
-        heteroAndHomoInterFuncLoops_ += 1;
-      }
-    }
-    interRankBufferInfoManager_.printBufferInfo(2);
-
-    // setup heteroFuncs
-    for (int i = 0; i < heteroAndHomoInterFuncLoops_; ++i) {
+      // setup heteroFuncs
       flagcxC2cHeteroFunc heteroFunc = flagcxC2cHeteroFunc();
       for (size_t j = 0; j < clusterInterRankList_.size(); ++j) {
         for (size_t z = 0; z < clusterInterRankList_[j].size(); ++z) {
@@ -721,7 +713,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
             auto &rankList =
                 interRankBufferInfoManager_.getBufferInfoList(j, rank_);
             for (auto it = rankList.begin(); it != rankList.end(); ++it) {
-              if (it->loopId_ == i) {
+              if (it->isScheduled_ && it->loopId_ == i) {
                 heteroFunc.addP2pOp(rank_, it->peerRank_, it->offset_,
                                     it->count_, it->isRecv_);
               }
@@ -730,7 +722,13 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         }
       }
       heteroFuncList_.push_back(std::move(heteroFunc));
+
+      if (!scheduleCompleted) {
+        refresh(0);
+        heteroAndHomoInterFuncLoops_ += 1;
+      }
     }
+    interRankBufferInfoManager_.printBufferInfo(2);
 
     // setup homoInterFuncs
     flagcxCommOp_t homoInterFuncCommOp = eachNicPerRank_
