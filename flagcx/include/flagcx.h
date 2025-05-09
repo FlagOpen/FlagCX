@@ -50,6 +50,7 @@ typedef enum {
   flagcxMax = 2,
   flagcxMin = 3,
   flagcxAvg = 4,
+  flagcxRedNoOp = 5,
   flagcxNumRedOps = 5,
   flagcxMaxRedOp = 0x7fffffff >> (32 - 8 * sizeof(flagcxRedOp_dummy_t))
 } flagcxRedOp_t;
@@ -69,6 +70,7 @@ typedef enum {
   flagcxCommOpReduceScatter = 8,
   flagcxCommOpAlltoAll = 9,
   flagcxCommOpAlltoAllv = 10,
+  flagcxCommNoOp = 11,
   flagcxNumCommOps = 11
 } flagcxCommOp_t;
 
@@ -83,6 +85,13 @@ typedef enum {
   flagcxMemDevice = 1,
   flagcxMemManaged = 2
 } flagcxMemType_t;
+
+typedef enum {
+  FLAGCX_VENDOR_NVIDIA = 0,
+  FLAGCX_VENDOR_ILUVATAR_COREX = 1,
+  FLAGCX_VENDOR_MLU = 2,
+  FLAGCX_VENDOR_METAX = 3,
+} flagcxVendorType;
 
 #define FLAGCX_UNIQUE_ID_BYTES 256
 typedef struct {

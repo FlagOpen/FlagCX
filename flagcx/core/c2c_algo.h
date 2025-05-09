@@ -6,9 +6,56 @@
 #include "flagcx.h"
 #include "group.h"
 #include "param.h"
+#include <iostream>
 #include <list>
 #include <map>
 #include <string>
+#include <unordered_map>
+
+size_t getC2cCommPatternHash(size_t count, flagcxCommOp_t commOp,
+                             flagcxRedOp_t redOp, flagcxComm_t comm);
+
+template <typename Key, typename Value>
+class flagcxLRUCache {
+public:
+  flagcxLRUCache(size_t capacity) : capacity_(capacity) {}
+
+  bool get(const Key &key, Value &value) {
+    auto it = cacheMap_.find(key);
+    if (it == cacheMap_.end())
+      return false;
+
+    // Move the accessed item to the front of the list
+    cacheItems_.splice(cacheItems_.begin(), cacheItems_, it->second);
+    value = it->second->second;
+    return true;
+  }
+
+  void put(const Key &key, const Value &value) {
+    auto it = cacheMap_.find(key);
+    if (it != cacheMap_.end()) {
+      // Update and move to front
+      it->second->second = value;
+      cacheItems_.splice(cacheItems_.begin(), cacheItems_, it->second);
+    } else {
+      // Insert new element
+      if (cacheItems_.size() == capacity_) {
+        // Remove least recently used item
+        auto lru = cacheItems_.back();
+        cacheMap_.erase(lru.first);
+        cacheItems_.pop_back();
+      }
+      cacheItems_.emplace_front(key, value);
+      cacheMap_[key] = cacheItems_.begin();
+    }
+  }
+
+private:
+  size_t capacity_;
+  std::list<std::pair<Key, Value>> cacheItems_;
+  std::unordered_map<Key, typename std::list<std::pair<Key, Value>>::iterator>
+      cacheMap_;
+};
 
 // homoType: 0, pre; 1, homoInter; 2, post,
 // mode: 0, multiNic+eachNicPerRank; 1, normal; 2, single-nic
@@ -36,6 +83,9 @@ class flagcxInterRankBufferInfoManager {
 public:
   flagcxInterRankBufferInfoManager(int totalCount);
   ~flagcxInterRankBufferInfoManager();
+  flagcxInterRankBufferInfoManager() = default;
+  flagcxInterRankBufferInfoManager(const flagcxInterRankBufferInfoManager &) =
+      default;
 
   bool checkIfPossibleToPush(int clusterId, int rank, int offset, int count);
   bool checkIfPossibleToSplitAndPush(int clusterId, int rank, int offset,
@@ -91,6 +141,7 @@ public:
 
 class flagcxC2cHeteroFunc {
 public:
+  friend class flagcxAlgoTimeEstimator;
   flagcxC2cHeteroFunc();
   ~flagcxC2cHeteroFunc();
 
@@ -120,9 +171,13 @@ public:
 
 class flagcxC2cPlanner {
 public:
+  friend class flagcxAlgoTimeEstimator;
   flagcxC2cPlanner(int totalCount, int recvCount, flagcxComm_t comm,
                    flagcxCommOp_t commOp, flagcxRedOp_t redOp);
   ~flagcxC2cPlanner();
+  flagcxC2cPlanner() = default;
+  flagcxC2cPlanner(const flagcxC2cPlanner &) = default;
+  flagcxC2cPlanner &operator=(const flagcxC2cPlanner &) = default;
 
   flagcxResult_t refresh(
       int isSendRecv); // 0: refresh recv info only; 1: refresh send+recv info
@@ -139,16 +194,17 @@ private:
   flagcxComm_t comm_;
   flagcxCommOp_t commOp_;
   flagcxRedOp_t redOp_;
-  std::vector<std::vector<int>> &clusterInterRankList_;
+  std::vector<std::vector<int>> clusterInterRankList_;
   flagcxInterRankBufferInfoManager interRankBufferInfoManager_;
-  int &clusterId_;
-  int &rank_; // global rank
-  int &homoMyRank_;
-  int &homoRootRank_;
-  int &homoRanks_;
-  int &homoInterMyRank_;
-  int &homoInterRootRank_;
-  int &homoInterRanks_;
+  int clusterId_;
+  int rank_; // global rank
+  int homoMyRank_;
+  int homoRootRank_;
+  int homoRanks_;
+  int homoInterMyRank_;
+  int homoInterRootRank_;
+  int homoInterRanks_;
+  int clusterOffset_;
   int multiNic_;
   int eachNicPerRank_;
   int preHomoFuncLoops_;            // number of loops for preHomoFunc

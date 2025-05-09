@@ -46,6 +46,7 @@ struct flagcxComm {
   int homoInterRanks;
   std::vector<std::vector<int>> clusterInterRankList;
   flagcxInnerComm_t homoInterComm;
+  std::vector<flagcxVendorType> clusterVendorMap;
 };
 
 #endif // end include guard

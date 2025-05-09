@@ -74,3 +74,23 @@ flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
 
   return flagcxSuccess;
 }
+
+flagcxResult_t flagcxFillClusterVendorInfo(const flagcxVendor *allData,
+                                           flagcxComm *comm, int *clusterIdData,
+                                           int nranks, int ncluster) {
+  comm->clusterVendorMap.resize(ncluster);
+  for (int i = 0; i < nranks; i++) {
+    std::string vendor = allData[i].internal;
+    int cluster = clusterIdData[i];
+    if (vendor == "NVIDIA") {
+      comm->clusterVendorMap[cluster] = FLAGCX_VENDOR_NVIDIA;
+    } else if (vendor == "ILUVATAR_COREX") {
+      comm->clusterVendorMap[cluster] = FLAGCX_VENDOR_ILUVATAR_COREX;
+    } else if (vendor == "MLU") {
+      comm->clusterVendorMap[cluster] = FLAGCX_VENDOR_MLU;
+    } else if (vendor == "METAX") {
+      comm->clusterVendorMap[cluster] = FLAGCX_VENDOR_METAX;
+    }
+  }
+  return flagcxSuccess;
+}
