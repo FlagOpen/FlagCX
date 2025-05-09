@@ -24,6 +24,7 @@ flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
   int currCluster = 0;
   int aggRanks = 1;
   int homoRootRank = 0;
+  std::string myCls = allData[rank].internal;
   for (int i = 1; i < nranks; ++i) {
     std::string cls = allData[i].internal;
     auto it = clusterMap.find(cls);
@@ -32,12 +33,11 @@ flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
     } else {
       clusterMap[cls] = 1;
       numClusters += 1;
-      if (*homo_rank >= aggRanks) {
+      if (myCls == cls) {
         *homo_rank = *homo_rank - aggRanks;
-        currCluster += 1;
+        currCluster = numClusters - 1;
+        homoRootRank = i;
       }
-      aggRanks = 0;
-      homoRootRank = i;
     }
     aggRanks += 1;
 
@@ -46,7 +46,7 @@ flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
     }
   }
 
-  *homo_ranks = clusterMap[allData[rank].internal];
+  *homo_ranks = clusterMap[myCls];
 
   if (clusterMap.size() > 1) {
     *type = flagcxCommunicatorHybrid;
