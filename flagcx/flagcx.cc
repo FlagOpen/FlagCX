@@ -1370,18 +1370,17 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
       // Experimental for multi-nic support
       // Construct flagcxC2cPlanner and find corresponding strategy
       flagcxC2cPlanner planner;
-      uint64_t count = sendcount * comm->nranks;
       auto hashValue = getC2cCommPatternHash(
           sendcount, flagcxCommOpAllGather, flagcxRedNoOp, comm);
       if (!planCache.get(hashValue, planner)) {
         INFO(FLAGCX_COLL,
              "AllGather communication pattern "
-             "(sendcount, count, commOp, redOp, comm) = (%ld, %ld, %d, %d, "
-             "%ld), hashValue = %ld",
-             sendcount, count, flagcxCommOpAllGather, flagcxRedNoOp,
+             "(sendcount, commOp, redOp, comm) = (%ld, %d, %d, %ld), hashValue"
+             "= %ld",
+             sendcount, flagcxCommOpAllGather, flagcxRedNoOp,
              (size_t)((uintptr_t)comm), hashValue);
-        planner = flagcxC2cPlanner(count, count, comm, flagcxCommOpAllGather,
-                                   flagcxRedNoOp);
+        planner = flagcxC2cPlanner(sendcount, sendcount * comm->nranks, comm,
+                                   flagcxCommOpAllGather, flagcxRedNoOp);
         FLAGCXCHECK(planner.findStrategy());
         planCache.put(hashValue, planner);
       } else {

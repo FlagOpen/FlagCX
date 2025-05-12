@@ -53,7 +53,14 @@ flagcxCommOp_t getC2cHomoCommOp(flagcxCommOp_t commOp, int homoType, int mode) {
     case flagcxCommOpAllGather:
       switch (homoType) {
         case 0:
-          return flagcxCommOpAllGather;
+          switch (mode) {
+            case 0:
+              return flagcxCommOpAllGather;
+            case 1:
+              return flagcxCommOpAllGather;
+            case 2:
+              return flagcxCommOpGather;
+          }
         case 1:
           return flagcxCommNoOp;
         case 2:
@@ -344,6 +351,14 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
           count_, datatype, comm->homo_comm, stream);
     case flagcxCommOpBroadcast:
       return cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
+          const_cast<const void *>(static_cast<void *>(
+              static_cast<char *>(const_cast<void *>(sendbuff)) +
+              sendOffset_ * getFlagcxDataTypeSize(datatype))),
+          static_cast<void *>(static_cast<char *>(recvbuff) +
+                              recvOffset_ * getFlagcxDataTypeSize(datatype)),
+          count_, datatype, root, comm->homo_comm, stream);
+    case flagcxCommOpGather:
+      return cclAdaptors[flagcxCCLAdaptorDevice]->gather(
           const_cast<const void *>(static_cast<void *>(
               static_cast<char *>(const_cast<void *>(sendbuff)) +
               sendOffset_ * getFlagcxDataTypeSize(datatype))),
@@ -737,6 +752,18 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
           preHomoFuncList_.emplace_back(-1, 0, offset, buffer.count_, 0,
                                         preHomoFuncCommOp);
           break;
+        } else if (preHomoFuncCommOp == flagcxCommOpGather) {
+          int offset = 0;
+          int sendcount = totalCount_ / comm_->nranks;
+          for (int i = 0; i < clusterId_; ++i) {
+            offset += comm_->cluster_sizes[i] * sendcount;
+          }
+          if (commOp_ == flagcxCommOpAllGather) {
+            preHomoFuncList_.emplace_back(clusterInterRankList_[clusterId_][0],
+                                          0, offset, sendcount, 0,
+                                          preHomoFuncCommOp);
+            break;
+          }
         }
       }
     }
