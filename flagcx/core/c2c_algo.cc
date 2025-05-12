@@ -377,18 +377,20 @@ flagcxResult_t flagcxC2cRefreshFunc::run(void *buff, flagcxDataType_t datatype,
   return flagcxSuccess;
 }
 
-flagcxC2cPlanner::flagcxC2cPlanner(int totalCount, int recvCount,
+flagcxC2cPlanner::flagcxC2cPlanner(int sendCount, int recvCount,
                                    flagcxComm_t comm, flagcxCommOp_t commOp,
                                    flagcxRedOp_t redOp)
-    : totalCount_(totalCount), recvCount_(recvCount), comm_(comm),
+    : sendCount_(sendCount), recvCount_(recvCount), comm_(comm),
       commOp_(commOp), redOp_(redOp),
       clusterInterRankList_(comm->clusterInterRankList),
-      interRankBufferInfoManager_(totalCount),
       clusterId_(comm->cluster_ids[comm->rank]), rank_(comm->rank),
       homoMyRank_(comm->homo_rank), homoRootRank_(comm->homo_root_rank),
       homoRanks_(comm->homo_ranks), homoInterMyRank_(comm->homoInterMyRank),
       homoInterRootRank_(comm->homoInterRootRank),
       homoInterRanks_(comm->homoInterRanks) {
+  // set totalCount_
+  totalCount_ = (sendCount_ > recvCount_) ? sendCount_ : recvCount_;
+
   // calculate clusterOffset_
   clusterOffset_ = 0;
   for (int i = 0; i < clusterId_; ++i) {
@@ -420,6 +422,9 @@ flagcxC2cPlanner::flagcxC2cPlanner(int totalCount, int recvCount,
       break;
     }
   }
+
+  // init inter-rank buffer info manager
+  interRankBufferInfoManager_ = flagcxInterRankBufferInfoManager(totalCount_);
 }
 
 flagcxC2cPlanner::~flagcxC2cPlanner() {}

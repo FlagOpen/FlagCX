@@ -172,7 +172,7 @@ public:
 class flagcxC2cPlanner {
 public:
   friend class flagcxAlgoTimeEstimator;
-  flagcxC2cPlanner(int totalCount, int recvCount, flagcxComm_t comm,
+  flagcxC2cPlanner(int sendCount, int recvCount, flagcxComm_t comm,
                    flagcxCommOp_t commOp, flagcxRedOp_t redOp);
   ~flagcxC2cPlanner();
   flagcxC2cPlanner() = default;
@@ -189,13 +189,12 @@ public:
                          flagcxStream_t stream);
 
 private:
-  int totalCount_; // equal to sendCount_
+  int sendCount_;
   int recvCount_;
   flagcxComm_t comm_;
   flagcxCommOp_t commOp_;
   flagcxRedOp_t redOp_;
   std::vector<std::vector<int>> clusterInterRankList_;
-  flagcxInterRankBufferInfoManager interRankBufferInfoManager_;
   int clusterId_;
   int rank_; // global rank
   int homoMyRank_;
@@ -204,6 +203,7 @@ private:
   int homoInterMyRank_;
   int homoInterRootRank_;
   int homoInterRanks_;
+  int totalCount_; // equal to either sendCount_ or recvCount_
   int clusterOffset_;
   int multiNic_;
   int eachNicPerRank_;
@@ -211,6 +211,7 @@ private:
   int heteroAndHomoInterFuncLoops_; // number of loops for heteroFunc and
                                     // homoInterFunc
   int postHomoFuncLoops_;           // number of loops for postHomoFunc
+  flagcxInterRankBufferInfoManager interRankBufferInfoManager_;
   flagcxC2cRefreshFunc refreshFunc_;
   std::vector<flagcxC2cHomoFunc> preHomoFuncList_;
   std::vector<flagcxC2cHeteroFunc> heteroFuncList_;
