@@ -41,6 +41,8 @@ public:
     event_ = std::make_unique<flagcxMluEvent>();
 #elif USE_METAX_ADAPTOR
     event_ = std::make_unique<flagcxMacaEvent>();
+#elif USE_DU_ADAPTOR
+    event_ = std::make_unique<flagcxDuEvent>();
 #endif
   }
   bool isCompleted() override;
@@ -161,6 +163,8 @@ public:
     devName = "mlu";
 #elif USE_METAX_ADAPTOR
     devName = "maca";
+#elif USE_DU_ADAPTOR
+    devName = "cuda";
 #endif
     py::object module = py::module::import("torch.distributed");
     py::object registerBackend =
