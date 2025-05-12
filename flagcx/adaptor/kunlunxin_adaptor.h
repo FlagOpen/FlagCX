@@ -2,12 +2,12 @@
  * Copyright (c) 2025 by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
  ************************************************************************/
 
-#ifdef USE_METAX_ADAPTOR
+#ifdef USE_KUNLUNXIN_ADAPTOR
 
 #include <map>
 
 #include <bkcl.h>
-#include "cuda.h"
+#include <cuda.h>
 #include <cuda_runtime.h>
 
 #include "adaptor.h"
@@ -34,4 +34,4 @@ struct flagcxEvent {
       return flagcxUnhandledDeviceError;                                       \
   }
 
-#endif // USE_METAX_ADAPTOR
+#endif // USE_KUNLUNXIN_ADAPTOR
