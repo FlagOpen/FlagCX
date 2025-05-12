@@ -378,6 +378,7 @@ flagcxResult_t flagcxProxyConnect(struct flagcxHeteroComm *comm, int transport,
                                   int send, int proxyRank,
                                   struct flagcxProxyConnector *proxyConn);
 
+// Only flagcxProxyMsgConnect & flagcxProxyMsgStop types are used for now.
 enum flagcxProxyMsgType {
   flagcxProxyMsgInit = 1,
   flagcxProxyMsgSharedInit = 2,

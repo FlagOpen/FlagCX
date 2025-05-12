@@ -181,6 +181,7 @@ static flagcxResult_t flagcxCommInitRankFunc(struct flagcxAsyncJob *job_) {
      pthread_mutexattr_setpshared(&mutexAttr, PTHREAD_PROCESS_SHARED);
      pthread_mutex_init(&comm->proxyState->mutex, &mutexAttr);
      pthread_condattr_t condAttr;
+     pthread_condattr_init(&condAttr);
      pthread_condattr_setpshared(&condAttr, PTHREAD_PROCESS_SHARED);
      pthread_cond_init(&comm->proxyState->cond, &condAttr);
 
