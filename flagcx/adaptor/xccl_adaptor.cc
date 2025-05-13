@@ -1,6 +1,6 @@
 #include "kunlunxin_adaptor.h"
 
-#ifdef USE_NVIDIA_ADAPTOR
+#ifdef USE_KUNLUNXIN_ADAPTOR
 
 /**
  * 将flagcxDataType_t类型转换为BKCLDataType类型
@@ -59,8 +59,7 @@ BKCLOp flagcxRedOpToBKCLOp(flagcxRedOp_t op) {
     }
 }
 
-
-
+// 未支持
 flagcxResult_t xcclAdaptorGetVersion(int *version) {
   return flagcxNotSupported;
 }
@@ -72,12 +71,14 @@ flagcxResult_t xcclAdaptorGetUniqueId(flagcxUniqueId_t *uniqueId) {
   return (flagcxResult_t)bkcl_get_unique_id((BKCLUniqueId *)uniqueId);
 }
 
+// 未支持
 const char *xcclAdaptorGetErrorString(flagcxResult_t result) {
-  return flagcxNotSupported;
+  return "flagcxNotSupported";
 }
 
+// 未支持
 const char *xcclAdaptorGetLastError(flagcxInnerComm_t comm) {
-  return flagcxNotSupported;
+  return "flagcxNotSupported";
 }
 
 flagcxResult_t xcclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
@@ -86,12 +87,13 @@ flagcxResult_t xcclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
   if (*comm == NULL) {
     flagcxCalloc(comm, 1);
   }
-  return (flagcxResult_t)bkcl_init_rank(&(*comm)->base, rank,
-                                          *(BKCLUniqueId *)commId, nrank);
+  return (flagcxResult_t)bkcl_init_rank(&(*comm)->base, rank, nranks,
+                                        (BKCLUniqueId *)commId);
 }
 
+// 未支持
 flagcxResult_t xcclAdaptorCommFinalize(flagcxInnerComm_t comm) {
-  return (flagcxResult_t)bkcl_redop_destroy(comm->base);
+  return flagcxNotSupported;
 }
 
 flagcxResult_t xcclAdaptorCommDestroy(flagcxInnerComm_t comm) {
@@ -102,10 +104,12 @@ flagcxResult_t xcclAdaptorCommAbort(flagcxInnerComm_t comm) {
   return (flagcxResult_t)bkcl_comm_abort(comm->base);
 }
 
+// 未支持
 flagcxResult_t xcclAdaptorCommResume(flagcxInnerComm_t comm) {
   return flagcxNotSupported;
 }
 
+// 未支持
 flagcxResult_t xcclAdaptorCommSuspend(flagcxInnerComm_t comm) {
   return flagcxNotSupported;
 }
@@ -114,6 +118,7 @@ flagcxResult_t xcclAdaptorCommCount(const flagcxInnerComm_t comm, int *count) {
   return (flagcxResult_t)bkcl_comm_count(comm->base, count);
 }
 
+// 未支持
 flagcxResult_t xcclAdaptorCommCuDevice(const flagcxInnerComm_t comm,
                                        int *device) {
   return flagcxNotSupported;
@@ -124,6 +129,7 @@ flagcxResult_t xcclAdaptorCommUserRank(const flagcxInnerComm_t comm,
   return (flagcxResult_t)bkcl_comm_user_rank(comm->base, rank);
 }
 
+// 未支持
 flagcxResult_t xcclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
                                             flagcxResult_t asyncError) {
   return flagcxNotSupported;
@@ -140,6 +146,7 @@ flagcxResult_t xcclAdaptorReduce(const void *sendbuff, void *recvbuff,
                                      root, stream->base);
 }
 
+// 未支持
 flagcxResult_t xcclAdaptorGather(const void *sendbuff, void *recvbuff,
                                  size_t count, flagcxDataType_t datatype,
                                  int root, flagcxInnerComm_t comm,
@@ -265,4 +272,4 @@ struct flagcxCCLAdaptor xcclAdaptor = {
     // Group semantics
     xcclAdaptorGroupStart, xcclAdaptorGroupEnd};
 
-#endif // USE_NVIDIA_ADAPTOR
+#endif // USE_KUNLUNXIN_ADAPTOR
