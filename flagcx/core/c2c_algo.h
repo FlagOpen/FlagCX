@@ -204,6 +204,7 @@ private:
   int homoInterRootRank_;
   int homoInterRanks_;
   int totalCount_; // equal to either sendCount_ or recvCount_
+  int clusterCount_;
   int clusterOffset_;
   int multiNic_;
   int eachNicPerRank_;
