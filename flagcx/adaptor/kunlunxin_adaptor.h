@@ -16,7 +16,7 @@
 #include "flagcx.h"
 
 struct flagcxInnerComm {
-    // xcclComm_t base; // todo:这个看着是我们的BKCLContext？
+    BKCLContext_t base;
 };
 
 struct flagcxStream {
