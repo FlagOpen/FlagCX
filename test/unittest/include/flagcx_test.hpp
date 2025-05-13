@@ -1,39 +1,37 @@
 #pragma once
 
-#include  "mpi.h"
+#include "mpi.h"
 #include <gtest/gtest.h>
-#include <string>
 #include <memory>
+#include <string>
 
-class MPIEnvironment : public ::testing::Environment
-{
+class MPIEnvironment : public ::testing::Environment {
 public:
-    virtual void SetUp() {
-        char** argv;
-        int argc = 0;
-        int mpiError = MPI_Init(&argc, &argv);
-        ASSERT_FALSE(mpiError);
-    }
+  virtual void SetUp() {
+    char **argv;
+    int argc = 0;
+    int mpiError = MPI_Init(&argc, &argv);
+    ASSERT_FALSE(mpiError);
+  }
 
-    virtual void TearDown() {
-        int mpiError = MPI_Finalize();
-        ASSERT_FALSE(mpiError);
-    }
+  virtual void TearDown() {
+    int mpiError = MPI_Finalize();
+    ASSERT_FALSE(mpiError);
+  }
 
-    virtual ~MPIEnvironment() {}
+  virtual ~MPIEnvironment() {}
 };
 
-class FlagCXTest : public testing::Test
-{
+class FlagCXTest : public testing::Test {
 protected:
-    void SetUp() override;
+  void SetUp() override;
 
-    void TearDown() override {}
+  void TearDown() override {}
 
-    void Run() {}
+  void Run() {}
 
-    int rank;
-    int nranks;
-    // static Parser parser;
-    std::string type;
+  int rank;
+  int nranks;
+  // static Parser parser;
+  std::string type;
 };

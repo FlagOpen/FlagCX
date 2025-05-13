@@ -18,35 +18,44 @@ struct flagcxBootstrapHandle {
   uint64_t magic;
   union flagcxSocketAddress addr;
 };
-static_assert(sizeof(struct flagcxBootstrapHandle) <= sizeof(flagcxUniqueId), "Bootstrap handle is too large to fit inside FLAGCX unique ID");
+static_assert(sizeof(struct flagcxBootstrapHandle) <= sizeof(flagcxUniqueId),
+              "Bootstrap handle is too large to fit inside FLAGCX unique ID");
 
 struct bootstrapState {
   struct flagcxSocket listenSock;
   struct flagcxSocket ringRecvSocket;
   struct flagcxSocket ringSendSocket;
-  union flagcxSocketAddress* peerCommAddresses;
-  union flagcxSocketAddress* peerProxyAddresses;
-  struct unexConn* unexpectedConnections;
+  union flagcxSocketAddress *peerCommAddresses;
+  union flagcxSocketAddress *peerProxyAddresses;
+  struct unexConn *unexpectedConnections;
   int rank;
   int nranks;
   uint64_t magic;
-  volatile uint32_t* abortFlag;
+  volatile uint32_t *abortFlag;
 };
 
 flagcxResult_t bootstrapNetInit();
-flagcxResult_t bootstrapCreateRoot(struct flagcxBootstrapHandle* handle, bool idFromEnv);
-flagcxResult_t bootstrapGetUniqueId(struct flagcxBootstrapHandle* handle);
-flagcxResult_t bootstrapInit(struct flagcxBootstrapHandle* handle, void* commState);
-flagcxResult_t bootstrapAllGather(void* commState, void* allData, int size);
+flagcxResult_t bootstrapCreateRoot(struct flagcxBootstrapHandle *handle,
+                                   bool idFromEnv);
+flagcxResult_t bootstrapGetUniqueId(struct flagcxBootstrapHandle *handle);
+flagcxResult_t bootstrapInit(struct flagcxBootstrapHandle *handle,
+                             void *commState);
+flagcxResult_t bootstrapAllGather(void *commState, void *allData, int size);
 
-flagcxResult_t bootstrapSend(void* commState, int peer, int tag, void* data, int size);
-flagcxResult_t bootstrapRecv(void* commState, int peer, int tag, void* data, int size);
-flagcxResult_t bootstrapBarrier(void* commState, int rank, int nranks, int tag);
-flagcxResult_t bootstrapBroadcast(void* commState, int rank, int nranks, int root, void* bcastData, int size);
-flagcxResult_t bootstrapIntraNodeBarrier(void* commState, int *ranks, int rank, int nranks, int tag);
-flagcxResult_t bootstrapIntraNodeBroadcast(void* commState, int *ranks, int rank, int nranks, int root, void* bcastData, int size);
-flagcxResult_t bootstrapClose(void* commState);
-flagcxResult_t bootstrapAbort(void* commState);
+flagcxResult_t bootstrapSend(void *commState, int peer, int tag, void *data,
+                             int size);
+flagcxResult_t bootstrapRecv(void *commState, int peer, int tag, void *data,
+                             int size);
+flagcxResult_t bootstrapBarrier(void *commState, int rank, int nranks, int tag);
+flagcxResult_t bootstrapBroadcast(void *commState, int rank, int nranks,
+                                  int root, void *bcastData, int size);
+flagcxResult_t bootstrapIntraNodeBarrier(void *commState, int *ranks, int rank,
+                                         int nranks, int tag);
+flagcxResult_t bootstrapIntraNodeBroadcast(void *commState, int *ranks,
+                                           int rank, int nranks, int root,
+                                           void *bcastData, int size);
+flagcxResult_t bootstrapClose(void *commState);
+flagcxResult_t bootstrapAbort(void *commState);
 
 /* A bunch of collective communication operators */
 /*
@@ -59,28 +68,32 @@ flagcxResult_t bootstrapAbort(void* commState);
  *
  * In-place operations will happen if sendbuff == recvbuff + rank * sendcount.
  */
-flagcxResult_t AllGatherBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t sendcount,
+flagcxResult_t AllGatherBootstrap(void *commState, const void *sendbuff,
+                                  void *recvbuff, size_t sendcount,
                                   flagcxDataType_t datatype);
 /*
  * All-Reduce
  *
- * Reduces data arrays of length count(NOT bytes size) in sendbuff using op operation, and
- * leaves identical copies of result on each recvbuff.
+ * Reduces data arrays of length count(NOT bytes size) in sendbuff using op
+ * operation, and leaves identical copies of result on each recvbuff.
  *
  * In-place operation will happen if sendbuff == recvbuff.
  */
-flagcxResult_t AllReduceBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t count,
-                                 flagcxDataType_t datatype, flagcxRedOp_t op);
+flagcxResult_t AllReduceBootstrap(void *commState, const void *sendbuff,
+                                  void *recvbuff, size_t count,
+                                  flagcxDataType_t datatype, flagcxRedOp_t op);
 /*
  * Reduce
  *
- * Reduces data arrays of length count(NOT bytes size) in sendbuff using op operation, and
- * leaves identical copies of result on root recvbuff.
+ * Reduces data arrays of length count(NOT bytes size) in sendbuff using op
+ * operation, and leaves identical copies of result on root recvbuff.
  *
  * In-place operation will happen if sendbuff == recvbuff.
  */
-flagcxResult_t ReduceBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t count,
-                                 flagcxDataType_t datatype, flagcxRedOp_t op, int root);
+flagcxResult_t ReduceBootstrap(void *commState, const void *sendbuff,
+                               void *recvbuff, size_t count,
+                               flagcxDataType_t datatype, flagcxRedOp_t op,
+                               int root);
 /*
  * Reduce-Scatter
  *
@@ -92,20 +105,24 @@ flagcxResult_t ReduceBootstrap(void* commState, const void* sendbuff, void* recv
  *
  * In-place operations will happen if recvbuff == sendbuff + rank * recvcount.
  */
-flagcxResult_t ReduceScatterBootstrap(void* commState, const void* sendbuff, void* recvbuff,
-                                      size_t recvcount, flagcxDataType_t datatype, flagcxRedOp_t op);
+flagcxResult_t ReduceScatterBootstrap(void *commState, const void *sendbuff,
+                                      void *recvbuff, size_t recvcount,
+                                      flagcxDataType_t datatype,
+                                      flagcxRedOp_t op);
 
 /*
  * All-to-all
  *
- * Every rank sends j-th block of its own sendbuff to the j-th rank of the communicator.
- * Meanwhile, every rank receives j-th block of its own recvbuff from j-th rank.
- * 
+ * Every rank sends j-th block of its own sendbuff to the j-th rank of the
+ * communicator. Meanwhile, every rank receives j-th block of its own recvbuff
+ * from j-th rank.
+ *
  * Every block has the size of count elements.
  *
  * In-place operations will happen if sendbuff == recvbuff.
  */
-flagcxResult_t AlltoAllBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t count,
+flagcxResult_t AlltoAllBootstrap(void *commState, const void *sendbuff,
+                                 void *recvbuff, size_t count,
                                  flagcxDataType_t datatype);
 #ifdef __cplusplus
 } // end extern "C"

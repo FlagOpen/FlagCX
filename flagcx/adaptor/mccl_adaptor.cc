@@ -1,5 +1,6 @@
 /*************************************************************************
- * Copyright (c) 2025 by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
+ * Copyright (c) 2025 by MetaX Integrated Circuits (Shanghai) Co., Ltd. All
+ *Rights Reserved.
  ************************************************************************/
 
 #include "metax_adaptor.h"
@@ -26,8 +27,8 @@ const char *mcclAdaptorGetLastError(flagcxInnerComm_t comm) {
 }
 
 flagcxResult_t mcclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
-                                         flagcxUniqueId_t commId, int rank,
-                                         bootstrapState * /*bootstrap*/) {
+                                       flagcxUniqueId_t commId, int rank,
+                                       bootstrapState * /*bootstrap*/) {
   if (*comm == NULL) {
     flagcxCalloc(comm, 1);
   }
@@ -55,41 +56,40 @@ flagcxResult_t mcclAdaptorCommSuspend(flagcxInnerComm_t comm) {
   return (flagcxResult_t)mcclInvalidUsage;
 }
 
-flagcxResult_t mcclAdaptorCommCount(const flagcxInnerComm_t comm,
-                                      int *count) {
+flagcxResult_t mcclAdaptorCommCount(const flagcxInnerComm_t comm, int *count) {
   return (flagcxResult_t)mcclCommCount(comm->base, count);
 }
 
 flagcxResult_t mcclAdaptorCommMcDevice(const flagcxInnerComm_t comm,
-                                         int *device) {
+                                       int *device) {
   return (flagcxResult_t)mcclCommMcDevice(comm->base, device);
 }
 
 flagcxResult_t mcclAdaptorCommUserRank(const flagcxInnerComm_t comm,
-                                         int *rank) {
+                                       int *rank) {
   return (flagcxResult_t)mcclCommUserRank(comm->base, rank);
 }
 
 flagcxResult_t mcclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                              flagcxResult_t asyncError) {
+                                            flagcxResult_t asyncError) {
   return (flagcxResult_t)mcclCommGetAsyncError(comm->base,
                                                (mcclResult_t *)&asyncError);
 }
 
 flagcxResult_t mcclAdaptorReduce(const void *sendbuff, void *recvbuff,
-                                   size_t count, flagcxDataType_t datatype,
-                                   flagcxRedOp_t op, int root,
-                                   flagcxInnerComm_t comm,
-                                   flagcxStream_t stream) {
+                                 size_t count, flagcxDataType_t datatype,
+                                 flagcxRedOp_t op, int root,
+                                 flagcxInnerComm_t comm,
+                                 flagcxStream_t stream) {
   return (flagcxResult_t)mcclReduce(sendbuff, recvbuff, count,
                                     (mcclDataType_t)datatype, (mcclRedOp_t)op,
                                     root, comm->base, stream->base);
 }
 
 flagcxResult_t mcclAdaptorGather(const void *sendbuff, void *recvbuff,
-                                   size_t count, flagcxDataType_t datatype,
-                                   int root, flagcxInnerComm_t comm,
-                                   flagcxStream_t stream) {
+                                 size_t count, flagcxDataType_t datatype,
+                                 int root, flagcxInnerComm_t comm,
+                                 flagcxStream_t stream) {
   int rank, nranks;
   mcclResult_t res = mcclSuccess;
   res = mcclCommUserRank(comm->base, &rank);
@@ -112,9 +112,9 @@ flagcxResult_t mcclAdaptorGather(const void *sendbuff, void *recvbuff,
 }
 
 flagcxResult_t mcclAdaptorScatter(const void *sendbuff, void *recvbuff,
-                                    size_t count, flagcxDataType_t datatype,
-                                    int root, flagcxInnerComm_t comm,
-                                    flagcxStream_t stream) {
+                                  size_t count, flagcxDataType_t datatype,
+                                  int root, flagcxInnerComm_t comm,
+                                  flagcxStream_t stream) {
   int rank, nranks;
   mcclResult_t res = mcclSuccess;
   res = mcclCommUserRank(comm->base, &rank);
@@ -137,48 +137,45 @@ flagcxResult_t mcclAdaptorScatter(const void *sendbuff, void *recvbuff,
 }
 
 flagcxResult_t mcclAdaptorBroadcast(const void *sendbuff, void *recvbuff,
-                                      size_t count, flagcxDataType_t datatype,
-                                      int root, flagcxInnerComm_t comm,
-                                      flagcxStream_t stream) {
+                                    size_t count, flagcxDataType_t datatype,
+                                    int root, flagcxInnerComm_t comm,
+                                    flagcxStream_t stream) {
   return (flagcxResult_t)mcclBroadcast(sendbuff, recvbuff, count,
                                        (mcclDataType_t)datatype, root,
                                        comm->base, stream->base);
 }
 
 flagcxResult_t mcclAdaptorAllReduce(const void *sendbuff, void *recvbuff,
-                                      size_t count, flagcxDataType_t datatype,
-                                      flagcxRedOp_t op, flagcxInnerComm_t comm,
-                                      flagcxStream_t stream) {
+                                    size_t count, flagcxDataType_t datatype,
+                                    flagcxRedOp_t op, flagcxInnerComm_t comm,
+                                    flagcxStream_t stream) {
   return (flagcxResult_t)mcclAllReduce(
       sendbuff, recvbuff, count, (mcclDataType_t)datatype, (mcclRedOp_t)op,
       comm->base, stream->base);
 }
 
-flagcxResult_t mcclAdaptorReduceScatter(const void *sendbuff, void *recvbuff,
-                                          size_t recvcount,
-                                          flagcxDataType_t datatype,
-                                          flagcxRedOp_t op,
-                                          flagcxInnerComm_t comm,
-                                          flagcxStream_t stream) {
+flagcxResult_t
+mcclAdaptorReduceScatter(const void *sendbuff, void *recvbuff, size_t recvcount,
+                         flagcxDataType_t datatype, flagcxRedOp_t op,
+                         flagcxInnerComm_t comm, flagcxStream_t stream) {
   return (flagcxResult_t)mcclReduceScatter(
       sendbuff, recvbuff, recvcount, (mcclDataType_t)datatype, (mcclRedOp_t)op,
       comm->base, stream->base);
 }
 
 flagcxResult_t mcclAdaptorAllGather(const void *sendbuff, void *recvbuff,
-                                      size_t sendcount,
-                                      flagcxDataType_t datatype,
-                                      flagcxInnerComm_t comm,
-                                      flagcxStream_t stream) {
+                                    size_t sendcount, flagcxDataType_t datatype,
+                                    flagcxInnerComm_t comm,
+                                    flagcxStream_t stream) {
   return (flagcxResult_t)mcclAllGather(sendbuff, recvbuff, sendcount,
                                        (mcclDataType_t)datatype, comm->base,
                                        stream->base);
 }
 
 flagcxResult_t mcclAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
-                                     size_t count, flagcxDataType_t datatype,
-                                     flagcxInnerComm_t comm,
-                                     flagcxStream_t stream) {
+                                   size_t count, flagcxDataType_t datatype,
+                                   flagcxInnerComm_t comm,
+                                   flagcxStream_t stream) {
   int rank, nranks;
   mcclResult_t res = mcclSuccess;
   res = mcclCommUserRank(comm->base, &rank);
@@ -201,11 +198,11 @@ flagcxResult_t mcclAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
 }
 
 flagcxResult_t mcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
-                                      size_t *sdispls, void *recvbuff,
-                                      size_t *recvcounts, size_t *rdispls,
-                                      flagcxDataType_t datatype,
-                                      flagcxInnerComm_t comm,
-                                      flagcxStream_t stream) {
+                                    size_t *sdispls, void *recvbuff,
+                                    size_t *recvcounts, size_t *rdispls,
+                                    flagcxDataType_t datatype,
+                                    flagcxInnerComm_t comm,
+                                    flagcxStream_t stream) {
   int nranks;
   mcclResult_t res = mcclSuccess;
   res = mcclCommCount(comm->base, &nranks);
@@ -233,17 +230,15 @@ flagcxResult_t mcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
 }
 
 flagcxResult_t mcclAdaptorSend(const void *sendbuff, size_t count,
-                                 flagcxDataType_t datatype, int peer,
-                                 flagcxInnerComm_t comm,
-                                 flagcxStream_t stream) {
+                               flagcxDataType_t datatype, int peer,
+                               flagcxInnerComm_t comm, flagcxStream_t stream) {
   return (flagcxResult_t)mcclSend(sendbuff, count, (mcclDataType_t)datatype,
                                   peer, comm->base, stream->base);
 }
 
 flagcxResult_t mcclAdaptorRecv(void *recvbuff, size_t count,
-                                 flagcxDataType_t datatype, int peer,
-                                 flagcxInnerComm_t comm,
-                                 flagcxStream_t stream) {
+                               flagcxDataType_t datatype, int peer,
+                               flagcxInnerComm_t comm, flagcxStream_t stream) {
   return (flagcxResult_t)mcclRecv(recvbuff, count, (mcclDataType_t)datatype,
                                   peer, comm->base, stream->base);
 }
@@ -252,20 +247,18 @@ flagcxResult_t mcclAdaptorGroupStart() {
   return (flagcxResult_t)mcclGroupStart();
 }
 
-flagcxResult_t mcclAdaptorGroupEnd() {
-  return (flagcxResult_t)mcclGroupEnd();
-}
+flagcxResult_t mcclAdaptorGroupEnd() { return (flagcxResult_t)mcclGroupEnd(); }
 
 struct flagcxCCLAdaptor mcclAdaptor = {
     "MCCL",
     // Basic functions
-    mcclAdaptorGetVersion, mcclAdaptorGetUniqueId,
-    mcclAdaptorGetErrorString, mcclAdaptorGetLastError,
+    mcclAdaptorGetVersion, mcclAdaptorGetUniqueId, mcclAdaptorGetErrorString,
+    mcclAdaptorGetLastError,
     // Communicator functions
-    mcclAdaptorCommInitRank, mcclAdaptorCommFinalize,
-    mcclAdaptorCommDestroy, mcclAdaptorCommAbort, mcclAdaptorCommResume,
-    mcclAdaptorCommSuspend, mcclAdaptorCommCount, mcclAdaptorCommMcDevice,
-    mcclAdaptorCommUserRank, mcclAdaptorCommGetAsyncError,
+    mcclAdaptorCommInitRank, mcclAdaptorCommFinalize, mcclAdaptorCommDestroy,
+    mcclAdaptorCommAbort, mcclAdaptorCommResume, mcclAdaptorCommSuspend,
+    mcclAdaptorCommCount, mcclAdaptorCommMcDevice, mcclAdaptorCommUserRank,
+    mcclAdaptorCommGetAsyncError,
     // Communication functions
     mcclAdaptorReduce, mcclAdaptorGather, mcclAdaptorScatter,
     mcclAdaptorBroadcast, mcclAdaptorAllReduce, mcclAdaptorReduceScatter,

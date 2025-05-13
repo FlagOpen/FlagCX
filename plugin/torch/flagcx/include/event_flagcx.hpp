@@ -1,4 +1,5 @@
-// 2025 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
+// 2025 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved.
 #pragma once
 
 #include "flagcx.h"
@@ -146,9 +147,7 @@ private:
 #elif USE_DU_ADAPTOR
 class flagcxDuEvent : public flagcxEvent {
 public:
-  flagcxDuEvent() {
-    cudaEvent_ = at::cuda::CUDAEvent(cudaEventDisableTiming);
-  }
+  flagcxDuEvent() { cudaEvent_ = at::cuda::CUDAEvent(cudaEventDisableTiming); }
 
   void record(const int deviceId) override {
     cudaEvent_.record(at::cuda::getCurrentCUDAStream(deviceId));

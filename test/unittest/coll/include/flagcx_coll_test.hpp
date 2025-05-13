@@ -3,23 +3,22 @@
 #include "flagcx.h"
 #include "flagcx_test.hpp"
 
-class FlagCXCollTest : public FlagCXTest
-{
+class FlagCXCollTest : public FlagCXTest {
 protected:
-    FlagCXCollTest() {}
+  FlagCXCollTest() {}
 
-    void SetUp();
+  void SetUp();
 
-    void TearDown();
+  void TearDown();
 
-    void Run();
+  void Run();
 
-    flagcxHandlerGroup_t handler;
-    flagcxStream_t stream;
-    void *sendbuff;
-    void *recvbuff;
-    void *hostsendbuff;
-    void *hostrecvbuff;
-    size_t size;
-    size_t count;
+  flagcxHandlerGroup_t handler;
+  flagcxStream_t stream;
+  void *sendbuff;
+  void *recvbuff;
+  void *hostsendbuff;
+  void *hostrecvbuff;
+  size_t size;
+  size_t count;
 };

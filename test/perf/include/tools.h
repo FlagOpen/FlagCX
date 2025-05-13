@@ -24,7 +24,7 @@ public:
   size_t maxBytes;
   int stepFactor;
   int warmupIters;
-  int testIters; 
+  int testIters;
   int printBuffer;
   int root;
 };

@@ -1,4 +1,5 @@
-// 2025 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
+// 2025 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved.
 #include "backend_flagcx.hpp"
 #include "utils_flagcx.hpp"
 #include <iostream>
@@ -252,7 +253,8 @@ void flagcxBackend::initComm(at::Device dev) {
 }
 
 void flagcxBackend::initComm() {
-#if defined(USE_NVIDIA_ADAPTOR) || defined(USE_ILUVATAR_COREX_ADAPTOR) || defined(USE_METAX_ADAPTOR) || defined(USE_DU_ADAPTOR)
+#if defined(USE_NVIDIA_ADAPTOR) || defined(USE_ILUVATAR_COREX_ADAPTOR) ||      \
+    defined(USE_METAX_ADAPTOR) || defined(USE_DU_ADAPTOR)
   initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::CUDA)->getDevice());
 #elif defined(USE_CAMBRICON_ADAPTOR)
   initComm(

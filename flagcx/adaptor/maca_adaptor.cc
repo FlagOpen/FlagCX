@@ -1,5 +1,6 @@
 /*************************************************************************
- * Copyright (c) 2025 by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
+ * Copyright (c) 2025 by MetaX Integrated Circuits (Shanghai) Co., Ltd. All
+ *Rights Reserved.
  ************************************************************************/
 
 #include "metax_adaptor.h"
@@ -122,8 +123,8 @@ flagcxResult_t macaAdaptorGdrMemFree(void *ptr, void *memHandle) {
 flagcxResult_t macaAdaptorStreamCreate(flagcxStream_t *stream) {
   (*stream) = NULL;
   flagcxCalloc(stream, 1);
-  DEVCHECK(mcStreamCreateWithFlags((mcStream_t *)(*stream),
-                                     mcStreamNonBlocking));
+  DEVCHECK(
+      mcStreamCreateWithFlags((mcStream_t *)(*stream), mcStreamNonBlocking));
   return flagcxSuccess;
 }
 
@@ -177,8 +178,7 @@ flagcxResult_t macaAdaptorStreamQuery(flagcxStream_t stream) {
 flagcxResult_t macaAdaptorStreamWaitEvent(flagcxStream_t stream,
                                           flagcxEvent_t event) {
   if (stream != NULL && event != NULL) {
-    DEVCHECK(
-        mcStreamWaitEvent(stream->base, event->base, mcEventWaitDefault));
+    DEVCHECK(mcStreamWaitEvent(stream->base, event->base, mcEventWaitDefault));
   }
   return flagcxSuccess;
 }
@@ -186,8 +186,7 @@ flagcxResult_t macaAdaptorStreamWaitEvent(flagcxStream_t stream,
 flagcxResult_t macaAdaptorEventCreate(flagcxEvent_t *event) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(mcEventCreateWithFlags((mcEvent_t *)(*event),
-                                    mcEventDisableTiming));
+  DEVCHECK(mcEventCreateWithFlags((mcEvent_t *)(*event), mcEventDisableTiming));
   return flagcxSuccess;
 }
 
@@ -205,7 +204,7 @@ flagcxResult_t macaAdaptorEventRecord(flagcxEvent_t event,
   if (event != NULL) {
     if (stream != NULL) {
       DEVCHECK(mcEventRecordWithFlags(event->base, stream->base,
-                                        mcEventRecordDefault));
+                                      mcEventRecordDefault));
     } else {
       DEVCHECK(mcEventRecordWithFlags(event->base));
     }

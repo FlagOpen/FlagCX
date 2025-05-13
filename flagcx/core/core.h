@@ -7,17 +7,16 @@
 #ifndef FLAGCX_CORE_H_
 #define FLAGCX_CORE_H_
 
-#include <pthread.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include <algorithm> // For std::min/std::max
+#include <pthread.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-
-#include "debug.h"
-#include "check.h"
 #include "alloc.h"
-#include "utils.h"
+#include "check.h"
+#include "debug.h"
 #include "param.h"
+#include "utils.h"
 
 #endif // end include guard

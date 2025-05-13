@@ -1,5 +1,6 @@
 /*************************************************************************
- * Copyright (c) 2025 by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
+ * Copyright (c) 2025 by MetaX Integrated Circuits (Shanghai) Co., Ltd. All
+ *Rights Reserved.
  ************************************************************************/
 
 #ifdef USE_METAX_ADAPTOR
@@ -9,14 +10,14 @@
 #include "comm.h"
 #include "flagcx.h"
 #include "mccl.h"
-#include <mcr/mc_runtime.h>
 #include <map>
+#include <mcr/mc_runtime.h>
 struct flagcxInnerComm {
-    mcclComm_t base;
+  mcclComm_t base;
 };
 
 struct flagcxStream {
-    mcStream_t base;
+  mcStream_t base;
 };
 
 struct flagcxEvent {

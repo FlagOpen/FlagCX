@@ -21,26 +21,27 @@ struct flagcxReg {
   // net reg
   int nDevs;
   int devs[MAXCHANNELS];
-  void** handles;
+  void **handles;
   // nvls reg
   uintptr_t baseAddr;
   size_t baseSize;
   size_t regSize;
   int dev;
   // collnet reg
-  void* collnetHandle;
-  struct flagcxProxyConnector* proxyconn;
+  void *collnetHandle;
+  struct flagcxProxyConnector *proxyconn;
 };
 
 struct flagcxRegCache {
   struct flagcxReg **slots;
   int capacity, population;
   uintptr_t pageSize;
-  void* sComms[MAXCHANNELS];
-  void* rComms[MAXCHANNELS];
+  void *sComms[MAXCHANNELS];
+  void *rComms[MAXCHANNELS];
 };
 
-flagcxResult_t flagcxRegCleanup(struct flagcxHeteroComm* comm);
-flagcxResult_t flagcxRegFind(struct flagcxHeteroComm* comm, const void* data, size_t size, struct flagcxReg** reg);
+flagcxResult_t flagcxRegCleanup(struct flagcxHeteroComm *comm);
+flagcxResult_t flagcxRegFind(struct flagcxHeteroComm *comm, const void *data,
+                             size_t size, struct flagcxReg **reg);
 
 #endif
