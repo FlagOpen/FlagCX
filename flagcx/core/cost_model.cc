@@ -13,6 +13,7 @@ flagcxResult_t flagcxAlgoTimeEstimator::getAlgoTime(float *time) {
       strcmp(enableTopoDetect, "TRUE") == 0) {
     // algo time estimator depends on cluster level topology detection
     float preHomoTime, heteroTime, postHomoTime;
+    INFO(FLAGCX_GRAPH, "test");
     INFO(FLAGCX_GRAPH, "COST_MODEL: getting time for prehomo funcs");
     FLAGCXCHECK(getPreHomoAlgoTime(&preHomoTime));
     INFO(FLAGCX_GRAPH, "COST_MODEL: getting time for hetero funcs");
