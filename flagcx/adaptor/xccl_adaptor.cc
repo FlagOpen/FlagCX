@@ -2,6 +2,65 @@
 
 #ifdef USE_NVIDIA_ADAPTOR
 
+/**
+ * 将flagcxDataType_t类型转换为BKCLDataType类型
+ * @param type flagcxDataType_t枚举值
+ * @return 对应的BKCLDataType枚举值，若未找到匹配则返回BKCL_DATATYPE_UNKNOWN（暂时没有这个类型，目前以 BKCL_UINT8暂代）
+ */
+BKCLDataType flagcxToXcclDataType(flagcxDataType_t type) {
+    // 定义类型映射表。 todo：很多没有对应类型的数据类型，bkcl又没定义未知类型。
+    static const struct {
+        flagcxDataType_t flagcxType;
+        BKCLDataType bkclType;
+    } typeMap[] = {
+        {flagcxInt8, BKCL_UINT8},          
+        {flagcxChar, BKCL_UINT8},      
+        {flagcxUint8, BKCL_UINT8},      
+        {flagcxInt32, BKCL_INT32},     
+        {flagcxInt, BKCL_INT32},        
+        {flagcxUint32, BKCL_INT32},    
+        {flagcxUint64, BKCL_INT64},    
+        {flagcxFloat16, BKCL_FLOAT16}, 
+        {flagcxHalf, BKCL_FLOAT16}, 
+        {flagcxFloat32, BKCL_FLOAT},
+        {flagcxFloat, BKCL_FLOAT}, 
+        {flagcxFloat64, BKCL_FLOAT64}, 
+        {flagcxDouble, BKCL_FLOAT64}, 
+        {flagcxBfloat16, BKCL_BFLOAT16}, 
+    };
+
+    // 计算映射表长度
+    const size_t mapSize = sizeof(typeMap) / sizeof(typeMap[0]);
+    
+    // 查找匹配的类型
+    for (size_t i = 0; i < mapSize; ++i) {
+        if (typeMap[i].flagcxType == type) {
+            return typeMap[i].bkclType;
+        }
+    }
+    
+    // 未找到匹配类型，返回未知类型. todo: xccl里面没有位置类型的枚举
+    return BKCL_UINT8;
+}    
+
+// 转换函数，BKCLOp中没有的就统一返回 BKCL_NUM_OPS。
+BKCLOp flagcxRedOpToBKCLOp(flagcxRedOp_t op) {
+    switch (op) {
+        case flagcxSum:
+            return BKCLOp::BKCL_ADD;
+        case flagcxProd:
+            return BKCLOp::BKCL_PRODUCT;
+        case flagcxMax:
+            return BKCLOp::BKCL_MAX;
+        case flagcxMin:
+            return BKCLOp::BKCL_MIN;
+        default:
+            return BKCLOp::BKCL_NUM_OPS;
+    }
+}
+
+
+
 flagcxResult_t xcclAdaptorGetVersion(int *version) {
   return flagcxNotSupported;
 }
@@ -17,7 +76,7 @@ const char *xcclAdaptorGetErrorString(flagcxResult_t result) {
   return flagcxNotSupported;
 }
 
-const char *ncclAdaptorGetLastError(flagcxInnerComm_t comm) {
+const char *xcclAdaptorGetLastError(flagcxInnerComm_t comm) {
   return flagcxNotSupported;
 }
 
@@ -39,226 +98,171 @@ flagcxResult_t xcclAdaptorCommDestroy(flagcxInnerComm_t comm) {
   return (flagcxResult_t)bkcl_destroy_context(comm->base);
 }
 
-flagcxResult_t ncclAdaptorCommAbort(flagcxInnerComm_t comm) {
-  return (flagcxResult_t)ncclCommAbort(comm->base);
+flagcxResult_t xcclAdaptorCommAbort(flagcxInnerComm_t comm) {
+  return (flagcxResult_t)bkcl_comm_abort(comm->base);
 }
 
-flagcxResult_t ncclAdaptorCommResume(flagcxInnerComm_t comm) {
-  return (flagcxResult_t)ncclInvalidUsage;
+flagcxResult_t xcclAdaptorCommResume(flagcxInnerComm_t comm) {
+  return flagcxNotSupported;
 }
 
-flagcxResult_t ncclAdaptorCommSuspend(flagcxInnerComm_t comm) {
-  return (flagcxResult_t)ncclInvalidUsage;
+flagcxResult_t xcclAdaptorCommSuspend(flagcxInnerComm_t comm) {
+  return flagcxNotSupported;
 }
 
-flagcxResult_t ncclAdaptorCommCount(const flagcxInnerComm_t comm, int *count) {
-  return (flagcxResult_t)ncclCommCount(comm->base, count);
+flagcxResult_t xcclAdaptorCommCount(const flagcxInnerComm_t comm, int *count) {
+  return (flagcxResult_t)bkcl_comm_count(comm->base, count);
 }
 
-flagcxResult_t ncclAdaptorCommCuDevice(const flagcxInnerComm_t comm,
+flagcxResult_t xcclAdaptorCommCuDevice(const flagcxInnerComm_t comm,
                                        int *device) {
-  return (flagcxResult_t)ncclCommCuDevice(comm->base, device);
+  return flagcxNotSupported;
 }
 
-flagcxResult_t ncclAdaptorCommUserRank(const flagcxInnerComm_t comm,
+flagcxResult_t xcclAdaptorCommUserRank(const flagcxInnerComm_t comm,
                                        int *rank) {
-  return (flagcxResult_t)ncclCommUserRank(comm->base, rank);
+  return (flagcxResult_t)bkcl_comm_user_rank(comm->base, rank);
 }
 
-flagcxResult_t ncclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
+flagcxResult_t xcclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
                                             flagcxResult_t asyncError) {
-  return (flagcxResult_t)ncclCommGetAsyncError(comm->base,
-                                               (ncclResult_t *)&asyncError);
+  return flagcxNotSupported;
 }
 
-flagcxResult_t ncclAdaptorReduce(const void *sendbuff, void *recvbuff,
+flagcxResult_t xcclAdaptorReduce(const void *sendbuff, void *recvbuff,
                                  size_t count, flagcxDataType_t datatype,
                                  flagcxRedOp_t op, int root,
                                  flagcxInnerComm_t comm,
                                  flagcxStream_t stream) {
-  return (flagcxResult_t)ncclReduce(sendbuff, recvbuff, count,
-                                    (ncclDataType_t)datatype, (ncclRedOp_t)op,
-                                    root, comm->base, stream->base);
+                                  // 这里估计会有问题，因为bkcl中reduce参数里的ctx用了const修饰，而这里没有
+  return (flagcxResult_t)bkcl_reduce(comm, sendbuff, recvbuff, count,
+                                     flagcxToXcclDataType(datatype), flagcxRedOpToBKCLOp(op),
+                                     root, stream->base);
 }
 
-flagcxResult_t ncclAdaptorGather(const void *sendbuff, void *recvbuff,
+flagcxResult_t xcclAdaptorGather(const void *sendbuff, void *recvbuff,
                                  size_t count, flagcxDataType_t datatype,
                                  int root, flagcxInnerComm_t comm,
                                  flagcxStream_t stream) {
-  int rank, nranks;
-  ncclResult_t res = ncclSuccess;
-  res = ncclCommUserRank(comm->base, &rank);
-  res = ncclCommCount(comm->base, &nranks);
-
-  size_t size = count * getFlagcxDataTypeSize(datatype);
-  char *buffer = static_cast<char *>(recvbuff);
-
-  res = ncclGroupStart();
-  if (rank == root) {
-    for (int r = 0; r < nranks; r++) {
-      res = ncclRecv(static_cast<void *>(buffer + r * size), size, ncclChar, r,
-                     comm->base, stream->base);
-    }
-  }
-  res = ncclSend(sendbuff, size, ncclChar, root, comm->base, stream->base);
-  res = ncclGroupEnd();
-
-  return (flagcxResult_t)res;
+  return flagcxNotSupported;
 }
 
-flagcxResult_t ncclAdaptorScatter(const void *sendbuff, void *recvbuff,
+flagcxResult_t xcclAdaptorScatter(const void *sendbuff, void *recvbuff,
                                   size_t count, flagcxDataType_t datatype,
                                   int root, flagcxInnerComm_t comm,
                                   flagcxStream_t stream) {
   int rank, nranks;
-  ncclResult_t res = ncclSuccess;
-  res = ncclCommUserRank(comm->base, &rank);
-  res = ncclCommCount(comm->base, &nranks);
+  BKCLResult_t res = BKCL_SUCCESS;
+  res = bkcl_comm_user_rank(comm->base, &rank);
+  res = bkcl_comm_count(comm->base, &nranks);
 
   size_t size = count * getFlagcxDataTypeSize(datatype);
   const char *buffer = static_cast<const char *>(sendbuff);
 
-  res = ncclGroupStart();
+  res = bkcl_group_start();
   if (rank == root) {
     for (int r = 0; r < nranks; r++) {
-      res = ncclSend(static_cast<const void *>(buffer + r * size), size,
-                     ncclChar, r, comm->base, stream->base);
+      res = bkcl_send(comm->base, static_cast<const void *>(buffer + r * size), size,
+                      r, BKCL_UINT8, stream->base);
     }
   }
-  res = ncclRecv(recvbuff, size, ncclChar, root, comm->base, stream->base);
-  res = ncclGroupEnd();
+  res = bkcl_recv(comm->base, recvbuff, size, root, BKCL_UINT8, stream->base);
+  res = bkcl_group_end();
 
   return (flagcxResult_t)res;
 }
 
-flagcxResult_t ncclAdaptorBroadcast(const void *sendbuff, void *recvbuff,
+flagcxResult_t xcclAdaptorBroadcast(const void *sendbuff, void *recvbuff,
                                     size_t count, flagcxDataType_t datatype,
                                     int root, flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
-  return (flagcxResult_t)ncclBroadcast(sendbuff, recvbuff, count,
-                                       (ncclDataType_t)datatype, root,
-                                       comm->base, stream->base);
+  return (flagcxResult_t)bkcl_broadcast(comm->base, sendbuff, recvbuff, count,
+                                        flagcxToXcclDataType(datatype), root,
+                                        stream->base);
 }
 
-flagcxResult_t ncclAdaptorAllReduce(const void *sendbuff, void *recvbuff,
+flagcxResult_t xcclAdaptorAllReduce(const void *sendbuff, void *recvbuff,
                                     size_t count, flagcxDataType_t datatype,
                                     flagcxRedOp_t op, flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
-  return (flagcxResult_t)ncclAllReduce(
-      sendbuff, recvbuff, count, (ncclDataType_t)datatype, (ncclRedOp_t)op,
-      comm->base, stream->base);
+  return (flagcxResult_t)bkcl_all_reduce(
+      comm->base, sendbuff, recvbuff, count, flagcxToXcclDataType(datatype),
+      flagcxRedOpToBKCLOp(op), stream->base);
 }
 
 flagcxResult_t
-ncclAdaptorReduceScatter(const void *sendbuff, void *recvbuff, size_t recvcount,
+xcclAdaptorReduceScatter(const void *sendbuff, void *recvbuff, size_t recvcount,
                          flagcxDataType_t datatype, flagcxRedOp_t op,
                          flagcxInnerComm_t comm, flagcxStream_t stream) {
-  return (flagcxResult_t)ncclReduceScatter(
-      sendbuff, recvbuff, recvcount, (ncclDataType_t)datatype, (ncclRedOp_t)op,
-      comm->base, stream->base);
+  return (flagcxResult_t)bkcl_reduce_scatter(
+      comm->base, sendbuff, recvbuff, recvcount, flagcxToXcclDataType(datatype), 
+      flagcxRedOpToBKCLOp(op), stream->base);
 }
 
-flagcxResult_t ncclAdaptorAllGather(const void *sendbuff, void *recvbuff,
+flagcxResult_t xcclAdaptorAllGather(const void *sendbuff, void *recvbuff,
                                     size_t sendcount, flagcxDataType_t datatype,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
-  return (flagcxResult_t)ncclAllGather(sendbuff, recvbuff, sendcount,
-                                       (ncclDataType_t)datatype, comm->base,
-                                       stream->base);
+  return (flagcxResult_t)bkcl_all_gather(comm->base, sendbuff, sendcount, recvbuff,
+                                         flagcxToXcclDataType(datatype), stream->base);
 }
 
-flagcxResult_t ncclAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
+flagcxResult_t xcclAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
                                    size_t count, flagcxDataType_t datatype,
                                    flagcxInnerComm_t comm,
                                    flagcxStream_t stream) {
-  int nranks;
-  ncclResult_t res = ncclSuccess;
-  res = ncclCommCount(comm->base, &nranks);
-
-  size_t size = count * getFlagcxDataTypeSize(datatype);
-  const char *buffer_in = static_cast<const char *>(sendbuff);
-  char *buffer_out = static_cast<char *>(recvbuff);
-
-  res = ncclGroupStart();
-  for (int r = 0; r < nranks; r++) {
-    res = ncclSend(static_cast<const void *>(buffer_in + r * size), size,
-                   ncclChar, r, comm->base, stream->base);
-    res = ncclRecv(static_cast<void *>(buffer_out + r * size), size, ncclChar,
-                   r, comm->base, stream->base);
-  }
-  res = ncclGroupEnd();
-
-  return (flagcxResult_t)res;
+  return (flagcxResult_t)bkcl_all_to_all(comm->base, sendbuff, count, recvbuff, 
+                                         flagcxToXcclDataType(datatype), stream->base);
 }
 
-flagcxResult_t ncclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
+flagcxResult_t xcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
                                     size_t *sdispls, void *recvbuff,
                                     size_t *recvcounts, size_t *rdispls,
                                     flagcxDataType_t datatype,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
-  int nranks;
-  ncclResult_t res = ncclSuccess;
-  res = ncclCommCount(comm->base, &nranks);
-
-  size_t size = getFlagcxDataTypeSize(datatype);
-  const char *buffer_in = static_cast<const char *>(sendbuff);
-  char *buffer_out = static_cast<char *>(recvbuff);
-
-  res = ncclGroupStart();
-  for (int r = 0; r < nranks; r++) {
-    if (flagcxCCLAdaptorNeedSendrecv(sendcounts[r])) {
-      res = ncclSend(static_cast<const void *>(buffer_in + sdispls[r] * size),
-                     sendcounts[r], (ncclDataType_t)datatype, r, comm->base,
-                     stream->base);
-    }
-    if (flagcxCCLAdaptorNeedSendrecv(recvcounts[r])) {
-      res = ncclRecv(static_cast<void *>(buffer_out + rdispls[r] * size),
-                     recvcounts[r], (ncclDataType_t)datatype, r, comm->base,
-                     stream->base);
-    }
-  }
-  res = ncclGroupEnd();
-
-  return (flagcxResult_t)res;
+  return (flagcxResult_t)bkcl_all_to_all_v(comm->base, sendbuff, sendcounts, sdispls, flagcxToXcclDataType(datatype), 
+                                           recvbuff, recvcounts, rdispls, flagcxToXcclDataType(datatype), stream->base);
 }
 
-flagcxResult_t ncclAdaptorSend(const void *sendbuff, size_t count,
+flagcxResult_t xcclAdaptorSend(const void *sendbuff, size_t count,
                                flagcxDataType_t datatype, int peer,
                                flagcxInnerComm_t comm, flagcxStream_t stream) {
-  return (flagcxResult_t)ncclSend(sendbuff, count, (ncclDataType_t)datatype,
-                                  peer, comm->base, stream->base);
+  return (flagcxResult_t)bkcl_send(comm->base, sendbuff, count, peer,
+                                   flagcxToXcclDataType(datatype), stream->base);
 }
 
-flagcxResult_t ncclAdaptorRecv(void *recvbuff, size_t count,
+flagcxResult_t xcclAdaptorRecv(void *recvbuff, size_t count,
                                flagcxDataType_t datatype, int peer,
                                flagcxInnerComm_t comm, flagcxStream_t stream) {
-  return (flagcxResult_t)ncclRecv(recvbuff, count, (ncclDataType_t)datatype,
-                                  peer, comm->base, stream->base);
+  return (flagcxResult_t)bkcl_recv(comm->base, recvbuff, count, peer,
+                                   flagcxToXcclDataType(datatype), stream->base);
 }
 
-flagcxResult_t ncclAdaptorGroupStart() {
-  return (flagcxResult_t)ncclGroupStart();
+flagcxResult_t xcclAdaptorGroupStart() {
+  return (flagcxResult_t)bkcl_group_start();
 }
 
-flagcxResult_t ncclAdaptorGroupEnd() { return (flagcxResult_t)ncclGroupEnd(); }
+flagcxResult_t xcclAdaptorGroupEnd() { 
+  return (flagcxResult_t)bkcl_group_end(); 
+}
 
-struct flagcxCCLAdaptor ncclAdaptor = {
-    "NCCL",
+struct flagcxCCLAdaptor xcclAdaptor = {
+    "XCCL",
     // Basic functions
-    ncclAdaptorGetVersion, ncclAdaptorGetUniqueId, ncclAdaptorGetErrorString,
-    ncclAdaptorGetLastError,
+    xcclAdaptorGetVersion, xcclAdaptorGetUniqueId, xcclAdaptorGetErrorString,
+    xcclAdaptorGetLastError,
     // Communicator functions
-    ncclAdaptorCommInitRank, ncclAdaptorCommFinalize, ncclAdaptorCommDestroy,
-    ncclAdaptorCommAbort, ncclAdaptorCommResume, ncclAdaptorCommSuspend,
-    ncclAdaptorCommCount, ncclAdaptorCommCuDevice, ncclAdaptorCommUserRank,
-    ncclAdaptorCommGetAsyncError,
+    xcclAdaptorCommInitRank, xcclAdaptorCommFinalize, xcclAdaptorCommDestroy,
+    xcclAdaptorCommAbort, xcclAdaptorCommResume, xcclAdaptorCommSuspend,
+    xcclAdaptorCommCount, xcclAdaptorCommCuDevice, xcclAdaptorCommUserRank,
+    xcclAdaptorCommGetAsyncError,
     // Communication functions
-    ncclAdaptorReduce, ncclAdaptorGather, ncclAdaptorScatter,
-    ncclAdaptorBroadcast, ncclAdaptorAllReduce, ncclAdaptorReduceScatter,
-    ncclAdaptorAllGather, ncclAdaptorAlltoAll, ncclAdaptorAlltoAllv,
-    ncclAdaptorSend, ncclAdaptorRecv,
+    xcclAdaptorReduce, xcclAdaptorGather, xcclAdaptorScatter,
+    xcclAdaptorBroadcast, xcclAdaptorAllReduce, xcclAdaptorReduceScatter,
+    xcclAdaptorAllGather, xcclAdaptorAlltoAll, xcclAdaptorAlltoAllv,
+    xcclAdaptorSend, xcclAdaptorRecv,
     // Group semantics
-    ncclAdaptorGroupStart, ncclAdaptorGroupEnd};
+    xcclAdaptorGroupStart, xcclAdaptorGroupEnd};
 
 #endif // USE_NVIDIA_ADAPTOR
