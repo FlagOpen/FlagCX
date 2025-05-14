@@ -16,7 +16,7 @@ else
    DEV="CUDA"
 endif
 
-MPI_HOME ?= /opt/openmpi
+MPI_HOME ?= /usr/local/mpi
 MPI_INCLUDE = $(MPI_HOME)/include
 MPI_LIB = $(MPI_HOME)/lib
 MPI_LINK = -lmpi
