@@ -27,7 +27,7 @@ ifeq ($(strip $(DEVICE_HOME)),)
 	else ifeq ($(USE_METAX), 1)
 		DEVICE_HOME = /opt/maca
 	else ifeq ($(USE_KUNLUNXIN), 1)
-		DEVICE_HOME = /workspace/dependences/xre-Linux-x86_64-5.0.21.21
+		DEVICE_HOME = /usr/local/xpu
 	else ifeq ($(USE_DU), 1)
 		DEVICE_HOME = ${CUDA_PATH}
 	else
