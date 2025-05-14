@@ -59,22 +59,31 @@ flagcxResult_t wrapper_deviceMemcpy(void *dst, void *src, size_t size,
   return deviceAdaptor->deviceMemcpy(dst, src, size, type, stream, NULL);
 }
 
-static struct flagcxDeviceHandle globalDeviceHandle {
-  // Basic functions
-  deviceAdaptor->deviceSynchronize, wrapper_deviceMemcpy,
-      deviceAdaptor->deviceMemset, deviceAdaptor->deviceMalloc,
-      deviceAdaptor->deviceFree, deviceAdaptor->setDevice,
-      deviceAdaptor->getDevice, deviceAdaptor->getDeviceCount,
-      deviceAdaptor->getVendor,
-      // Stream functions
-      deviceAdaptor->streamCreate, deviceAdaptor->streamDestroy,
-      deviceAdaptor->streamCopy, deviceAdaptor->streamFree,
-      deviceAdaptor->streamSynchronize, deviceAdaptor->streamQuery,
-      deviceAdaptor->streamWaitEvent,
-      // Event functions
-      deviceAdaptor->eventCreate, deviceAdaptor->eventDestroy,
-      deviceAdaptor->eventRecord, deviceAdaptor->eventSynchronize,
-      deviceAdaptor->eventQuery,
+static struct flagcxDeviceHandle globalDeviceHandle{
+    // Basic functions
+    deviceAdaptor->deviceSynchronize,
+    wrapper_deviceMemcpy,
+    deviceAdaptor->deviceMemset,
+    deviceAdaptor->deviceMalloc,
+    deviceAdaptor->deviceFree,
+    deviceAdaptor->setDevice,
+    deviceAdaptor->getDevice,
+    deviceAdaptor->getDeviceCount,
+    deviceAdaptor->getVendor,
+    // Stream functions
+    deviceAdaptor->streamCreate,
+    deviceAdaptor->streamDestroy,
+    deviceAdaptor->streamCopy,
+    deviceAdaptor->streamFree,
+    deviceAdaptor->streamSynchronize,
+    deviceAdaptor->streamQuery,
+    deviceAdaptor->streamWaitEvent,
+    // Event functions
+    deviceAdaptor->eventCreate,
+    deviceAdaptor->eventDestroy,
+    deviceAdaptor->eventRecord,
+    deviceAdaptor->eventSynchronize,
+    deviceAdaptor->eventQuery,
 };
 
 flagcxResult_t flagcxEnsureCommReady(flagcxComm_t comm) {
@@ -1064,53 +1073,10 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
       // TODO: to be implemented.
       return flagcxNotSupported;
     } else {
-      bool is_root_cluster =
-          (comm->cluster_ids[comm->rank] == comm->cluster_ids[root]);
-      int offset = 0;
-      for (int i = 0; i < comm->cluster_ids[root]; ++i) {
-        offset += comm->cluster_sizes[i];
-      }
-
-      // cluster w/ the root rank: intra-cluster bcast
-      if (is_root_cluster && comm->homo_ranks > 1) {
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
-            sendbuff, recvbuff, count, datatype, root - offset, comm->homo_comm,
-            stream));
-      }
-
-      // TODO: use stream wait rather than stream sync to avoid cpu blocking
-      deviceAdaptor->streamSynchronize(stream);
-
-      // inter-cluster sendrecv
-      flagcxGroupStart(comm);
-      if (comm->homo_inter_rank == comm->homo_rank) {
-        if (comm->cluster_ids[comm->rank] == comm->cluster_ids[root]) {
-          for (int i = 0; i < comm->nclusters; ++i) {
-            if (i == comm->cluster_ids[root]) {
-              continue;
-            }
-            FLAGCXCHECK(flagcxHeteroSend(recvbuff, count, datatype,
-                                         comm->cluster_inter_ranks[i],
-                                         comm->hetero_comm, stream));
-          }
-        } else {
-          FLAGCXCHECK(flagcxHeteroRecv(
-              recvbuff, count, datatype,
-              comm->cluster_inter_ranks[comm->cluster_ids[root]],
-              comm->hetero_comm, stream));
-        }
-      }
-      flagcxGroupEnd(comm);
-
-      // TODO: use stream wait rather than stream sync to avoid cpu blocking
-      deviceAdaptor->streamSynchronize(stream);
-
-      // intra-cluster bcast
-      if (!is_root_cluster && comm->homo_ranks > 1) {
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
-            recvbuff, recvbuff, count, datatype, comm->homo_inter_rank,
-            comm->homo_comm, stream));
-      }
+      flagcxC2cPlanner planner(count, count, comm, flagcxCommOpBroadcast,
+                               flagcxRedNoOp);
+      planner.findStrategyBroadcast(root);
+      planner.execute(sendbuff, recvbuff, datatype, -1, stream);
     }
   }
   return flagcxSuccess;
