@@ -1,4 +1,4 @@
-// 2025 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// 2025 - Modified by DU. All Rights
 // Reserved.
 #include "backend_flagcx.hpp"
 #include "utils_flagcx.hpp"
