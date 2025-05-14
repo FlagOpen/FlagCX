@@ -62,11 +62,11 @@ flagcxResult_t kunlunAdaptorDeviceFree(void *ptr, flagcxMemType_t type,
   if (type == flagcxMemHost) {
     DEVCHECK(cudaFreeHost(ptr));
   } else if (type == flagcxMemDevice) {
-    // if (stream == NULL) {
+    if (stream == NULL) {
       DEVCHECK(cudaFree(ptr));
-    // } else {
-    //   DEVCHECK(cudaFreeAsync(ptr, stream->base));
-    // }
+    } else {
+      DEVCHECK(cudaFreeAsync(ptr, stream->base));
+    }
   } else if (type == flagcxMemManaged) {
     DEVCHECK(cudaFree(ptr));
   }

@@ -4,16 +4,20 @@ USE_NVIDIA ?= 0
 USE_ILUVATAR_COREX ?= 0
 USE_CAMBRICON ?= 0
 USE_METAX ?= 0
+USE_KUNLUNXIN ?= 0
 USE_DU ?= 0
 ifeq ($(USE_CAMBRICON), 1)
    DEV="MLU"
 else ifeq ($(USE_METAX), 1)
    DEV="MACA"
+else ifeq ($(USE_KUNLUNXIN), 1)
+   DEV="XPU"
 else
    DEV="CUDA"
 endif
 
-MPI_HOME ?= /usr/local/mpi
+# todo： 这里后续修改回去
+MPI_HOME ?= /opt/openmpi	
 MPI_INCLUDE = $(MPI_HOME)/include
 MPI_LIB = $(MPI_HOME)/lib
 MPI_LINK = -lmpi
