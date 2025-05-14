@@ -1,5 +1,7 @@
-// 2025 - Modified by DU. All Rights
-// Reserved.
+/*************************************************************************
+ * Copyright (c) 2025 by MetaX Integrated Circuits (Shanghai) Co., Ltd. All
+ *Rights Reserved. Copyright (c) 2025 by DU. All Rights Reserved.
+ ************************************************************************/
 #include "backend_flagcx.hpp"
 #include "utils_flagcx.hpp"
 #include <iostream>

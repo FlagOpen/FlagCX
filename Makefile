@@ -1,3 +1,4 @@
+# 2025 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
 # 2025 - Modified by DU. All Rights Reserved.
 BUILDDIR ?= $(abspath ./build)
 

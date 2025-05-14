@@ -15,21 +15,21 @@ FlagCX is also a part of [FlagAI-Open](https://flagopen.baai.ac.cn/), an open-so
 
 FlagCX leverages native collective communications libraries to provide the full support of single-chip communications on different platforms. In addition to its native x-CCL support, FlagCX provides an original device-buffer RDMA design to offer advanced support for cross-chip high-performance sendrecev operations (`CORE` module), which can also be integrated with native x-CCL backends to enable optimized cross-chip collective communications. A comprehensive list of currently supported communication backends and their different capabilities are listed as follows:
 
-| Backend       | NCCL | IXCCL  | CNCL | MCCL | BOOTSTRAP | GLOO    | CORE+x-CCL |
-|:--------------|:-----|:-------|:-----|:-----|:--------  |:--------|:-----------|
-| Mode          | Homo | Homo   | Homo | Homo | Hetero    | Hetero  | Hetero     |
-| send          | ✓    | ✓      | ✓    | ✓    |✓         | ✓       | ✓          |
-| recv          | ✓    | ✓      | ✓    | ✓    |✓         | ✓       | ✓          |
-| broadcast     | ✓    | ✓      | ✓    | ✓    |✘         | ✘       | ✓          |
-| gather        | ✓    | ✓      | ✓    | ✓    |✘         | ✘       | ✓          |
-| scatter       | ✓    | ✓      | ✓    | ✓    |✘         | ✘       | ✓          |
-| reduce        | ✓    | ✓      | ✓    | ✓    |✓         | ✘       | ✓          |
-| allreduce     | ✓    | ✓      | ✓    | ✓    |✓         | ✓       | ✓          |
-| allgather     | ✓    | ✓      | ✓    | ✓    |✓         | ✓       | ✓          |
-| reducescatter | ✓    | ✓      | ✓    | ✓    |✓         | ✘       | ✓          |
-| alltoall      | ✓    | ✓      | ✓    | ✓    |✓         | ✓       | ✓          |
-| alltoallv     | ✓    | ✓      | ✓    | ✓    |✘         | ✓       | ✓          |
-| group ops     | ✓    | ✓      | ✓    | ✓    |✘         | ✘       | ✘          |
+| Backend       | NCCL | IXCCL  | CNCL | MCCL | DUCCL| BOOTSTRAP | GLOO    | CORE+x-CCL |
+|:--------------|:-----|:-------|:-----|:-----|:-----|:--------  |:--------|:-----------|
+| Mode          | Homo | Homo   | Homo | Homo | Homo | Hetero    | Hetero  | Hetero     |
+| send          | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✓       | ✓          |
+| recv          | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✓       | ✓          |
+| broadcast     | ✓    | ✓      | ✓    | ✓    | ✓    |✘         | ✘       | ✓          |
+| gather        | ✓    | ✓      | ✓    | ✓    | ✓    |✘         | ✘       | ✓          |
+| scatter       | ✓    | ✓      | ✓    | ✓    | ✓    |✘         | ✘       | ✓          |
+| reduce        | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✘       | ✓          |
+| allreduce     | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✓       | ✓          |
+| allgather     | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✓       | ✓          |
+| reducescatter | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✘       | ✓          |
+| alltoall      | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✓       | ✓          |
+| alltoallv     | ✓    | ✓      | ✓    | ✓    | ✓    |✘         | ✓       | ✓          |
+| group ops     | ✓    | ✓      | ✓    | ✓    | ✓    |✘         | ✘       | ✘          |
 
 Note that `Homo` and `Hetero` modes refer to communications among homogeneous and heterogeneous clusters. Except for `BOOTSTRAP` (which is constructed by FlagCX `bootstrap` component), all other native collective communications libraries can be referenced through the links below:
 
