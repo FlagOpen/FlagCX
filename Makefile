@@ -41,7 +41,7 @@ ifeq ($(strip $(CCL_HOME)),)
 	else ifeq ($(USE_METAX), 1)
 		CCL_HOME = /opt/maca
 	else ifeq ($(USE_KUNLUNXIN), 1)
-		CCL_HOME = /workspace/dependences/xccl_Linux_x86_64
+		CCL_HOME = /usr/local/xccl
 	else
 		CCL_HOME = /usr/local/nccl/build
 	endif
