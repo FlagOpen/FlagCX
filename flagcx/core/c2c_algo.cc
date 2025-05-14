@@ -1017,7 +1017,9 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
   // but now postHomoFuncLoops_ can only be set to 0 and 1
   for (int i = 0; i < postHomoFuncLoops_; ++i) {
     // execute refresh func
-    refreshFunc_.run(recvTmpBuff, datatype, stream);
+    if (commOp_ != flagcxCommOpBroadcast) {
+      refreshFunc_.run(recvTmpBuff, datatype, stream);
+    }
 
     // execute postHomoFunc
     postHomoFuncList_[i].run(recvTmpBuff, recvbuff, datatype, redOp_, root,
@@ -1109,7 +1111,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategyBroadcast(int root) {
     flagcxCommOp_t postHomoFuncCommOp = getC2cHomoCommOp(commOp_, 2, 0);
     for (int i = 0; i < postHomoFuncLoops_; ++i) {
       postHomoFuncList_.emplace_back(-1, 0, 0, totalCount_, 0,
-                                     flagcxCommOpAllReduce);
+                                     postHomoFuncCommOp);
     }
   } else {
     // single-nic
@@ -1172,76 +1174,3 @@ flagcxResult_t flagcxC2cPlanner::findStrategyBroadcast(int root) {
   }
   return flagcxSuccess;
 }
-
-// flagcxResult_t flagcxC2cPlanner::executebroadcast(const void *sendbuff,
-//                                                   void *recvbuff,
-//                                                   flagcxDataType_t datatype,
-//                                                   int root,
-//                                                   flagcxStream_t stream) {
-//   // redOp validation
-//   if (redOp_ != flagcxRedNoOp) {
-//     if (redOp_ != flagcxSum && redOp_ != flagcxMax && redOp_ != flagcxMin) {
-//       WARN("Unsupported reduction operation %d", redOp_);
-//       return flagcxInvalidArgument;
-//     }
-//   }
-
-//   // init scratch buffer if needed
-//   if (commOp_ == flagcxCommOpReduceScatter ||
-//       commOp_ == flagcxCommOpBroadcast) {
-//     deviceAdaptor->deviceMalloc(&scratchBuffer_,
-//                                 totalCount_ *
-//                                 getFlagcxDataTypeSize(datatype),
-//                                 flagcxMemDevice, stream);
-//   } else {
-//     scratchBuffer_ = nullptr;
-//   }
-
-//   void *recvTmpBuff = (scratchBuffer_ == nullptr) ? recvbuff :
-//   scratchBuffer_;
-
-//   // execute preHomoFuncs
-//   for (int i = 0; i < preHomoFuncLoops_; ++i) {
-//     preHomoFuncList_[i].run(sendbuff, recvTmpBuff, datatype, redOp_, root,
-//                             comm_, stream);
-//   }
-
-//   for (int i = 0; i < heteroAndHomoInterFuncLoops_; ++i) {
-//     // execute refreshFunc
-//     refreshFunc_.run(recvTmpBuff, datatype, stream);
-
-//     // TODO: use stream wait rather than stream sync to avoid cpu blocking
-//     // deviceAdaptor->streamSynchronize(stream);
-
-//     // execute heteroFuncs
-//     heteroFuncList_[i].run(recvTmpBuff, datatype, comm_, stream);
-
-//     // TODO: use stream wait rather than stream sync to avoid cpu blocking
-//     deviceAdaptor->streamSynchronize(stream);
-
-//     // execute homoInterFuncs
-//     homoInterFuncList_[i].run(recvTmpBuff, recvTmpBuff, datatype, redOp_,
-//     root,
-//                               comm_, stream);
-//   }
-
-//   // no homoInterFuncs
-//   // execute postHomoFuns
-//   // we assume that there may be multiple post homo-funcs,
-//   // but now postHomoFuncLoops_ can only be set to 0 and 1
-//   for (int i = 0; i < postHomoFuncLoops_; ++i) {
-//     // execute refresh func
-//     refreshFunc_.run(recvTmpBuff, datatype, stream);
-
-//     // execute postHomoFunc
-//     postHomoFuncList_[i].run(recvTmpBuff, recvbuff, datatype, redOp_, root,
-//                              comm_, stream);
-//   }
-
-//   // free scratch buffer if needed
-//   if (scratchBuffer_ != nullptr) {
-//     deviceAdaptor->deviceFree(scratchBuffer_, flagcxMemDevice, stream);
-//   }
-
-//   return flagcxSuccess;
-// }
