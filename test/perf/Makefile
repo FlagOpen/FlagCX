@@ -16,8 +16,7 @@ else
    DEV="CUDA"
 endif
 
-# todo： 这里后续修改回去
-MPI_HOME ?= /opt/openmpi	
+MPI_HOME ?= /opt/openmpi
 MPI_INCLUDE = $(MPI_HOME)/include
 MPI_LIB = $(MPI_HOME)/lib
 MPI_LINK = -lmpi
@@ -120,6 +119,7 @@ run-core-sendrecv:
 	@mpirun --allow-run-as-root -np 2 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1 -x NCCL_IB_HCA=mlx5_2 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=INIT,NET -x FLAGCX_TOPO_DUMP_FILE=./topo ./test_core_sendrecv
 
 print_var:
+	@echo "INCLUDEDIR: $(INCLUDEDIR)"
 	@echo "USE_NVIDIA: $(USE_NVIDIA)"
 	@echo "USE_ILUVATAR_COREX: $(USE_ILUVATAR_COREX)"
 	@echo "USE_CAMBRICON: $(USE_CAMBRICON)"

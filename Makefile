@@ -17,7 +17,6 @@ DEVICE_HOME ?=
 CCL_HOME ?=
 HOST_CCL_HOME ?=
 
-# todo：后续把这里的写死的修改掉
 ifeq ($(strip $(DEVICE_HOME)),)
 	ifeq ($(USE_NVIDIA), 1)
 		DEVICE_HOME = /usr/local/cuda

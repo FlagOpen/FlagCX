@@ -85,14 +85,11 @@ const char *xcclAdaptorGetLastError(flagcxInnerComm_t comm) {
 flagcxResult_t xcclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
                                        flagcxUniqueId_t commId, int rank,
                                        bootstrapState * /*bootstrap*/) {
-  std::cout << "call xcclAdaptorCommInitRank" << std::endl;
   if (*comm == NULL) {
-    std::cout << " !!! xcclAdaptorCommInitRank  NULL!!!  " << std::endl;
     flagcxCalloc(comm, 1);
   }
   return (flagcxResult_t)bkcl_init_rank(&(*comm)->base, rank, nranks,
                                         (BKCLUniqueId *)commId);
-  // return flagcxNotSupported;
 }
 
 // 未支持

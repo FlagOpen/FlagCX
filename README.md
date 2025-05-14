@@ -74,6 +74,9 @@ FlagCX also integrates with upper-layer applications such as PyTorch and PaddleP
     ```sh
     cd FlagCX
     make [USE_NVIDIA/USE_ILUVATAR_COREX/USE_CAMBRICON/USE_GLOO/USE_METAX/USE_KUNLUNXIN/USE_DU]=1
+
+    # If the compilation variable "make USE_KUNLUNXIN=1" is used, the following environment variables need to be enabled:
+    export XPU_FORCE_SHARED_DEVICE_CONTEXT=1
     ```
     The default install path is set to `build/`, you can manually set `BUILDDIR` to specify the build path. You may also define `DEVICE_HOME` and `CCL_HOME` to indicate the install paths of device runtime and communication libraries.
 
