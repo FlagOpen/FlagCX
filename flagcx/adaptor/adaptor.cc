@@ -38,4 +38,13 @@ struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&glooAdaptor,
                                                       &mcclAdaptor};
 #endif
 struct flagcxDeviceAdaptor *deviceAdaptor = &macaAdaptor;
+#elif USE_KUNLUNXIN_ADAPTOR
+#ifdef USE_BOOTSTRAP_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
+                                                      &xcclAdaptor};
+#elif USE_GLOO_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&glooAdaptor,
+                                                      &xcclAdaptor};
+#endif
+struct flagcxDeviceAdaptor *deviceAdaptor = &kunlunAdaptor;
 #endif
