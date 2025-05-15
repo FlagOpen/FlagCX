@@ -478,12 +478,14 @@ flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
     for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
       size_t nClusterInterRanks =
           multiNic_ ? clusterInterRankList_[i].size() : 1;
-      int myCount = (sendCount_ >= recvCount_)
-                        ? totalCount_ / nClusterInterRanks
-                        : (sendCount_ * homoRanks_) / nClusterInterRanks;
-      int myRes = (sendCount_ >= recvCount_)
-                      ? totalCount_ % nClusterInterRanks
-                      : (sendCount_ * homoRanks_) % nClusterInterRanks;
+      int myCount =
+          (sendCount_ >= recvCount_)
+              ? totalCount_ / nClusterInterRanks
+              : (sendCount_ * comm_->cluster_sizes[i]) / nClusterInterRanks;
+      int myRes =
+          (sendCount_ >= recvCount_)
+              ? totalCount_ % nClusterInterRanks
+              : (sendCount_ * comm_->cluster_sizes[i]) % nClusterInterRanks;
       for (size_t j = 0; j < nClusterInterRanks; ++j) {
         int finalCount =
             (j == nClusterInterRanks - 1) ? myCount + myRes : myCount;
