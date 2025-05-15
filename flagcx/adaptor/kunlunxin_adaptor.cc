@@ -34,6 +34,7 @@ flagcxResult_t kunlunAdaptorDeviceMemset(void *ptr, int value, size_t size,
     if (stream == NULL) {
       DEVCHECK(cudaMemset(ptr, value, size));
     } else {
+      // The underlying interface here is synchronous, not an asynchronous implementation.
       DEVCHECK(cudaMemsetAsync(ptr, value, size, stream->base));
     }
   }
@@ -49,6 +50,7 @@ flagcxResult_t kunlunAdaptorDeviceMalloc(void **ptr, size_t size,
     if (stream == NULL) {
       DEVCHECK(cudaMalloc(ptr, size));
     } else {
+      // The underlying interface here is synchronous, not an asynchronous implementation.
       DEVCHECK(cudaMallocAsync(ptr, size, stream->base));
     }
   } else if (type == flagcxMemManaged) {
@@ -65,6 +67,7 @@ flagcxResult_t kunlunAdaptorDeviceFree(void *ptr, flagcxMemType_t type,
     if (stream == NULL) {
       DEVCHECK(cudaFree(ptr));
     } else {
+      // The underlying interface here is synchronous, not an asynchronous implementation.
       DEVCHECK(cudaFreeAsync(ptr, stream->base));
     }
   } else if (type == flagcxMemManaged) {
