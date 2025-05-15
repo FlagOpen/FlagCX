@@ -240,17 +240,24 @@ flagcxResult_t xcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
   xpu_malloc((void**) (&sdisplsDev), nranks * sizeof(size_t));
   xpu_malloc((void**) (&recvcountsDev), nranks * sizeof(size_t));
   xpu_malloc((void**) (&rdisplsDev), nranks * sizeof(size_t));
-  xpu_memcpy((void*) sendcountsDev, (void*) sendcounts, nranks * sizeof(size_t),
-             XPUMemcpyKind::XPU_HOST_TO_DEVICE);
-  xpu_memcpy((void*) sdisplsDev, (void*) sdispls, nranks * sizeof(size_t),
-             XPUMemcpyKind::XPU_HOST_TO_DEVICE);
-  xpu_memcpy((void*) recvcountsDev, (void*) recvcounts, nranks * sizeof(size_t),
-             XPUMemcpyKind::XPU_HOST_TO_DEVICE);
-  xpu_memcpy((void*) rdisplsDev, (void*) rdispls, nranks * sizeof(size_t),
-             XPUMemcpyKind::XPU_HOST_TO_DEVICE);
+  xpu_memcpy_async((void*) sendcountsDev, (void*) sendcounts, nranks * sizeof(size_t),
+                   XPUMemcpyKind::XPU_HOST_TO_DEVICE, stream->base);
+  xpu_memcpy_async((void*) sdisplsDev, (void*) sdispls, nranks * sizeof(size_t),
+                   XPUMemcpyKind::XPU_HOST_TO_DEVICE, stream->base);
+  xpu_memcpy_async((void*) recvcountsDev, (void*) recvcounts, nranks * sizeof(size_t),
+                   XPUMemcpyKind::XPU_HOST_TO_DEVICE, stream->base);
+  xpu_memcpy_async((void*) rdisplsDev, (void*) rdispls, nranks * sizeof(size_t),
+                   XPUMemcpyKind::XPU_HOST_TO_DEVICE, stream->base);
 
-  return (flagcxResult_t)bkcl_all_to_all_v(comm->base, sendbuff, sendcountsDev, sdisplsDev, flagcxToXcclDataType(datatype), 
-                                           recvbuff, recvcountsDev, rdisplsDev, flagcxToXcclDataType(datatype), stream->base);
+  flagcxResult_t res = (flagcxResult_t)bkcl_all_to_all_v(comm->base, sendbuff, sendcountsDev,
+          sdisplsDev, flagcxToXcclDataType(datatype), recvbuff, recvcountsDev, rdisplsDev, 
+          flagcxToXcclDataType(datatype), stream->base);
+  cudaStreamSynchronize(stream->base);
+  xpu_free(sendcountsDev);
+  xpu_free(sdisplsDev);
+  xpu_free(recvcountsDev);
+  xpu_free(rdisplsDev);
+  return res;
 }
 
 flagcxResult_t xcclAdaptorSend(const void *sendbuff, size_t count,
