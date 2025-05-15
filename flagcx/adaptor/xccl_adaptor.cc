@@ -252,11 +252,10 @@ flagcxResult_t xcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
   flagcxResult_t res = (flagcxResult_t)bkcl_all_to_all_v(comm->base, sendbuff, sendcountsDev,
           sdisplsDev, flagcxToXcclDataType(datatype), recvbuff, recvcountsDev, rdisplsDev, 
           flagcxToXcclDataType(datatype), stream->base);
-  cudaStreamSynchronize(stream->base);
-  xpu_free(sendcountsDev);
-  xpu_free(sdisplsDev);
-  xpu_free(recvcountsDev);
-  xpu_free(rdisplsDev);
+  cudaFreeAsync(sendcountsDev, stream->base);
+  cudaFreeAsync(sdisplsDev, stream->base);
+  cudaFreeAsync(recvcountsDev, stream->base);
+  cudaFreeAsync(rdisplsDev, stream->base);
   return res;
 }
 
