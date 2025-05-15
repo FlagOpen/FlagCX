@@ -228,8 +228,30 @@ flagcxResult_t xcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
                                     flagcxDataType_t datatype,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
-  return (flagcxResult_t)bkcl_all_to_all_v(comm->base, sendbuff, sendcounts, sdispls, flagcxToXcclDataType(datatype), 
-                                           recvbuff, recvcounts, rdispls, flagcxToXcclDataType(datatype), stream->base);
+  int nranks;
+  BKCLResult_t res = BKCL_SUCCESS;
+  res = bkcl_comm_count(comm->base, &nranks);
+
+  size_t size = getFlagcxDataTypeSize(datatype);
+  const char *buffer_in = static_cast<const char *>(sendbuff);
+  char *buffer_out = static_cast<char *>(recvbuff);
+
+  res = bkcl_group_start();
+  for (int r = 0; r < nranks; r++) {
+    if (flagcxCCLAdaptorNeedSendrecv(sendcounts[r])) {
+      res = bkcl_send(comm->base, 
+                      static_cast<const void *>(buffer_in + sdispls[r] * size), 
+                      sendcounts[r], r, flagcxToXcclDataType(datatype), stream->base);
+    }
+    if (flagcxCCLAdaptorNeedSendrecv(recvcounts[r])) {
+      res = bkcl_recv(comm->base, 
+                      static_cast<void *>(buffer_out + rdispls[r] * size), 
+                      recvcounts[r], r, flagcxToXcclDataType(datatype), stream->base);
+    }
+  }
+  res = bkcl_group_end(); 
+
+  return (flagcxResult_t)res;
 }
 
 flagcxResult_t xcclAdaptorSend(const void *sendbuff, size_t count,
