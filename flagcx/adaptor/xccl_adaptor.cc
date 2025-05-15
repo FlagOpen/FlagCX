@@ -229,29 +229,28 @@ flagcxResult_t xcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
   int nranks;
-  BKCLResult_t res = BKCL_SUCCESS;
-  res = bkcl_comm_count(comm->base, &nranks);
+  bkcl_comm_count(comm->base, &nranks);
 
-  size_t size = getFlagcxDataTypeSize(datatype);
-  const char *buffer_in = static_cast<const char *>(sendbuff);
-  char *buffer_out = static_cast<char *>(recvbuff);
+  size_t* sendcountsDev = NULL;
+  size_t* sdisplsDev = NULL;
+  size_t* recvcountsDev = NULL;
+  size_t* rdisplsDev = NULL;
 
-  res = bkcl_group_start();
-  for (int r = 0; r < nranks; r++) {
-    if (flagcxCCLAdaptorNeedSendrecv(sendcounts[r])) {
-      res = bkcl_send(comm->base, 
-                      static_cast<const void *>(buffer_in + sdispls[r] * size), 
-                      sendcounts[r], r, flagcxToXcclDataType(datatype), stream->base);
-    }
-    if (flagcxCCLAdaptorNeedSendrecv(recvcounts[r])) {
-      res = bkcl_recv(comm->base, 
-                      static_cast<void *>(buffer_out + rdispls[r] * size), 
-                      recvcounts[r], r, flagcxToXcclDataType(datatype), stream->base);
-    }
-  }
-  res = bkcl_group_end(); 
+  xpu_malloc((void**) (&sendcountsDev), nranks * sizeof(size_t));
+  xpu_malloc((void**) (&sdisplsDev), nranks * sizeof(size_t));
+  xpu_malloc((void**) (&recvcountsDev), nranks * sizeof(size_t));
+  xpu_malloc((void**) (&rdisplsDev), nranks * sizeof(size_t));
+  xpu_memcpy((void*) sendcountsDev, (void*) sendcounts, nranks * sizeof(size_t),
+             XPUMemcpyKind::XPU_HOST_TO_DEVICE);
+  xpu_memcpy((void*) sdisplsDev, (void*) sdispls, nranks * sizeof(size_t),
+             XPUMemcpyKind::XPU_HOST_TO_DEVICE);
+  xpu_memcpy((void*) recvcountsDev, (void*) recvcounts, nranks * sizeof(size_t),
+             XPUMemcpyKind::XPU_HOST_TO_DEVICE);
+  xpu_memcpy((void*) rdisplsDev, (void*) rdispls, nranks * sizeof(size_t),
+             XPUMemcpyKind::XPU_HOST_TO_DEVICE);
 
-  return (flagcxResult_t)res;
+  return (flagcxResult_t)bkcl_all_to_all_v(comm->base, sendbuff, sendcountsDev, sdisplsDev, flagcxToXcclDataType(datatype), 
+                                           recvbuff, recvcountsDev, rdisplsDev, flagcxToXcclDataType(datatype), stream->base);
 }
 
 flagcxResult_t xcclAdaptorSend(const void *sendbuff, size_t count,
