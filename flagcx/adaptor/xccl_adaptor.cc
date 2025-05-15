@@ -141,8 +141,7 @@ flagcxResult_t xcclAdaptorReduce(const void *sendbuff, void *recvbuff,
                                  flagcxRedOp_t op, int root,
                                  flagcxInnerComm_t comm,
                                  flagcxStream_t stream) {
-                                  // 这里估计会有问题，因为bkcl中reduce参数里的ctx用了const修饰，而这里没有
-  return (flagcxResult_t)bkcl_reduce(comm, sendbuff, recvbuff, count,
+  return (flagcxResult_t)bkcl_reduce(comm->base, sendbuff, recvbuff, count,
                                      flagcxToXcclDataType(datatype), flagcxRedOpToBKCLOp(op),
                                      root, stream->base);
 }
