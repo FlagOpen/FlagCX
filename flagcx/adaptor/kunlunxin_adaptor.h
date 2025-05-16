@@ -24,7 +24,7 @@ struct flagcxStream {
 };
 
 struct flagcxEvent {
-    cudaEvent_t base;  // todo： 这个对应xpu是啥 init.h 文件里只搜索到了rdmaenvent的变量，我感觉明显不对。
+    cudaEvent_t base;
 };
 
 #define DEVCHECK(func)                                                         \
