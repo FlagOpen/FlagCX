@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
     devHandle->deviceMemcpy(sendbuff, hello, size / totalProcs,
                             flagcxMemcpyHostToDevice, NULL);
 
-    if ((proc == 0 || proc == totalProcs - 1) == 0 && print_buffer) {
+    if ((proc == 0 || proc == totalProcs - 1) && print_buffer) {
       printf("sendbuff = ");
       printf("%f\n", ((float *)hello)[0]);
     }

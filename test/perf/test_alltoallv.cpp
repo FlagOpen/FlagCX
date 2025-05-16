@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
     devHandle->deviceMemcpy(sendbuff, hello, size, flagcxMemcpyHostToDevice,
                             NULL);
 
-    if (proc == 0 && print_buffer) {
+    if ((proc == 0 || proc == totalProcs - 1) && print_buffer) {
       printf("sendbuff = ");
       for (int i = 0; i < totalProcs; i++) {
         printf("%f ", ((float *)hello)[i * count]);
@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    if (proc == 0 && print_buffer) {
+    if ((proc == 0 || proc == totalProcs - 1) && print_buffer) {
       printf("h_sendcounts = ");
       for (int i = 0; i < totalProcs; i++) {
         printf("%ld ", h_sendcounts[i]);
@@ -174,7 +174,7 @@ int main(int argc, char *argv[]) {
     devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
     devHandle->deviceMemcpy(hello, recvbuff, size, flagcxMemcpyDeviceToHost,
                             NULL);
-    if (proc == 0 && print_buffer) {
+    if ((proc == 0 || proc == totalProcs - 1) && print_buffer) {
       printf("recvbuff = ");
       for (int i = 0; i < totalProcs; i++) {
         printf("%f ", ((float *)hello)[i * count]);

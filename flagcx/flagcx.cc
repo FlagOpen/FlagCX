@@ -1081,7 +1081,6 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
              flagcxRedNoOp, (size_t)((uintptr_t)comm), hashValue);
         planner = flagcxC2cPlanner(count, count, comm->cluster_ids[root], comm,
                                    flagcxCommOpBroadcast, flagcxRedNoOp);
-        FLAGCXCHECK(planner.findStrategy());
         planCache.put(hashValue, planner);
       } else {
         INFO(FLAGCX_COLL,
@@ -1178,7 +1177,6 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
              (size_t)((uintptr_t)comm), hashValue);
         planner =
             flagcxC2cPlanner(count, count, -1, comm, flagcxCommOpAllReduce, op);
-        FLAGCXCHECK(planner.findStrategy());
         planCache.put(hashValue, planner);
         // TODO: add estimator part
         // flagcxAlgoTimeEstimator estimator(planner, datatype);
@@ -1281,7 +1279,6 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
              (size_t)((uintptr_t)comm), hashValue);
         planner = flagcxC2cPlanner(comm->nranks * recvcount, recvcount, -1,
                                    comm, flagcxCommOpReduceScatter, op);
-        FLAGCXCHECK(planner.findStrategy());
         planCache.put(hashValue, planner);
       } else {
         INFO(FLAGCX_COLL,
@@ -1373,7 +1370,6 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
              (size_t)((uintptr_t)comm), hashValue);
         planner = flagcxC2cPlanner(sendcount, sendcount * comm->nranks, -1,
                                    comm, flagcxCommOpAllGather, flagcxRedNoOp);
-        FLAGCXCHECK(planner.findStrategy());
         planCache.put(hashValue, planner);
       } else {
         INFO(FLAGCX_COLL,
@@ -1446,42 +1442,33 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
            timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
-      int size = count * getFlagcxDataTypeSize(datatype);
-      const char *buffer_in = static_cast<const char *>(sendbuff);
-      char *buffer_out = static_cast<char *>(recvbuff);
-
-      // intra-cluster alltoall
-      int offset = 0;
-      for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
-        offset += comm->cluster_sizes[i];
+      // Move it into flagcxC2cPlanner workflow
+      flagcxC2cPlanner planner;
+      auto hashValue =
+          getC2cCommPatternHash(count, 1, // use 1 as rootClusterId for hash
+                                flagcxCommOpAlltoAll, flagcxRedNoOp, comm);
+      if (!planCache.get(hashValue, planner)) {
+        INFO(FLAGCX_COLL,
+             "No available plan is found, create a new one with "
+             "communication pattern "
+             "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
+             "%ld), hashValue = "
+             "%ld",
+             count, 1, flagcxCommOpAlltoAll, flagcxRedNoOp,
+             (size_t)((uintptr_t)comm), hashValue);
+        planner = flagcxC2cPlanner(count, count, -1, comm, flagcxCommOpAlltoAll,
+                                   flagcxRedNoOp);
+        planCache.put(hashValue, planner);
+      } else {
+        INFO(FLAGCX_COLL,
+             "Found available plan with communication pattern "
+             "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
+             "%ld), hashValue = "
+             "%ld",
+             count, 1, flagcxCommOpAlltoAll, flagcxRedNoOp,
+             (size_t)((uintptr_t)comm), hashValue);
       }
-      if (comm->homo_ranks > 1) {
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(
-            static_cast<const void *>(buffer_in + offset * size),
-            static_cast<void *>(buffer_out + offset * size), count, datatype,
-            comm->homo_comm, stream))
-      }
-
-      // TODO: use stream wait rather than stream sync to avoid cpu blocking
-      deviceAdaptor->streamSynchronize(stream);
-
-      // inter-cluster sendrecv
-      // TODO: use cluster_inter_rank to perform hetero sendrecv operation
-      flagcxGroupStart(comm);
-      for (int r = 0; r < comm->nranks; ++r) {
-        if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r]) {
-          FLAGCXCHECK(
-              flagcxHeteroSend(static_cast<const void *>(buffer_in + r * size),
-                               count, datatype, r, comm->hetero_comm, stream));
-          FLAGCXCHECK(
-              flagcxHeteroRecv(static_cast<void *>(buffer_out + r * size),
-                               count, datatype, r, comm->hetero_comm, stream));
-        }
-      }
-      flagcxGroupEnd(comm);
-
-      // TODO: use stream wait rather than stream sync to avoid cpu blocking
-      deviceAdaptor->streamSynchronize(stream);
+      FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, -1, stream));
     }
   }
   return flagcxSuccess;
@@ -1503,47 +1490,34 @@ flagcxResult_t flagcxAlltoAllv(const void *sendbuff, size_t *sendcounts,
       // TODO: to be implemented
       return flagcxNotSupported;
     } else {
-      int size = getFlagcxDataTypeSize(datatype);
-      const char *buffer_in = static_cast<const char *>(sendbuff);
-      char *buffer_out = static_cast<char *>(recvbuff);
-
-      int offset = 0;
-      for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
-        offset += comm->cluster_sizes[i];
+      // Move it into flagcxC2cPlanner workflow
+      flagcxC2cPlanner planner;
+      auto hashValue = getC2cCommPatternHash(
+          1, 1, // use 1 both as count and rootClusterId for hash
+          flagcxCommOpAlltoAllv, flagcxRedNoOp, comm);
+      if (!planCache.get(hashValue, planner)) {
+        INFO(FLAGCX_COLL,
+             "No available plan is found, create a new one with "
+             "communication pattern "
+             "(count, rootClusterId, commOp, redOp, comm) = (%d, %d, %d, %d, "
+             "%ld), hashValue = "
+             "%ld",
+             1, 1, flagcxCommOpAlltoAllv, flagcxRedNoOp,
+             (size_t)((uintptr_t)comm), hashValue);
+        planner = flagcxC2cPlanner(1, 1, -1, comm, flagcxCommOpAlltoAllv,
+                                   flagcxRedNoOp);
+        planCache.put(hashValue, planner);
+      } else {
+        INFO(FLAGCX_COLL,
+             "Found available plan with communication pattern "
+             "(count, rootClusterId, commOp, redOp, comm) = (%d, %d, %d, %d, "
+             "%ld), hashValue = "
+             "%ld",
+             1, 1, flagcxCommOpAlltoAllv, flagcxRedNoOp,
+             (size_t)((uintptr_t)comm), hashValue);
       }
-
-      // intra/inter-cluster sendrecv
-      flagcxGroupStart(comm);
-      cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
-      for (int r = 0; r < comm->nranks; ++r) {
-        if (flagcxCCLAdaptorNeedSendrecv(sendcounts[r])) {
-          if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r]) {
-            FLAGCXCHECK(flagcxHeteroSend(
-                static_cast<const void *>(buffer_in + sdispls[r] * size),
-                sendcounts[r], datatype, r, comm->hetero_comm, stream));
-          } else {
-            FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->send(
-                static_cast<const void *>(buffer_in + sdispls[r] * size),
-                sendcounts[r], datatype, r - offset, comm->homo_comm, stream));
-          }
-        }
-        if (flagcxCCLAdaptorNeedSendrecv(recvcounts[r])) {
-          if (comm->cluster_ids[comm->rank] != comm->cluster_ids[r]) {
-            FLAGCXCHECK(flagcxHeteroRecv(
-                static_cast<void *>(buffer_out + rdispls[r] * size),
-                recvcounts[r], datatype, r, comm->hetero_comm, stream));
-          } else {
-            FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->recv(
-                static_cast<void *>(buffer_out + rdispls[r] * size),
-                recvcounts[r], datatype, r - offset, comm->homo_comm, stream));
-          }
-        }
-      }
-      cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
-      flagcxGroupEnd(comm);
-
-      // TODO: use stream wait rather than stream sync to avoid cpu blocking
-      deviceAdaptor->streamSynchronize(stream);
+      FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, -1, stream,
+                                  sendcounts, sdispls, recvcounts, rdispls));
     }
   }
   return flagcxSuccess;

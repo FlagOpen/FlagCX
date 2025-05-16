@@ -132,7 +132,9 @@ public:
 
   flagcxResult_t run(const void *sendbuff, void *recvbuff,
                      flagcxDataType_t datatype, flagcxRedOp_t redOp, int root,
-                     flagcxComm_t comm, flagcxStream_t stream);
+                     flagcxComm_t comm, flagcxStream_t stream,
+                     size_t *sendCounts = nullptr, size_t *sDispls = nullptr,
+                     size_t *recvCounts = nullptr, size_t *rDispls = nullptr);
 
   int rootRank_;
   int sendOffset_;
@@ -149,8 +151,8 @@ public:
   ~flagcxC2cHeteroFunc();
 
   void addP2pOp(int rank, int peerRank, int offset, int count, int isRecv);
-  flagcxResult_t run(void *buff, flagcxDataType_t datatype, flagcxComm_t comm,
-                     flagcxStream_t stream);
+  flagcxResult_t run(void *sendbuff, void *recvbuff, flagcxDataType_t datatype,
+                     flagcxComm_t comm, flagcxStream_t stream);
 
 private:
   std::vector<flagcxC2cP2pOp> p2pOps_;
@@ -188,10 +190,12 @@ public:
   flagcxResult_t searchHeteroSendRecvOps(int searchMethod,
                                          int loopId); // 0: DFS; 1: BFS
   flagcxResult_t findStrategy();
-  flagcxResult_t findStrategyBroadcast(int root);
   flagcxResult_t execute(const void *sendbuff, void *recvbuff,
                          flagcxDataType_t datatype, int root,
-                         flagcxStream_t stream);
+                         flagcxStream_t stream, size_t *sendCounts = nullptr,
+                         size_t *sDispls = nullptr,
+                         size_t *recvCounts = nullptr,
+                         size_t *rDispls = nullptr);
 
 private:
   int sendCount_;
@@ -200,6 +204,10 @@ private:
   flagcxComm_t comm_;
   flagcxCommOp_t commOp_;
   flagcxRedOp_t redOp_;
+  size_t *sendCounts_; // used for alltoallv, etc.
+  size_t *sDispls_;
+  size_t *recvCounts_;
+  size_t *rDispls_;
   std::vector<std::vector<int>> clusterInterRankList_;
   int clusterId_;
   int rank_; // global rank
@@ -219,6 +227,7 @@ private:
   int heteroAndHomoInterFuncLoops_; // number of loops for heteroFunc and
                                     // homoInterFunc
   int postHomoFuncLoops_;           // number of loops for postHomoFunc
+  int strategyFound_;
   flagcxInterRankBufferInfoManager interRankBufferInfoManager_;
   flagcxC2cRefreshFunc refreshFunc_;
   std::vector<flagcxC2cHomoFunc> preHomoFuncList_;
