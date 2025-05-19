@@ -1050,7 +1050,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
 
     // setup heteroFuncs
     if (commOp_ == flagcxCommOpAllReduce ||
-        commOp_ == flagcxCommOpReduceScatter) {
+        commOp_ == flagcxCommOpReduceScatter || commOp_ == flagcxCommOpReduce) {
       heteroAndHomoInterFuncLoops_ = 1;
       flagcxC2cHeteroFunc heteroFunc = flagcxC2cHeteroFunc();
       int cid = 0;
