@@ -48,7 +48,26 @@ flagcxCommOp_t getC2cHomoCommOp(flagcxCommOp_t commOp, int homoType, int mode,
     case flagcxCommOpScatter:
       return flagcxCommOpScatter;
     case flagcxCommOpReduce:
-      return flagcxCommOpReduce;
+      switch (homoType) {
+        case 0:
+          switch (mode) {
+            case 0:
+              return flagcxCommOpReduceScatter;
+            case 1:
+              return flagcxCommOpReduce;
+            case 2:
+              return flagcxCommOpReduce;
+          }
+        case 1:
+          switch (isRootCluster) {
+            case 0:
+              return flagcxCommNoOp;
+            case 1:
+              return flagcxCommOpReduce;
+          }
+        case 2:
+          return flagcxCommNoOp;
+      }
     case flagcxCommOpAllReduce:
       switch (homoType) {
         case 0:
@@ -968,6 +987,9 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
       if (homoInterFuncCommOp == flagcxCommOpAllReduce) {
         homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1,
                                         homoInterFuncCommOp);
+      } else if (homoInterFuncCommOp == flagcxCommOpReduce) {
+        homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 0,
+                                        homoInterFuncCommOp);
       } else if (homoInterFuncCommOp == flagcxCommNoOp) {
         homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1,
                                         homoInterFuncCommOp);
@@ -1036,26 +1058,32 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         if (clusterId_ == j) {
           continue;
         }
-        int homoRankToRecvFromCluster =
-            (comm_->globalrank2homorank[clusterInterRankList_[clusterId_][0]] -
-             cid - 1 + homoRanks_) %
-            homoRanks_;
-        if (homoMyRank_ == homoRankToRecvFromCluster) {
-          heteroFunc.addP2pOp(rank_, clusterInterRankList_[j][0], 0,
-                              totalCount_, 1);
+        if (isRootCluster_ || commOp_ != flagcxCommOpReduce) {
+          int homoRankToRecvFromCluster =
+              (comm_
+                   ->globalrank2homorank[clusterInterRankList_[clusterId_][0]] -
+               cid - 1 + homoRanks_) %
+              homoRanks_;
+          if (homoMyRank_ == homoRankToRecvFromCluster) {
+            heteroFunc.addP2pOp(rank_, clusterInterRankList_[j][0], 0,
+                                totalCount_, 1);
+          }
         }
-        int homoRankToSendToCluster =
-            (comm_->globalrank2homorank[clusterInterRankList_[j][0]] - cid - 1 +
-             comm_->cluster_sizes[j]) %
-            comm_->cluster_sizes[j];
-        int globalRankToSendToCluster =
-            homoRankToSendToCluster -
-            comm_->globalrank2homorank[clusterInterRankList_[j][0]] +
-            clusterInterRankList_[j][0];
-        if (homoMyRank_ ==
-            comm_->globalrank2homorank[clusterInterRankList_[clusterId_][0]]) {
-          heteroFunc.addP2pOp(rank_, globalRankToSendToCluster, 0, totalCount_,
-                              0);
+        if (!isRootCluster_ || commOp_ != flagcxCommOpReduce) {
+          int homoRankToSendToCluster =
+              (comm_->globalrank2homorank[clusterInterRankList_[j][0]] - cid -
+               1 + comm_->cluster_sizes[j]) %
+              comm_->cluster_sizes[j];
+          int globalRankToSendToCluster =
+              homoRankToSendToCluster -
+              comm_->globalrank2homorank[clusterInterRankList_[j][0]] +
+              clusterInterRankList_[j][0];
+          if (homoMyRank_ ==
+              comm_
+                  ->globalrank2homorank[clusterInterRankList_[clusterId_][0]]) {
+            heteroFunc.addP2pOp(rank_, globalRankToSendToCluster, 0,
+                                totalCount_, 0);
+          }
         }
         cid += 1;
       }
@@ -1089,6 +1117,9 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
       if (homoInterFuncCommOp == flagcxCommOpAllReduce) {
         homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_,
                                         0, // use homo comm instead
+                                        homoInterFuncCommOp);
+      } else if (homoInterFuncCommOp == flagcxCommOpReduce) {
+        homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 0,
                                         homoInterFuncCommOp);
       } else if (homoInterFuncCommOp == flagcxCommNoOp) {
         homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1,
