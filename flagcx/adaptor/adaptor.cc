@@ -49,7 +49,7 @@ struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
 struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&glooAdaptor,
                                                       &xcclAdaptor};
 #endif
-struct flagcxDeviceAdaptor *deviceAdaptor = &kunlunxinAdaptor;
+struct flagcxDeviceAdaptor *deviceAdaptor = &kunlunAdaptor;
 #elif USE_DU_ADAPTOR
 #ifdef USE_BOOTSTRAP_ADAPTOR
 struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
