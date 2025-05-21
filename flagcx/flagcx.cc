@@ -671,8 +671,8 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
              "%ld",
              count, comm->cluster_ids[root], flagcxCommOpReduce, op,
              (size_t)((uintptr_t)comm), hashValue);
-        planner = flagcxC2cPlanner(count, count, comm->cluster_ids[root], comm,
-                                   flagcxCommOpReduce, op);
+        planner =
+            flagcxC2cPlanner(count, count, root, comm, flagcxCommOpReduce, op);
         planCache.put(hashValue, planner);
       } else {
         INFO(FLAGCX_COLL,
@@ -1014,7 +1014,7 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
              "%ld",
              count, comm->cluster_ids[root], flagcxCommOpBroadcast,
              flagcxRedNoOp, (size_t)((uintptr_t)comm), hashValue);
-        planner = flagcxC2cPlanner(count, count, comm->cluster_ids[root], comm,
+        planner = flagcxC2cPlanner(count, count, root, comm,
                                    flagcxCommOpBroadcast, flagcxRedNoOp);
         planCache.put(hashValue, planner);
       } else {

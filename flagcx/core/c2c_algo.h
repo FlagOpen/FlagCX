@@ -58,12 +58,6 @@ private:
       cacheMap_;
 };
 
-// homoType: 0, pre; 1, homoInter; 2, post,
-// mode: 0, multiNic+eachNicPerRank; 1, normal; 2, single-nic
-// isRootCluster: 0, no-root cluster; 1, root cluster
-flagcxCommOp_t getC2cHomoCommOp(flagcxCommOp_t commOp, int homoType, int mode,
-                                int isRootCluster);
-
 struct flagcxBufferInfo {
 public:
   flagcxBufferInfo(int offset, int count, int clusterIdToSend, int isRecv,
@@ -177,7 +171,7 @@ public:
 class flagcxC2cPlanner {
 public:
   friend class flagcxAlgoTimeEstimator;
-  flagcxC2cPlanner(int sendCount, int recvCount, int rootClusterId,
+  flagcxC2cPlanner(int sendCount, int recvCount, int rootRank,
                    flagcxComm_t comm, flagcxCommOp_t commOp,
                    flagcxRedOp_t redOp);
   ~flagcxC2cPlanner();
@@ -185,6 +179,7 @@ public:
   flagcxC2cPlanner(const flagcxC2cPlanner &) = default;
   flagcxC2cPlanner &operator=(const flagcxC2cPlanner &) = default;
 
+  flagcxCommOp_t getC2cHomoCommOp(int homoType, int mode);
   flagcxResult_t refresh(
       int isSendRecv); // 0: refresh recv info only; 1: refresh send+recv info
   flagcxResult_t searchHeteroSendRecvOps(int searchMethod,
@@ -200,7 +195,7 @@ public:
 private:
   int sendCount_;
   int recvCount_;
-  int rootClusterId_;
+  int rootRank_; // used for gather, scatter
   flagcxComm_t comm_;
   flagcxCommOp_t commOp_;
   flagcxRedOp_t redOp_;
@@ -218,6 +213,7 @@ private:
   int homoInterRootRank_;
   int homoInterRanks_;
   int totalCount_; // equal to either sendCount_ or recvCount_
+  int rootClusterId_;
   int isRootCluster_;
   int clusterCount_;
   int clusterOffset_;
