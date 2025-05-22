@@ -43,6 +43,8 @@ RUN apt-get update && \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/*
 
+
+
 RUN mkdir -p /var/run/sshd && \
 
     echo "Port 3217" >> /etc/ssh/sshd_config && \
@@ -63,6 +65,7 @@ RUN mkdir -p /var/run/sshd && \
     echo '#!/bin/sh\n/etc/init.d/ssh start\n/bin/bash' > /start.sh && \
     chmod +x /start.sh
 
+
 EXPOSE 3217
 
 CMD ["/start.sh"]
@@ -80,6 +83,7 @@ RUN add-apt-repository ppa:deadsnakes/ppa && \
         apt install python3-distutils python3-pip -y && \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/*
+
 
 ##############################################################################
 # Install CUDNN
