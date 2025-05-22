@@ -21,7 +21,7 @@ FlagCX leverages native collective communications libraries to provide the full 
 | send          | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
 | recv          | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
 | broadcast     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✘          | ✘       | ✓          |
-| gather        | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✘          | ✘       | ✓          |
+| gather        | ✓    | ✓      | ✓    | ✓    | ✘    | ✓     |✘          | ✘       | ✓          |
 | scatter       | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✘          | ✘       | ✓          |
 | reduce        | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✘       | ✓          |
 | allreduce     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
