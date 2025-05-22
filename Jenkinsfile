@@ -15,26 +15,24 @@ pipeline {
             }
         }
         stage('Code Style Check') {
-            steps {
-                sh '''
-                # clang-format 检查
-                for file in $(git ls-files '*.cpp' '*.h'); do
-                    clang-format -output-replacements-xml $file | grep -q "<replacement " && echo "$file format mismatch" && exit 1 || true
-                done
-                '''
+   	    steps {
+        	script {
+            	    def files = sh(script: "git ls-files '*.cpp' '*.h'", returnStdout: true).trim().split('\n')
+            	    for (file in files) {
+                	def result = sh(script: "clang-format -output-replacements-xml ${file} | grep -q '<replacement>'", returnStatus: true)
+                	if (result == 0) {
+                    	   error "Code format mismatch: ${file}"
+               		}
+            	    }
+        	}
+        	sh '''
+        	pip install cpplint
+        	cpplint $(git ls-files '*.cpp' '*.h')
+        	cppcheck --enable=all --inconclusive --error-exitcode=1 .
+        	'''
+    	    }
+	}
 
-                sh '''
-                # cpplint 检查
-                pip install cpplint
-                cpplint $(git ls-files '*.cpp' '*.h')
-                '''
-
-                sh '''
-                # cppcheck 
-                cppcheck --enable=all --inconclusive --error-exitcode=1 .
-                '''
-            }
-        }
         stage('Unit Test & Coverage') {
             steps {
                 sh '''
