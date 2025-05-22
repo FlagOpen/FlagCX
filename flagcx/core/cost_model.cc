@@ -27,7 +27,7 @@ flagcxResult_t flagcxAlgoTimeEstimator::getAlgoTime(float *time) {
 flagcxResult_t flagcxAlgoTimeEstimator::getPreHomoAlgoTime(float *time) {
   flagcxComm_t comm = planner_.comm_;
   auto &preHomoFuncs =
-      planner_.preHomoFuncList_; // all clusters perform the same algo
+      planner_.preHomoFuncSteps_[0]; // all clusters perform the same algo
   float totalPreHomoTime = 0.0;
   // compute the execution time for all clusters
   // use the max time for all clusters
@@ -50,7 +50,7 @@ flagcxResult_t flagcxAlgoTimeEstimator::getPreHomoAlgoTime(float *time) {
 
 flagcxResult_t flagcxAlgoTimeEstimator::getPostHomoAlgoTime(float *time) {
   flagcxComm_t comm = planner_.comm_;
-  auto &postHomoFuncs = planner_.postHomoFuncList_;
+  auto &postHomoFuncs = planner_.postHomoFuncSteps_[0];
   float totalPostHomoTime = 0.0;
   // compute the execution time for all clusters
   // use the max time for all clusters
@@ -81,7 +81,7 @@ flagcxResult_t flagcxAlgoTimeEstimator::getHomoAlgoTime(
 flagcxResult_t flagcxAlgoTimeEstimator::getHomoInterAlgoTime(int loop,
                                                              float *time) {
   flagcxComm_t comm = planner_.comm_;
-  auto &homoFunc = planner_.homoInterFuncList_[loop];
+  auto &homoFunc = planner_.homoInterFuncSteps_[0][loop];
   // getHomoAlgoTime
   float totalHomoInterTime = 0.0;
   // compute the execution time for all clusters
@@ -107,7 +107,8 @@ flagcxResult_t flagcxAlgoTimeEstimator::getHeteroAlgoTime(float *time) {
   flagcxHeteroComm_t heteroComm = comm->hetero_comm;
   // filter out hetero funcs for each rank
   std::unordered_map<int, std::vector<flagcxC2cHeteroFunc>> heteroFuncMap;
-  int heteroFuncLoops = planner_.heteroAndHomoInterFuncLoops_;
+  int heteroFuncLoops = planner_.nPipePreSteps_ + planner_.nSeqInterSteps_ +
+                        planner_.nPipePostSteps_;
   auto &clusterInterRankList = planner_.clusterInterRankList_;
   // get all interRanks
   std::vector<int> interRanks;
