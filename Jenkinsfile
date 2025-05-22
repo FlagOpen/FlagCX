@@ -30,7 +30,7 @@ pipeline {
                 '''
 
                 sh '''
-                # cppcheck 静态分析
+                # cppcheck 
                 cppcheck --enable=all --inconclusive --error-exitcode=1 .
                 '''
             }
