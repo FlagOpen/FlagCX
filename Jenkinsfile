@@ -1,10 +1,80 @@
 pipeline {
     agent any
+    options {
+        timeout(time: 60, unit: 'MINUTES')    
+        buildDiscarder(logRotator(numToKeepStr: '10'))  
+    }
     stages {
         stage('Build') {
             steps {
-                echo 'Hello Jenkins, Hello!'
+                echo 'Build started...'
+                sh '''
+                mkdir -p build
+                cd build
+                cmake .. -DCMAKE_BUILD_TYPE=Debug
+                make -j4
+                '''
             }
+        }
+        stage('Code Style Check') {
+            steps {
+                sh '''
+                # clang-format 检查
+                for file in $(git ls-files '*.cpp' '*.h'); do
+                    clang-format -output-replacements-xml $file | grep -q "<replacement " && echo "$file format mismatch" && exit 1 || true
+                done
+                '''
+
+                sh '''
+                # cpplint 检查
+                pip install cpplint
+                cpplint $(git ls-files '*.cpp' '*.h')
+                '''
+
+                sh '''
+                # cppcheck 静态分析
+                cppcheck --enable=all --inconclusive --error-exitcode=1 .
+                '''
+            }
+        }
+        stage('Unit Test & Coverage') {
+            steps {
+                sh '''
+                cd build
+                ctest --output-on-failure
+                # 生成覆盖率信息，需编译时加 -fprofile-arcs -ftest-coverage
+                lcov --capture --directory . --output-file coverage.info
+                lcov --remove coverage.info '/usr/*' --output-file coverage.info 
+                genhtml coverage.info --output-directory coverage-report
+                '''
+            }
+            post {
+                always {
+                    junit 'build/Testing/**/*.xml'
+                    cobertura coberturaReportFile: 'build/coverage-report/coverage.xml'
+                }
+            }
+        }
+        stage('Coverage Check') {
+            steps {
+                script {
+                    def coverage = currentBuild.rawBuild.getAction(hudson.plugins.cobertura.CoberturaBuildAction)
+                        ?.getCoverage(hudson.plugins.cobertura.targets.CoverageMetric.LINE)
+                        ?.getPercentage() ?: 0
+                    echo "Code coverage: ${coverage}%"
+                    if (coverage < 90) {
+                        error "Code coverage below 90%, failing the build."
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
         }
     }
 }
