@@ -26,7 +26,6 @@ pipeline {
             	    }
         	}
         	sh '''
-        	pip install cpplint
         	cpplint $(git ls-files '*.cpp' '*.h')
         	cppcheck --enable=all --inconclusive --error-exitcode=1 .
         	'''
