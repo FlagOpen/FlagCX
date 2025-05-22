@@ -7,10 +7,6 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                sh '''
-                sudo apt-get update
-                sudo apt-get install -y cmake clang-format cppcheck
-                '''
                 echo 'Build started...'
                 sh '''
                 mkdir -p build
