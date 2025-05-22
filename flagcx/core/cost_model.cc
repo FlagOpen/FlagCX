@@ -27,7 +27,7 @@ flagcxResult_t flagcxAlgoTimeEstimator::getAlgoTime(float *time) {
 flagcxResult_t flagcxAlgoTimeEstimator::getPreHomoAlgoTime(float *time) {
   flagcxComm_t comm = planner_.comm_;
   auto &preHomoFuncs =
-      planner_.preHomoFuncList_; // all clusters perform the same algo
+      planner_.preHomoFuncPipeline_[0]; // all clusters perform the same algo
   float totalPreHomoTime = 0.0;
   // compute the execution time for all clusters
   // use the max time for all clusters
@@ -50,7 +50,7 @@ flagcxResult_t flagcxAlgoTimeEstimator::getPreHomoAlgoTime(float *time) {
 
 flagcxResult_t flagcxAlgoTimeEstimator::getPostHomoAlgoTime(float *time) {
   flagcxComm_t comm = planner_.comm_;
-  auto &postHomoFuncs = planner_.postHomoFuncList_;
+  auto &postHomoFuncs = planner_.postHomoFuncPipeline_[0];
   float totalPostHomoTime = 0.0;
   // compute the execution time for all clusters
   // use the max time for all clusters
@@ -81,7 +81,7 @@ flagcxResult_t flagcxAlgoTimeEstimator::getHomoAlgoTime(
 flagcxResult_t flagcxAlgoTimeEstimator::getHomoInterAlgoTime(int loop,
                                                              float *time) {
   flagcxComm_t comm = planner_.comm_;
-  auto &homoFunc = planner_.homoInterFuncList_[loop];
+  auto &homoFunc = planner_.homoInterFuncPipeline_[0][loop];
   // getHomoAlgoTime
   float totalHomoInterTime = 0.0;
   // compute the execution time for all clusters
