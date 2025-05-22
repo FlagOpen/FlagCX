@@ -15,21 +15,21 @@ FlagCX is also a part of [FlagAI-Open](https://flagopen.baai.ac.cn/), an open-so
 
 FlagCX leverages native collective communications libraries to provide the full support of single-chip communications on different platforms. In addition to its native x-CCL support, FlagCX provides an original device-buffer RDMA design to offer advanced support for cross-chip high-performance sendrecev operations (`CORE` module), which can also be integrated with native x-CCL backends to enable optimized cross-chip collective communications. A comprehensive list of currently supported communication backends and their different capabilities are listed as follows:
 
-| Backend       | NCCL | IXCCL  | CNCL | MCCL | DUCCL| BOOTSTRAP | GLOO    | CORE+x-CCL |
-|:--------------|:-----|:-------|:-----|:-----|:-----|:--------  |:--------|:-----------|
-| Mode          | Homo | Homo   | Homo | Homo | Homo | Hetero    | Hetero  | Hetero     |
-| send          | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✓       | ✓          |
-| recv          | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✓       | ✓          |
-| broadcast     | ✓    | ✓      | ✓    | ✓    | ✓    |✘         | ✘       | ✓          |
-| gather        | ✓    | ✓      | ✓    | ✓    | ✓    |✘         | ✘       | ✓          |
-| scatter       | ✓    | ✓      | ✓    | ✓    | ✓    |✘         | ✘       | ✓          |
-| reduce        | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✘       | ✓          |
-| allreduce     | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✓       | ✓          |
-| allgather     | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✓       | ✓          |
-| reducescatter | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✘       | ✓          |
-| alltoall      | ✓    | ✓      | ✓    | ✓    | ✓    |✓         | ✓       | ✓          |
-| alltoallv     | ✓    | ✓      | ✓    | ✓    | ✓    |✘         | ✓       | ✓          |
-| group ops     | ✓    | ✓      | ✓    | ✓    | ✓    |✘         | ✘       | ✘          |
+| Backend       | NCCL | IXCCL  | CNCL | MCCL | XCCL | DUCCL | BOOTSTRAP | GLOO    | CORE+x-CCL |
+|:--------------|:-----|:-------|:-----|:-----|:-----|:------|:----------|:--------|:-----------|
+| Mode          | Homo | Homo   | Homo | Homo | Homo | Homo  | Hetero    | Hetero  | Hetero     |
+| send          | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
+| recv          | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
+| broadcast     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✘          | ✘       | ✓          |
+| gather        | ✓    | ✓      | ✓    | ✓    | ✘    | ✓     |✘          | ✘       | ✓          |
+| scatter       | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✘          | ✘       | ✓          |
+| reduce        | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✘       | ✓          |
+| allreduce     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
+| allgather     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
+| reducescatter | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✘       | ✓          |
+| alltoall      | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
+| alltoallv     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✘          | ✓       | ✓          |
+| group ops     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✘          | ✘       | ✘          |
 
 Note that `Homo` and `Hetero` modes refer to communications among homogeneous and heterogeneous clusters. Except for `BOOTSTRAP` (which is constructed by FlagCX `bootstrap` component), all other native collective communications libraries can be referenced through the links below:
 
@@ -37,6 +37,7 @@ Note that `Homo` and `Hetero` modes refer to communications among homogeneous an
 - [IXCCL](https://www.iluvatar.com/software?fullCode=cpjs-rj-rjz), Iluvatar Corex Collective Communications Library.
 - [CNCL](https://www.cambricon.com/docs/sdk_1.7.0/cncl_1.2.1/user_guide/index.html#), Cambricon Communications Library.
 - [MCCL](https://developer.metax-tech.com/softnova/metax), Metax Collective Communications Library.
+- [XCCL](WIP), XPU Collective Communications Library.
 - [DUCCL](https://developer.sourcefind.cn), DU Collective Communications Library.
 - [GLOO](https://github.com/facebookincubator/gloo), Gloo Collective Communications Library.
 
@@ -72,7 +73,10 @@ FlagCX also integrates with upper-layer applications such as PyTorch and PaddleP
 2. Build the library with different flags targeting to different platforms:
     ```sh
     cd FlagCX
-    make [USE_NVIDIA/USE_ILUVATAR_COREX/USE_CAMBRICON/USE_GLOO/USE_METAX/USE_DU]=1
+    make [USE_NVIDIA/USE_ILUVATAR_COREX/USE_CAMBRICON/USE_GLOO/USE_METAX/USE_KUNLUNXIN/USE_DU]=1
+
+    # If the compilation variable "make USE_KUNLUNXIN=1" is used, the following environment variables need to be enabled:
+    export XPU_FORCE_SHARED_DEVICE_CONTEXT=1
     ```
     The default install path is set to `build/`, you can manually set `BUILDDIR` to specify the build path. You may also define `DEVICE_HOME` and `CCL_HOME` to indicate the install paths of device runtime and communication libraries.
 
@@ -81,7 +85,7 @@ FlagCX also integrates with upper-layer applications such as PyTorch and PaddleP
 Tests for FlagCX are maintained in `test/perf`.
 ```sh
 cd test/perf
-make [USE_NVIDIA/USE_ILUVATAR_COREX/USE_CAMBRICON/USE_METAX/USE_DU]=1
+make [USE_NVIDIA/USE_ILUVATAR_COREX/USE_CAMBRICON/USE_METAX/USE_KUNLUNXIN/USE_DU]=1
 ./test_allreduce -b 128M -e 8G -f 2
 ```
 Note that the default MPI install path is set to `/usr/local/mpi`, you may specify the MPI path with:

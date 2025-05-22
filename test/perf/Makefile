@@ -4,11 +4,14 @@ USE_NVIDIA ?= 0
 USE_ILUVATAR_COREX ?= 0
 USE_CAMBRICON ?= 0
 USE_METAX ?= 0
+USE_KUNLUNXIN ?= 0
 USE_DU ?= 0
 ifeq ($(USE_CAMBRICON), 1)
    DEV="MLU"
 else ifeq ($(USE_METAX), 1)
    DEV="MACA"
+else ifeq ($(USE_KUNLUNXIN), 1)
+   DEV="XPU"
 else
    DEV="CUDA"
 endif
@@ -116,6 +119,7 @@ run-core-sendrecv:
 	@mpirun --allow-run-as-root -np 2 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1 -x NCCL_IB_HCA=mlx5_2 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=INIT,NET -x FLAGCX_TOPO_DUMP_FILE=./topo ./test_core_sendrecv
 
 print_var:
+	@echo "INCLUDEDIR: $(INCLUDEDIR)"
 	@echo "USE_NVIDIA: $(USE_NVIDIA)"
 	@echo "USE_ILUVATAR_COREX: $(USE_ILUVATAR_COREX)"
 	@echo "USE_CAMBRICON: $(USE_CAMBRICON)"

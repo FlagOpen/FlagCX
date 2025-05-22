@@ -9,6 +9,7 @@ USE_CAMBRICON ?= 0
 USE_GLOO ?= 0
 USE_BOOTSTRAP ?= 0
 USE_METAX ?= 0
+USE_KUNLUNXIN ?=0
 USE_DU ?= 0
 
 # set to empty if not provided
@@ -25,6 +26,8 @@ ifeq ($(strip $(DEVICE_HOME)),)
 		DEVICE_HOME = $(NEUWARE_HOME)
 	else ifeq ($(USE_METAX), 1)
 		DEVICE_HOME = /opt/maca
+	else ifeq ($(USE_KUNLUNXIN), 1)
+		DEVICE_HOME = /usr/local/xpu
 	else ifeq ($(USE_DU), 1)
 		DEVICE_HOME = ${CUDA_PATH}
 	else
@@ -41,6 +44,8 @@ ifeq ($(strip $(CCL_HOME)),)
 		CCL_HOME = $(NEUWARE_HOME)
 	else ifeq ($(USE_METAX), 1)
 		CCL_HOME = /opt/maca
+	else ifeq ($(USE_KUNLUNXIN), 1)
+		CCL_HOME = /usr/local/xccl
 	else ifeq ($(USE_DU), 1)
 		CCL_HOME = ${CUDA_PATH}
 	else
@@ -98,6 +103,14 @@ else ifeq ($(USE_METAX), 1)
 	CCL_INCLUDE = $(CCL_HOME)/include
 	CCL_LINK = -lmccl
 	ADAPTOR_FLAG = -DUSE_METAX_ADAPTOR
+else ifeq ($(USE_KUNLUNXIN), 1)
+	DEVICE_LIB = $(DEVICE_HOME)/so
+	DEVICE_INCLUDE = $(DEVICE_HOME)/include
+	DEVICE_LINK = -lxpurt -lcudart
+	CCL_LIB = $(CCL_HOME)/so
+	CCL_INCLUDE = $(CCL_HOME)/include
+	CCL_LINK = -lbkcl
+	ADAPTOR_FLAG = -DUSE_KUNLUNXIN_ADAPTOR
 else ifeq ($(USE_DU), 1)
 	DEVICE_LIB = $(DEVICE_HOME)/lib64
 	DEVICE_INCLUDE = $(DEVICE_HOME)/include
@@ -154,12 +167,14 @@ TARGET = libflagcx.so
 all: $(LIBDIR)/$(TARGET)
 
 print_var:
+	@echo "USE_KUNLUNXIN : $(USE_KUNLUNXIN)"
 	@echo "DEVICE_HOME: $(DEVICE_HOME)"
 	@echo "CCL_HOME: $(CCL_HOME)"
 	@echo "HOST_CCL_HOME: $(HOST_CCL_HOME)"
 	@echo "USE_NVIDIA: $(USE_NVIDIA)"
 	@echo "USE_ILUVATAR_COREX: $(USE_ILUVATAR_COREX)"
 	@echo "USE_CAMBRICON: $(USE_CAMBRICON)"
+	@echo "USE_KUNLUNXIN: $(USE_KUNLUNXIN)"
 	@echo "USE_GLOO: $(USE_GLOO)"
 	@echo "USE_DU: $(USE_DU)"
 	@echo "DEVICE_LIB: $(DEVICE_LIB)"
