@@ -8,8 +8,8 @@ pipeline {
         stage('Build') {
             steps {
                 sh '''
-                apt-get update
-                apt-get install -y cmake clang-format cppcheck
+                sudo apt-get update
+                sudo apt-get install -y cmake clang-format cppcheck
                 '''
                 echo 'Build started...'
                 sh '''
