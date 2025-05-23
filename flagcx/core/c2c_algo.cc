@@ -214,10 +214,19 @@ flagcxResult_t flagcxC2cP2pOp::run(void *buff, flagcxDataType_t datatype,
 }
 
 flagcxC2cHomoFunc::flagcxC2cHomoFunc(int rootRank, int sendOffset,
-                                     int recvOffset, int count,
-                                     int isHomoInterComm, flagcxCommOp_t commOp)
+                                     int recvOffset, int count, int homoType,
+                                     flagcxCommOp_t commOp)
     : rootRank_(rootRank), sendOffset_(sendOffset), recvOffset_(recvOffset),
-      count_(count), isHomoInterComm_(isHomoInterComm), commOp_(commOp) {}
+      count_(count), homoType_(homoType), commOp_(commOp),
+      interRankBufferInfoManager_(0) {}
+
+flagcxC2cHomoFunc::flagcxC2cHomoFunc(
+    int rootRank, int sendOffset, int recvOffset, int count, int homoType,
+    flagcxCommOp_t commOp,
+    flagcxInterRankBufferInfoManager interRankBufferInfoManager)
+    : rootRank_(rootRank), sendOffset_(sendOffset), recvOffset_(recvOffset),
+      count_(count), homoType_(homoType), commOp_(commOp),
+      interRankBufferInfoManager_(interRankBufferInfoManager) {}
 
 flagcxC2cHomoFunc::~flagcxC2cHomoFunc() {}
 
@@ -227,15 +236,17 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
                                       flagcxComm_t comm, flagcxStream_t stream,
                                       size_t *sendCounts, size_t *sDispls,
                                       size_t *recvCounts, size_t *rDispls) {
-  if (isHomoInterComm_ && comm->homoInterMyRank == -1) {
+  if (homoType_ == 1 && comm->homoInterMyRank == -1) {
     return flagcxSuccess;
   }
+
   TRACE_CALL(
       "flagcxC2cHomoFunc run: rank = %d, rootRank = %d, sendOffset = %d, "
       "recvOffset = %d, count = %d, "
-      "isHomoInterComm = %d, commOp = %d, datatype = %d, redOp = %d, root = %d",
-      comm->rank, rootRank_, sendOffset_, recvOffset_, count_, isHomoInterComm_,
+      "homoType = %d, commOp = %d, datatype = %d, redOp = %d, root = %d",
+      comm->rank, rootRank_, sendOffset_, recvOffset_, count_, homoType_,
       commOp_, datatype, redOp, root);
+
   switch (commOp_) {
     case flagcxCommOpReduce:
       return cclAdaptors[flagcxCCLAdaptorDevice]->reduce(
@@ -245,7 +256,7 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
           static_cast<void *>(static_cast<char *>(recvbuff) +
                               recvOffset_ * getFlagcxDataTypeSize(datatype)),
           count_, datatype, redOp, (rootRank_ == -1) ? root : rootRank_,
-          isHomoInterComm_ ? comm->homoInterComm : comm->homo_comm, stream);
+          homoType_ == 1 ? comm->homoInterComm : comm->homo_comm, stream);
     case flagcxCommOpAllReduce:
       return cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
           const_cast<const void *>(static_cast<void *>(
@@ -254,7 +265,7 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
           static_cast<void *>(static_cast<char *>(recvbuff) +
                               recvOffset_ * getFlagcxDataTypeSize(datatype)),
           count_, datatype, redOp,
-          isHomoInterComm_ ? comm->homoInterComm : comm->homo_comm, stream);
+          homoType_ == 1 ? comm->homoInterComm : comm->homo_comm, stream);
     case flagcxCommOpReduceScatter:
       return cclAdaptors[flagcxCCLAdaptorDevice]->reduceScatter(
           const_cast<const void *>(static_cast<void *>(
@@ -263,7 +274,7 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
           static_cast<void *>(static_cast<char *>(recvbuff) +
                               recvOffset_ * getFlagcxDataTypeSize(datatype)),
           count_, datatype, redOp,
-          isHomoInterComm_ ? comm->homoInterComm : comm->homo_comm, stream);
+          homoType_ == 1 ? comm->homoInterComm : comm->homo_comm, stream);
     case flagcxCommOpAllGather:
       return cclAdaptors[flagcxCCLAdaptorDevice]->allGather(
           const_cast<const void *>(static_cast<void *>(
@@ -272,7 +283,7 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
           static_cast<void *>(static_cast<char *>(recvbuff) +
                               recvOffset_ * getFlagcxDataTypeSize(datatype)),
           count_, datatype,
-          isHomoInterComm_ ? comm->homoInterComm : comm->homo_comm, stream);
+          homoType_ == 1 ? comm->homoInterComm : comm->homo_comm, stream);
     case flagcxCommOpGather:
       return cclAdaptors[flagcxCCLAdaptorDevice]->gather(
           const_cast<const void *>(static_cast<void *>(
@@ -281,7 +292,7 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
           static_cast<void *>(static_cast<char *>(recvbuff) +
                               recvOffset_ * getFlagcxDataTypeSize(datatype)),
           count_, datatype, (rootRank_ == -1) ? root : rootRank_,
-          isHomoInterComm_ ? comm->homoInterComm : comm->homo_comm, stream);
+          homoType_ == 1 ? comm->homoInterComm : comm->homo_comm, stream);
     case flagcxCommOpScatter:
       return cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
           const_cast<const void *>(static_cast<void *>(
@@ -290,34 +301,106 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
           static_cast<void *>(static_cast<char *>(recvbuff) +
                               recvOffset_ * getFlagcxDataTypeSize(datatype)),
           count_, datatype, (rootRank_ == -1) ? root : rootRank_,
-          isHomoInterComm_ ? comm->homoInterComm : comm->homo_comm, stream);
+          homoType_ == 1 ? comm->homoInterComm : comm->homo_comm, stream);
     case flagcxCommOpSend:
-      if (comm->globalrank2homorank[comm->rank] == rootRank_) {
-        deviceAdaptor->deviceMemcpy(
-            static_cast<char *>(recvbuff) +
-                recvOffset_ * getFlagcxDataTypeSize(datatype),
-            (void *)(static_cast<const char *>(sendbuff) +
-                     sendOffset_ * getFlagcxDataTypeSize(datatype)),
-            count_ * getFlagcxDataTypeSize(datatype),
-            flagcxMemcpyDeviceToDevice, NULL, NULL);
-        return flagcxSuccess;
+      cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
+      if (homoType_ == 0) {
+        // send from root to inter-ranks
+        if (comm->homo_rank == ((rootRank_ == -1) ? root : rootRank_)) {
+          int clusterId = comm->cluster_ids[comm->rank];
+          for (size_t i = 0; i < comm->clusterInterRankList[clusterId].size();
+               ++i) {
+            if (comm->homoInterMyRank != int(i)) {
+              cclAdaptors[flagcxCCLAdaptorDevice]->send(
+                  const_cast<const void *>(static_cast<void *>(
+                      static_cast<char *>(const_cast<void *>(sendbuff)) +
+                      sendOffset_ * getFlagcxDataTypeSize(datatype))),
+                  count_, datatype,
+                  comm->globalrank2homorank
+                      [comm->clusterInterRankList[clusterId][i]],
+                  comm->homo_comm, stream);
+            }
+          }
+        }
+      } else if (homoType_ == 1) {
+        // send from inter-rank 1,2,...,n to inter-rank 0
+        if (comm->homoInterMyRank > 0) {
+          int clusterId = comm->cluster_ids[comm->rank];
+          auto &buffList = interRankBufferInfoManager_.getBufferInfoList(
+              clusterId, comm->rank);
+          for (auto it = buffList.begin(); it != buffList.end(); it++) {
+            if (it->isRecv_) {
+              cclAdaptors[flagcxCCLAdaptorDevice]->send(
+                  const_cast<const void *>(static_cast<void *>(
+                      static_cast<char *>(const_cast<void *>(sendbuff)) +
+                      it->offset_ * getFlagcxDataTypeSize(datatype))),
+                  it->count_, datatype, 0, comm->homoInterComm, stream);
+            }
+          }
+        }
+      } else if (homoType_ == 2) {
+        // send from inter-rank 0 to root
+        if (comm->homoInterMyRank == 0 &&
+            (comm->homo_rank != ((rootRank_ == -1) ? root : rootRank_))) {
+          cclAdaptors[flagcxCCLAdaptorDevice]->send(
+              const_cast<const void *>(static_cast<void *>(
+                  static_cast<char *>(const_cast<void *>(sendbuff)) +
+                  sendOffset_ * getFlagcxDataTypeSize(datatype))),
+              count_, datatype, (rootRank_ == -1) ? root : rootRank_,
+              comm->homo_comm, stream);
+        }
       }
-      return cclAdaptors[flagcxCCLAdaptorDevice]->send(
-          const_cast<const void *>(static_cast<void *>(
-              static_cast<char *>(const_cast<void *>(sendbuff)) +
-              sendOffset_ * getFlagcxDataTypeSize(datatype))),
-          count_, datatype, rootRank_,
-          isHomoInterComm_ ? comm->homoInterComm : comm->homo_comm, stream);
+      cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
+      return flagcxSuccess;
     case flagcxCommOpRecv:
-      if (comm->globalrank2homorank[comm->rank] == rootRank_) {
-        return flagcxSuccess;
+      cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
+      if (homoType_ == 0) {
+        // recv at inter-rank from root
+        if (comm->homoInterMyRank != -1 &&
+            comm->homo_rank != ((rootRank_ == -1) ? root : rootRank_)) {
+          cclAdaptors[flagcxCCLAdaptorDevice]->recv(
+              static_cast<void *>(
+                  static_cast<char *>(const_cast<void *>(recvbuff)) +
+                  recvOffset_ * getFlagcxDataTypeSize(datatype)),
+              count_, datatype, (rootRank_ == -1) ? root : rootRank_,
+              comm->homo_comm, stream);
+        }
+      } else if (homoType_ == 1) {
+        // recv at inter-rank 0 from inter-rank 1,2,...,n
+        if (comm->homoInterMyRank == 0) {
+          int clusterId = comm->cluster_ids[comm->rank];
+          for (size_t i = 1; i < comm->clusterInterRankList[clusterId].size();
+               ++i) {
+            auto &buffList = interRankBufferInfoManager_.getBufferInfoList(
+                clusterId, comm->clusterInterRankList[clusterId][i]);
+            for (auto it = buffList.begin(); it != buffList.end(); it++) {
+              if (it->isRecv_) {
+                cclAdaptors[flagcxCCLAdaptorDevice]->recv(
+                    static_cast<void *>(
+                        static_cast<char *>(const_cast<void *>(recvbuff)) +
+                        it->offset_ * getFlagcxDataTypeSize(datatype)),
+                    it->count_, datatype, i, comm->homoInterComm, stream);
+              }
+            }
+          }
+        }
+      } else if (homoType_ == 2) {
+        // recv at root from inter-rank 0
+        if (comm->homoInterMyRank != 0 &&
+            comm->homo_rank == ((rootRank_ == -1) ? root : rootRank_)) {
+          int clusterId = comm->cluster_ids[comm->rank];
+          cclAdaptors[flagcxCCLAdaptorDevice]->recv(
+              static_cast<void *>(
+                  static_cast<char *>(const_cast<void *>(recvbuff)) +
+                  recvOffset_ * getFlagcxDataTypeSize(datatype)),
+              count_, datatype,
+              comm->globalrank2homorank[comm->clusterInterRankList[clusterId]
+                                                                  [0]],
+              comm->homo_comm, stream);
+        }
       }
-      return cclAdaptors[flagcxCCLAdaptorDevice]->recv(
-          static_cast<void *>(
-              static_cast<char *>(const_cast<void *>(recvbuff)) +
-              recvOffset_ * getFlagcxDataTypeSize(datatype)),
-          count_, datatype, rootRank_,
-          isHomoInterComm_ ? comm->homoInterComm : comm->homo_comm, stream);
+      cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
+      return flagcxSuccess;
     case flagcxCommOpBroadcast:
       return cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
           const_cast<const void *>(static_cast<void *>(
@@ -326,7 +409,7 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
           static_cast<void *>(static_cast<char *>(recvbuff) +
                               recvOffset_ * getFlagcxDataTypeSize(datatype)),
           count_, datatype, (rootRank_ == -1) ? root : rootRank_,
-          isHomoInterComm_ ? comm->homoInterComm : comm->homo_comm, stream);
+          homoType_ == 1 ? comm->homoInterComm : comm->homo_comm, stream);
     case flagcxCommOpAlltoAll:
       return cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(
           const_cast<const void *>(static_cast<void *>(
@@ -335,7 +418,7 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
           static_cast<void *>(static_cast<char *>(recvbuff) +
                               recvOffset_ * getFlagcxDataTypeSize(datatype)),
           count_, datatype,
-          isHomoInterComm_ ? comm->homoInterComm : comm->homo_comm, stream);
+          homoType_ == 1 ? comm->homoInterComm : comm->homo_comm, stream);
     case flagcxCommOpAlltoAllv:
       cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
       for (size_t i = 0; i < comm->nranks; ++i) {
@@ -444,11 +527,22 @@ flagcxC2cPlanner::flagcxC2cPlanner(int sendCount, int recvCount, int rootRank,
   clusterCount_ = comm_->cluster_sizes[clusterId_];
 
   // if inter ranks in all clusters equal to 1 （single-nic）
-  multiNic_ = 0;
-  for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
-    if (clusterInterRankList_[i].size() != 1) {
-      multiNic_ = 1;
-      break;
+  if (commOp_ == flagcxCommOpAllReduce ||
+      commOp_ == flagcxCommOpReduceScatter) {
+    multiNic_ = 1;
+    for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
+      if (clusterInterRankList_[i].size() == 1) {
+        multiNic_ = 0;
+        break;
+      }
+    }
+  } else {
+    multiNic_ = 0;
+    for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
+      if (clusterInterRankList_[i].size() != 1) {
+        multiNic_ = 1;
+        break;
+      }
     }
   }
 
@@ -519,22 +613,28 @@ flagcxCommOp_t flagcxC2cPlanner::getC2cHomoCommOp(int homoType, int mode) {
               return flagcxCommOpGather;
           }
         case 1:
-          switch (mode) {
-            case 2:
-              return flagcxCommNoOp;
-          }
           switch (isRootCluster_) {
             case 0:
               return flagcxCommNoOp;
             case 1:
-              return flagcxCommOpSend;
+              switch (homoInterMyRank_ == 0) {
+                case 0:
+                  return flagcxCommOpSend;
+                case 1:
+                  return flagcxCommOpRecv;
+              }
           }
         case 2:
           switch (isRootCluster_) {
             case 0:
               return flagcxCommNoOp;
             case 1:
-              return flagcxCommOpSend;
+              switch (rank_ == rootRank_) {
+                case 0:
+                  return flagcxCommOpSend;
+                case 1:
+                  return flagcxCommOpRecv;
+              }
           }
       }
     case flagcxCommOpScatter:
@@ -544,16 +644,22 @@ flagcxCommOp_t flagcxC2cPlanner::getC2cHomoCommOp(int homoType, int mode) {
             case 0:
               return flagcxCommNoOp;
             case 1:
-              return flagcxCommOpSend;
+              switch (rank_ == rootRank_) {
+                case 0:
+                  return flagcxCommOpRecv;
+                case 1:
+                  return flagcxCommOpSend;
+              }
           }
         case 1:
-          switch (mode) {
-            case 2:
-              return flagcxCommNoOp;
-          }
           switch (isRootCluster_) {
             case 0:
-              return flagcxCommOpSend;
+              switch (homoInterMyRank_ == 0) {
+                case 0:
+                  return flagcxCommOpSend;
+                case 1:
+                  return flagcxCommOpRecv;
+              }
             case 1:
               return flagcxCommNoOp;
           }
@@ -680,9 +786,9 @@ flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
         for (size_t z = 0; z < clusterInterRankList_.size(); ++z) {
           if (i != z) {
             // for root-required ops, root cluster send or recv buffers based on
-            // comm op type we use isScheduled flag to avoid redundant sendrecv
-            // ops
+            // comm op type we use two flags to avoid redundant sendrecv ops
             int isScheduled = 0;
+            int isUseless = 0;
             if (rootClusterId_ >= 0) {
               if ((commOp_ == flagcxCommOpReduce ||
                    commOp_ == flagcxCommOpGather) &&
@@ -692,15 +798,17 @@ flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
               if ((commOp_ == flagcxCommOpScatter ||
                    commOp_ == flagcxCommOpBroadcast) &&
                   i != rootClusterId_) {
-                isScheduled = 1;
+                isUseless = 1;
               }
             }
-            interRankBufferInfoManager_.pushBackBufferInfo(
-                i, clusterInterRankList_[i][j],
-                (sendCount_ >= recvCount_)
-                    ? myCount * j
-                    : clusterOffset * sendCount_ + myCount * j,
-                finalCount, z, 0, isScheduled, -1, -1);
+            if (isUseless == 0) {
+              interRankBufferInfoManager_.pushBackBufferInfo(
+                  i, clusterInterRankList_[i][j],
+                  (sendCount_ >= recvCount_)
+                      ? myCount * j
+                      : clusterOffset * sendCount_ + myCount * j,
+                  finalCount, z, 0, isScheduled, -1, -1);
+            }
           }
         }
       }
@@ -912,17 +1020,23 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     refreshFunc_ = flagcxC2cRefreshFunc(0, 0, totalCount_, redOp_);
   }
 
-  // reset multiNic_ and eachNicPerRank_ based on comm op type
-  // since broadcast, alltoall, alltoallv ops behave identically in both
-  // single-nic and multi-nic modes, no special handling is required
+  // reset multiNic_ based on comm op type
+  // since broadcast, alltoall, alltoallv, scatter, gather ops behave
+  // identically in both single-nic and multi-nic modes, no special handling is
+  // required
   if (commOp_ == flagcxCommOpBroadcast || commOp_ == flagcxCommOpAlltoAll ||
-      commOp_ == flagcxCommOpAlltoAllv) {
+      commOp_ == flagcxCommOpAlltoAllv || commOp_ == flagcxCommOpScatter ||
+      commOp_ == flagcxCommOpGather) {
     multiNic_ = 1;
   }
-  if (commOp_ == flagcxCommOpAlltoAll || commOp_ == flagcxCommOpAlltoAllv ||
-      commOp_ == flagcxCommOpScatter) {
+
+  // reset eachNicPerRank_ based on comm op type
+  // since alltoall, alltoallv ops behave identically in both
+  // normal and rank-local multi-nic modes
+  if (commOp_ == flagcxCommOpAlltoAll || commOp_ == flagcxCommOpAlltoAllv) {
     eachNicPerRank_ = 1;
   }
+
   if (multiNic_) {
     // multi-nic
     // setup preHomoFuncs
@@ -945,22 +1059,13 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
           preHomoFuncList_.emplace_back(-1, 0, 0, totalCount_, 0,
                                         preHomoFuncCommOp);
         } else if (preHomoFuncCommOp == flagcxCommOpSend) {
-          preHomoFuncLoops_ = 0;
-          if (rank_ == rootRank_) {
-            int clusterInterSize = clusterInterRankList_[clusterId_].size();
-            for (int i = 0; i < clusterInterSize; ++i) {
-              preHomoFuncList_.emplace_back(
-                  clusterInterRankList_[clusterId_][i] - (rank_ - homoMyRank_),
-                  0, 0, totalCount_, 0, flagcxCommOpSend);
-              preHomoFuncLoops_ += 1;
-            }
-          }
-          if (homoInterMyRank_ != -1) {
-            preHomoFuncList_.emplace_back(comm_->globalrank2homorank[rootRank_],
-                                          0, 0, totalCount_, 0,
-                                          flagcxCommOpRecv);
-            preHomoFuncLoops_ += 1;
-          }
+          preHomoFuncList_.emplace_back(comm_->globalrank2homorank[rootRank_],
+                                        0, 0, totalCount_, 0,
+                                        preHomoFuncCommOp);
+        } else if (preHomoFuncCommOp == flagcxCommOpRecv) {
+          preHomoFuncList_.emplace_back(comm_->globalrank2homorank[rootRank_],
+                                        0, 0, totalCount_, 0,
+                                        preHomoFuncCommOp);
         } else if (preHomoFuncCommOp == flagcxCommOpAlltoAll) {
           preHomoFuncList_.emplace_back(
               -1, clusterOffset_ * sendCount_, clusterOffset_ * recvCount_,
@@ -990,15 +1095,21 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
                                         buffer.count_, 0, preHomoFuncCommOp);
         }
       } else if (preHomoFuncCommOp == flagcxCommOpAllGather) {
-        preHomoFuncLoops_ = clusterInterRankList_[clusterId_].size();
-        for (int i = 0; i < preHomoFuncLoops_; ++i) {
-          preHomoFuncList_.emplace_back(-1, 0, clusterOffset_ * sendCount_,
-                                        sendCount_, 0, preHomoFuncCommOp);
-        }
+        preHomoFuncLoops_ = 1;
+        preHomoFuncList_.emplace_back(-1, 0, clusterOffset_ * sendCount_,
+                                      sendCount_, 0, preHomoFuncCommOp);
       } else if (preHomoFuncCommOp == flagcxCommOpBroadcast) {
         preHomoFuncLoops_ = 1;
         preHomoFuncList_.emplace_back(-1, 0, 0, totalCount_, 0,
                                       preHomoFuncCommOp);
+      } else if (preHomoFuncCommOp == flagcxCommOpSend) {
+        preHomoFuncLoops_ = 1;
+        preHomoFuncList_.emplace_back(comm_->globalrank2homorank[rootRank_], 0,
+                                      0, totalCount_, 0, preHomoFuncCommOp);
+      } else if (preHomoFuncCommOp == flagcxCommOpRecv) {
+        preHomoFuncLoops_ = 1;
+        preHomoFuncList_.emplace_back(comm_->globalrank2homorank[rootRank_], 0,
+                                      0, totalCount_, 0, preHomoFuncCommOp);
       } else if (preHomoFuncCommOp == flagcxCommNoOp) {
         preHomoFuncLoops_ = 1;
         preHomoFuncList_.emplace_back(-1, 0, 0, totalCount_, 0,
@@ -1007,6 +1118,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     }
 
     // determine hetero send/recv strategies
+    // and setup homoInterFuncs
     if (commOp_ == flagcxCommOpAlltoAll) {
       heteroAndHomoInterFuncLoops_ = 1;
       flagcxC2cHeteroFunc heteroFunc = flagcxC2cHeteroFunc();
@@ -1017,6 +1129,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         }
       }
       heteroFuncList_.push_back(std::move(heteroFunc));
+      homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1, flagcxCommNoOp);
     } else if (commOp_ == flagcxCommOpAlltoAllv) {
       heteroAndHomoInterFuncLoops_ = 1;
       flagcxC2cHeteroFunc heteroFunc = flagcxC2cHeteroFunc();
@@ -1031,6 +1144,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         }
       }
       heteroFuncList_.push_back(std::move(heteroFunc));
+      homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1, flagcxCommNoOp);
     } else {
       heteroAndHomoInterFuncLoops_ = 1;
       for (int i = 0; i < heteroAndHomoInterFuncLoops_; ++i) {
@@ -1069,6 +1183,29 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         }
         heteroFuncList_.push_back(std::move(heteroFunc));
 
+        // setup homoInterFuncs
+        flagcxCommOp_t homoInterFuncCommOp =
+            eachNicPerRank_ ? getC2cHomoCommOp(1, 0) : getC2cHomoCommOp(1, 1);
+        if (homoInterFuncCommOp == flagcxCommOpAllReduce) {
+          homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1,
+                                          homoInterFuncCommOp);
+        } else if (homoInterFuncCommOp == flagcxCommOpReduce) {
+          homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_,
+                                          0, // use homo_comm
+                                          homoInterFuncCommOp);
+        } else if (homoInterFuncCommOp == flagcxCommOpSend) {
+          homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1,
+                                          homoInterFuncCommOp,
+                                          interRankBufferInfoManager_);
+        } else if (homoInterFuncCommOp == flagcxCommOpRecv) {
+          homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1,
+                                          homoInterFuncCommOp,
+                                          interRankBufferInfoManager_);
+        } else if (homoInterFuncCommOp == flagcxCommNoOp) {
+          homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1,
+                                          homoInterFuncCommOp);
+        }
+
         if (!scheduleCompleted) {
           refresh(0);
           heteroAndHomoInterFuncLoops_ += 1;
@@ -1076,62 +1213,18 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
       }
     }
     interRankBufferInfoManager_.printBufferInfo(2);
-    SendRecv_Loops_ = 0;
-    // setup homoInterFuncs
-    flagcxCommOp_t homoInterFuncCommOp =
-        eachNicPerRank_ ? getC2cHomoCommOp(1, 0) : getC2cHomoCommOp(1, 1);
-    for (int i = 0; i < heteroAndHomoInterFuncLoops_; ++i) {
-      if (homoInterFuncCommOp == flagcxCommOpAllReduce) {
-        homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1,
-                                        homoInterFuncCommOp);
-      } else if (homoInterFuncCommOp == flagcxCommOpReduce) {
-        homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 0,
-                                        homoInterFuncCommOp);
-      } else if (homoInterFuncCommOp == flagcxCommOpSend) {
-        if (rank_ == clusterInterRankList_[clusterId_][0]) {
-          for (size_t i = 1; i < clusterInterRankList_[clusterId_].size();
-               ++i) {
-            auto &buffList = interRankBufferInfoManager_.getBufferInfoList(
-                clusterId_, clusterInterRankList_[clusterId_][i]);
-            for (auto it = buffList.begin(); it != buffList.end(); it++) {
-              if (it->isRecv_) {
-                homoInterFuncList_.emplace_back(
-                    clusterInterRankList_[clusterId_][i] -
-                        (rank_ - homoMyRank_),
-                    it->offset_, it->offset_, it->count_, 0, flagcxCommOpRecv);
-                SendRecv_Loops_ += 1;
-              }
-            }
-          }
-        } else if (homoInterMyRank_ != -1) {
-          auto &buffList =
-              interRankBufferInfoManager_.getBufferInfoList(clusterId_, rank_);
-          for (auto it = buffList.begin(); it != buffList.end(); it++) {
-            if (it->isRecv_) {
-              homoInterFuncList_.emplace_back(
-                  clusterInterRankList_[clusterId_][0] - (rank_ - homoMyRank_),
-                  it->offset_, it->offset_, it->count_, 0, flagcxCommOpSend);
-              SendRecv_Loops_ += 1;
-            }
-          }
-        }
-      } else if (homoInterFuncCommOp == flagcxCommNoOp) {
-        homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1,
-                                        homoInterFuncCommOp);
-      }
-    }
 
     // setup postHomoFuncs
     flagcxCommOp_t postHomoFuncCommOp =
         eachNicPerRank_ ? getC2cHomoCommOp(2, 0) : getC2cHomoCommOp(2, 1);
     if (postHomoFuncCommOp == flagcxCommOpAllReduce) {
       postHomoFuncLoops_ = 1;
-      postHomoFuncList_.emplace_back(-1, 0, 0, recvCount_, 0,
+      postHomoFuncList_.emplace_back(-1, 0, 0, recvCount_, 2,
                                      postHomoFuncCommOp);
     } else if (postHomoFuncCommOp == flagcxCommOpReduceScatter) {
       postHomoFuncLoops_ = 1;
       postHomoFuncList_.emplace_back(-1, clusterOffset_ * recvCount_, 0,
-                                     recvCount_, 0, postHomoFuncCommOp);
+                                     recvCount_, 2, postHomoFuncCommOp);
     } else if (postHomoFuncCommOp == flagcxCommOpBroadcast) {
       postHomoFuncLoops_ = 0;
       for (size_t i = 0; i < clusterInterRankList_[clusterId_].size(); ++i) {
@@ -1141,33 +1234,24 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
           if (it->isRecv_) {
             postHomoFuncList_.emplace_back(
                 clusterInterRankList_[clusterId_][i] - (rank_ - homoMyRank_),
-                it->offset_, it->offset_, it->count_, 0, postHomoFuncCommOp);
+                it->offset_, it->offset_, it->count_, 2, postHomoFuncCommOp);
             postHomoFuncLoops_ += 1;
           }
         }
       }
     } else if (postHomoFuncCommOp == flagcxCommOpScatter) {
       postHomoFuncLoops_ = 1;
-      int offset = 0;
-      for (int i = 0; i < comm_->cluster_ids[rank_]; ++i) {
-        offset += comm_->cluster_sizes[i] * recvCount_;
-      }
       postHomoFuncList_.emplace_back(
-          clusterInterRankList_[clusterId_][0] - (rank_ - homoMyRank_), offset,
-          0, recvCount_, 0, postHomoFuncCommOp);
+          clusterInterRankList_[clusterId_][0] - (rank_ - homoMyRank_),
+          clusterOffset_ * recvCount_, 0, recvCount_, 2, postHomoFuncCommOp);
     } else if (postHomoFuncCommOp == flagcxCommOpSend) {
-      postHomoFuncLoops_ = 0;
-      if (rank_ == clusterInterRankList_[clusterId_][0]) {
-        postHomoFuncList_.emplace_back(comm_->globalrank2homorank[rootRank_], 0,
-                                       0, totalCount_, 0, flagcxCommOpSend);
-        postHomoFuncLoops_ += 1;
-      }
-      if (rank_ == rootRank_) {
-        postHomoFuncList_.emplace_back(clusterInterRankList_[clusterId_][0] -
-                                           (rank_ - homoMyRank_),
-                                       0, 0, totalCount_, 0, flagcxCommOpRecv);
-        postHomoFuncLoops_ += 1;
-      }
+      postHomoFuncLoops_ = 1;
+      postHomoFuncList_.emplace_back(comm_->globalrank2homorank[rootRank_], 0,
+                                     0, totalCount_, 2, postHomoFuncCommOp);
+    } else if (postHomoFuncCommOp == flagcxCommOpRecv) {
+      postHomoFuncLoops_ = 1;
+      postHomoFuncList_.emplace_back(comm_->globalrank2homorank[rootRank_], 0,
+                                     0, totalCount_, 2, postHomoFuncCommOp);
     } else if (postHomoFuncCommOp == flagcxCommNoOp) {
       postHomoFuncLoops_ = 0;
     }
@@ -1175,7 +1259,6 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     // single-nic
     // setup preHomoFuncs
     flagcxCommOp_t preHomoFuncCommOp = getC2cHomoCommOp(0, 2);
-    SendRecv_Loops_ = 0;
     preHomoFuncLoops_ = 1;
     for (int i = 0; i < preHomoFuncLoops_; ++i) {
       auto &buffer = interRankBufferInfoManager_
@@ -1191,19 +1274,6 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         preHomoFuncList_.emplace_back(
             clusterInterRankList_[clusterId_][i] - (rank_ - homoMyRank_), 0,
             clusterOffset_ * sendCount_, sendCount_, 0, preHomoFuncCommOp);
-      } else if (preHomoFuncCommOp == flagcxCommOpSend) {
-        preHomoFuncLoops_ = 0;
-        if (rank_ == rootRank_) {
-          preHomoFuncList_.emplace_back(clusterInterRankList_[clusterId_][0] -
-                                            (rank_ - homoMyRank_),
-                                        0, 0, totalCount_, 0, flagcxCommOpSend);
-          preHomoFuncLoops_ += 1;
-        }
-        if (rank_ == clusterInterRankList_[clusterId_][0]) {
-          preHomoFuncList_.emplace_back(comm_->globalrank2homorank[rootRank_],
-                                        0, 0, totalCount_, 0, flagcxCommOpRecv);
-          preHomoFuncLoops_ += 1;
-        }
       } else if (preHomoFuncCommOp == flagcxCommNoOp) {
         preHomoFuncList_.emplace_back(-1, 0, 0, totalCount_, 0,
                                       preHomoFuncCommOp);
@@ -1250,8 +1320,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         cid += 1;
       }
       heteroFuncList_.push_back(std::move(heteroFunc));
-    } else if (commOp_ == flagcxCommOpAllGather ||
-               commOp_ == flagcxCommOpGather) {
+    } else if (commOp_ == flagcxCommOpAllGather) {
       heteroAndHomoInterFuncLoops_ = 1;
       flagcxC2cHeteroFunc heteroFunc = flagcxC2cHeteroFunc();
       int recvOffset = 0;
@@ -1271,29 +1340,6 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         recvOffset += comm_->cluster_sizes[i];
       }
       heteroFuncList_.push_back(std::move(heteroFunc));
-    } else if (commOp_ == flagcxCommOpScatter) {
-      heteroAndHomoInterFuncLoops_ = 1;
-      flagcxC2cHeteroFunc heteroFunc = flagcxC2cHeteroFunc();
-      int sendOffset = 0;
-      for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
-        if (clusterId_ == i) {
-          sendOffset += comm_->cluster_sizes[i];
-          continue;
-        }
-        if (homoInterMyRank_ != -1) {
-          if (!isRootCluster_) {
-            heteroFunc.addP2pOp(rank_, clusterInterRankList_[i][0],
-                                clusterOffset_ * recvCount_,
-                                clusterCount_ * recvCount_, 1);
-          } else {
-            heteroFunc.addP2pOp(rank_, clusterInterRankList_[i][0],
-                                sendOffset * recvCount_,
-                                comm_->cluster_sizes[i] * recvCount_, 0);
-          }
-        }
-        sendOffset += comm_->cluster_sizes[i];
-      }
-      heteroFuncList_.push_back(std::move(heteroFunc));
     }
 
     // setup homoInterFuncs
@@ -1301,10 +1347,11 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     for (int i = 0; i < heteroAndHomoInterFuncLoops_; ++i) {
       if (homoInterFuncCommOp == flagcxCommOpAllReduce) {
         homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_,
-                                        0, // use homo comm instead
+                                        0, // use homo_comm
                                         homoInterFuncCommOp);
       } else if (homoInterFuncCommOp == flagcxCommOpReduce) {
-        homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 0,
+        homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_,
+                                        0, // use homo_comm
                                         homoInterFuncCommOp);
       } else if (homoInterFuncCommOp == flagcxCommNoOp) {
         homoInterFuncList_.emplace_back(-1, 0, 0, totalCount_, 1,
@@ -1317,7 +1364,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     if (postHomoFuncCommOp == flagcxCommOpReduceScatter) {
       postHomoFuncLoops_ = 1;
       postHomoFuncList_.emplace_back(-1, clusterOffset_ * recvCount_, 0,
-                                     recvCount_, 0, postHomoFuncCommOp);
+                                     recvCount_, 2, postHomoFuncCommOp);
     } else if (postHomoFuncCommOp == flagcxCommOpBroadcast) {
       postHomoFuncLoops_ = 0;
       int clusterOffset = 0;
@@ -1325,31 +1372,9 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         postHomoFuncList_.emplace_back(
             clusterInterRankList_[clusterId_][0] - (rank_ - homoMyRank_),
             clusterOffset * sendCount_, clusterOffset * sendCount_,
-            comm_->cluster_sizes[i] * sendCount_, 0, postHomoFuncCommOp);
+            comm_->cluster_sizes[i] * sendCount_, 2, postHomoFuncCommOp);
         postHomoFuncLoops_ += 1;
         clusterOffset += comm_->cluster_sizes[i];
-      }
-    } else if (postHomoFuncCommOp == flagcxCommOpScatter) {
-      postHomoFuncLoops_ = 1;
-      int offset = 0;
-      for (int i = 0; i < comm_->cluster_ids[rank_]; ++i) {
-        offset += comm_->cluster_sizes[i] * recvCount_;
-      }
-      postHomoFuncList_.emplace_back(
-          clusterInterRankList_[clusterId_][0] - (rank_ - homoMyRank_), offset,
-          0, recvCount_, 0, postHomoFuncCommOp);
-    } else if (postHomoFuncCommOp == flagcxCommOpSend) {
-      postHomoFuncLoops_ = 0;
-      if (rank_ == clusterInterRankList_[clusterId_][0]) {
-        postHomoFuncList_.emplace_back(comm_->globalrank2homorank[rootRank_], 0,
-                                       0, totalCount_, 0, flagcxCommOpSend);
-        postHomoFuncLoops_ += 1;
-      }
-      if (rank_ == rootRank_) {
-        postHomoFuncList_.emplace_back(clusterInterRankList_[clusterId_][0] -
-                                           (rank_ - homoMyRank_),
-                                       0, 0, totalCount_, 0, flagcxCommOpRecv);
-        postHomoFuncLoops_ += 1;
       }
     } else if (postHomoFuncCommOp == flagcxCommNoOp) {
       postHomoFuncLoops_ = 0;
@@ -1399,7 +1424,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
 
   // init scratch buffer if need
   if (commOp_ == flagcxCommOpReduceScatter || commOp_ == flagcxCommOpScatter ||
-      commOp_ == flagcxCommOpGather) {
+      (commOp_ == flagcxCommOpGather && rank_ != rootRank_)) {
     deviceAdaptor->deviceMalloc(&scratchBuffer_,
                                 totalCount_ * getFlagcxDataTypeSize(datatype),
                                 flagcxMemDevice, stream);
@@ -1409,7 +1434,8 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
 
   void *recvTmpBuff = (scratchBuffer_ == nullptr) ? recvbuff : scratchBuffer_;
   void *sendTmpBuff =
-      (commOp_ == flagcxCommOpAlltoAll || commOp_ == flagcxCommOpAlltoAllv)
+      (commOp_ == flagcxCommOpAlltoAll || commOp_ == flagcxCommOpAlltoAllv ||
+       (commOp_ == flagcxCommOpScatter && rank_ == rootRank_))
           ? const_cast<void *>(sendbuff)
           : recvTmpBuff;
 
@@ -1419,9 +1445,10 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
                             comm_->globalrank2homorank[root], comm_, stream,
                             sendCounts_, sDispls_, recvCounts_, rDispls_);
   }
+
   for (int i = 0; i < heteroAndHomoInterFuncLoops_; ++i) {
     // execute refreshFunc
-    refreshFunc_.run(recvTmpBuff, datatype, stream);
+    refreshFunc_.run(sendTmpBuff, datatype, stream);
 
     // TODO: use stream wait rather than stream sync to avoid cpu blocking
     // deviceAdaptor->streamSynchronize(stream);
@@ -1431,29 +1458,19 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
 
     // TODO: use stream wait rather than stream sync to avoid cpu blocking
     deviceAdaptor->streamSynchronize(stream);
-    if (commOp_ == flagcxCommOpScatter || commOp_ == flagcxCommOpGather) {
-      for (int j = 0; j < SendRecv_Loops_; ++j) {
-        // execute homoInterFuncs
-        homoInterFuncList_[j].run(recvTmpBuff, recvTmpBuff, datatype, redOp_,
-                                  comm_->globalrank2homorank[root], comm_,
-                                  stream);
-      }
-    } else {
-      // execute homoInterFuncs
-      homoInterFuncList_[i].run(recvTmpBuff, recvTmpBuff, datatype, redOp_,
-                                comm_->globalrank2homorank[root], comm_,
-                                stream);
-    }
+
+    // execute homoInterFuncs
+    homoInterFuncList_[i].run(sendTmpBuff, recvTmpBuff, datatype, redOp_,
+                              comm_->globalrank2homorank[root], comm_, stream);
   }
+
   // execute postHomoFuns
-  // we assume that there may be multiple post homo-funcs,
-  // but now postHomoFuncLoops_ can only be set to 0 and 1
   for (int i = 0; i < postHomoFuncLoops_; ++i) {
     // execute refresh func
-    refreshFunc_.run(recvTmpBuff, datatype, stream);
+    refreshFunc_.run(sendTmpBuff, datatype, stream);
 
     // execute postHomoFunc
-    postHomoFuncList_[i].run(recvTmpBuff, recvbuff, datatype, redOp_,
+    postHomoFuncList_[i].run(sendTmpBuff, recvbuff, datatype, redOp_,
                              comm_->globalrank2homorank[root], comm_, stream);
   }
 
@@ -1461,5 +1478,6 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
   if (scratchBuffer_ != nullptr) {
     deviceAdaptor->deviceFree(scratchBuffer_, flagcxMemDevice, stream);
   }
+
   return flagcxSuccess;
 }
