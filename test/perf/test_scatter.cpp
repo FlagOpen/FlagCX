@@ -67,7 +67,7 @@ int main(int argc, char *argv[]){
 
             for (int v = 0; v < totalProcs; v++) {
                 for (size_t i = 0; i < count / totalProcs; i++) {
-                    ((float *)hello)[v * count / totalProcs + i] = v;
+                    ((float *)hello)[v * (count / totalProcs) + i] = v;
                 }
             }
 

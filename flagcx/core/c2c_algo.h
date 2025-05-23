@@ -121,7 +121,11 @@ public:
 class flagcxC2cHomoFunc {
 public:
   flagcxC2cHomoFunc(int rootRank, int sendOffset, int recvOffset, int count,
-                    int isHomoInterComm, flagcxCommOp_t commOp);
+                    int homoType, flagcxCommOp_t commOp);
+  flagcxC2cHomoFunc(
+      int rootRank, int sendOffset, int recvOffset, int count, int homoType,
+      flagcxCommOp_t commOp,
+      flagcxInterRankBufferInfoManager interRankBufferInfoManager);
   ~flagcxC2cHomoFunc();
 
   flagcxResult_t run(const void *sendbuff, void *recvbuff,
@@ -134,8 +138,9 @@ public:
   int sendOffset_;
   int recvOffset_;
   int count_;
-  int isHomoInterComm_;
+  int homoType_;
   flagcxCommOp_t commOp_;
+  flagcxInterRankBufferInfoManager interRankBufferInfoManager_;
 };
 
 class flagcxC2cHeteroFunc {

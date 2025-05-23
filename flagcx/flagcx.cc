@@ -706,130 +706,33 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
       // TODO: to be implemented.
       return flagcxNotSupported;
     } else {
-      bool is_root_cluster =
-          (comm->cluster_ids[comm->rank] == comm->cluster_ids[root]);
-      int offset = 0;
-      for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
-        offset += comm->cluster_sizes[i];
+      // Experimental for multi-nic support
+      // Construct flagcxC2cPlanner and find corresponding strategy
+      flagcxC2cPlanner planner;
+      auto hashValue = getC2cCommPatternHash(count, root, flagcxCommOpGather,
+                                             flagcxRedNoOp, comm);
+      if (!planCache.get(hashValue, planner)) {
+        INFO(FLAGCX_COLL,
+             "No available plan is found, create a new one with "
+             "communication pattern "
+             "(count, rootRank, commOp, redOp, comm) = (%ld, %d, %d, %d, "
+             "%ld), hashValue = "
+             "%ld",
+             count, root, flagcxCommOpGather, flagcxRedNoOp,
+             (size_t)((uintptr_t)comm), hashValue);
+        planner = flagcxC2cPlanner(count, count * comm->nranks, root, comm,
+                                   flagcxCommOpGather, flagcxRedNoOp);
+        planCache.put(hashValue, planner);
+      } else {
+        INFO(FLAGCX_COLL,
+             "Found available plan with communication pattern "
+             "(count, rootRank, commOp, redOp, comm) = (%ld, %d, %d, %d, "
+             "%ld), hashValue = "
+             "%ld",
+             count, root, flagcxCommOpGather, flagcxRedNoOp,
+             (size_t)((uintptr_t)comm), hashValue);
       }
-
-      // allocate a bounce buffer for the homo_inter_rank of non-root clusters
-      void *fwdbuff;
-      if (!is_root_cluster && comm->homo_rank == comm->homo_inter_rank) {
-        deviceAdaptor->deviceMalloc(&fwdbuff,
-                                    getFlagcxDataTypeSize(datatype) *
-                                        comm->homo_ranks * count,
-                                    flagcxMemDevice, stream);
-        deviceAdaptor->deviceMemset(fwdbuff, 0,
-                                    getFlagcxDataTypeSize(datatype) *
-                                        comm->homo_ranks * count,
-                                    flagcxMemDevice, stream);
-      }
-      // allocate a bounce buffer for the homo_inter_rank of the root cluster if
-      // homo_inter_rank != root
-      if (is_root_cluster && comm->homo_rank == comm->homo_inter_rank &&
-          comm->rank != root) {
-        deviceAdaptor->deviceMalloc(
-            &fwdbuff, getFlagcxDataTypeSize(datatype) * comm->nranks * count,
-            flagcxMemDevice, stream);
-        deviceAdaptor->deviceMemset(
-            fwdbuff, 0, getFlagcxDataTypeSize(datatype) * comm->nranks * count,
-            flagcxMemDevice, stream);
-      }
-
-      // intra-cluster gather
-      if (comm->homo_ranks > 1) {
-        if (is_root_cluster) {
-          FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
-              sendbuff,
-              (void *)((char *)recvbuff +
-                       getFlagcxDataTypeSize(datatype) * offset * count),
-              count, datatype, root - offset, comm->homo_comm, stream));
-        } else {
-          FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
-              sendbuff, fwdbuff, count, datatype, comm->homo_inter_rank,
-              comm->homo_comm, stream));
-        }
-      }
-
-      // TODO: use stream wait rather than stream sync to avoid cpu blocking
-      deviceAdaptor->streamSynchronize(stream);
-
-      // inter-cluster sendrecv
-      bool fwd_root =
-          comm->cluster_inter_ranks[comm->cluster_ids[root]] != root;
-      flagcxGroupStart(comm);
-      if (!is_root_cluster && comm->homo_inter_rank == comm->homo_rank) {
-        FLAGCXCHECK(
-            flagcxHeteroSend(fwdbuff, comm->homo_ranks * count, datatype,
-                             comm->cluster_inter_ranks[comm->cluster_ids[root]],
-                             comm->hetero_comm, stream));
-      } else if (!fwd_root && comm->rank == root) {
-        int recvoffset = 0;
-        for (int i = 0; i < comm->nclusters; i++) {
-          if (comm->cluster_ids[comm->rank] != i) {
-            FLAGCXCHECK(flagcxHeteroRecv(
-                (void *)((char *)recvbuff +
-                         getFlagcxDataTypeSize(datatype) * recvoffset * count),
-                comm->cluster_sizes[i] * count, datatype,
-                comm->cluster_inter_ranks[i], comm->hetero_comm, stream));
-          }
-          recvoffset += comm->cluster_sizes[i];
-        }
-      } else if (is_root_cluster && fwd_root &&
-                 comm->homo_rank == comm->homo_inter_rank) {
-        int recvoffset = 0;
-        for (int i = 0; i < comm->nclusters; i++) {
-          if (comm->cluster_ids[comm->rank] != i) {
-            FLAGCXCHECK(flagcxHeteroRecv(
-                (void *)((char *)fwdbuff +
-                         getFlagcxDataTypeSize(datatype) * recvoffset * count),
-                comm->cluster_sizes[i] * count, datatype,
-                comm->cluster_inter_ranks[i], comm->hetero_comm, stream));
-          }
-          recvoffset += comm->cluster_sizes[i];
-        }
-      }
-      flagcxGroupEnd(comm);
-
-      // TODO: use stream wait rather than stream sync to avoid cpu blocking
-      deviceAdaptor->streamSynchronize(stream);
-
-      // intra-cluster sendrecv if homo_inter_rank != root_rank in the root
-      // cluster
-      if (fwd_root && is_root_cluster) {
-        flagcxGroupStart(comm);
-        if (comm->rank == root) {
-          int recvoffset = 0;
-          for (int i = 0; i < comm->nclusters; ++i) {
-            if (i != comm->cluster_ids[root]) {
-              FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->recv(
-                  (void *)((char *)recvbuff + getFlagcxDataTypeSize(datatype) *
-                                                  recvoffset * count),
-                  comm->cluster_sizes[i] * count, datatype,
-                  comm->homo_inter_rank, comm->homo_comm, stream));
-            }
-            recvoffset += comm->cluster_sizes[i];
-          }
-        } else if (comm->homo_rank == comm->homo_inter_rank) {
-          int sendoffset = 0;
-          for (int i = 0; i < comm->nclusters; ++i) {
-            if (i != comm->cluster_ids[root]) {
-              FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->send(
-                  (void *)((char *)fwdbuff + getFlagcxDataTypeSize(datatype) *
-                                                 sendoffset * count),
-                  comm->cluster_sizes[i] * count, datatype, root - offset,
-                  comm->homo_comm, stream));
-            }
-            sendoffset += comm->cluster_sizes[i];
-          }
-        }
-        flagcxGroupEnd(comm);
-      }
-
-      if (comm->homo_rank == comm->homo_inter_rank && comm->rank != root) {
-        deviceAdaptor->deviceFree(fwdbuff, flagcxMemDevice, stream);
-      }
+      FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, root, stream));
     }
   }
   return flagcxSuccess;
@@ -852,130 +755,33 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
       // TODO: to be implemented
       return flagcxNotSupported;
     } else {
-      bool is_root_cluster =
-          (comm->cluster_ids[comm->rank] == comm->cluster_ids[root]);
-      bool fwd_root =
-          comm->cluster_inter_ranks[comm->cluster_ids[root]] != root;
-      int offset = 0;
-      for (int i = 0; i < comm->cluster_ids[comm->rank]; ++i) {
-        offset += comm->cluster_sizes[i];
+      // Experimental for multi-nic support
+      // Construct flagcxC2cPlanner and find corresponding strategy
+      flagcxC2cPlanner planner;
+      auto hashValue = getC2cCommPatternHash(count, root, flagcxCommOpScatter,
+                                             flagcxRedNoOp, comm);
+      if (!planCache.get(hashValue, planner)) {
+        INFO(FLAGCX_COLL,
+             "No available plan is found, create a new one with "
+             "communication pattern "
+             "(count, rootRank, commOp, redOp, comm) = (%ld, %d, %d, %d, "
+             "%ld), hashValue = "
+             "%ld",
+             count, root, flagcxCommOpScatter, flagcxRedNoOp,
+             (size_t)((uintptr_t)comm), hashValue);
+        planner = flagcxC2cPlanner(count * comm->nranks, count, root, comm,
+                                   flagcxCommOpScatter, flagcxRedNoOp);
+        planCache.put(hashValue, planner);
+      } else {
+        INFO(FLAGCX_COLL,
+             "Found available plan with communication pattern "
+             "(count, rootRank, commOp, redOp, comm) = (%ld, %d, %d, %d, "
+             "%ld), hashValue = "
+             "%ld",
+             count, root, flagcxCommOpScatter, flagcxRedNoOp,
+             (size_t)((uintptr_t)comm), hashValue);
       }
-
-      // allocate a bounce buffer for the homo_inter_rank of non-root clusters
-      void *fwdbuff;
-      if (!is_root_cluster && comm->homo_rank == comm->homo_inter_rank) {
-        deviceAdaptor->deviceMalloc(&fwdbuff,
-                                    getFlagcxDataTypeSize(datatype) *
-                                        comm->homo_ranks * count,
-                                    flagcxMemDevice, stream);
-        deviceAdaptor->deviceMemset(fwdbuff, 0,
-                                    getFlagcxDataTypeSize(datatype) *
-                                        comm->homo_ranks * count,
-                                    flagcxMemDevice, stream);
-      }
-      // allocate a bounce buffer for the homo_inter_rank of the root cluster if
-      // homo_inter_rank != root
-      if (is_root_cluster && comm->homo_rank == comm->homo_inter_rank &&
-          comm->rank != root) {
-        deviceAdaptor->deviceMalloc(
-            &fwdbuff, getFlagcxDataTypeSize(datatype) * comm->nranks * count,
-            flagcxMemDevice, stream);
-        deviceAdaptor->deviceMemset(
-            fwdbuff, 0, getFlagcxDataTypeSize(datatype) * comm->nranks * count,
-            flagcxMemDevice, stream);
-      }
-
-      // intra-cluster sendrecv if homo_inter_rank != root_rank in the root
-      // cluster
-      if (fwd_root && is_root_cluster) {
-        flagcxGroupStart(comm);
-        if (comm->rank == root) {
-          int sendoffset = 0;
-          for (int i = 0; i < comm->nclusters; ++i) {
-            if (i != comm->cluster_ids[root]) {
-              FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->send(
-                  (void *)((char *)sendbuff + getFlagcxDataTypeSize(datatype) *
-                                                  sendoffset * count),
-                  comm->cluster_sizes[i] * count, datatype,
-                  comm->homo_inter_rank, comm->homo_comm, stream));
-            }
-            sendoffset += comm->cluster_sizes[i];
-          }
-        } else if (comm->homo_rank == comm->homo_inter_rank) {
-          int recvoffset = 0;
-          for (int i = 0; i < comm->nclusters; ++i) {
-            if (i != comm->cluster_ids[root]) {
-              FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->recv(
-                  (void *)((char *)fwdbuff + getFlagcxDataTypeSize(datatype) *
-                                                 recvoffset * count),
-                  comm->cluster_sizes[i] * count, datatype, root - offset,
-                  comm->homo_comm, stream));
-            }
-            recvoffset += comm->cluster_sizes[i];
-          }
-        }
-        flagcxGroupEnd(comm);
-      }
-
-      // TODO: use stream wait rather than stream sync to avoid cpu blocking
-      deviceAdaptor->streamSynchronize(stream);
-
-      // inter-cluster sendrecv
-      flagcxGroupStart(comm);
-      if (!is_root_cluster && comm->homo_inter_rank == comm->homo_rank) {
-        FLAGCXCHECK(
-            flagcxHeteroRecv(fwdbuff, comm->homo_ranks * count, datatype,
-                             comm->cluster_inter_ranks[comm->cluster_ids[root]],
-                             comm->hetero_comm, stream));
-      } else if (!fwd_root && comm->rank == root) {
-        int sendoffset = 0;
-        for (int i = 0; i < comm->nclusters; i++) {
-          if (comm->cluster_ids[comm->rank] != i) {
-            FLAGCXCHECK(flagcxHeteroSend(
-                (void *)((char *)sendbuff +
-                         getFlagcxDataTypeSize(datatype) * sendoffset * count),
-                comm->cluster_sizes[i] * count, datatype,
-                comm->cluster_inter_ranks[i], comm->hetero_comm, stream));
-          }
-          sendoffset += comm->cluster_sizes[i];
-        }
-      } else if (is_root_cluster && fwd_root &&
-                 comm->homo_rank == comm->homo_inter_rank) {
-        int sendoffset = 0;
-        for (int i = 0; i < comm->nclusters; i++) {
-          if (comm->cluster_ids[comm->rank] != i) {
-            FLAGCXCHECK(flagcxHeteroSend(
-                (void *)((char *)fwdbuff +
-                         getFlagcxDataTypeSize(datatype) * sendoffset * count),
-                comm->cluster_sizes[i] * count, datatype,
-                comm->cluster_inter_ranks[i], comm->hetero_comm, stream));
-          }
-          sendoffset += comm->cluster_sizes[i];
-        }
-      }
-      flagcxGroupEnd(comm);
-
-      // TODO: use stream wait rather than stream sync to avoid cpu blocking
-      deviceAdaptor->streamSynchronize(stream);
-
-      // intra-cluster scatter
-      if (comm->homo_ranks > 1) {
-        if (is_root_cluster) {
-          FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
-              (void *)((char *)sendbuff +
-                       getFlagcxDataTypeSize(datatype) * offset * count),
-              recvbuff, count, datatype, root - offset, comm->homo_comm,
-              stream));
-        } else {
-          FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
-              fwdbuff, recvbuff, count, datatype, comm->homo_inter_rank,
-              comm->homo_comm, stream));
-        }
-      }
-
-      if (comm->homo_rank == comm->homo_inter_rank && comm->rank != root) {
-        deviceAdaptor->deviceFree(fwdbuff, flagcxMemDevice, stream);
-      }
+      FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, root, stream));
     }
   }
   return flagcxSuccess;
@@ -1009,7 +815,7 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
         INFO(FLAGCX_COLL,
              "No available plan is found, create a new one with "
              "communication pattern "
-             "(count, rootClsuterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
+             "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
              "%ld), hashValue = "
              "%ld",
              count, comm->cluster_ids[root], flagcxCommOpBroadcast,
