@@ -206,6 +206,8 @@ std::unique_ptr<flagcxEvent> &flagcxBackend::getEventByIndex(int eventId) {
     flagcxEvents_[eventId] = std::make_unique<flagcxMacaEvent>();
 #elif USE_DU_ADAPTOR
     flagcxEvents_[eventId] = std::make_unique<flagcxDuEvent>();
+#elif USE_KUNLUNXIN_ADAPTOR
+    flagcxEvents_[eventId] = std::make_unique<flagcxXpuEvent>();
 #endif
     return flagcxEvents_[eventId];
   }
@@ -256,7 +258,8 @@ void flagcxBackend::initComm(at::Device dev) {
 
 void flagcxBackend::initComm() {
 #if defined(USE_NVIDIA_ADAPTOR) || defined(USE_ILUVATAR_COREX_ADAPTOR) ||      \
-    defined(USE_METAX_ADAPTOR) || defined(USE_DU_ADAPTOR)
+    defined(USE_METAX_ADAPTOR) || defined(USE_DU_ADAPTOR)|| \
+    defined(USE_KUNLUNXIN_ADAPTOR)
   initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::CUDA)->getDevice());
 #elif defined(USE_CAMBRICON_ADAPTOR)
   initComm(
