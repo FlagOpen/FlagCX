@@ -1440,11 +1440,13 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
           : recvTmpBuff;
 
   // execute preHomoFuncs
+  cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
   for (int i = 0; i < preHomoFuncLoops_; ++i) {
     preHomoFuncList_[i].run(sendbuff, recvTmpBuff, datatype, redOp_,
                             comm_->globalrank2homorank[root], comm_, stream,
                             sendCounts_, sDispls_, recvCounts_, rDispls_);
   }
+  cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
 
   for (int i = 0; i < heteroAndHomoInterFuncLoops_; ++i) {
     // execute refreshFunc
@@ -1465,6 +1467,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
   }
 
   // execute postHomoFuns
+  cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
   for (int i = 0; i < postHomoFuncLoops_; ++i) {
     // execute refresh func
     refreshFunc_.run(sendTmpBuff, datatype, stream);
@@ -1473,6 +1476,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
     postHomoFuncList_[i].run(sendTmpBuff, recvbuff, datatype, redOp_,
                              comm_->globalrank2homorank[root], comm_, stream);
   }
+  cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
 
   // free scratch buffer if needed
   if (scratchBuffer_ != nullptr) {
