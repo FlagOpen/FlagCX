@@ -52,8 +52,8 @@ def init_pg():
 
     # Create two groups
     ranks = list(range(WORLD_SIZE))
-    FLAGCX_GROUP1 = dist.new_group(ranks=ranks, backend=f"{dev_name}:flagcx")
-    FLAGCX_GROUP2 = dist.new_group(ranks=ranks, backend=f"{dev_name}:flagcx")
+    FLAGCX_GROUP1 = dist.new_group(ranks=ranks, backend=f"cpu:gloo,{dev_name}:flagcx")
+    FLAGCX_GROUP2 = dist.new_group(ranks=ranks, backend=f"cpu:gloo,{dev_name}:flagcx")
     print(f"ranks_flagcx: {dist.get_process_group_ranks(FLAGCX_GROUP1)}")
 
     # Get prev_rank and next_rank
