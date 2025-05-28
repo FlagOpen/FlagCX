@@ -57,7 +57,7 @@ flagcxResult_t bootstrapAbort(void* commState);
  * Assumes recvcount is equal to nranks*sendcount, which means that recvbuff
  * should have a size of at least nranks*sendcount elements.
  *
- * In-place operations will happen if sendbuff == recvbuff + rank * sendcount.
+ * In-place operations will happen if sendbuff == recvbuff.
  */
 flagcxResult_t BroadcastBootstrap(void *commState, const void *sendbuff,
                                   void *recvbuff, size_t sendcount,
@@ -75,7 +75,7 @@ flagcxResult_t BroadcastBootstrap(void *commState, const void *sendbuff,
  * In-place operations will happen if sendbuff == recvbuff + rank * sendcount.
  */
 flagcxResult_t GatherBootstrap(void *commState, const void *sendbuff,
-                                  void *recvbuff, size_t sendcount,
+                                  void *recvbuff, size_t count,
                                   flagcxDataType_t datatype , int root);
 
 /* A bunch of collective communication operators */
@@ -87,10 +87,10 @@ flagcxResult_t GatherBootstrap(void *commState, const void *sendbuff,
  * Each rank receives sendcount values into its recvbuff.
  * Assumes sendcount is equal to recvcount for each rank.
  *
- * In-place operations will happen if sendbuff == recvbuff + rank * sendcount.
+ * In-place operations will happen if recvbuff = sendbuff + rank * sendcount.
  */
 flagcxResult_t ScatterBootstrap(void *commState, const void *sendbuff,
-                                  void *recvbuff, size_t sendcount,
+                                  void *recvbuff, size_t count,
                                   flagcxDataType_t datatype , int root);
 /* A bunch of collective communication operators */
 /*

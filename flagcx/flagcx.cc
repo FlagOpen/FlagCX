@@ -700,7 +700,7 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
     if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation
       if (comm->has_single_rank_homo_comm) {
-        WARN("Host comm is required to perform C2C allreduce op when "
+        WARN("Host comm is required to perform C2C gather op when "
              "comm->has_single_rank_homo_comm is True");
       }
 
@@ -742,7 +742,7 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
 
       timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
       INFO(FLAGCX_COLL,
-           "Flagcx timings - %s Broadcast: rank %d nranks %d total %.2fms "
+           "Flagcx timings - %s gather: rank %d nranks %d total %.2fms "
            "(memory alloc "
            "%.2fms, memory free %.2fms, memory d2h %.2fms, memory h2d %.2fms, "
            "comm %.2fms)",
@@ -794,7 +794,7 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
    if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation
       if (comm->has_single_rank_homo_comm) {
-        WARN("Host comm is required to perform C2C allreduce op when "
+        WARN("Host comm is required to perform C2C scatter op when "
              "comm->has_single_rank_homo_comm is True");
       }
 
@@ -889,7 +889,7 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
     if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation
       if (comm->has_single_rank_homo_comm) {
-        WARN("Host comm is required to perform C2C allreduce op when "
+        WARN("Host comm is required to perform C2C broadcast op when "
              "comm->has_single_rank_homo_comm is True");
       }
 

@@ -813,12 +813,15 @@ flagcxResult_t BroadcastBootstrap(void *commState, const void *sendbuff,
   int nranks = state->nranks;
   const int bootstrapTag = -9992;
   if (nranks == 1) {
+    if (sendbuff != recvbuff){
+      memcpy(recvbuff, sendbuff, getFlagcxDataTypeSize(datatype) * sendcount);
+    }
     return flagcxSuccess;
   }
   //printf("rank %d nranks %d root %d sendcount %d\n", rank, nranks, root, sendcount);
   if (rank == root) {
     if(sendbuff != recvbuff){
-    memcpy(recvbuff, sendbuff, getFlagcxDataTypeSize(datatype) * sendcount);
+      memcpy(recvbuff, sendbuff, getFlagcxDataTypeSize(datatype) * sendcount);
     }
     // root sends data to all other ranks
     for (int i = 0; i < nranks; ++i) {
@@ -844,6 +847,9 @@ flagcxResult_t ScatterBootstrap(void* commState, const void* sendbuff,
   int nranks = state->nranks;
   const int bootstrapTag = -9993;
   if (nranks == 1) {
+    if (sendbuff != recvbuff){
+      memcpy(recvbuff, sendbuff, getFlagcxDataTypeSize(datatype) * count);
+    }
     return flagcxSuccess;
   }
 
@@ -881,6 +887,9 @@ flagcxResult_t GatherBootstrap(void *commState, const void *sendbuff,
   const int bootstrapTag = -9994;
 
   if (nranks == 1) {
+    if (sendbuff != recvbuff){
+      memcpy(recvbuff, sendbuff, getFlagcxDataTypeSize(datatype) * count);
+    }
     return flagcxSuccess;
   }
 
