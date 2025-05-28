@@ -50,6 +50,50 @@ flagcxResult_t bootstrapAbort(void* commState);
 
 /* A bunch of collective communication operators */
 /*
+ * Broadcast
+ *
+ * Root device send sendcount values from other GPUs into recvbuff,
+ * receiving data from rank i at offset i*sendcount.
+ * Assumes recvcount is equal to nranks*sendcount, which means that recvbuff
+ * should have a size of at least nranks*sendcount elements.
+ *
+ * In-place operations will happen if sendbuff == recvbuff + rank * sendcount.
+ */
+flagcxResult_t BroadcastBootstrap(void *commState, const void *sendbuff,
+                                  void *recvbuff, size_t sendcount,
+                                  flagcxDataType_t datatype , int root);
+
+/* A bunch of collective communication operators */
+/*
+ * Gather
+ *
+ * Each rank sends sendcount values from its sendbuff to the root rank.
+ * Root rank receives data from rank i at offset i*sendcount in recvbuff.
+ * Assumes recvcount is equal to nranks*sendcount, which means that recvbuff
+ * should have a size of at least nranks*sendcount elements.
+ *
+ * In-place operations will happen if sendbuff == recvbuff + rank * sendcount.
+ */
+flagcxResult_t GatherBootstrap(void *commState, const void *sendbuff,
+                                  void *recvbuff, size_t sendcount,
+                                  flagcxDataType_t datatype , int root);
+
+/* A bunch of collective communication operators */
+/*
+ * Scatter
+ *
+ * Root rank sends sendcount values to each rank, with data for rank i
+ * starting at offset i*sendcount in sendbuff.
+ * Each rank receives sendcount values into its recvbuff.
+ * Assumes sendcount is equal to recvcount for each rank.
+ *
+ * In-place operations will happen if sendbuff == recvbuff + rank * sendcount.
+ */
+flagcxResult_t ScatterBootstrap(void *commState, const void *sendbuff,
+                                  void *recvbuff, size_t sendcount,
+                                  flagcxDataType_t datatype , int root);
+/* A bunch of collective communication operators */
+/*
  * All-Gather
  *
  * Each device gathers sendcount values from other GPUs into recvbuff,

@@ -805,6 +805,112 @@ flagcxResult_t AlltoAllBootstrap(void* commState, const void* sendbuff, void* re
   return flagcxSuccess;
 }
 
+flagcxResult_t BroadcastBootstrap(void *commState, const void *sendbuff,
+                                  void *recvbuff, size_t sendcount,
+                                  flagcxDataType_t datatype, int root) {
+  struct bootstrapState *state = (struct bootstrapState *)commState;
+  int rank = state->rank;
+  int nranks = state->nranks;
+  const int bootstrapTag = -9992;
+  if (nranks == 1) {
+    return flagcxSuccess;
+  }
+  //printf("rank %d nranks %d root %d sendcount %d\n", rank, nranks, root, sendcount);
+  if (rank == root) {
+    if(sendbuff != recvbuff){
+    memcpy(recvbuff, sendbuff, getFlagcxDataTypeSize(datatype) * sendcount);
+    }
+    // root sends data to all other ranks
+    for (int i = 0; i < nranks; ++i) {
+      if (i != root) {
+        FLAGCXCHECK(bootstrapSend(commState, i, bootstrapTag,
+                                  (void *)(sendbuff),
+                                  sendcount * getFlagcxDataTypeSize(datatype)));
+      }
+    }
+  } else {
+    // all other ranks receive data from root
+    FLAGCXCHECK(bootstrapRecv(commState, root, bootstrapTag, recvbuff,
+                              sendcount * getFlagcxDataTypeSize(datatype)));
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t ScatterBootstrap(void* commState, const void* sendbuff,
+                               void* recvbuff, size_t count,
+                               flagcxDataType_t datatype, int root) {
+  struct bootstrapState* state = (struct bootstrapState*)commState;
+  int rank = state->rank;
+  int nranks = state->nranks;
+  const int bootstrapTag = -9993;
+  if (nranks == 1) {
+    return flagcxSuccess;
+  }
+
+  if (rank == root) {
+    // For root process, only copy its own portion of data
+    size_t rootOffset = root * count * getFlagcxDataTypeSize(datatype);
+    if ((char*)sendbuff + rootOffset != recvbuff) {
+      memcpy(recvbuff, (const char*)sendbuff + rootOffset, 
+             getFlagcxDataTypeSize(datatype) * count);
+    }
+    // root sends data to all other ranks
+    for (int i = 0; i < nranks; ++i) {
+      if (i != root) {
+        size_t offset = i * count * getFlagcxDataTypeSize(datatype);
+        FLAGCXCHECK(bootstrapSend(commState, i, bootstrapTag,
+                                  (char*)sendbuff + offset,
+                                  count * getFlagcxDataTypeSize(datatype)));
+      }
+    }
+  } else {
+    // all other ranks receive data from root
+    FLAGCXCHECK(bootstrapRecv(commState, root, bootstrapTag, recvbuff,
+                             count * getFlagcxDataTypeSize(datatype)));
+  }
+  return flagcxSuccess;
+}
+
+
+flagcxResult_t GatherBootstrap(void *commState, const void *sendbuff,
+                                  void *recvbuff, size_t count,
+                                  flagcxDataType_t datatype, int root) {
+  struct bootstrapState *state = (struct bootstrapState *)commState;
+  int rank = state->rank;
+  int nranks = state->nranks;
+  const int bootstrapTag = -9994;
+
+  if (nranks == 1) {
+    return flagcxSuccess;
+  }
+
+  if (rank == root) {
+    // Handle root's own data
+    size_t rootOffset = root * count * getFlagcxDataTypeSize(datatype);
+    if(sendbuff != (char*)recvbuff + rootOffset){
+      memcpy((char*)recvbuff + rootOffset, 
+             sendbuff, 
+             getFlagcxDataTypeSize(datatype) * count);
+    }
+    
+    // Receive data from other ranks
+    for (int i = 0; i < nranks; ++i) {
+      if (i != root) {
+        int offset = i * count * getFlagcxDataTypeSize(datatype);
+        FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag,
+                                (char*)recvbuff + offset,
+                                count * getFlagcxDataTypeSize(datatype)));
+      }
+    }
+  } else {
+    // Non-root ranks send data to root
+    FLAGCXCHECK(bootstrapSend(commState, root, bootstrapTag, 
+                             (void *)sendbuff,
+                             count * getFlagcxDataTypeSize(datatype)));
+  }
+  return flagcxSuccess;
+}
+
 flagcxResult_t bootstrapIntraNodeBarrier(void* commState, int *ranks, int rank, int nranks, int tag) {
   if (nranks == 1) return flagcxSuccess;
   TRACE(FLAGCX_INIT, "rank %d nranks %d tag %x - ENTER", rank, nranks, tag);

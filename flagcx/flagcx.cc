@@ -697,14 +697,59 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
     return cclAdaptors[flagcxCCLAdaptorDevice]->gather(
         sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
   } else {
-    char *useBootstrap = getenv("USE_BOOTSTRAP_CCL");
-    if (useBootstrap) {
-      // TODO: to be implemented.
-      return flagcxNotSupported;
-    }
-    if (use_host_comm()) {
-      // TODO: to be implemented.
-      return flagcxNotSupported;
+    if (use_host_comm() || comm->has_single_rank_homo_comm) {
+      // c2c validation
+      if (comm->has_single_rank_homo_comm) {
+        WARN("Host comm is required to perform C2C allreduce op when "
+             "comm->has_single_rank_homo_comm is True");
+      }
+
+      uint64_t timers[TIMERS_COLL_COUNT] = {0};
+      timers[TIMER_COLL_TOTAL] = clockNano();
+      void *buff_in;
+      void *buff_out;
+      size_t size = count * getFlagcxDataTypeSize(datatype);
+      size_t totalSize = comm->nranks * size;
+      // step 1: malloc host buffer
+      timers[TIMER_COLL_ALLOC] = clockNano();
+      deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost, NULL);
+      deviceAdaptor->deviceMalloc(&buff_out, totalSize, flagcxMemHost, NULL);
+      timers[TIMER_COLL_ALLOC] = clockNano() - timers[TIMER_COLL_ALLOC];
+
+      // step 2: memcpy d2h
+      timers[TIMER_COLL_MEM_D2H] = clockNano();
+      deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff), size,
+                                  flagcxMemcpyDeviceToHost, NULL, NULL);
+      timers[TIMER_COLL_MEM_D2H] = clockNano() - timers[TIMER_COLL_MEM_D2H];
+
+      // step 3: gather
+      timers[TIMER_COLL_COMM] = clockNano();
+      cclAdaptors[flagcxCCLAdaptorHost]->gather(
+          buff_in, buff_out, count, datatype, root, comm->host_comm, NULL);
+      timers[TIMER_COLL_COMM] = clockNano() - timers[TIMER_COLL_COMM];
+
+      // step 4: memcpy h2d
+      timers[TIMER_COLL_MEM_H2D] = clockNano();
+      deviceAdaptor->deviceMemcpy(recvbuff, buff_out, totalSize,
+                                  flagcxMemcpyHostToDevice, NULL, NULL);
+      timers[TIMER_COLL_MEM_H2D] = clockNano() - timers[TIMER_COLL_MEM_H2D];
+
+      // step 5: free host buffer
+      timers[TIMER_COLL_FREE] = clockNano();
+      deviceAdaptor->deviceFree(buff_in, flagcxMemHost, NULL);
+      deviceAdaptor->deviceFree(buff_out, flagcxMemHost, NULL);
+      timers[TIMER_COLL_FREE] = clockNano() - timers[TIMER_COLL_FREE];
+
+      timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
+      INFO(FLAGCX_COLL,
+           "Flagcx timings - %s Broadcast: rank %d nranks %d total %.2fms "
+           "(memory alloc "
+           "%.2fms, memory free %.2fms, memory d2h %.2fms, memory h2d %.2fms, "
+           "comm %.2fms)",
+           cclAdaptors[flagcxCCLAdaptorHost]->name, comm->rank, comm->nranks,
+           timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6,
+           timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
+           timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
       // Experimental for multi-nic support
       // Construct flagcxC2cPlanner and find corresponding strategy
@@ -746,15 +791,60 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
     return cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
         sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
   } else {
-    char *useBootstrap = getenv("USE_BOOTSTRAP_CCL");
-    if (useBootstrap) {
-      // TODO: to be implemented.
-      return flagcxNotSupported;
-    }
-    if (use_host_comm()) {
-      // TODO: to be implemented
-      return flagcxNotSupported;
-    } else {
+   if (use_host_comm() || comm->has_single_rank_homo_comm) {
+      // c2c validation
+      if (comm->has_single_rank_homo_comm) {
+        WARN("Host comm is required to perform C2C allreduce op when "
+             "comm->has_single_rank_homo_comm is True");
+      }
+
+      uint64_t timers[TIMERS_COLL_COUNT] = {0};
+      timers[TIMER_COLL_TOTAL] = clockNano();
+      void *buff_in;
+      void *buff_out;
+      size_t size = count * getFlagcxDataTypeSize(datatype);
+      size_t totalSize = comm->nranks * size;
+      // step 1: malloc host buffer
+      timers[TIMER_COLL_ALLOC] = clockNano();
+      deviceAdaptor->deviceMalloc(&buff_in, totalSize, flagcxMemHost, NULL);
+      deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost, NULL);
+      timers[TIMER_COLL_ALLOC] = clockNano() - timers[TIMER_COLL_ALLOC];
+
+      // step 2: memcpy d2h
+      timers[TIMER_COLL_MEM_D2H] = clockNano();
+      deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff), totalSize,
+                                  flagcxMemcpyDeviceToHost, NULL, NULL);
+      timers[TIMER_COLL_MEM_D2H] = clockNano() - timers[TIMER_COLL_MEM_D2H];
+
+      // step 3: scatter
+      timers[TIMER_COLL_COMM] = clockNano();
+      cclAdaptors[flagcxCCLAdaptorHost]->scatter(
+          buff_in, buff_out, count, datatype, root, comm->host_comm, NULL);
+      timers[TIMER_COLL_COMM] = clockNano() - timers[TIMER_COLL_COMM];
+
+      // step 4: memcpy h2d
+      timers[TIMER_COLL_MEM_H2D] = clockNano();
+      deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size,
+                                  flagcxMemcpyHostToDevice, NULL, NULL);
+      timers[TIMER_COLL_MEM_H2D] = clockNano() - timers[TIMER_COLL_MEM_H2D];
+
+      // step 5: free host buffer
+      timers[TIMER_COLL_FREE] = clockNano();
+      deviceAdaptor->deviceFree(buff_in, flagcxMemHost, NULL);
+      deviceAdaptor->deviceFree(buff_out, flagcxMemHost, NULL);
+      timers[TIMER_COLL_FREE] = clockNano() - timers[TIMER_COLL_FREE];
+
+      timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
+      INFO(FLAGCX_COLL,
+           "Flagcx timings - %s Scatter: rank %d nranks %d total %.2fms "
+           "(memory alloc "
+           "%.2fms, memory free %.2fms, memory d2h %.2fms, memory h2d %.2fms, "
+           "comm %.2fms)",
+           cclAdaptors[flagcxCCLAdaptorHost]->name, comm->rank, comm->nranks,
+           timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6,
+           timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
+           timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
+    }else {
       // Experimental for multi-nic support
       // Construct flagcxC2cPlanner and find corresponding strategy
       flagcxC2cPlanner planner;
@@ -796,14 +886,59 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
     return cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
         sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
   } else {
-    char *useBootstrap = getenv("USE_BOOTSTRAP_CCL");
-    if (useBootstrap) {
-      // TODO: to be implemented.
-      return flagcxNotSupported;
-    }
-    if (use_host_comm()) {
-      // TODO: to be implemented.
-      return flagcxNotSupported;
+    if (use_host_comm() || comm->has_single_rank_homo_comm) {
+      // c2c validation
+      if (comm->has_single_rank_homo_comm) {
+        WARN("Host comm is required to perform C2C allreduce op when "
+             "comm->has_single_rank_homo_comm is True");
+      }
+
+      uint64_t timers[TIMERS_COLL_COUNT] = {0};
+      timers[TIMER_COLL_TOTAL] = clockNano();
+      void *buff_in;
+      void *buff_out;
+      size_t size = count * getFlagcxDataTypeSize(datatype);
+
+      // step 1: malloc host buffer
+      timers[TIMER_COLL_ALLOC] = clockNano();
+      deviceAdaptor->deviceMalloc(&buff_in, size, flagcxMemHost, NULL);
+      deviceAdaptor->deviceMalloc(&buff_out, size, flagcxMemHost, NULL);
+      timers[TIMER_COLL_ALLOC] = clockNano() - timers[TIMER_COLL_ALLOC];
+
+      // step 2: memcpy d2h
+      timers[TIMER_COLL_MEM_D2H] = clockNano();
+      deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff), size,
+                                  flagcxMemcpyDeviceToHost, NULL, NULL);
+      timers[TIMER_COLL_MEM_D2H] = clockNano() - timers[TIMER_COLL_MEM_D2H];
+
+      // step 3: broadcast
+      timers[TIMER_COLL_COMM] = clockNano();
+      cclAdaptors[flagcxCCLAdaptorHost]->broadcast(
+          buff_in, buff_out, count, datatype, root, comm->host_comm, NULL);
+      timers[TIMER_COLL_COMM] = clockNano() - timers[TIMER_COLL_COMM];
+
+      // step 4: memcpy h2d
+      timers[TIMER_COLL_MEM_H2D] = clockNano();
+      deviceAdaptor->deviceMemcpy(recvbuff, buff_out, size,
+                                  flagcxMemcpyHostToDevice, NULL, NULL);
+      timers[TIMER_COLL_MEM_H2D] = clockNano() - timers[TIMER_COLL_MEM_H2D];
+
+      // step 5: free host buffer
+      timers[TIMER_COLL_FREE] = clockNano();
+      deviceAdaptor->deviceFree(buff_in, flagcxMemHost, NULL);
+      deviceAdaptor->deviceFree(buff_out, flagcxMemHost, NULL);
+      timers[TIMER_COLL_FREE] = clockNano() - timers[TIMER_COLL_FREE];
+
+      timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
+      INFO(FLAGCX_COLL,
+           "Flagcx timings - %s Broadcast: rank %d nranks %d total %.2fms "
+           "(memory alloc "
+           "%.2fms, memory free %.2fms, memory d2h %.2fms, memory h2d %.2fms, "
+           "comm %.2fms)",
+           cclAdaptors[flagcxCCLAdaptorHost]->name, comm->rank, comm->nranks,
+           timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6,
+           timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
+           timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
       // Experimental for multi-nic support
       // Construct flagcxC2cPlanner and find corresponding strategy
