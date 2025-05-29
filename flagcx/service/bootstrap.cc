@@ -818,7 +818,6 @@ flagcxResult_t BroadcastBootstrap(void *commState, const void *sendbuff,
     }
     return flagcxSuccess;
   }
-  //printf("rank %d nranks %d root %d sendcount %d\n", rank, nranks, root, sendcount);
   if (rank == root) {
     if(sendbuff != recvbuff){
       memcpy(recvbuff, sendbuff, getFlagcxDataTypeSize(datatype) * sendcount);
