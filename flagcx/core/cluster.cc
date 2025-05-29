@@ -1,6 +1,25 @@
 #include "cluster.h"
 #include <cstring>
 
+flagcxResult_t parseClusterSplitList(const char *input,
+                                     std::vector<int> &output) {
+  output.clear();
+  std::stringstream ss(input);
+  std::string token;
+
+  while (std::getline(ss, token, ',')) {
+    try {
+      int value = std::stoi(token);
+      output.push_back(value);
+    } catch (const std::exception &e) {
+      WARN("Invalid cluster split info, its format should be like '2,4,8,...'");
+      return flagcxSystemError;
+    }
+  }
+
+  return flagcxSuccess;
+}
+
 flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
                                          flagcxCommunicatorType_t *type,
                                          int *homo_rank, int *homo_root_rank,
@@ -11,7 +30,7 @@ flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
   *homo_root_rank = 0;
   *homo_ranks = 1;
   *cluster_id = 0;
-  *cluster_inter_rank = -1;
+  *cluster_inter_rank = -1; // deprecated, to be removed
   *ncluster = 1;
   *type = flagcxCommunicatorHomo;
 
@@ -55,21 +74,50 @@ flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
   }
 
   if (*type == flagcxCommunicatorHybrid) {
-    const char *useDev = flagcxGetEnv("FLAGCX_USEDEV");
-    int useDev_;
-    if (useDev == NULL) {
-      useDev_ = -1;
-    } else {
-      useDev_ = std::stoi(useDev);
-    }
-    if (*homo_rank == useDev_) {
-      *cluster_inter_rank = rank;
-    }
-    if (*homo_ranks <= useDev_ && *homo_rank == *homo_ranks - 1) {
-      *cluster_inter_rank = rank;
-    }
     *cluster_id = currCluster;
     *ncluster = numClusters;
+  }
+
+  // split and obtain sub-clusters
+  const char *clusterSplitInfo = flagcxGetEnv("FLAGCX_CLUSTER_SPLIT_LIST");
+  if (clusterSplitInfo != NULL) {
+    std::vector<int> clusterSplitList;
+    FLAGCXCHECK(parseClusterSplitList(clusterSplitInfo, clusterSplitList));
+    if (*ncluster != int(clusterSplitList.size())) {
+      WARN("Invalid cluster split info, its length should be equal to the "
+           "number of homogeneous cluster");
+      return flagcxSystemError;
+    }
+
+    int subClusterId = 0;
+    for (int i = 0; i < currCluster; ++i) {
+      subClusterId += clusterSplitList[i];
+    }
+    int subHomoRanks = (*homo_ranks) / clusterSplitList[currCluster];
+    int hasRes =
+        (((*homo_rank) / subHomoRanks) >= clusterSplitList[currCluster]) ? 1
+                                                                         : 0;
+    subClusterId += (hasRes == 1) ? ((*homo_rank) / subHomoRanks) - 1
+                                  : ((*homo_rank) / subHomoRanks);
+    int subHomoRank = (hasRes == 1)
+                          ? subHomoRanks + ((*homo_rank) % subHomoRanks)
+                          : ((*homo_rank) % subHomoRanks);
+    int subHomoRootRank = rank - subHomoRank;
+    if (hasRes == 1 ||
+        ((*homo_rank) / subHomoRanks) == clusterSplitList[currCluster] - 1) {
+      subHomoRanks += (*homo_ranks) % clusterSplitList[currCluster];
+    }
+    int subNClusters = 0;
+    for (int i = 0; i < (*ncluster); ++i) {
+      subNClusters += clusterSplitList[i];
+    }
+    *homo_rank = subHomoRank;
+    *homo_root_rank = subHomoRootRank;
+    *homo_ranks = subHomoRanks;
+    *cluster_id = subClusterId;
+    *ncluster = subNClusters;
+    *type =
+        (subNClusters > 1) ? flagcxCommunicatorHybrid : flagcxCommunicatorHomo;
   }
 
   return flagcxSuccess;
