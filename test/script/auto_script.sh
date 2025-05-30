@@ -19,6 +19,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+source ../script/_gpu_check.sh
+wait_for_gpu
 
 mpirun -np 8   ./test_alltoall -b 128M -e 1G -f 2 -p 1
 if [ $? -ne 0 ]; then
