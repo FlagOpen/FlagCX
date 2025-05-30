@@ -1443,7 +1443,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
   if (redOp_ != flagcxRedNoOp) {
     if (redOp_ != flagcxSum && redOp_ != flagcxMax && redOp_ != flagcxMin) {
       WARN("Unsupported reduction operation %d", redOp_);
-      return flagcxInvalidArgument;
+      return flagcxNotSupported;
     }
   }
 
@@ -1454,6 +1454,24 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
     return flagcxInvalidArgument;
   }
 
+  // commOp validation
+  // abort if nclusters > n-inter-ranks
+  if (commOp_ == flagcxCommOpAllReduce ||
+      commOp_ == flagcxCommOpReduceScatter) {
+    int clusterCountValid_ = 1;
+    for (int i = 0; i < comm_->nclusters; ++i) {
+      if (comm_->nclusters > int(clusterInterRankList_[i].size())) {
+        clusterCountValid_ = 0;
+        break;
+      }
+    }
+    if (!clusterCountValid_) {
+      WARN("Unsupported communication operation %d since cluster count is "
+           "larger than inter-rank count",
+           commOp_);
+      return flagcxNotSupported;
+    }
+  }
   // sendrecv counts and displs validation and initialization
   if (commOp_ == flagcxCommOpAlltoAllv) {
     if (sendCounts == nullptr || sDispls == nullptr || recvCounts == nullptr ||
