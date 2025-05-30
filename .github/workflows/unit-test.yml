@@ -80,7 +80,4 @@ jobs:
       - name: Run unit tests with mpirun
         run: |
           cd /__w/FlagCX/FlagCX/test/unittest
-          source ../script/_gpu_check.sh
-          wait_for_gpu
           mpirun -np 8 ./build/bin/main
-

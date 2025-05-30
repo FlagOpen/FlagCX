@@ -1,7 +1,7 @@
 [<img src="flagopen.png">](https://flagopen.baai.ac.cn/)
 
 ## Latest News
-- **[2025/04]** Released [v0.1](https://github.com/FlagOpen/FlagCX/tree/release/v0.1): 
+- **[2025/04]** Released [v0.1](https://github.com/FlagOpen/FlagCX/tree/release/v0.1):
   - Supports five native communications libraries with automatic topology detection.
   - Delivers 11 heterogeneous collective communication algorithms, including both P2P and collective ops.
   - Provides a full-stack open-source solution, FlagScale + FlagCX, for efficient heterogeneous training.
