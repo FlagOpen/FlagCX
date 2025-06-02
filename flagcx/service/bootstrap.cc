@@ -997,7 +997,7 @@ flagcxResult_t bootstrapAbort(void* commState) {
   free(state);
   return flagcxSuccess;
 }
-
+// AlltoALlv require sendbuff and recvbuff not overlap
 flagcxResult_t AlltoAllvBootstrap(void* commState, const void* sendbuff, size_t* sendcounts, size_t* sdispls,
     void* recvbuff, size_t* recvcounts, size_t* rdispls, flagcxDataType_t datatype){
     struct bootstrapState* state = (struct bootstrapState*)commState;
@@ -1005,24 +1005,11 @@ flagcxResult_t AlltoAllvBootstrap(void* commState, const void* sendbuff, size_t*
     int nranks = state->nranks;
     size_t typeSize = getFlagcxDataTypeSize(datatype);
 
-    bool inPlace = (sendbuff == recvbuff);
-    char *tmpBuff = nullptr;
-    if (inPlace) {
-        // Find the maximum size needed for temporary buffer
-        size_t maxSize = 0;
-        for (int i = 0; i < nranks; i++) {
-            size_t size = recvcounts[i] * typeSize;
-            if (size > maxSize) maxSize = size;
-        }
-        FLAGCXCHECK(flagcxCalloc(&tmpBuff, maxSize));
-    }
     for (int i = 0; i < nranks; ++i) {
         if (i == rank) {
-            if (!inPlace) {
-                memcpy((void *)((char*)recvbuff + rdispls[i] * typeSize),
-                       (void *)((char *)sendbuff + sdispls[i] * typeSize),
-                       sendcounts[i] * typeSize);
-            }
+            memcpy((void *)((char*)recvbuff + rdispls[i] * typeSize),
+                   (void *)((char *)sendbuff + sdispls[i] * typeSize),
+                   sendcounts[i] * typeSize);
         }
         const int bootstrapTag = -9995;  // Suggest making this unique if possible
         if (rank > i) {
@@ -1030,35 +1017,23 @@ flagcxResult_t AlltoAllvBootstrap(void* commState, const void* sendbuff, size_t*
             FLAGCXCHECK(bootstrapSend(commState, i, bootstrapTag,
                 (void *)((char *)sendbuff + sdispls[i] * typeSize),
                 sendcounts[i] * typeSize));
-            // Receive from rank i
-            if (inPlace) {
-                FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag, tmpBuff, recvcounts[i] * typeSize));
-                memcpy((void *)((char *)recvbuff + rdispls[i] * typeSize), tmpBuff, recvcounts[i] * typeSize);
-            } else {
-                FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag,
-                    (void *)((char *)recvbuff + rdispls[i] * typeSize),
-                    recvcounts[i] * typeSize));
-            }
+            // Recv from rank i
+            FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag,
+                (void *)((char *)recvbuff + rdispls[i] * typeSize),
+                recvcounts[i] * typeSize));
+            // }
         } else if (rank < i) {
             // Receive from rank i
-            if (inPlace) {
-                FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag, tmpBuff, recvcounts[i] * typeSize));
-            } else {
-                FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag,
-                    (void *)((char *)recvbuff + rdispls[i] * typeSize),
-                    recvcounts[i] * typeSize));
-            }
+            FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag,
+                (void *)((char *)recvbuff + rdispls[i] * typeSize),
+                recvcounts[i] * typeSize));
+            // }
             // Send to rank i
             FLAGCXCHECK(bootstrapSend(commState, i, bootstrapTag,
                 (void *)((char *)sendbuff + sdispls[i] * typeSize),
                 sendcounts[i] * typeSize));
-            if (inPlace) {
-                memcpy((void *)((char *)recvbuff + rdispls[i] * typeSize), tmpBuff, recvcounts[i] * typeSize);
-            }
         }
     }
-
-    if (tmpBuff) free(tmpBuff);
     return flagcxSuccess;
 }
 
