@@ -1021,13 +1021,11 @@ flagcxResult_t AlltoAllvBootstrap(void* commState, const void* sendbuff, size_t*
             FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag,
                 (void *)((char *)recvbuff + rdispls[i] * typeSize),
                 recvcounts[i] * typeSize));
-            // }
         } else if (rank < i) {
             // Receive from rank i
             FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag,
                 (void *)((char *)recvbuff + rdispls[i] * typeSize),
                 recvcounts[i] * typeSize));
-            // }
             // Send to rank i
             FLAGCXCHECK(bootstrapSend(commState, i, bootstrapTag,
                 (void *)((char *)sendbuff + sdispls[i] * typeSize),
