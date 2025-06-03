@@ -81,3 +81,11 @@ jobs:
         run: |
           cd /__w/FlagCX/FlagCX/test/unittest
           mpirun -np 8 ./build/bin/main
+
+
+      - name: Run clusters tests with mpirun
+        run: |
+          cd /__w/FlagCX/FlagCX/test/unittest
+          mpirun -np 8 -genv FLAGCX_DEBUG=INFO   -genv FLAGCX_CLUSTER_SPLIT_LIST=2  ./build/bin/main
+
+
