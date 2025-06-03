@@ -1,5 +1,29 @@
 #include "c2c_algo.h"
 #include <cstdint>
+#include <cstdlib>
+
+// GCD using Euclidean algorithm
+inline int gcd(int a, int b) {
+  while (b != 0) {
+    int tmp = b;
+    b = a % b;
+    a = tmp;
+  }
+  return a;
+}
+
+// LCM using GCD
+inline int lcm(int a, int b) { return std::abs(a * b) / gcd(a, b); }
+
+// LCM of clusterInterRankList
+inline int getLcmOfInterRankList(
+    const std::vector<std::vector<int>> &clusterInterRankList) {
+  int result = 1;
+  for (size_t i = 0; i < clusterInterRankList.size(); ++i) {
+    result = lcm(result, clusterInterRankList[i].size());
+  }
+  return result;
+}
 
 size_t getC2cCommPatternHash(size_t count, size_t rootClusterId,
                              flagcxCommOp_t commOp, flagcxRedOp_t redOp,
@@ -768,6 +792,20 @@ flagcxCommOp_t flagcxC2cPlanner::getC2cHomoCommOp(int homoType, int mode) {
 flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
   if (isSendRecv) {
     int clusterOffset = 0;
+    int lcm = getLcmOfInterRankList(clusterInterRankList_);
+    // we use fine-grained granularity to search for balanced hetero-send/recv
+    // workloads
+    std::string searchGranularity;
+    const char *searchGranularityPtr =
+        flagcxGetEnv("FLAGCX_C2C_SEARCH_GRANULARITY");
+    if (searchGranularityPtr == NULL) {
+      searchGranularity = std::string("COARSE");
+    } else {
+      searchGranularity = std::string(searchGranularityPtr);
+      if (searchGranularity != "COARSE" && searchGranularity != "FINE") {
+        searchGranularity = std::string("COARSE");
+      }
+    }
     interRankBufferInfoManager_.resetBufferInfo();
     for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
       size_t nClusterInterRanks =
@@ -780,34 +818,47 @@ flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
           (sendCount_ >= recvCount_)
               ? totalCount_ % nClusterInterRanks
               : (sendCount_ * comm_->cluster_sizes[i]) % nClusterInterRanks;
+      int minCount = (sendCount_ >= recvCount_)
+                         ? totalCount_ / lcm
+                         : (sendCount_ * comm_->cluster_sizes[i]) / lcm;
+      if (searchGranularity == "COARSE") {
+        minCount = myCount;
+      }
+      // for root-required ops, root cluster send or recv buffers based on
+      // comm op type we use two flags to avoid redundant sendrecv ops
+      int isScheduled = 0;
+      int isUseless = 0;
+      if (rootClusterId_ >= 0) {
+        if ((commOp_ == flagcxCommOpReduce || commOp_ == flagcxCommOpGather) &&
+            i == rootClusterId_) {
+          isScheduled = 1;
+        }
+        if ((commOp_ == flagcxCommOpScatter ||
+             commOp_ == flagcxCommOpBroadcast) &&
+            i != rootClusterId_) {
+          isUseless = 1;
+        }
+      }
       for (size_t j = 0; j < nClusterInterRanks; ++j) {
-        int finalCount =
-            (j == nClusterInterRanks - 1) ? myCount + myRes : myCount;
         for (size_t z = 0; z < clusterInterRankList_.size(); ++z) {
           if (i != z) {
-            // for root-required ops, root cluster send or recv buffers based on
-            // comm op type we use two flags to avoid redundant sendrecv ops
-            int isScheduled = 0;
-            int isUseless = 0;
-            if (rootClusterId_ >= 0) {
-              if ((commOp_ == flagcxCommOpReduce ||
-                   commOp_ == flagcxCommOpGather) &&
-                  i == rootClusterId_) {
-                isScheduled = 1;
-              }
-              if ((commOp_ == flagcxCommOpScatter ||
-                   commOp_ == flagcxCommOpBroadcast) &&
-                  i != rootClusterId_) {
-                isUseless = 1;
-              }
-            }
             if (isUseless == 0) {
-              interRankBufferInfoManager_.pushBackBufferInfo(
-                  i, clusterInterRankList_[i][j],
-                  (sendCount_ >= recvCount_)
-                      ? myCount * j
-                      : clusterOffset * sendCount_ + myCount * j,
-                  finalCount, z, 0, isScheduled, -1, -1);
+              for (int k = 0; k < myCount / minCount; ++k) {
+                interRankBufferInfoManager_.pushBackBufferInfo(
+                    i, clusterInterRankList_[i][j],
+                    (sendCount_ >= recvCount_) ? myCount * j + minCount * k
+                                               : clusterOffset * sendCount_ +
+                                                     myCount * j + minCount * k,
+                    minCount, z, 0, isScheduled, -1, -1);
+              }
+              if (j == nClusterInterRanks - 1 && myRes > 0) {
+                interRankBufferInfoManager_.pushBackBufferInfo(
+                    i, clusterInterRankList_[i][j],
+                    (sendCount_ >= recvCount_)
+                        ? myCount * j
+                        : clusterOffset * sendCount_ + myCount * j,
+                    myRes, z, 0, isScheduled, -1, -1);
+              }
             }
           }
         }
@@ -1392,7 +1443,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
   if (redOp_ != flagcxRedNoOp) {
     if (redOp_ != flagcxSum && redOp_ != flagcxMax && redOp_ != flagcxMin) {
       WARN("Unsupported reduction operation %d", redOp_);
-      return flagcxInvalidArgument;
+      return flagcxNotSupported;
     }
   }
 
@@ -1403,6 +1454,24 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
     return flagcxInvalidArgument;
   }
 
+  // commOp validation
+  // abort if nclusters > n-inter-ranks
+  if (commOp_ == flagcxCommOpAllReduce ||
+      commOp_ == flagcxCommOpReduceScatter) {
+    int clusterCountValid_ = 1;
+    for (int i = 0; i < comm_->nclusters; ++i) {
+      if (comm_->nclusters > int(clusterInterRankList_[i].size())) {
+        clusterCountValid_ = 0;
+        break;
+      }
+    }
+    if (!clusterCountValid_) {
+      WARN("Unsupported communication operation %d since cluster count is "
+           "larger than inter-rank count",
+           commOp_);
+      return flagcxNotSupported;
+    }
+  }
   // sendrecv counts and displs validation and initialization
   if (commOp_ == flagcxCommOpAlltoAllv) {
     if (sendCounts == nullptr || sDispls == nullptr || recvCounts == nullptr ||

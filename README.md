@@ -1,9 +1,12 @@
 [<img src="flagopen.png">](https://flagopen.baai.ac.cn/)
 
 ## Latest News
-- **[2025/04]** Released [v0.1](https://github.com/FlagOpen/FlagCX/tree/release/v0.1): 
-  - Supports five native communications libraries with automatic topology detection.
-  - Delivers 11 heterogeneous collective communication algorithms, including both P2P and collective ops.
+- **[2025/05]** Released [v0.2](https://github.com/FlagOpen/FlagCX/tree/release/v0.2):
+  - Integrates three additional native communications libraries, including MCCL, XCCL and DUCCL.
+  - Improves 11 heterogeneous collective communication operations with automatic topology detection, fully supporting both single-NIC and multi-NIC environments.
+- **[2025/04]** Released [v0.1](https://github.com/FlagOpen/FlagCX/tree/release/v0.1):
+  - Integrates five native communications libraries including NCCL, IXCCL, CNCL, BOOTSTRAP and GLOO.
+  - Supports 11 heterogeneous collective communication operations using the originally proposed C2C (Cluster-to-Cluster) algorithm.
   - Provides a full-stack open-source solution, FlagScale + FlagCX, for efficient heterogeneous training.
   - Natively integrated into PaddlePaddle [v3.0.0](https://github.com/PaddlePaddle/Paddle/tree/v3.0.0), with support for both dynamic and static graphs.
 
@@ -20,9 +23,9 @@ FlagCX leverages native collective communications libraries to provide the full 
 | Mode          | Homo | Homo   | Homo | Homo | Homo | Homo  | Hetero    | Hetero  | Hetero     |
 | send          | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
 | recv          | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
-| broadcast     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✘          | ✘       | ✓          |
-| gather        | ✓    | ✓      | ✓    | ✓    | ✘    | ✓     |✘          | ✘       | ✓          |
-| scatter       | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✘          | ✘       | ✓          |
+| broadcast     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✘       | ✓          |
+| gather        | ✓    | ✓      | ✓    | ✓    | ✘    | ✓     |✓          | ✘       | ✓          |
+| scatter       | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✘       | ✓          |
 | reduce        | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✘       | ✓          |
 | allreduce     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
 | allgather     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |

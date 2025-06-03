@@ -4,8 +4,14 @@
 #include "adaptor.h"
 #include "flagcx.h"
 #include "param.h"
+#include <iostream>
 #include <map>
+#include <sstream>
 #include <string>
+#include <vector>
+
+flagcxResult_t parseClusterSplitList(const char *input,
+                                     std::vector<int> &output);
 
 flagcxResult_t flagcxCollectClusterInfos(const flagcxVendor *allData,
                                          flagcxCommunicatorType_t *type,
