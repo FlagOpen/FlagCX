@@ -12,6 +12,60 @@
 #include <string>
 #include <unordered_map>
 
+// data structures used to perform allgather on planner info
+// the structure transfered across rank cannot contain pointer type
+// so we put the essential info of C2cPlanner into a struct and perform
+// allgather on this struct
+#define FLAGCX_MAX_P2P_OPS 64
+#define FLAGCX_MAX_HOMO_FUNCS 64
+#define FLAGCX_MAX_HETERO_FUNCS 64
+
+struct flagcxC2cP2POpInfo {
+  int rank;
+  int peerRank;
+  int offset;
+  int count;
+  int isRecv;
+};
+
+struct flagcxC2cHeteroFuncInfo {
+  int numOps;
+  flagcxC2cP2POpInfo p2pOps[FLAGCX_MAX_P2P_OPS];
+};
+
+struct flagcxC2cHomoFuncInfo {
+  int rootRank;
+  int sendOffset;
+  int recvOffset;
+  int count;
+  int isHomoInterComm;
+  flagcxCommOp_t commOp;
+};
+
+struct flagcxC2cPlannerInfo {
+  int clusterId;
+  int rank;
+  int preHomoFuncLoops;
+  int heteroAndHomoInterFuncLoops;
+  int postHomoFuncLoops;
+  int homoMyRank;
+  int homoRootRank;
+  int homoRanks;
+  int homoInterMyRank;
+  int homoInterRootRank;
+  int homoInterRanks;
+  int totalCount; // equal to either sendCount_ or recvCount_
+  int isRootCluster;
+  int clusterCount;
+  int clusterOffset;
+  int multiNic;
+  int eachNicPerRank;
+  flagcxC2cHomoFuncInfo preHomoFuncList[FLAGCX_MAX_HOMO_FUNCS];
+  flagcxC2cHomoFuncInfo homoInterFuncList[FLAGCX_MAX_HOMO_FUNCS];
+  flagcxC2cHomoFuncInfo postHomoFuncList[FLAGCX_MAX_HOMO_FUNCS];
+  flagcxC2cHeteroFuncInfo heteroFuncList[FLAGCX_MAX_HETERO_FUNCS];
+};
+
 size_t getC2cCommPatternHash(size_t count, size_t rootClusterId,
                              flagcxCommOp_t commOp, flagcxRedOp_t redOp,
                              flagcxComm_t comm);
@@ -111,6 +165,8 @@ public:
   flagcxResult_t run(void *buff, flagcxDataType_t datatype, flagcxComm_t comm,
                      flagcxStream_t stream);
 
+  flagcxResult_t getP2pOpInfo(flagcxC2cP2POpInfo *p2pOpInfo);
+
   int rank_;
   int peerRank_;
   int offset_;
@@ -134,6 +190,8 @@ public:
                      size_t *sendCounts = nullptr, size_t *sDispls = nullptr,
                      size_t *recvCounts = nullptr, size_t *rDispls = nullptr);
 
+  flagcxResult_t getHomoFuncInfo(flagcxC2cHomoFuncInfo *homoFuncInfo);
+
   int rootRank_;
   int sendOffset_;
   int recvOffset_;
@@ -152,6 +210,8 @@ public:
   void addP2pOp(int rank, int peerRank, int offset, int count, int isRecv);
   flagcxResult_t run(void *sendbuff, void *recvbuff, flagcxDataType_t datatype,
                      flagcxComm_t comm, flagcxStream_t stream);
+
+  flagcxResult_t getHeteroFuncInfo(flagcxC2cHeteroFuncInfo *heteroFuncInfo);
 
 private:
   std::vector<flagcxC2cP2pOp> p2pOps_;
@@ -197,6 +257,8 @@ public:
                          size_t *recvCounts = nullptr,
                          size_t *rDispls = nullptr);
 
+  flagcxResult_t getPlannerInfo(flagcxC2cPlannerInfo *plannerInfoData);
+
 private:
   int sendCount_;
   int recvCount_;
@@ -236,6 +298,15 @@ private:
   std::vector<flagcxC2cHomoFunc> homoInterFuncList_;
   std::vector<flagcxC2cHomoFunc> postHomoFuncList_;
   void *scratchBuffer_; // used for intermediate processing
+  int debugMode_{0};    // 0: no debug, 1: debug mode
+  uint64_t preHomoStartTime_{0};
+  uint64_t preHomoEndTime_{0};
+  uint64_t heteroStartTime_{0};
+  uint64_t heteroEndTime_{0};
+  uint64_t homoInterStartTime_{0};
+  uint64_t homoInterEndTime_{0};
+  uint64_t postHomoStartTime_{0};
+  uint64_t postHomoEndTime_{0};
 };
 
 #endif // end include guard
