@@ -997,3 +997,41 @@ flagcxResult_t bootstrapAbort(void* commState) {
   free(state);
   return flagcxSuccess;
 }
+// AlltoALlv require sendbuff and recvbuff not overlap
+flagcxResult_t AlltoAllvBootstrap(void* commState, const void* sendbuff, size_t* sendcounts, size_t* sdispls,
+    void* recvbuff, size_t* recvcounts, size_t* rdispls, flagcxDataType_t datatype){
+    struct bootstrapState* state = (struct bootstrapState*)commState;
+    int rank = state->rank;
+    int nranks = state->nranks;
+    size_t typeSize = getFlagcxDataTypeSize(datatype);
+
+    for (int i = 0; i < nranks; ++i) {
+        if (i == rank) {
+            memcpy((void *)((char*)recvbuff + rdispls[i] * typeSize),
+                   (void *)((char *)sendbuff + sdispls[i] * typeSize),
+                   sendcounts[i] * typeSize);
+        }
+        const int bootstrapTag = -9995;  // Suggest making this unique if possible
+        if (rank > i) {
+            // Send to rank i
+            FLAGCXCHECK(bootstrapSend(commState, i, bootstrapTag,
+                (void *)((char *)sendbuff + sdispls[i] * typeSize),
+                sendcounts[i] * typeSize));
+            // Recv from rank i
+            FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag,
+                (void *)((char *)recvbuff + rdispls[i] * typeSize),
+                recvcounts[i] * typeSize));
+        } else if (rank < i) {
+            // Receive from rank i
+            FLAGCXCHECK(bootstrapRecv(commState, i, bootstrapTag,
+                (void *)((char *)recvbuff + rdispls[i] * typeSize),
+                recvcounts[i] * typeSize));
+            // Send to rank i
+            FLAGCXCHECK(bootstrapSend(commState, i, bootstrapTag,
+                (void *)((char *)sendbuff + sdispls[i] * typeSize),
+                sendcounts[i] * typeSize));
+        }
+    }
+    return flagcxSuccess;
+}
+

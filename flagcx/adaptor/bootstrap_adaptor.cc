@@ -151,13 +151,14 @@ flagcxResult_t bootstrapAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
   return flagcxSuccess;
 }
 
-// TODO: unsupported
 flagcxResult_t
 bootstrapAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
                           size_t *sdispls, void *recvbuff, size_t *recvcounts,
                           size_t *rdispls, flagcxDataType_t datatype,
                           flagcxInnerComm_t comm, flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+  FLAGCXCHECK(AlltoAllvBootstrap(comm->base, sendbuff, sendcounts, sdispls,
+                                recvbuff, recvcounts, rdispls, datatype));
+  return flagcxSuccess;
 }
 
 #define BOOTSTRAP_SEND_RECV_TAG -6767

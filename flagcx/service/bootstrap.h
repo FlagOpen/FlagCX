@@ -151,6 +151,25 @@ flagcxResult_t ReduceScatterBootstrap(void* commState, const void* sendbuff, voi
  */
 flagcxResult_t AlltoAllBootstrap(void* commState, const void* sendbuff, void* recvbuff, size_t count,
                                  flagcxDataType_t datatype);
+
+/*
+ * All-to-all with variable block sizes
+ *
+ * Every rank sends j-th block of its own sendbuff to the j-th rank of the communicator.
+ * Meanwhile, every rank receives j-th block of its own recvbuff from j-th rank.
+ * 
+ * Each block can have different sizes:
+ * - sendcounts[j] specifies the number of elements to send to rank j
+ * - sdispls[j] specifies the offset in sendbuff for the j-th block
+ * - recvcounts[j] specifies the number of elements to receive from rank j
+ * - rdispls[j] specifies the offset in recvbuff for the j-th block
+ *
+ * In-place operations will happen if sendbuff == recvbuff.
+ */
+flagcxResult_t AlltoAllvBootstrap(void* commState, const void* sendbuff,  size_t* sendcounts,  size_t* sdispls,
+                                 void* recvbuff, size_t* recvcounts,  size_t* rdispls,
+                                 flagcxDataType_t datatype);
+
 #ifdef __cplusplus
 } // end extern "C"
 #endif
