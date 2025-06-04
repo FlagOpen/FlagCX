@@ -198,6 +198,7 @@ public:
                          size_t *rDispls = nullptr);
 
 private:
+  int nSteps_;
   int sendCount_;
   int recvCount_;
   int rootRank_; // used for gather, scatter
@@ -231,10 +232,10 @@ private:
   int strategyFound_;
   flagcxInterRankBufferInfoManager interRankBufferInfoManager_;
   flagcxC2cRefreshFunc refreshFunc_;
-  std::vector<flagcxC2cHomoFunc> preHomoFuncList_;
-  std::vector<flagcxC2cHeteroFunc> heteroFuncList_;
-  std::vector<flagcxC2cHomoFunc> homoInterFuncList_;
-  std::vector<flagcxC2cHomoFunc> postHomoFuncList_;
+  std::vector<std::vector<flagcxC2cHomoFunc>> preHomoFuncPipeline_;
+  std::vector<std::vector<flagcxC2cHeteroFunc>> heteroFuncPipeline_;
+  std::vector<std::vector<flagcxC2cHomoFunc>> homoInterFuncPipeline_;
+  std::vector<std::vector<flagcxC2cHomoFunc>> postHomoFuncPipeline_;
   void *scratchBuffer_; // used for intermediate processing
 };
 
