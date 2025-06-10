@@ -136,6 +136,7 @@ flagcxResult_t glooAdaptorGather(const void *sendbuff, void *recvbuff,
                                  int root, flagcxInnerComm_t comm,
                                  flagcxStream_t /*stream*/) {
   ::gloo::GatherOptions opts(comm->base);
+  opts.setRoot(root);
   GENERATE_GLOO_TYPES(datatype, setInput, opts, const_cast<void *>(sendbuff),
                       count);
   GENERATE_GLOO_TYPES(datatype, setOutput, opts, recvbuff,
@@ -162,6 +163,7 @@ flagcxResult_t glooAdaptorBroadcast(const void *sendbuff, void *recvbuff,
                                     int root, flagcxInnerComm_t comm,
                                     flagcxStream_t /*stream*/) {
   ::gloo::BroadcastOptions opts(comm->base);
+  opts.setRoot(root);
   GENERATE_GLOO_TYPES(datatype, setInput, opts, const_cast<void *>(sendbuff),
                       count);
   GENERATE_GLOO_TYPES(datatype, setOutput, opts, recvbuff, count);
