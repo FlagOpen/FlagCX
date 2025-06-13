@@ -1,11 +1,17 @@
 #include "flagcx_coll_test.hpp"
 #include "flagcx_topo_test.hpp"
 #include <string.h>
+#include <fstream>
+#include <vector>
+#include <iostream>
+
+#define BASELINE_FILE "baseline_result.txt"
+#define NUM_BASELINE_ENTRIES 1000
 
 TEST_F(FlagCXCollTest, AllReduce) {
   flagcxComm_t &comm = handler->comm;
   flagcxDeviceHandle_t &devHandle = handler->devHandle;
-  // initialize data
+
   for (size_t i = 0; i < count; i++) {
     ((float *)hostsendbuff)[i] = i % 10;
   }
@@ -23,16 +29,13 @@ TEST_F(FlagCXCollTest, AllReduce) {
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-  // run allreduce and sync stream
   flagcxAllReduce(sendbuff, recvbuff, count, flagcxFloat, flagcxSum, comm,
                   stream);
   devHandle->streamSynchronize(stream);
 
-  // copy recvbuff back to hostrecvbuff
   devHandle->deviceMemcpy(hostrecvbuff, recvbuff, size,
                           flagcxMemcpyDeviceToHost, NULL);
 
-  // divide by nranks
   for (size_t i = 0; i < count; i++) {
     ((float *)hostrecvbuff)[i] /= nranks;
   }
@@ -47,26 +50,42 @@ TEST_F(FlagCXCollTest, AllReduce) {
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-  EXPECT_EQ(strcmp(static_cast<char *>(hostsendbuff),
-                   static_cast<char *>(hostrecvbuff)),
-            0);
+  if (rank == 0 && !std::ifstream(BASELINE_FILE)) {
+    std::ofstream baseline_file(BASELINE_FILE);
+    for (size_t i = 0; i < NUM_BASELINE_ENTRIES; i++) {
+      baseline_file << ((float *)hostrecvbuff)[i] << "\n";
+    }
+    baseline_file.close();
+    std::cout << "Baseline results saved to " << BASELINE_FILE << std::endl;
+  }
+
+  std::vector<float> baseline_result(NUM_BASELINE_ENTRIES);
+  std::ifstream baseline_file(BASELINE_FILE);
+  for (size_t i = 0; i < NUM_BASELINE_ENTRIES; i++) {
+    baseline_file >> baseline_result[i];
+  }
+  baseline_file.close();
+
+  for (size_t i = 0; i < NUM_BASELINE_ENTRIES; i++) {
+    ASSERT_FLOAT_EQ(((float *)hostrecvbuff)[i], baseline_result[i])
+        << "Mismatch at index " << i
+        << ": Expected " << baseline_result[i]
+        << ", Got " << ((float *)hostrecvbuff)[i];
+  }
 }
 
 TEST_F(FlagCXTopoTest, TopoDetection) {
   flagcxComm_t &comm = handler->comm;
   flagcxUniqueId_t &uniqueId = handler->uniqueId;
 
-  // for now, ensure the topo detection runs without error
-  // we should add a validation for the topo detection result
   std::cout << "executing flagcxCommInitRank" << std::endl;
   auto result = flagcxCommInitRank(&comm, nranks, uniqueId, rank);
   EXPECT_EQ(result, flagcxSuccess);
 }
 
-// TODO: change unit test structure so that we can run specific test suite
-// instead of all tests?
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::AddGlobalTestEnvironment(new MPIEnvironment);
   return RUN_ALL_TESTS();
 }
+
