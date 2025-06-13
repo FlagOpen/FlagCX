@@ -115,37 +115,72 @@ flagcxResult_t glooAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
   return flagcxNotSupported;
 }
 
-// TODO: unsupported
 flagcxResult_t glooAdaptorReduce(const void *sendbuff, void *recvbuff,
                                  size_t count, flagcxDataType_t datatype,
                                  flagcxRedOp_t op, int root,
                                  flagcxInnerComm_t comm,
                                  flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+  ::gloo::ReduceOptions opts(comm->base);
+  opts.setRoot(root);
+  opts.setReduceFunction(
+      getFunction<::gloo::ReduceOptions::Func>(datatype, op));
+  GENERATE_GLOO_TYPES(datatype, setInput, opts, const_cast<void *>(sendbuff),
+                      count);
+  GENERATE_GLOO_TYPES(datatype, setOutput, opts, recvbuff, count);
+  ::gloo::reduce(opts);
+  return flagcxSuccess;
 }
 
-// TODO: unsupported
 flagcxResult_t glooAdaptorGather(const void *sendbuff, void *recvbuff,
                                  size_t count, flagcxDataType_t datatype,
                                  int root, flagcxInnerComm_t comm,
                                  flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+  ::gloo::GatherOptions opts(comm->base);
+  GENERATE_GLOO_TYPES(datatype, setInput, opts, const_cast<void *>(sendbuff),
+                      count);
+  // Set output pointer only when root
+  if (root == comm->base->rank) {
+    GENERATE_GLOO_TYPES(datatype, setOutput, opts, recvbuff,
+                        comm->base->size * count);
+  }
+  opts.setRoot(root);
+  ::gloo::gather(opts);
+  return flagcxSuccess;
 }
 
-// TODO: unsupported
 flagcxResult_t glooAdaptorScatter(const void *sendbuff, void *recvbuff,
                                   size_t count, flagcxDataType_t datatype,
                                   int root, flagcxInnerComm_t comm,
                                   flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+  ::gloo::ScatterOptions opts(comm->base);
+  // one pointer per rank
+  std::vector<void *> send_ptrs(comm->base->size);
+  for (int i = 0; i < comm->base->size; ++i) {
+    send_ptrs[i] = static_cast<void *>((char *)sendbuff + i * count * getFlagcxDataTypeSize(datatype));
+  }
+  GENERATE_GLOO_TYPES(datatype, setInputs, opts,
+                      const_cast<void **>(send_ptrs.data()),
+                      comm->base->size, count);
+  GENERATE_GLOO_TYPES(datatype, setOutput, opts, recvbuff, count);
+  opts.setRoot(root);
+  ::gloo::scatter(opts);
+  return flagcxSuccess;
 }
 
-// TODO: unsupported
 flagcxResult_t glooAdaptorBroadcast(const void *sendbuff, void *recvbuff,
                                     size_t count, flagcxDataType_t datatype,
                                     int root, flagcxInnerComm_t comm,
                                     flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+  ::gloo::BroadcastOptions opts(comm->base);
+  // Set input pointer only when root
+  if (root == comm->base->rank) {
+    GENERATE_GLOO_TYPES(datatype, setInput, opts, const_cast<void *>(sendbuff),
+                        count);
+  }
+  GENERATE_GLOO_TYPES(datatype, setOutput, opts, recvbuff, count);
+  opts.setRoot(root);
+  ::gloo::broadcast(opts);
+  return flagcxSuccess;
 }
 
 flagcxResult_t glooAdaptorAllReduce(const void *sendbuff, void *recvbuff,
@@ -196,14 +231,26 @@ flagcxResult_t glooAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
   return flagcxSuccess;
 }
 
-// TODO: unsupported
 flagcxResult_t glooAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
                                     size_t *sdispls, void *recvbuff,
                                     size_t *recvcounts, size_t *rdispls,
                                     flagcxDataType_t datatype,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t /*stream*/) {
-  return flagcxNotSupported;
+  // Note that sdispls and rdispls are not used in Gloo.
+  ::gloo::AlltoallvOptions opts(comm->base);
+  std::vector<int64_t> send_cnt(comm->base->size);
+  std::vector<int64_t> recv_cnt(comm->base->size);
+  for (int i = 0; i < comm->base->size; ++i) {
+    send_cnt[i] = sendcounts[i];
+    recv_cnt[i] = recvcounts[i];
+  }
+
+  GENERATE_GLOO_TYPES(datatype, setInput, opts, const_cast<void *>(sendbuff),
+                      send_cnt);
+  GENERATE_GLOO_TYPES(datatype, setOutput, opts, recvbuff, recv_cnt);
+  ::gloo::alltoallv(opts);
+  return flagcxSuccess;
 }
 
 flagcxResult_t glooAdaptorSend(const void *sendbuff, size_t count,
