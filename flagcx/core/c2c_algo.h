@@ -120,21 +120,24 @@ public:
 
 class flagcxC2cHomoFunc {
 public:
-  flagcxC2cHomoFunc(int rootRank, int sendOffset, int recvOffset, int count,
-                    int homoType, flagcxCommOp_t commOp);
+  flagcxC2cHomoFunc(int rootRank, int sendType, int recvType, int sendOffset,
+                    int recvOffset, int count, int homoType,
+                    flagcxCommOp_t commOp);
   flagcxC2cHomoFunc(
-      int rootRank, int sendOffset, int recvOffset, int count, int homoType,
-      flagcxCommOp_t commOp,
+      int rootRank, int sendType, int recvType, int sendOffset, int recvOffset,
+      int count, int homoType, flagcxCommOp_t commOp,
       flagcxInterRankBufferInfoManager interRankBufferInfoManager);
   ~flagcxC2cHomoFunc();
 
-  flagcxResult_t run(const void *sendbuff, void *recvbuff,
+  flagcxResult_t run(const void *sendbuff, void *recvbuff, void *scratchbuff,
                      flagcxDataType_t datatype, flagcxRedOp_t redOp, int root,
                      flagcxComm_t comm, flagcxStream_t stream,
                      size_t *sendCounts = nullptr, size_t *sDispls = nullptr,
                      size_t *recvCounts = nullptr, size_t *rDispls = nullptr);
 
   int rootRank_;
+  int sendType_;
+  int recvType_;
   int sendOffset_;
   int recvOffset_;
   int count_;
@@ -198,6 +201,11 @@ public:
                          size_t *rDispls = nullptr);
 
 private:
+  int nSeqPreSteps_;
+  int nPipePreSteps_;
+  int nSeqInterSteps_;
+  int nPipePostSteps_;
+  int nSeqPostSteps_;
   int sendCount_;
   int recvCount_;
   int rootRank_; // used for gather, scatter
@@ -224,17 +232,13 @@ private:
   int clusterOffset_;
   int multiNic_;
   int eachNicPerRank_;
-  int preHomoFuncLoops_;            // number of loops for preHomoFunc
-  int heteroAndHomoInterFuncLoops_; // number of loops for heteroFunc and
-                                    // homoInterFunc
-  int postHomoFuncLoops_;           // number of loops for postHomoFunc
   int strategyFound_;
   flagcxInterRankBufferInfoManager interRankBufferInfoManager_;
   flagcxC2cRefreshFunc refreshFunc_;
-  std::vector<flagcxC2cHomoFunc> preHomoFuncList_;
-  std::vector<flagcxC2cHeteroFunc> heteroFuncList_;
-  std::vector<flagcxC2cHomoFunc> homoInterFuncList_;
-  std::vector<flagcxC2cHomoFunc> postHomoFuncList_;
+  std::vector<std::vector<flagcxC2cHomoFunc>> preHomoFuncSteps_;
+  std::vector<std::vector<flagcxC2cHeteroFunc>> heteroFuncSteps_;
+  std::vector<std::vector<flagcxC2cHomoFunc>> homoInterFuncSteps_;
+  std::vector<std::vector<flagcxC2cHomoFunc>> postHomoFuncSteps_;
   void *scratchBuffer_; // used for intermediate processing
 };
 
