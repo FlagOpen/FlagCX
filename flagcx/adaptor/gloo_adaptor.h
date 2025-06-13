@@ -118,8 +118,23 @@ void setInput(O& opts, void *ptr, size_t count) {
 }
 
 template <typename T, typename O>
+void setInput(O& opts, void *ptr, std::vector<int64_t> vec) {
+  opts.setInput(static_cast<T*>(ptr), vec);
+}
+
+template <typename T, typename O>
+void setInputs(O& opts, void** ptrs, size_t len, size_t count) {
+  opts.setInputs(reinterpret_cast<T**>(ptrs), len, count);
+}
+
+template <typename T, typename O>
 void setOutput(O& opts,  void *ptr, size_t count) {
   opts.setOutput(static_cast<T*>(ptr), count);
+}
+
+template <typename T, typename O>
+void setOutput(O& opts,  void *ptr, std::vector<int64_t> vec) {
+  opts.setOutput(static_cast<T*>(ptr), vec);
 }
 
 struct MaxLengthData
