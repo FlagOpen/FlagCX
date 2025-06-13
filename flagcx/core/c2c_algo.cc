@@ -1336,7 +1336,6 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         commOp_ == flagcxCommOpReduceScatter || commOp_ == flagcxCommOpReduce) {
       heteroAndHomoInterFuncLoops_ = 1;
       flagcxC2cHeteroFunc heteroFunc = flagcxC2cHeteroFunc();
-      int cid = 0;
       for (size_t j = 0; j < clusterInterRankList_.size(); ++j) {
         if (clusterId_ == j) {
           continue;
@@ -1345,7 +1344,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
           int homoRankToRecvFromCluster =
               (comm_
                    ->globalrank2homorank[clusterInterRankList_[clusterId_][0]] -
-               cid - 1 + homoRanks_) %
+               j - 1 + homoRanks_) %
               homoRanks_;
           if (homoMyRank_ == homoRankToRecvFromCluster) {
             heteroFunc.addP2pOp(rank_, clusterInterRankList_[j][0], 0,
@@ -1354,8 +1353,8 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         }
         if (!isRootCluster_ || commOp_ != flagcxCommOpReduce) {
           int homoRankToSendToCluster =
-              (comm_->globalrank2homorank[clusterInterRankList_[j][0]] - cid -
-               1 + comm_->cluster_sizes[j]) %
+              (comm_->globalrank2homorank[clusterInterRankList_[j][0]] -
+               clusterId_ - 1 + comm_->cluster_sizes[j]) %
               comm_->cluster_sizes[j];
           int globalRankToSendToCluster =
               homoRankToSendToCluster -
@@ -1368,7 +1367,6 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
                                 totalCount_, 0);
           }
         }
-        cid += 1;
       }
       heteroFuncList_.push_back(std::move(heteroFunc));
     } else if (commOp_ == flagcxCommOpAllGather) {

@@ -31,6 +31,9 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
         bootstrapSend(comm->bootstrap, peer, 1001 + c, handle,
                       sizeof(flagcxIbHandle));
         deviceAdaptor->streamCreate(&resources->cpStream);
+        for (int s = 0; s < MAXSTEPS; s++) {
+          deviceAdaptor->eventCreate(&resources->cpEvents[s]);
+        }
         resources->buffSizes[0] = REGMRBUFFERSIZE;
         deviceAdaptor->gdrMemAlloc((void **)&resources->buffers[0],
                                    resources->buffSizes[0], NULL);
@@ -55,6 +58,9 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
                       sizeof(flagcxIbHandle));
         handle->stage.comm = comm;
         deviceAdaptor->streamCreate(&resources->cpStream);
+        for (int s = 0; s < MAXSTEPS; s++) {
+          deviceAdaptor->eventCreate(&resources->cpEvents[s]);
+        }
         resources->buffSizes[0] = REGMRBUFFERSIZE;
         deviceAdaptor->gdrMemAlloc((void **)&resources->buffers[0],
                                    resources->buffSizes[0], NULL);
