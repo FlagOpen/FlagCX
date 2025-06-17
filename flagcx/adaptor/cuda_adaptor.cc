@@ -89,7 +89,7 @@ flagcxResult_t cudaAdaptorGetDeviceCount(int *count) {
 }
 
 flagcxResult_t cudaAdaptorGetVendor(char *vendor) {
-  strcpy(vendor, "meta");
+  strcpy(vendor, "NVIDIA");
   return flagcxSuccess;
 }
 
