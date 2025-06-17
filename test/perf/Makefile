@@ -6,6 +6,7 @@ USE_CAMBRICON ?= 0
 USE_METAX ?= 0
 USE_KUNLUNXIN ?= 0
 USE_DU ?= 0
+USE_ASCEND ?= 0
 ifeq ($(USE_CAMBRICON), 1)
    DEV="MLU"
 else ifeq ($(USE_METAX), 1)
@@ -124,6 +125,7 @@ print_var:
 	@echo "USE_ILUVATAR_COREX: $(USE_ILUVATAR_COREX)"
 	@echo "USE_CAMBRICON: $(USE_CAMBRICON)"
 	@echo "USE_DU: $(USE_DU)"
+	@echo "USE_ASCEND: $(USE_ASCEND)"
 	@echo "MPI_INCLUDE: $(MPI_INCLUDE)"
 	@echo "MPI_LIB: $(MPI_LIB)"
 	@echo "COMPILER: $(COMPILER)"

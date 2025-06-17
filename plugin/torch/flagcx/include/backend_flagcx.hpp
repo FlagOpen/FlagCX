@@ -48,6 +48,8 @@ public:
     event_ = std::make_unique<flagcxDuEvent>();
 #elif USE_KUNLUNXIN_ADAPTOR
     event_ = std::make_unique<flagcxXpuEvent>();
+#elif USE_ASCEND_AAPTOR
+    event_ = std::make_unique<flagcxAscendEvent>();
 #endif
   }
   bool isCompleted() override;
@@ -172,6 +174,8 @@ public:
     devName = "cuda";
 #elif USE_KUNLUNXIN_ADAPTOR
     devName = "cuda";
+#elif USE_ASCEND_ADAPTOR
+    devName = "npu";
 #endif
     py::object module = py::module::import("torch.distributed");
     py::object registerBackend =

@@ -35,6 +35,11 @@
 #include <c10/cuda/CUDAGuard.h>
 #include <c10/cuda/impl/CUDAGuardImpl.h>
 #include <cuda_runtime.h>
+#elif USE_ASCEND_ADAPTOR
+#include <c10/core/impl/InlineStreamGuard.h>
+#include <c10/cuda/CUDAGuard.h>
+#include <c10/cuda/impl/CUDAGuardImpl.h>
+#include <cuda_runtime.h>
 #endif
 
 namespace c10d {
@@ -63,6 +68,9 @@ public:
 #elif USE_KUNLUNXIN_ADAPTOR
         guard_(
             at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId))
+#elif USE_ASCEND_ADAPTOR
+	guard_(
+	    at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId))
 #endif
   {
   }
@@ -95,6 +103,9 @@ public:
 #elif USE_KUNLUNXIN_ADAPTOR
     guard_.reset_stream(
         at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId_));
+#elif USE_ASCEND_ADAPTOR
+    guard_.reset_stream(
+        at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId_));
 #endif
     currentStream_ = stream;
   }
@@ -118,6 +129,8 @@ private:
 #elif USE_DU_ADAPTOR
   c10::cuda::CUDAStreamGuard guard_;
 #elif USE_KUNLUNXIN_ADAPTOR
+  c10::cuda::CUDAStreamGuard guard_;
+#elif USE_ASCEND_ADAPTOR
   c10::cuda::CUDAStreamGuard guard_;
 #endif
 };
