@@ -791,7 +791,7 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
     return cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
         sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
   } else {
-   if (use_host_comm() || comm->has_single_rank_homo_comm) {
+    if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation
       if (comm->has_single_rank_homo_comm) {
         WARN("Host comm is required to perform C2C scatter op when "
@@ -812,8 +812,9 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
 
       // step 2: memcpy d2h
       timers[TIMER_COLL_MEM_D2H] = clockNano();
-      deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff), totalSize,
-                                  flagcxMemcpyDeviceToHost, NULL, NULL);
+      deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff),
+                                  totalSize, flagcxMemcpyDeviceToHost, NULL,
+                                  NULL);
       timers[TIMER_COLL_MEM_D2H] = clockNano() - timers[TIMER_COLL_MEM_D2H];
 
       // step 3: scatter
@@ -844,7 +845,7 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
            timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
            timers[TIMER_COLL_MEM_H2D] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
-    }else {
+    } else {
       // Experimental for multi-nic support
       // Construct flagcxC2cPlanner and find corresponding strategy
       flagcxC2cPlanner planner;
@@ -1369,21 +1370,27 @@ flagcxResult_t flagcxAlltoAllv(const void *sendbuff, size_t *sendcounts,
       void *buff_out;
 
       // Calculate max possible size needed for send and receive buffers
-      size_t max_send_size = 0, max_recv_size = 0 , send_size = 0 , recv_size = 0;
+      size_t max_send_size = 0, max_recv_size = 0, send_size = 0, recv_size = 0;
       for (int i = 0; i < comm->nranks; i++) {
-        send_size = (sendcounts[i] + sdispls[i]) * getFlagcxDataTypeSize(datatype);
-        recv_size = (recvcounts[i] + rdispls[i]) * getFlagcxDataTypeSize(datatype);
-        if (send_size > max_send_size) max_send_size = send_size;
-        if (recv_size > max_recv_size) max_recv_size = recv_size;
+        send_size =
+            (sendcounts[i] + sdispls[i]) * getFlagcxDataTypeSize(datatype);
+        recv_size =
+            (recvcounts[i] + rdispls[i]) * getFlagcxDataTypeSize(datatype);
+        if (send_size > max_send_size)
+          max_send_size = send_size;
+        if (recv_size > max_recv_size)
+          max_recv_size = recv_size;
       }
       timers[TIMER_COLL_ALLOC] = clockNano();
       deviceAdaptor->deviceMalloc(&buff_in, max_send_size, flagcxMemHost, NULL);
-      deviceAdaptor->deviceMalloc(&buff_out, max_recv_size, flagcxMemHost, NULL);
+      deviceAdaptor->deviceMalloc(&buff_out, max_recv_size, flagcxMemHost,
+                                  NULL);
       timers[TIMER_COLL_ALLOC] = clockNano() - timers[TIMER_COLL_ALLOC];
 
       timers[TIMER_COLL_MEM_D2H] = clockNano();
-      deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff), max_send_size,
-                                  flagcxMemcpyDeviceToHost, NULL, NULL);
+      deviceAdaptor->deviceMemcpy(buff_in, const_cast<void *>(sendbuff),
+                                  max_send_size, flagcxMemcpyDeviceToHost, NULL,
+                                  NULL);
       timers[TIMER_COLL_MEM_D2H] = clockNano() - timers[TIMER_COLL_MEM_D2H];
 
       timers[TIMER_COLL_COMM] = clockNano();
@@ -1405,7 +1412,8 @@ flagcxResult_t flagcxAlltoAllv(const void *sendbuff, size_t *sendcounts,
       timers[TIMER_COLL_TOTAL] = clockNano() - timers[TIMER_COLL_TOTAL];
       INFO(FLAGCX_COLL,
            "Flagcx timings - %s AlltoAllv: rank %d nranks %d total %.2fms "
-           "(memory alloc %.2fms, memory free %.2fms, memory d2h %.2fms, memory h2d %.2fms, comm %.2fms)",
+           "(memory alloc %.2fms, memory free %.2fms, memory d2h %.2fms, "
+           "memory h2d %.2fms, comm %.2fms)",
            cclAdaptors[flagcxCCLAdaptorHost]->name, comm->rank, comm->nranks,
            timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_D2H] / 1e6,
@@ -1488,8 +1496,14 @@ flagcxResult_t flagcxSend(const void *sendbuff, size_t count,
            timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6,
            timers[TIMER_COLL_MEM_D2H] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
-      FLAGCXCHECK(flagcxHeteroSend(sendbuff, count, datatype, peer,
-                                   comm->hetero_comm, stream));
+      if (comm->cluster_ids[comm->rank] == comm->cluster_ids[peer]) {
+        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->send(
+            sendbuff, count, datatype, comm->globalrank2homorank[peer],
+            comm->homo_comm, stream));
+      } else {
+        FLAGCXCHECK(flagcxHeteroSend(sendbuff, count, datatype, peer,
+                                     comm->hetero_comm, stream));
+      }
     }
   }
   return flagcxSuccess;
@@ -1541,8 +1555,14 @@ flagcxResult_t flagcxRecv(void *recvbuff, size_t count,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_H2D] / 1e6,
            timers[TIMER_COLL_COMM] / 1e6);
     } else {
-      FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, peer,
-                                   comm->hetero_comm, stream));
+      if (comm->cluster_ids[comm->rank] == comm->cluster_ids[peer]) {
+        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->recv(
+            recvbuff, count, datatype, comm->globalrank2homorank[peer],
+            comm->homo_comm, stream));
+      } else {
+        FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, peer,
+                                     comm->hetero_comm, stream));
+      }
     }
   }
   return flagcxSuccess;
@@ -1550,28 +1570,26 @@ flagcxResult_t flagcxRecv(void *recvbuff, size_t count,
 
 flagcxResult_t flagcxGroupStart(flagcxComm_t comm) {
   FLAGCXCHECK(flagcxEnsureCommReady(comm));
-  if (is_homo_comm(comm)) {
-    return cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
+  if (!is_homo_comm(comm)) {
+    FLAGCXCHECK(flagcxHeteroGroupStart());
+  }
+  if (use_host_comm()) {
+    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorHost]->groupStart());
   } else {
-    if (use_host_comm()) {
-      cclAdaptors[flagcxCCLAdaptorHost]->groupStart();
-    } else {
-      FLAGCXCHECK(flagcxHeteroGroupStart());
-    }
+    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->groupStart());
   }
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxGroupEnd(flagcxComm_t comm) {
   FLAGCXCHECK(flagcxEnsureCommReady(comm));
-  if (is_homo_comm(comm)) {
-    return cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd();
+  if (use_host_comm()) {
+    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorHost]->groupEnd());
   } else {
-    if (use_host_comm()) {
-      cclAdaptors[flagcxCCLAdaptorHost]->groupEnd();
-    } else {
-      FLAGCXCHECK(flagcxHeteroGroupEnd());
-    }
+    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd());
+  }
+  if (!is_homo_comm(comm)) {
+    FLAGCXCHECK(flagcxHeteroGroupEnd());
   }
   return flagcxSuccess;
 }

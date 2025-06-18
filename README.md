@@ -23,15 +23,15 @@ FlagCX leverages native collective communications libraries to provide the full 
 | Mode          | Homo | Homo   | Homo | Homo | Homo | Homo  | Hetero    | Hetero  | Hetero     |
 | send          | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
 | recv          | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
-| broadcast     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✘       | ✓          |
-| gather        | ✓    | ✓      | ✓    | ✓    | ✘    | ✓     |✓          | ✘       | ✓          |
-| scatter       | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✘       | ✓          |
-| reduce        | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✘       | ✓          |
+| broadcast     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
+| gather        | ✓    | ✓      | ✓    | ✓    | ✘    | ✓     |✓          | ✓       | ✓          |
+| scatter       | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
+| reduce        | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
 | allreduce     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
 | allgather     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
 | reducescatter | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✘       | ✓          |
 | alltoall      | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
-| alltoallv     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✘          | ✓       | ✓          |
+| alltoallv     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✓          | ✓       | ✓          |
 | group ops     | ✓    | ✓      | ✓    | ✓    | ✓    | ✓     |✘          | ✘       | ✘          |
 
 Note that `Homo` and `Hetero` modes refer to communications among homogeneous and heterogeneous clusters. Except for `BOOTSTRAP` (which is constructed by FlagCX `bootstrap` component), all other native collective communications libraries can be referenced through the links below:
