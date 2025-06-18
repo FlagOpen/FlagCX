@@ -200,8 +200,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
     struct hostFuncArgs args;
     args = hostFuncQueue.front();
     hostFuncQueue.pop();
-    FLAGCXCHECK(
-        deviceAdaptor->launchHostFunc(args.stream, cpuAsyncLaunch, args.args));
+    FLAGCXCHECK(launchAsyncKernel(args.stream, args.args));
   }
 
   while (!flagcxIntruQueueEmpty(asyncJobsMain)) {
