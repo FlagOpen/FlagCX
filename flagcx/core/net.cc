@@ -5,25 +5,31 @@
 
 flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
-  if(!__atomic_load_n(&args->eventReady, __ATOMIC_RELAXED)) return flagcxSuccess;
+  if (!__atomic_load_n(&args->eventReady, __ATOMIC_RELAXED))
+    return flagcxSuccess;
   if (args->transmitted < args->chunkSteps) {
     int stepMask = args->sendStepMask;
 
     if (args->waitCopy < args->chunkSteps &&
-        args->waitCopy - args->transmitted < MAXSENDSTEP) {
+        args->waitCopy - args->transmitted < MAXSTEPS) {
       int step = args->waitCopy & stepMask;
       args->subs[step].stepSize =
           std::min(args->chunkSize, size - args->totalCopySize);
-      args->subs[step].stepBuff = resources->buffers[0] + (CHUNCKSIZE * step);
+      args->subs[step].stepBuff = resources->buffers[0] + (CHUNKSIZE * step);
       deviceAdaptor->deviceMemcpy(
           args->subs[step].stepBuff, (char *)data + args->totalCopySize,
           args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
           resources->cpStream, args->subs[step].copyArgs);
-      args->totalCopySize += args->subs[args->waitCopy++ & stepMask].stepSize;
+      deviceAdaptor->eventRecord(resources->cpEvents[step],
+                                 resources->cpStream);
+      args->totalCopySize += args->subs[step].stepSize;
+      args->waitCopy++;
     }
 
     if (args->copied < args->waitCopy) {
-      if (deviceAdaptor->streamQuery(resources->cpStream) == flagcxSuccess) {
+      int step = args->copied & stepMask;
+      if (deviceAdaptor->eventQuery(resources->cpEvents[step]) ==
+          flagcxSuccess) {
         args->copied++;
       }
     }
@@ -47,8 +53,7 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
         args->transmitted++;
       }
     }
-  } 
-  else {
+  } else {
     __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
     args->done = true;
   }
@@ -58,17 +63,18 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
 
 flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
-  if(!__atomic_load_n(&args->eventReady, __ATOMIC_RELAXED)) return flagcxSuccess;
+  if (!__atomic_load_n(&args->eventReady, __ATOMIC_RELAXED))
+    return flagcxSuccess;
   if (args->copied < args->chunkSteps) {
     int stepMask = args->sendStepMask;
     if (args->posted < args->chunkSteps &&
-        args->posted - args->copied < MAXSENDSTEP) {
+        args->posted - args->copied < MAXSTEPS) {
       int tags[8] = {0};
       void *req = NULL;
       args->subs[args->posted & stepMask].stepSize =
           std::min(args->chunkSize, size - args->totalPostSize);
       args->subs[args->posted & stepMask].stepBuff =
-          resources->buffers[0] + CHUNCKSIZE * (args->posted & stepMask);
+          resources->buffers[0] + CHUNKSIZE * (args->posted & stepMask);
       flagcxNetIb.irecv(resources->netRecvComm, 1,
                         &args->subs[args->posted & stepMask].stepBuff,
                         (int *)&args->subs[args->posted & stepMask].stepSize,
@@ -114,17 +120,21 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
           (char *)data + args->totalCopySize, args->subs[step].stepBuff,
           args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
           resources->cpStream, args->subs[step].copyArgs);
-      args->totalCopySize += args->subs[args->waitCopy++ & stepMask].stepSize;
+      deviceAdaptor->eventRecord(resources->cpEvents[step],
+                                 resources->cpStream);
+      args->totalCopySize += args->subs[step].stepSize;
+      args->waitCopy++;
     }
 
     if (args->copied < args->waitCopy) {
-      if (deviceAdaptor->streamQuery(resources->cpStream) == flagcxSuccess) {
+      int step = args->copied & stepMask;
+      if (deviceAdaptor->eventQuery(resources->cpEvents[step]) ==
+          flagcxSuccess) {
         args->copied++;
       }
     }
 
-  } 
-  else {
+  } else {
     __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
     args->done = true;
   }
@@ -136,6 +146,9 @@ flagcxResult_t flagcxSendProxyFree(sendNetResources *resources) {
   flagcxNetIb.deregMr(resources->netSendComm, resources->mhandles[0]);
   flagcxNetIb.closeSend(resources->netSendComm);
   deviceAdaptor->gdrMemFree(resources->buffers[0], NULL);
+  for (int s = 0; s < MAXSTEPS; s++) {
+    deviceAdaptor->eventDestroy(resources->cpEvents[s]);
+  }
   deviceAdaptor->streamDestroy(resources->cpStream);
   return flagcxSuccess;
 }
@@ -145,6 +158,9 @@ flagcxResult_t flagcxRecvProxyFree(recvNetResources *resources) {
   flagcxNetIb.closeRecv(resources->netRecvComm);
   flagcxNetIb.closeListen(resources->netListenComm);
   deviceAdaptor->gdrMemFree(resources->buffers[0], NULL);
+  for (int s = 0; s < MAXSTEPS; s++) {
+    deviceAdaptor->eventDestroy(resources->cpEvents[s]);
+  }
   deviceAdaptor->streamDestroy(resources->cpStream);
   return flagcxSuccess;
 }
