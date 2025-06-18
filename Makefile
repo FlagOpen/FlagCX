@@ -1,18 +1,17 @@
 # 2025 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
 # 2025 - Modified by DU. All Rights Reserved.
+
 BUILDDIR ?= $(abspath ./build)
 
-# set to 0 if not provided
 USE_NVIDIA ?= 0
 USE_ILUVATAR_COREX ?= 0
 USE_CAMBRICON ?= 0
 USE_GLOO ?= 0
 USE_BOOTSTRAP ?= 0
 USE_METAX ?= 0
-USE_KUNLUNXIN ?=0
+USE_KUNLUNXIN ?= 0
 USE_DU ?= 0
 
-# set to empty if not provided
 DEVICE_HOME ?=
 CCL_HOME ?=
 HOST_CCL_HOME ?=
@@ -57,7 +56,7 @@ ifeq ($(strip $(HOST_CCL_HOME)),)
 	ifeq ($(USE_GLOO), 1)
 		HOST_CCL_HOME = /usr/local
 	else
-		HOST_CCL_HOME = 
+		HOST_CCL_HOME =
 	endif
 endif
 
@@ -67,7 +66,7 @@ DEVICE_LINK =
 CCL_LIB =
 CCL_INCLUDE =
 CCL_LINK =
-HOST_CCL_LIB = 
+HOST_CCL_LIB =
 HOST_CCL_INCLUDE =
 HOST_CCL_LINK =
 ADAPTOR_FLAG =
@@ -137,12 +136,12 @@ ifeq ($(USE_GLOO), 1)
 else ifeq ($(USE_BOOTSTRAP), 1)
 	HOST_CCL_LIB = /usr/local/lib
 	HOST_CCL_INCLUDE = /usr/local/include
-	HOST_CCL_LINK = 
+	HOST_CCL_LINK =
 	HOST_CCL_ADAPTOR_FLAG = -DUSE_BOOTSTRAP_ADAPTOR
 else
 	HOST_CCL_LIB = /usr/local/lib
 	HOST_CCL_INCLUDE = /usr/local/include
-	HOST_CCL_LINK = 
+	HOST_CCL_LINK =
 	HOST_CCL_ADAPTOR_FLAG = -DUSE_BOOTSTRAP_ADAPTOR
 endif
 
@@ -155,15 +154,23 @@ INCLUDEDIR := \
 	$(abspath flagcx/adaptor) \
 	$(abspath flagcx/service)
 
-LIBSRCFILES:= \
+LIBSRCFILES := \
 	$(wildcard flagcx/*.cc) \
 	$(wildcard flagcx/core/*.cc) \
 	$(wildcard flagcx/adaptor/*.cc) \
 	$(wildcard flagcx/service/*.cc)
 
-LIBOBJ     := $(LIBSRCFILES:%.cc=$(OBJDIR)/%.o)
+CUSRCFILES := $(wildcard flagcx/core/*.cu)
+
+LIBOBJ := $(LIBSRCFILES:%.cc=$(OBJDIR)/%.o)
+
+# ✅ 修改：cu -> o 的路径转换方式（使用 patsubst）
+CUOBJS := $(patsubst %.cu,$(OBJDIR)/%.o,$(CUSRCFILES))
+
+ALLOBJS := $(LIBOBJ) $(CUOBJS)
 
 TARGET = libflagcx.so
+
 all: $(LIBDIR)/$(TARGET)
 
 print_var:
@@ -186,15 +193,23 @@ print_var:
 	@echo "ADAPTOR_FLAG: $(ADAPTOR_FLAG)"
 	@echo "HOST_CCL_ADAPTOR_FLAG: $(HOST_CCL_ADAPTOR_FLAG)"
 
-$(LIBDIR)/$(TARGET): $(LIBOBJ)
+$(LIBDIR)/$(TARGET): $(ALLOBJS)
 	@mkdir -p `dirname $@`
 	@echo "Linking   $@"
-	@g++ $(LIBOBJ) -o $@ -L$(CCL_LIB) -L$(DEVICE_LIB) -L$(HOST_CCL_LIB) -shared -fvisibility=default -Wl,--no-as-needed -Wl,-rpath,$(LIBDIR) -Wl,-rpath,$(CCL_LIB) -Wl,-rpath,$(HOST_CCL_LIB) -lpthread -lrt -ldl $(CCL_LINK) $(DEVICE_LINK) $(HOST_CCL_LINK) -g
+	@g++ $(ALLOBJS) -o $@ -L$(CCL_LIB) -L$(DEVICE_LIB) -L$(HOST_CCL_LIB) -shared -fvisibility=default -Wl,--no-as-needed -Wl,-rpath,$(LIBDIR) -Wl,-rpath,$(CCL_LIB) -Wl,-rpath,$(HOST_CCL_LIB) -lpthread -lrt -ldl $(CCL_LINK) $(DEVICE_LINK) $(HOST_CCL_LINK) -g
 
 $(OBJDIR)/%.o: %.cc
 	@mkdir -p `dirname $@`
 	@echo "Compiling $@"
 	@g++ $< -o $@ $(foreach dir,$(INCLUDEDIR),-I$(dir)) -I$(CCL_INCLUDE) -I$(DEVICE_INCLUDE) -I$(HOST_CCL_INCLUDE) $(ADAPTOR_FLAG) $(HOST_CCL_ADAPTOR_FLAG) -c -fPIC -fvisibility=default -Wvla -Wno-unused-function -Wno-sign-compare -Wall -MMD -MP -g
+
+$(OBJDIR)/%.o: %.cu
+	@mkdir -p `dirname $@`
+	@echo "Compiling CUDA $@"
+	@$(DEVICE_HOME)/bin/nvcc -c $< -o $@ -Xcompiler -fPIC \
+	    $(foreach dir,$(INCLUDEDIR),-I$(dir)) \
+	    -I$(CCL_INCLUDE) -I$(DEVICE_INCLUDE) -I$(HOST_CCL_INCLUDE) \
+	    -g -lineinfo --compiler-options '-fvisibility=default'
 
 -include $(LIBOBJ:.o=.d)
 
