@@ -208,41 +208,41 @@ private:
 #elif USE_ASCEND_ADAPTOR
 class flagcxNpuEvent() {
 public:
-    flagcxNpuEvent() {
-        aclError ret = aclrtCreateEvent(&aclEvent_);
-	if (ret != ACL_SUCCESS) {
-	    throw std::runtime_error("Failed to create NPU event");
-	}
+  flagcxNpuEvent() {
+    aclError ret = aclrtCreateEvent(&aclEvent_);
+    if (ret != ACL_SUCCESS) {
+      throw std::runtime_error("Failed to create NPU event");
     }
+  }
 
-    ~flagcxNpuEvent() {
-        aclrtDestoryEvent(aclEvent_);
-    }
+  ~flagcxNpuEvent() {
+    aclrtDestoryEvent(aclEvent_);
+  }
 
-    void record(const int devicedId) override {
-	aclrtStream currentStream;
-	aclrtGetCurrentStream(&currentStream);
-	aclrtEventRecord(aclEvent_, currentStream);
-    }
+  void record(const int devicedId) override {
+    aclrtStream currentStream;
+    aclrtGetCurrentStream(&currentStream);
+    aclrtEventRecord(aclEvent_, currentStream);
+  }
 
-    void record(const flagcxStream_t &stream, const int deviceId) override {
-	aclrtStream targetStream = reinterpret_cast<aclrtStream>(stream);
-	aclrtEventRecord(aclEvent_, targetStream);
-    }
+  void record(const flagcxStream_t &stream, const int deviceId) override {
+    aclrtStream targetStream = reinterpret_cast<aclrtStream>(stream);
+    aclrtEventRecord(aclEvent_, targetStream);
+  }
 
-    void block(const int deviceId) override {
-	aclrtStream currentStream;
-	aclrtGetCurrentStream(&currentStream);
-	aclrtStreamWaitEvent(currentStream, aclEvent_);
-    }
+  void block(const int deviceId) override {
+    aclrtStream currentStream;
+    aclrtGetCurrentStream(&currentStream);
+    aclrtStreamWaitEvent(currentStream, aclEvent_);
+  }
 
-    void block(const flagcxStream_t &stream, const int deviceId) override {
-	aclrtStream targetStream = reinterpret_cast<aclrtStream>(stream);
-	aclrtStreamWaitEvent(targetStream, aclEvent_);
-    }
+  void block(const flagcxStream_t &stream, const int deviceId) override {
+    aclrtStream targetStream = reinterpret_cast<aclrtStream>(stream);
+    aclrtStreamWaitEvent(targetStream, aclEvent_);
+  }
 
 private:
-    aclrtEvent aclEvent_;
+  aclrtEvent aclEvent_;
 };
 
 #endif
