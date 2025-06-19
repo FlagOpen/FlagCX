@@ -209,7 +209,7 @@ std::unique_ptr<flagcxEvent> &flagcxBackend::getEventByIndex(int eventId) {
 #elif USE_KUNLUNXIN_ADAPTOR
     flagcxEvents_[eventId] = std::make_unique<flagcxXpuEvent>();
 #elif USE_ASCEND_ADAPTOR
-    flagcxEvents_[eventId] = std::make_unique<flagcxXpuEvent>();
+    flagcxEvents_[eventId] = std::make_unique<flagcxNpuEvent>();
 #endif
     return flagcxEvents_[eventId];
   }

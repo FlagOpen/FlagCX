@@ -27,6 +27,7 @@
 #elif USE_ASCEND_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
+#include <acl/acl.h>
 #endif
 
 namespace c10d {
@@ -205,31 +206,45 @@ private:
   at::cuda::CUDAEvent cudaEvent_;
 };
 #elif USE_ASCEND_ADAPTOR
-class flagcxXpuEvent : public flagcxEvent {
+class flagcxNpuEvent() {
 public:
-    flagcxAscendEvent() { cudaEvent_ = at::cuda::CUDAEvent(cudaEventDisableTiming); }
+    flagcxNpuEvent() {
+        aclError ret = aclrtCreateEvent(&aclEvent_);
+	if (ret != ACL_SUCCESS) {
+	    throw std::runtime_error("Failed to create NPU event");
+	}
+    }
 
-    void record(const int deviceId) override {
-    cudaEvent_.record(at::cuda::getCurrentCUDAStream(deviceId));
-  }
+    ~flagcxNpuEvent() {
+        aclrtDestoryEvent(aclEvent_);
+    }
 
-  void record(const flagcxStream_t &stream, const int deviceId) override {
-    cudaEvent_.record(
-        at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId));
-  }
+    void record(const int devicedId) override {
+	aclrtStream currentStream;
+	aclrtGetCurrentStream(&currentStream);
+	aclrtEventRecord(aclEvent_, currentStream);
+    }
 
-  void block(const int deviceId) override {
-    cudaEvent_.block(at::cuda::getCurrentCUDAStream(deviceId));
-  }
+    void record(const flagcxStream_t &stream, const int deviceId) override {
+	aclrtStream targetStream = reinterpret_cast<aclrtStream>(stream);
+	aclrtEventRecord(aclEvent_, targetStream);
+    }
 
-  void block(const flagcxStream_t &stream, const int deviceId) override {
-    cudaEvent_.block(
-        at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId));
-  }
+    void block(const int deviceId) override {
+	aclrtStream currentStream;
+	aclrtGetCurrentStream(&currentStream);
+	aclrtStreamWaitEvent(currentStream, aclEvent_);
+    }
+
+    void block(const flagcxStream_t &stream, const int deviceId) override {
+	aclrtStream targetStream = reinterpret_cast<aclrtStream>(stream);
+	aclrtStreamWaitEvent(targetStream, aclEvent_);
+    }
 
 private:
-  at::cuda::CUDAEvent cudaEvent_;
+    aclrtEvent aclEvent_;
 };
+
 #endif
 
 } // namespace c10d
