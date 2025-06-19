@@ -24,41 +24,42 @@ constexpr int FLAGCX_INTER_LAT_IDX = 1;
 
 class flagcxAlgoTimeEstimator {
 public:
-  flagcxAlgoTimeEstimator(flagcxC2cPlanner &planner, flagcxDataType_t dtype)
-      : planner_(planner), datatype(dtype) {}
+  flagcxAlgoTimeEstimator(flagcxDataType_t dtype, flagcxC2cPlanner &planner);
+  ~flagcxAlgoTimeEstimator();
 
   flagcxResult_t getAlgoTime(float *time);
 
 private:
+  flagcxResult_t collectPlannerInfo();
   flagcxResult_t getPreHomoAlgoTime(float *time);
+  flagcxResult_t getP2pTime(int rank, flagcxC2cHeteroFuncInfo &heteroFunc,
+                            float *time);
 
   flagcxResult_t getPostHomoAlgoTime(float *time);
 
-  flagcxResult_t getHomoAlgoTime(flagcxC2cHomoFunc &homoFunc, int rankSize,
-                                 int vendor, float *time);
+  flagcxResult_t getHomoAlgoTime(flagcxC2cHomoFuncInfo &homoFunc, int rank,
+                                 int rankSize, flagcxVendorType vendor,
+                                 float *time);
 
   flagcxResult_t getHeteroAlgoTime(float *time);
 
-  flagcxResult_t getHomoInterAlgoTime(int loop, float *time);
-
-  void generateHeteroFuncForMultiNic(int rank, int loop,
-                                     flagcxC2cHeteroFunc &heteroFunc);
-
-  void generateHeteroFuncForSingleNic(int rank,
-                                      flagcxC2cHeteroFunc &heteroFunc);
-
-  float getP2pTimePerNic(
-      uint64_t netGuid,
-      std::unordered_map<uint64_t, std::vector<int>> &nicRankMap,
-      std::unordered_map<int, std::vector<flagcxC2cHeteroFunc>> &heteroFuncMap);
+  flagcxResult_t getHomoInterAlgoTime(int rank, int loop, float *time);
 
   float getRefreshTime();
 
   float getSendRecvTime(float curClusterLat, float remoteClusterLat, float bw,
                         int totalCount, size_t chunkSize);
 
+  // flagcxC2cPlanner &planner_;
+  flagcxDataType_t datatype_;
   flagcxC2cPlanner &planner_;
-  flagcxDataType_t datatype;
+  flagcxComm_t comm_;
+  bool plannerInfoReady_{false};
+  flagcxC2cPlannerInfo *plannerInfoData_{nullptr};
+  static std::map<
+      flagcxVendorType,
+      std::map<flagcxCommOp_t, std::map<int, std::map<size_t, float>>>>
+      homoTimeMap;
 };
 
 #endif
