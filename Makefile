@@ -11,6 +11,7 @@ USE_BOOTSTRAP ?= 0
 USE_METAX ?= 0
 USE_KUNLUNXIN ?=0
 USE_DU ?= 0
+USE_ASCEND ?= 0
 
 # set to empty if not provided
 DEVICE_HOME ?=
@@ -30,6 +31,8 @@ ifeq ($(strip $(DEVICE_HOME)),)
 		DEVICE_HOME = /usr/local/xpu
 	else ifeq ($(USE_DU), 1)
 		DEVICE_HOME = ${CUDA_PATH}
+	else ifeq ($(USE_ASCEND), 1)
+	        DEVICE_HOME = /usr/local/Ascend/ascend-toolkit/ascend-toolkit/8.1.RC1/runtime
 	else
 		DEVICE_HOME = /usr/local/cuda
 	endif
@@ -48,6 +51,8 @@ ifeq ($(strip $(CCL_HOME)),)
 		CCL_HOME = /usr/local/xccl
 	else ifeq ($(USE_DU), 1)
 		CCL_HOME = ${CUDA_PATH}
+	else ifeq ($(USE_ASCEND), 1)
+	        CCL_HOME = /usr/local/Ascend/ascend-toolkit/8.1.RC1/hccl
 	else
 		CCL_HOME = /usr/local/nccl/build
 	endif
@@ -119,6 +124,14 @@ else ifeq ($(USE_DU), 1)
 	CCL_INCLUDE = $(CCL_HOME)/include
 	CCL_LINK = -lnccl
 	ADAPTOR_FLAG = -DUSE_DU_ADAPTOR
+else ifeq ($(USE_ASCEND), 1)
+	DEVICE_LIB = $(DEVICE_HOME)/lib64
+	DEVICE_INCLUDE = $(DEVICE_HOME)/include
+	DEVICE_LINK = -lcudart -lcuda
+	CCL_LIB = $(CCL_HOME)/lib64
+	CCL_INCLUDE = $(CCL_HOME)/include
+	CCL_LINK = -lhccl
+	ADAPTOR_FLAG = -DUSE_ASCEND_ADAPTOR
 else
 	DEVICE_LIB = $(DEVICE_HOME)/lib64
 	DEVICE_INCLUDE = $(DEVICE_HOME)/include
@@ -177,6 +190,7 @@ print_var:
 	@echo "USE_KUNLUNXIN: $(USE_KUNLUNXIN)"
 	@echo "USE_GLOO: $(USE_GLOO)"
 	@echo "USE_DU: $(USE_DU)"
+	@echo "USE_ASCEND: $(USE_ASCEND)"
 	@echo "DEVICE_LIB: $(DEVICE_LIB)"
 	@echo "DEVICE_INCLUDE: $(DEVICE_INCLUDE)"
 	@echo "CCL_LIB: $(CCL_LIB)"
