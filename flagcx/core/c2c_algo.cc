@@ -1193,31 +1193,40 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
       // inter ranks equaling to homo ranks
       // setup preHomoFuncs
       flagcxCommOp_t preHomoFuncCommOp = getC2cHomoCommOp(0, 0);
+      auto &buffer =
+          interRankBufferInfoManager_.getBufferInfoList(clusterId_, rank_)
+              .front();
       if (preHomoFuncCommOp == flagcxCommOpReduceScatter) {
-        size_t dataoffset = 0;
-        for (int c = 0; c < comm_->nclusters; ++c) {
-          int clusterdata = recvCount_ * comm_->cluster_sizes[c];
-          int preHomoFuncCount =
-              clusterdata / clusterInterRankList_[clusterId_].size();
-          int preHomoFuncRes =
-              clusterdata % clusterInterRankList_[clusterId_].size();
-          int step = (clusterId_ + comm_->nclusters - 1 - c) % comm_->nclusters;
-          if (step == comm_->nclusters - 1) {
-            step = 0;
-          }
-          preHomoFuncSteps_[step].emplace_back(
-              -1, 0, recvType, dataoffset,
-              dataoffset + preHomoFuncCount * homoMyRank_, preHomoFuncCount, 0,
-              preHomoFuncCommOp);
-          if (preHomoFuncRes > 0) {
+        if (commOp_ != flagcxCommOpReduceScatter) {
+          preHomoFuncSteps_[0].emplace_back(-1, 0, recvType, 0,
+                                            homoMyRank_ * buffer.count_,
+                                            buffer.count_, 0, preHomoFuncCommOp);
+        } else {
+          size_t dataoffset = 0;
+          for (int c = 0; c < comm_->nclusters; ++c) {
+            int clusterdata = recvCount_ * comm_->cluster_sizes[c];
+            int preHomoFuncCount =
+                clusterdata / clusterInterRankList_[clusterId_].size();
+            int preHomoFuncRes =
+                clusterdata % clusterInterRankList_[clusterId_].size();
+            int step = (clusterId_ + comm_->nclusters - 1 - c) % comm_->nclusters;
+            if (step == comm_->nclusters - 1) {
+              step = 0;
+            }
             preHomoFuncSteps_[step].emplace_back(
-                comm_->globalrank2homorank[clusterInterRankList_[clusterId_]
-                                               .back()],
-                0, recvType, dataoffset + clusterdata - preHomoFuncRes,
-                dataoffset + clusterdata - preHomoFuncRes, preHomoFuncRes,
-                0, flagcxCommOpReduce);
+                -1, 0, recvType, dataoffset,
+                dataoffset + preHomoFuncCount * homoMyRank_, preHomoFuncCount, 0,
+                preHomoFuncCommOp);
+            if (preHomoFuncRes > 0) {
+              preHomoFuncSteps_[step].emplace_back(
+                  comm_->globalrank2homorank[clusterInterRankList_[clusterId_]
+                                                 .back()],
+                  0, recvType, dataoffset + clusterdata - preHomoFuncRes,
+                  dataoffset + clusterdata - preHomoFuncRes, preHomoFuncRes,
+                  0, flagcxCommOpReduce);
+            }
+            dataoffset += clusterdata;
           }
-          dataoffset += clusterdata;
         }
       } else if (preHomoFuncCommOp == flagcxCommOpAllGather) {
         preHomoFuncSteps_[0].emplace_back(-1, 0, recvType, 0,
