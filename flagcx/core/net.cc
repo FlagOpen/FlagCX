@@ -56,6 +56,8 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
   } else {
     __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
     args->done = true;
+    deviceAdaptor->deviceMemcpy(args->dlArgs, args->hlArgs, 1 ,
+                                    flagcxMemcpyHostToDevice, resources->cpStream, NULL);
   }
 
   return flagcxSuccess;
@@ -137,6 +139,8 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
   } else {
     __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
     args->done = true;
+    deviceAdaptor->deviceMemcpy(args->dlArgs, args->hlArgs, 1 ,
+                                    flagcxMemcpyHostToDevice, resources->cpStream, NULL);
   }
 
   return flagcxSuccess;
