@@ -12,12 +12,20 @@ TEST_F(FlagCXCollTest, AllReduce) {
   flagcxComm_t &comm = handler->comm;
   flagcxDeviceHandle_t &devHandle = handler->devHandle;
 
+
+  devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice, stream);
+  devHandle->deviceMalloc(&recvbuff, size * nranks, flagcxMemDevice, stream);
+  devHandle->deviceMalloc(&hostsendbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostsendbuff, 0, size, flagcxMemHost, stream);
+  devHandle->deviceMalloc(&hostrecvbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostrecvbuff, 0, size, flagcxMemHost, stream);
+
   for (size_t i = 0; i < count; i++) {
     ((float *)hostsendbuff)[i] = i % 10;
   }
 
-  devHandle->deviceMemcpy(sendbuff, hostsendbuff, size,
-                          flagcxMemcpyHostToDevice, NULL);
+
+  devHandle->deviceMemcpy(sendbuff, hostsendbuff, size, flagcxMemcpyHostToDevice, stream);
 
   if (rank == 0) {
     std::cout << "sendbuff = ";
@@ -29,12 +37,11 @@ TEST_F(FlagCXCollTest, AllReduce) {
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-  flagcxAllReduce(sendbuff, recvbuff, count, flagcxFloat, flagcxSum, comm,
-                  stream);
-  devHandle->streamSynchronize(stream);
+  flagcxAllReduce(sendbuff, recvbuff, count, flagcxFloat, flagcxSum, comm, stream);
 
-  devHandle->deviceMemcpy(hostrecvbuff, recvbuff, size,
-                          flagcxMemcpyDeviceToHost, NULL);
+  devHandle->deviceMemcpy(hostrecvbuff, recvbuff, size, flagcxMemcpyDeviceToHost, stream);
+
+  devHandle->streamSynchronize(stream);
 
   for (size_t i = 0; i < count; i++) {
     ((float *)hostrecvbuff)[i] /= nranks;
@@ -48,42 +55,34 @@ TEST_F(FlagCXCollTest, AllReduce) {
     std::cout << ((float *)hostrecvbuff)[10] << std::endl;
   }
 
+
   MPI_Barrier(MPI_COMM_WORLD);
 
-  if (rank == 0 && !std::ifstream(BASELINE_FILE)) {
-    std::ofstream baseline_file(BASELINE_FILE);
-    for (size_t i = 0; i < NUM_BASELINE_ENTRIES; i++) {
-      baseline_file << ((float *)hostrecvbuff)[i] << "\n";
-    }
-    baseline_file.close();
-    std::cout << "Baseline results saved to " << BASELINE_FILE << std::endl;
-  }
+  EXPECT_EQ(strcmp(static_cast<char *>(hostsendbuff),
+                   static_cast<char *>(hostrecvbuff)),
+            0);
 
-  std::vector<float> baseline_result(NUM_BASELINE_ENTRIES);
-  std::ifstream baseline_file(BASELINE_FILE);
-  for (size_t i = 0; i < NUM_BASELINE_ENTRIES; i++) {
-    baseline_file >> baseline_result[i];
-  }
-  baseline_file.close();
-
-  for (size_t i = 0; i < NUM_BASELINE_ENTRIES; i++) {
-    ASSERT_FLOAT_EQ(((float *)hostrecvbuff)[i], baseline_result[i])
-        << "Mismatch at index " << i
-        << ": Expected " << baseline_result[i]
-        << ", Got " << ((float *)hostrecvbuff)[i];
-  }
 }
+
 
 TEST_F(FlagCXCollTest, AllGather) {
   flagcxComm_t &comm = handler->comm;
   flagcxDeviceHandle_t &devHandle = handler->devHandle;
 
+  devHandle->deviceMalloc(&sendbuff, size / nranks, flagcxMemDevice,stream);
+  devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice, stream);
+  devHandle->deviceMalloc(&hostsendbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostsendbuff, 0, size, flagcxMemHost, stream);
+  devHandle->deviceMalloc(&hostrecvbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostrecvbuff, 0, size, flagcxMemHost, stream);
+
+
   for (size_t i = 0; i < count; i++) {
     ((float *)hostsendbuff)[i] = i % 10;
   }
 
-  devHandle->deviceMemcpy(sendbuff, hostsendbuff, size,
-                          flagcxMemcpyHostToDevice, NULL);
+  devHandle->deviceMemcpy(sendbuff, hostsendbuff, size / nranks,
+                          flagcxMemcpyHostToDevice, stream);
 
   if (rank == 0) {
     std::cout << "sendbuff = ";
@@ -96,13 +95,17 @@ TEST_F(FlagCXCollTest, AllGather) {
   MPI_Barrier(MPI_COMM_WORLD);
 
 
-  devHandle->deviceMalloc(&recvbuff, size * nranks, flagcxMemDevice, NULL);
 
-  flagcxAllGather(sendbuff, recvbuff, count, flagcxFloat, comm, stream);
+  flagcxAllGather(sendbuff, recvbuff, count / nranks, flagcxFloat, comm, stream);
+
+
+  devHandle->deviceMemcpy(hostrecvbuff, recvbuff, size,
+                          flagcxMemcpyDeviceToHost, stream);
+
   devHandle->streamSynchronize(stream);
 
-  devHandle->deviceMemcpy(hostrecvbuff, recvbuff, size * nranks,
-                          flagcxMemcpyDeviceToHost, NULL);
+  MPI_Barrier(MPI_COMM_WORLD);
+
 
   if (rank == 0) {
     std::cout << "recvbuff = ";
@@ -112,11 +115,13 @@ TEST_F(FlagCXCollTest, AllGather) {
     std::cout << ((float *)hostrecvbuff)[10] << std::endl;
   }
 
+
   MPI_Barrier(MPI_COMM_WORLD);
 
   EXPECT_EQ(strcmp(static_cast<char *>(hostsendbuff),
                    static_cast<char *>(hostrecvbuff)),
             0);
+
 }
 
 
@@ -124,12 +129,19 @@ TEST_F(FlagCXCollTest, ReduceScatter) {
   flagcxComm_t &comm = handler->comm;
   flagcxDeviceHandle_t &devHandle = handler->devHandle;
 
+  devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice, stream);
+  devHandle->deviceMalloc(&recvbuff, size / nranks, flagcxMemDevice, stream);
+  devHandle->deviceMalloc(&hostsendbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostsendbuff, 0, size, flagcxMemHost, stream);
+  devHandle->deviceMalloc(&hostrecvbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostrecvbuff, 0, size, flagcxMemHost, stream);
+
   for (size_t i = 0; i < count; i++) {
     ((float *)hostsendbuff)[i] = i % 10;
   }
 
   devHandle->deviceMemcpy(sendbuff, hostsendbuff, size,
-                          flagcxMemcpyHostToDevice, NULL);
+                          flagcxMemcpyHostToDevice, stream);
 
   if (rank == 0) {
     std::cout << "sendbuff = ";
@@ -143,10 +155,13 @@ TEST_F(FlagCXCollTest, ReduceScatter) {
 
 
   flagcxReduceScatter(sendbuff, recvbuff, count / nranks, flagcxFloat, flagcxSum, comm, stream);
-  devHandle->streamSynchronize(stream);
+
 
   devHandle->deviceMemcpy(hostrecvbuff, recvbuff, size / nranks,
-                          flagcxMemcpyDeviceToHost, NULL);
+                          flagcxMemcpyDeviceToHost, stream);
+
+  devHandle->streamSynchronize(stream);
+
 
   if (rank == 0) {
     std::cout << "recvbuff = ";
@@ -161,6 +176,7 @@ TEST_F(FlagCXCollTest, ReduceScatter) {
   EXPECT_EQ(strcmp(static_cast<char *>(hostsendbuff),
                    static_cast<char *>(hostrecvbuff)),
             0);
+
 }
 
 
@@ -168,12 +184,19 @@ TEST_F(FlagCXCollTest, Reduce) {
   flagcxComm_t &comm = handler->comm;
   flagcxDeviceHandle_t &devHandle = handler->devHandle;
 
+  devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice, stream);
+  devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice, stream);
+  devHandle->deviceMalloc(&hostsendbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostsendbuff, 0, size, flagcxMemHost, stream);
+  devHandle->deviceMalloc(&hostrecvbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostrecvbuff, 0, size, flagcxMemHost, stream);
+
   for (size_t i = 0; i < count; i++) {
     ((float *)hostsendbuff)[i] = i % 10;
   }
 
   devHandle->deviceMemcpy(sendbuff, hostsendbuff, size,
-                          flagcxMemcpyHostToDevice, NULL);
+                          flagcxMemcpyHostToDevice, stream);
 
   if (rank == 0) {
     std::cout << "sendbuff = ";
@@ -186,10 +209,11 @@ TEST_F(FlagCXCollTest, Reduce) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   flagcxReduce(sendbuff, recvbuff, count, flagcxFloat, flagcxSum, 0, comm, stream);
-  devHandle->streamSynchronize(stream);
 
   devHandle->deviceMemcpy(hostrecvbuff, recvbuff, size,
-                          flagcxMemcpyDeviceToHost, NULL);
+                          flagcxMemcpyDeviceToHost, stream);
+
+  devHandle->streamSynchronize(stream);
 
   if (rank == 0) {
     std::cout << "recvbuff = ";
@@ -211,19 +235,24 @@ TEST_F(FlagCXCollTest, Gather) {
   flagcxComm_t &comm = handler->comm;
   flagcxDeviceHandle_t &devHandle = handler->devHandle;
 
+  devHandle->deviceMalloc(&sendbuff, size / nranks, flagcxMemDevice,stream);
+  devHandle->deviceMalloc(&hostsendbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostsendbuff, 0, size, flagcxMemHost, stream);
+  devHandle->deviceMalloc(&hostrecvbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostrecvbuff, 0, size, flagcxMemHost, stream);
+
 
   for (size_t i = 0; i < count; i++) {
-    static_cast<float *>(hostsendbuff)[i] = static_cast<float>(i % 10);
+    ((float *)hostsendbuff)[i] = i % 10;
   }
 
-
-  devHandle->deviceMemcpy(sendbuff, hostsendbuff, size,
-                          flagcxMemcpyHostToDevice, NULL);
+  devHandle->deviceMemcpy(sendbuff, hostsendbuff, size / nranks,
+                          flagcxMemcpyHostToDevice, stream);
 
 
   if (rank == 0) {
     std::cout << "sendbuff  = ";
-    for (size_t i = 0; i < 10 && i < count; i++) {
+    for (size_t i = 0; i < 10; i++) {
       std::cout << static_cast<float *>(hostsendbuff)[i] << " ";
     }
     std::cout << std::endl;
@@ -232,19 +261,20 @@ TEST_F(FlagCXCollTest, Gather) {
   MPI_Barrier(MPI_COMM_WORLD);
 
 
-  devHandle->deviceMalloc(&recvbuff, size * nranks, flagcxMemDevice, NULL);
+  flagcxGather(sendbuff, recvbuff, count / nranks, flagcxFloat, 0, comm, stream);
 
 
-  flagcxGather(sendbuff, recvbuff, count, flagcxFloat, 0, comm, stream);
+  devHandle->deviceMemcpy(hostrecvbuff, recvbuff, size ,
+                          flagcxMemcpyDeviceToHost, stream);
+
   devHandle->streamSynchronize(stream);
 
+  MPI_Barrier(MPI_COMM_WORLD);
 
-  devHandle->deviceMemcpy(hostrecvbuff, recvbuff, size * nranks,
-                          flagcxMemcpyDeviceToHost, NULL);
 
   if (rank == 0) {
     std::cout << "recvbuff  = ";
-    for (size_t i = 0; i < 10 && i < count * nranks; i++) {
+    for (size_t i = 0; i < 10; i++) {
       std::cout << static_cast<float *>(hostrecvbuff)[i] << " ";
     }
     std::cout << std::endl;
@@ -252,14 +282,21 @@ TEST_F(FlagCXCollTest, Gather) {
 
   MPI_Barrier(MPI_COMM_WORLD);
 
+  EXPECT_EQ(strcmp(static_cast<char *>(hostsendbuff),
+                   static_cast<char *>(hostrecvbuff)),
+            0);
 }
+
 
 TEST_F(FlagCXCollTest, Scatter) {
   flagcxComm_t &comm = handler->comm;
   flagcxDeviceHandle_t &devHandle = handler->devHandle;
 
-  size_t slice_count = count / nranks;
-  size_t slice_size = slice_count * sizeof(float);
+  devHandle->deviceMalloc(&recvbuff, size / nranks, flagcxMemDevice, stream);
+  devHandle->deviceMalloc(&hostsendbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostsendbuff, 0, size, flagcxMemHost, stream);
+  devHandle->deviceMalloc(&hostrecvbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostrecvbuff, 0, size, flagcxMemHost, stream);
 
   if (rank == 0) {
     for (size_t i = 0; i < count; i++) {
@@ -267,10 +304,10 @@ TEST_F(FlagCXCollTest, Scatter) {
     }
 
     devHandle->deviceMemcpy(sendbuff, hostsendbuff, size,
-                            flagcxMemcpyHostToDevice, NULL);
+                            flagcxMemcpyHostToDevice, stream);
 
     std::cout << "sendbuff = ";
-    for (size_t i = 0; i < 10 && i < count; i++) {
+    for (size_t i = 0; i < 10; i++) {
       std::cout << ((float *)hostsendbuff)[i] << " ";
     }
     std::cout << std::endl;
@@ -278,27 +315,26 @@ TEST_F(FlagCXCollTest, Scatter) {
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-  devHandle->deviceMalloc(&recvbuff, slice_size, flagcxMemDevice, NULL);
-  flagcxScatter(sendbuff, recvbuff, slice_count, flagcxFloat, 0, comm, stream);
-  devHandle->streamSynchronize(stream);
+  flagcxScatter(sendbuff, recvbuff, count / nranks , flagcxFloat, 0, comm, stream);
 
-  devHandle->deviceMemcpy(hostrecvbuff, recvbuff, slice_size,
-                          flagcxMemcpyDeviceToHost, NULL);
+  devHandle->deviceMemcpy(hostrecvbuff, recvbuff, count / nranks,
+                          flagcxMemcpyDeviceToHost, stream);
+
+  devHandle->streamSynchronize(stream);
 
   if (rank == 0) {
     std::cout << "recvbuff = ";
-    for (size_t i = 0; i < 10 && i < slice_count; i++) {
+    for (size_t i = 0; i < 10; i++) {
       std::cout << ((float *)hostrecvbuff)[i] << " ";
     }
     std::cout << std::endl;
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
+
   EXPECT_EQ(strcmp(static_cast<char *>(hostsendbuff),
                    static_cast<char *>(hostrecvbuff)),
             0);
-
-
 }
 
 
@@ -306,12 +342,17 @@ TEST_F(FlagCXCollTest, Broadcast) {
   flagcxComm_t &comm = handler->comm;
   flagcxDeviceHandle_t &devHandle = handler->devHandle;
 
+  devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice, stream);
+  devHandle->deviceMalloc(&hostsendbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostsendbuff, 0, size, flagcxMemHost, stream);
+  devHandle->deviceMalloc(&hostrecvbuff, size, flagcxMemHost, stream);
+  devHandle->deviceMemset(hostrecvbuff, 0, size, flagcxMemHost, stream);
+
   for (size_t i = 0; i < count; i++) {
     ((float *)hostsendbuff)[i] = i % 10;
   }
-
   devHandle->deviceMemcpy(sendbuff, hostsendbuff, size,
-                          flagcxMemcpyHostToDevice, NULL);
+                          flagcxMemcpyHostToDevice, stream);
 
   if (rank == 0) {
     std::cout << "sendbuff = ";
@@ -324,10 +365,11 @@ TEST_F(FlagCXCollTest, Broadcast) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   flagcxBroadcast(sendbuff, recvbuff, count, flagcxFloat, 0, comm, stream);
-  devHandle->streamSynchronize(stream);
 
   devHandle->deviceMemcpy(hostrecvbuff, recvbuff, size,
-                          flagcxMemcpyDeviceToHost, NULL);
+                          flagcxMemcpyDeviceToHost, stream);
+
+  devHandle->streamSynchronize(stream);
 
   if (rank == 0) {
     std::cout << "recvbuff = ";
@@ -343,7 +385,6 @@ TEST_F(FlagCXCollTest, Broadcast) {
                    static_cast<char *>(hostrecvbuff)),
             0);
 }
-
 
 
 
