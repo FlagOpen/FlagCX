@@ -27,6 +27,7 @@ extern struct flagcxCCLAdaptor cnclAdaptor;
 extern struct flagcxCCLAdaptor mcclAdaptor;
 extern struct flagcxCCLAdaptor xcclAdaptor;
 extern struct flagcxCCLAdaptor duncclAdaptor;
+extern struct flagcxCCLAdaptor mpiAdaptor;
 extern struct flagcxCCLAdaptor *cclAdaptors[];
 
 extern struct flagcxDeviceAdaptor cudaAdaptor;
