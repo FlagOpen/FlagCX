@@ -24,6 +24,7 @@ jobs:
           ssh-user: git
           persist-credentials: true
           clean: true
+          sparse-checkout-cone-mode: true
           fetch-tags: false
           show-progress: true
           lfs: false
@@ -39,7 +40,8 @@ jobs:
           . venv/bin/activate
           git config --global --add safe.directory /__w/FlagCX/FlagCX
           git status
-          pip install pre-commit
+          pip install --upgrade setuptools
+          pip install pre-commit 
           pre-commit install
 
       - name: Run Code Format Check with pre-commit
