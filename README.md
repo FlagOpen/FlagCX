@@ -81,12 +81,6 @@ FlagCX also integrates with upper-layer applications such as PyTorch and PaddleP
     # If the compilation variable "make USE_KUNLUNXIN=1" is used, the following environment variables need to be enabled:
     export XPU_FORCE_SHARED_DEVICE_CONTEXT=1
     ```
-    If `USE_MPI=1` is set, you need to install MPICH first. You can do so with the following commands:
-    ```sh
-    wget https://www.mpich.org/static/downloads/4.2.3/mpich-4.2.3.tar.gz
-    tar xzvf mpich-4.2.3.tar.gz
-    cd mpich-4.2.3 && ./configure --prefix="$PWD/build" --with-device=ch3 --disable-fortran && make -j64 && make install
-    ```
     The default install path is set to `build/`, you can manually set `BUILDDIR` to specify the build path. You may also define `DEVICE_HOME` and `CCL_HOME` to indicate the install paths of device runtime and communication libraries.
 
 ### Tests
@@ -101,14 +95,6 @@ Note that the default MPI install path is set to `/usr/local/mpi`, you may speci
 ```sh
 make MPI_HOME=<path to mpi install>
 ```
-If you have installed MPICH (e.g., via `mpich-4.2.3`), you should use `mpirun` to launch tests across multiple nodes:
-```sh
-/workspace/mpich-4.2.3/build/bin/mpirun -np 16 -hosts 10.1.15.237:8,10.1.15.141:8 \
-  -genv PATH=/workspace/mpich-4.2.3/build/bin:/opt/maca/bin:$PATH \
-  -genv LD_LIBRARY_PATH=/workspace/mpich-4.2.3/build/lib:/opt/maca/lib:$LD_LIBRARY_PATH \
-  ./test_allreduce -b 128M -e 8G -f 2
-```
-⚠️ Note: If you built the project with a custom MPICH (e.g., mpich-4.2.3), you must also use the same MPICH's mpirun for testing to ensure compatibility.
 
 All tests support the same set of arguments:
 
