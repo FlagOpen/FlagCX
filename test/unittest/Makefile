@@ -35,14 +35,14 @@ TARGET = main
 all: $(BINDIR)/$(TARGET)
 
 $(BINDIR)/$(TARGET): $(BINOBJ)
-        @mkdir -p `dirname $@`
-        @echo "Linking   $@"
-        @g++ $(BINOBJ) -o $@ -L../../build/lib -L$(MPI_LIB) -L/usr/local/lib -L$(GTEST_LIB) -Wl,--no-as-needed -Wl,-rpath,../../build/lib -lflagcx -lmpi -lgtest -lgtest_main -g
+	@mkdir -p `dirname $@`
+	@echo "Linking   $@"
+	@g++ $(BINOBJ) -o $@ -L../../build/lib -L$(MPI_LIB) -L/usr/local/lib -L$(GTEST_LIB) -Wl,--no-as-needed -Wl,-rpath,../../build/lib -lflagcx -lmpi -lgtest -lgtest_main -g
 
 $(OBJDIR)/%.o: %.cpp
-        @mkdir -p `dirname $@`
-        @echo "Compiling $@"
-        @g++ $< -o $@ $(foreach dir,$(INCLUDEDIR),-I$(dir)) -I../../flagcx/include -I$(MPI_INCLUDE) -I/usr/local/include -c -Wvla -Wno-unused-function -Wno-sign-compare -Wall -g
+	@mkdir -p `dirname $@`
+	@echo "Compiling $@"
+	@g++ $< -o $@ $(foreach dir,$(INCLUDEDIR),-I$(dir)) -I../../flagcx/include -I$(MPI_INCLUDE) -I/usr/local/include -c -Wvla -Wno-unused-function -Wno-sign-compare -Wall -g
 
 -include $(BINOBJ:.o=.d)
 
