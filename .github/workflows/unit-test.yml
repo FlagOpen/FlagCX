@@ -87,6 +87,6 @@ jobs:
       - name: Run clusters tests with mpirun
         run: |
           cd /__w/FlagCX/FlagCX/test/unittest
-          mpirun -np 8 --allow-run-as-root  -x FLAGCX_DEBUG=TRACE -x FLAGCX_DEBUG_SUBSYS=ALL  -x  FLAGCX_CLUSTER_SPLIT_LIST=2 -x FLAGCX_SOCKET_IFNAME=enp226s0 -x FLAGCX_IB_HCA=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7  ./build/bin/main
+          mpirun -np 8 --allow-run-as-root  -x FLAGCX_DEBUG=TRACE -x FLAGCX_DEBUG_SUBSYS=ALL  -x  FLAGCX_CLUSTER_SPLIT_LIST=2  -x FLAGCX_IB_HCA=mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7  ./build/bin/main
 
 
