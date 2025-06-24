@@ -47,7 +47,7 @@ $(OBJDIR)/%.o: %.cpp
 -include $(BINOBJ:.o=.d)
 
 clean:
-        @rm -rf $(BINDIR)/$(TARGET) $(OBJDIR)
+	@rm -rf $(BINDIR)/$(TARGET) $(OBJDIR)
 
 run-all-tests:
-        @mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x FLAGCX_LOG_LEVEL=TRACE -x FLAGCX_TOPO_FILE="topo_demo.xml" -x FLAGCX_DEBUG=TRACE -x FLAGCX_DEBUG_SUBSYS=ALL ./build/bin/main
+	@mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x FLAGCX_LOG_LEVEL=TRACE -x FLAGCX_TOPO_FILE="topo_demo.xml" -x FLAGCX_DEBUG=TRACE -x FLAGCX_DEBUG_SUBSYS=ALL ./build/bin/main
