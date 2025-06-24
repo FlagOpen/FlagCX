@@ -81,12 +81,12 @@ jobs:
       - name: Run unit tests with mpirun
         run: |
           cd /__w/FlagCX/FlagCX/test/unittest
-          mpirun -np 8 ./build/bin/main
+          mpirun -np 8 --allow-run-as-root ./build/bin/main
 
 
       - name: Run clusters tests with mpirun
         run: |
           cd /__w/FlagCX/FlagCX/test/unittest
-          mpirun -np 8    -x  FLAGCX_CLUSTER_SPLIT_LIST=2  ./build/bin/main
+          mpirun -np 8 --allow-run-as-root   -x  FLAGCX_CLUSTER_SPLIT_LIST=2  ./build/bin/main
 
 
