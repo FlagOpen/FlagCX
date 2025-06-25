@@ -27,6 +27,7 @@ extern struct flagcxCCLAdaptor cnclAdaptor;
 extern struct flagcxCCLAdaptor mcclAdaptor;
 extern struct flagcxCCLAdaptor xcclAdaptor;
 extern struct flagcxCCLAdaptor duncclAdaptor;
+extern struct flagcxCCLAdaptor hcclAdaptor;
 extern struct flagcxCCLAdaptor *cclAdaptors[];
 
 extern struct flagcxDeviceAdaptor cudaAdaptor;
@@ -35,6 +36,7 @@ extern struct flagcxDeviceAdaptor mluAdaptor;
 extern struct flagcxDeviceAdaptor macaAdaptor;
 extern struct flagcxDeviceAdaptor kunlunAdaptor;
 extern struct flagcxDeviceAdaptor ducudaAdaptor;
+extern struct flagcxDeviceAdaptor ascendAdaptor;
 extern struct flagcxDeviceAdaptor *deviceAdaptor;
 
 inline bool flagcxCCLAdaptorNeedSendrecv(size_t value) { return value != 0; }

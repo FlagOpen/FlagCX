@@ -59,4 +59,13 @@ struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&glooAdaptor,
                                                       &duncclAdaptor};
 #endif
 struct flagcxDeviceAdaptor *deviceAdaptor = &ducudaAdaptor;
+#elif USE_ASCEND_ADAPTOR
+#ifdef USE_BOOTSTRAP_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
+	                                              &hcclAdaptor};
+#elif USE_GLOO_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&glooAdaptor,
+	                                              &hcclAdaptor};
+#endif
+struct flagcxDeviceAdaptor *deviceAdaptor = &ascendAdaptor;
 #endif
