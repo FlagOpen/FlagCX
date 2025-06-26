@@ -230,6 +230,14 @@ class FLAGCXLibrary:
             ctypes.c_int, flagcxComm_t, flagcxStream_t
         ]),
 
+        Function("flagcxGroupStart", flagcxResult_t, [
+            flagcxComm_t
+        ]),
+
+        Function("flagcxGroupEnd", flagcxResult_t, [
+            flagcxComm_t
+        ]),
+
         # be cautious! this is a collective call, it will block until all
         # processes in the communicator have called this function.
         # because Python object destruction can happen in random order,
@@ -375,6 +383,12 @@ class FLAGCXLibrary:
         self.FLAGCX_CHECK(self._funcs["flagcxBroadcast"](sendbuff, recvbuff, count,
                                                      datatype, root, comm,
                                                      stream))
+
+    def flagcxGroupStart(self, comm: flagcxComm_t) -> None:
+        self.FLAGCX_CHECK(self._funcs["flagcxGroupStart"](comm))
+
+    def flagcxGroupEnd(self, comm: flagcxComm_t) -> None:
+        self.FLAGCX_CHECK(self._funcs["flagcxGroupEnd"](comm))
 
     def flagcxCommDestroy(self, comm: flagcxComm_t) -> None:
         self.FLAGCX_CHECK(self._funcs["flagcxCommDestroy"](comm))
