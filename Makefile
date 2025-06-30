@@ -11,11 +11,13 @@ USE_BOOTSTRAP ?= 0
 USE_METAX ?= 0
 USE_KUNLUNXIN ?=0
 USE_DU ?= 0
+USE_MPI ?= 0
 
 # set to empty if not provided
 DEVICE_HOME ?=
 CCL_HOME ?=
 HOST_CCL_HOME ?=
+MPI_HOME ?=
 
 ifeq ($(strip $(DEVICE_HOME)),)
 	ifeq ($(USE_NVIDIA), 1)
@@ -56,8 +58,16 @@ endif
 ifeq ($(strip $(HOST_CCL_HOME)),)
 	ifeq ($(USE_GLOO), 1)
 		HOST_CCL_HOME = /usr/local
+	else ifeq ($(USE_MPI), 1)
+		HOST_CCL_HOME = $(MPI_HOME)
 	else
 		HOST_CCL_HOME = 
+	endif
+endif
+
+ifeq ($(strip $(MPI_HOME)),)
+	ifeq ($(USE_MPI), 1)
+		MPI_HOME = /usr/local
 	endif
 endif
 
@@ -134,6 +144,11 @@ ifeq ($(USE_GLOO), 1)
 	HOST_CCL_INCLUDE = $(HOST_CCL_HOME)/include
 	HOST_CCL_LINK = -lgloo
 	HOST_CCL_ADAPTOR_FLAG = -DUSE_GLOO_ADAPTOR
+else ifeq ($(USE_MPI), 1)
+	HOST_CCL_LIB = $(MPI_HOME)/lib
+	HOST_CCL_INCLUDE = $(MPI_HOME)/include
+	HOST_CCL_LINK = -lmpi
+	HOST_CCL_ADAPTOR_FLAG = -DUSE_MPI_ADAPTOR
 else ifeq ($(USE_BOOTSTRAP), 1)
 	HOST_CCL_LIB = /usr/local/lib
 	HOST_CCL_INCLUDE = /usr/local/include
@@ -171,11 +186,13 @@ print_var:
 	@echo "DEVICE_HOME: $(DEVICE_HOME)"
 	@echo "CCL_HOME: $(CCL_HOME)"
 	@echo "HOST_CCL_HOME: $(HOST_CCL_HOME)"
+	@echo "MPI_HOME: $(MPI_HOME)"
 	@echo "USE_NVIDIA: $(USE_NVIDIA)"
 	@echo "USE_ILUVATAR_COREX: $(USE_ILUVATAR_COREX)"
 	@echo "USE_CAMBRICON: $(USE_CAMBRICON)"
 	@echo "USE_KUNLUNXIN: $(USE_KUNLUNXIN)"
 	@echo "USE_GLOO: $(USE_GLOO)"
+	@echo "USE_MPI: $(USE_MPI)"
 	@echo "USE_DU: $(USE_DU)"
 	@echo "DEVICE_LIB: $(DEVICE_LIB)"
 	@echo "DEVICE_INCLUDE: $(DEVICE_INCLUDE)"
