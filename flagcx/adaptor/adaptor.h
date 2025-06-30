@@ -168,6 +168,7 @@ struct flagcxDeviceAdaptor {
                                  void *memHandle);
   flagcxResult_t (*copyArgsInit)(void **args);
   flagcxResult_t (*copyArgsFree)(void *args);
+  flagcxResult_t (*launchDeviceFunc)(flagcxStream_t stream, void *args);
 
   // Others
   // TODO: this one shall be moved into Flagcx Core Topology APIs

@@ -71,6 +71,12 @@ ifeq ($(strip $(MPI_HOME)),)
 	endif
 endif
 
+ifeq ($(strip $(MPI_HOME)),)
+	ifeq ($(USE_MPI), 1)
+		MPI_HOME = /usr/local
+	endif
+endif
+
 DEVICE_LIB =
 DEVICE_INCLUDE =
 DEVICE_LINK =
