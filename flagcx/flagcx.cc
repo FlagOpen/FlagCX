@@ -488,11 +488,13 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
 
 flagcxResult_t flagcxCommFinalize(flagcxComm_t comm) {
   FLAGCXCHECK(flagcxEnsureCommReady(comm));
-  if (is_homo_comm(comm)) {
-    return cclAdaptors[flagcxCCLAdaptorDevice]->commFinalize(comm->homo_comm);
+  FLAGCXCHECK(
+      cclAdaptors[flagcxCCLAdaptorDevice]->commFinalize(comm->homo_comm));
+  if (!is_homo_comm(comm)) {
+    // TODO: to be implemented
+    return flagcxNotSupported;
   }
-  // TODO: to be implemented
-  return flagcxNotSupported;
+  return flagcxSuccess;
 }
 
 flagcxResult_t flagcxCommDestroy(flagcxComm_t comm) {
@@ -506,44 +508,51 @@ flagcxResult_t flagcxCommDestroy(flagcxComm_t comm) {
   // Destroy bootstrap state and net
   bootstrapClose(comm->bootstrap);
 
-  // Destroy hetero comm
   if (!is_homo_comm(comm)) {
+    // Destroy hetero comm
     FLAGCXCHECK(flagcxHeteroCommDestroy(comm->hetero_comm));
-    // Destroy homo comm
+    // Destroy host comm
     if (use_host_comm()) {
       FLAGCXCHECK(
           cclAdaptors[flagcxCCLAdaptorHost]->commDestroy(comm->host_comm));
     }
   }
+  // Destroy homo comm
+  FLAGCXCHECK(
+      cclAdaptors[flagcxCCLAdaptorDevice]->commDestroy(comm->homo_comm));
 
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxCommAbort(flagcxComm_t comm) {
   FLAGCXCHECK(flagcxEnsureCommReady(comm));
-  if (is_homo_comm(comm)) {
-    return cclAdaptors[flagcxCCLAdaptorDevice]->commAbort(comm->homo_comm);
+  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->commAbort(comm->homo_comm));
+  if (!is_homo_comm(comm)) {
+    // TODO: to be implemented.
+    return flagcxNotSupported;
   }
-  // TODO: to be implemented.
-  return flagcxNotSupported;
+  return flagcxSuccess;
 }
 
 flagcxResult_t flagcxCommResume(flagcxComm_t comm) {
   FLAGCXCHECK(flagcxEnsureCommReady(comm));
-  if (is_homo_comm(comm)) {
-    return cclAdaptors[flagcxCCLAdaptorDevice]->commResume(comm->homo_comm);
+  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->commResume(comm->homo_comm));
+  if (!is_homo_comm(comm)) {
+    // TODO: to be implemented.
+    return flagcxNotSupported;
   }
-  // TODO: to be implemented.
-  return flagcxNotSupported;
+  return flagcxSuccess;
 }
 
 flagcxResult_t flagcxCommSuspend(flagcxComm_t comm) {
   FLAGCXCHECK(flagcxEnsureCommReady(comm));
-  if (is_homo_comm(comm)) {
-    return cclAdaptors[flagcxCCLAdaptorDevice]->commSuspend(comm->homo_comm);
+  FLAGCXCHECK(
+      cclAdaptors[flagcxCCLAdaptorDevice]->commSuspend(comm->homo_comm));
+  if (!is_homo_comm(comm)) {
+    // TODO: to be implemented.
+    return flagcxNotSupported;
   }
-  // TODO: to be implemented.
-  return flagcxNotSupported;
+  return flagcxSuccess;
 }
 
 flagcxResult_t flagcxCommCount(const flagcxComm_t comm, int *count) {
