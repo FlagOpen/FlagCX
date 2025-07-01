@@ -1502,10 +1502,6 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
                                          sendType, 1, 0, 0, totalCount_, 2,
                                          postHomoFuncCommOp);
     } else if (postHomoFuncCommOp == flagcxCommNoOp) {
-      for (int s = 0; s < postHomoFuncSteps_.size(); ++s) {
-        postHomoFuncSteps_[s].emplace_back(-1, -1, -1, -1, -1, -1, -1,
-                                           postHomoFuncCommOp);
-      }
     }
   } else {
     // single-nic
