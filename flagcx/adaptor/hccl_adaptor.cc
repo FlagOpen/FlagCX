@@ -38,25 +38,6 @@ const char *hcclAdaptorGetLastError(flagcxInnerComm_t comm) {
     return "Not Implemented";
 }
 
-/*
-ncclResult_t ncclCommInitRank(
-    ncclComm_t* comm,      // 输出参数：指向通信器句柄的指针
-    int nranks,            // 输入参数：通信组中的总 GPU 数量
-    ncclUniqueId commId,   // 输入参数：由 ncclGetUniqueId 生成的唯一标识符
-    int rank               // 输入参数：当前 GPU 在通信组中的唯一标识符（从 0 到 nranks-1）
-);
-
-flagcxResult_t cnclAdaptorCommInitRank(xxxx)) {
-  if (*comm == NULL) {
-    flagcxCalloc(comm, 1);
-  }
-  int dev_id = 0;
-  DEVCHECK(cnrtGetDevice(&dev_id));
-  return (flagcxResult_t)c2f_ret_map[cnclInitComms(
-      &(*comm)->base, 1 , &dev_id , &rank ,
-      nranks, (cnclCliqueId *)commId)];
-}
-*/
 flagcxResult_t hcclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
                                        flagcxUniqueId_t commId, int rank,
                                        bootstrapState * /*bootstrap*/) {
@@ -199,7 +180,6 @@ flagcxResult_t hcclAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
                                    size_t count, flagcxDataType_t datatype,
                                    flagcxInnerComm_t comm,
                                    flagcxStream_t stream) {
-  // TODO: 这么写好像太简单了
   void *sendbuffptr = (void *)sendbuff;
   return (flagcxResult_t)HcclAlltoAll(sendbuffptr, count, (HcclDataType)f2c_datatype_map[datatype],
                                       recvbuff, count, (HcclDataType)f2c_datatype_map[datatype],
@@ -212,7 +192,6 @@ flagcxResult_t hcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
                                     flagcxDataType_t datatype,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
-  // TODO: 这么写好像太简单了
   void *sendbuffptr = (void *)sendbuff;
   return (flagcxResult_t)HcclAlltoAllV(sendbuffptr, sendcounts, sdispls,
                                       (HcclDataType)f2c_datatype_map[datatype],
