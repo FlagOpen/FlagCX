@@ -1,8 +1,4 @@
 #ifdef USE_ASCEND_ADAPTOR
-/*
-https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha002/API/hcclapiref/hcclcpp_07_0001.html
-https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha002/appdevg/acldevg/aclcppdevg_000005.html
-*/
 #include "adaptor.h"
 #include "alloc.h"
 #include "comm.h"
