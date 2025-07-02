@@ -204,7 +204,6 @@ flagcxResult_t cannAdaptorEventQuery(flagcxEvent_t event) {
   if (event != NULL) {
     aclrtEventWaitStatus status;
     DEVCHECK(aclrtQueryEventWaitStatus(event->base, &status));
-    // cudaError error = cudaEventQuery(event->base);
     if (status == ACL_EVENT_WAIT_STATUS_COMPLETE) {
       res = flagcxSuccess;
     } else if (status == ACL_EVENT_WAIT_STATUS_NOT_READY) {
@@ -223,42 +222,6 @@ flagcxResult_t cannAdaptorLaunchHostFunc(flagcxStream_t stream,
   }
   return flagcxSuccess;
 }
-
-// flagcxResult_t cannAdaptorGetDeviceProperties(struct flagcxDevProps *props,
-//                                               int dev) {
-//   if (props == NULL) {
-//     return flagcxInvalidArgument;
-//   }
-
-//   cudaDeviceProp devProp;
-//   DEVCHECK(cudaGetDeviceProperties(&devProp, dev));
-//   strncpy(props->name, devProp.name, sizeof(props->name) - 1);
-//   props->name[sizeof(props->name) - 1] = '\0';
-//   props->pciBusId = devProp.pciBusID;
-//   props->pciDeviceId = devProp.pciDeviceID;
-//   props->pciDomainId = devProp.pciDomainID;
-//   // TODO: see if there's another way to get this info. In some cuda versions,
-//   // cudaDeviceProp does not have `gpuDirectRDMASupported` field
-//   // props->gdrSupported = devProp.gpuDirectRDMASupported;
-
-//   return flagcxSuccess;
-// }
-
-// flagcxResult_t cannAdaptorGetDevicePciBusId(char *pciBusId, int len, int dev) {
-//   if (pciBusId == NULL) {
-//     return flagcxInvalidArgument;
-//   }
-//   DEVCHECK(cudaDeviceGetPCIBusId(pciBusId, len, dev));
-//   return flagcxSuccess;
-// }
-
-// flagcxResult_t cannAdaptorGetDeviceByPciBusId(int *dev, const char *pciBusId) {
-//   if (dev == NULL || pciBusId == NULL) {
-//     return flagcxInvalidArgument;
-//   }
-//   DEVCHECK(cudaDeviceGetByPCIBusId(dev, pciBusId));
-//   return flagcxSuccess;
-// }
 
 struct flagcxDeviceAdaptor cannAdaptor {
   "CANN",
