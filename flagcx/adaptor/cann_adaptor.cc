@@ -43,20 +43,11 @@ flagcxResult_t cannAdaptorDeviceMemset(void *ptr, int value, size_t size,
 flagcxResult_t cannAdaptorDeviceMalloc(void **ptr, size_t size,
                                        flagcxMemType_t type,
                                        flagcxStream_t stream) {
+
   if (type == flagcxMemHost) {
     DEVCHECK(aclrtMallocHost(ptr, size));
-  } else if (type == flagcxMemDevice) {
-    if (stream == NULL) {
-      DEVCHECK(aclrtMalloc(ptr, size, ACL_MEM_MALLOC_HUGE_FIRST));
-    } else {
-    //   TODO: cann 不具备异步内存申请能力
-    //   DEVCHECK(cudaMallocAsync(ptr, size, stream->base));
-      return flagcxUnhandledDeviceError;
-    }
-  } else if (type == flagcxMemManaged) {
-    // TODO: cann 不具备统一内存申请能力
-    // DEVCHECK(cudaMallocManaged(ptr, size, cudaMemAttachGlobal));
-    return flagcxUnhandledDeviceError;
+  } else {
+    DEVCHECK(aclrtMalloc(ptr, size, ACL_MEM_MALLOC_HUGE_FIRST));
   }
   return flagcxSuccess;
 }
@@ -65,18 +56,8 @@ flagcxResult_t cannAdaptorDeviceFree(void *ptr, flagcxMemType_t type,
                                      flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(aclrtFreeHost(ptr));
-  } else if (type == flagcxMemDevice) {
-    if (stream == NULL) {
-      DEVCHECK(aclrtFree(ptr));
-    } else {
-    //   TODO: cann 不具备异步内存申请能力
-    //   DEVCHECK(cudaFreeAsync(ptr, stream->base));
-      return flagcxUnhandledDeviceError;
-    }
-  } else if (type == flagcxMemManaged) {
-    // TODO: cann 不具备统一内存申请能力
-    // DEVCHECK(cudaFree(ptr));
-    return flagcxUnhandledDeviceError;
+  } else {
+    DEVCHECK(aclrtFree(ptr));
   }
   return flagcxSuccess;
 }
@@ -101,27 +82,22 @@ flagcxResult_t cannAdaptorGetVendor(char *vendor) {
   return flagcxSuccess;
 }
 
-// flagcxResult_t cudaAdaptorGdrMemAlloc(void **ptr, size_t size,
-//                                       void *memHandle) {
-//   if (ptr == NULL) {
-//     return flagcxInvalidArgument;
-//   }
-//   DEVCHECK(cudaMalloc(ptr, size));
-//   cudaPointerAttributes attrs;
-//   DEVCHECK(cudaPointerGetAttributes(&attrs, *ptr));
-//   unsigned flags = 1;
-//   DEVCHECK(cuPointerSetAttribute(&flags, CU_POINTER_ATTRIBUTE_SYNC_MEMOPS,
-//                                  (CUdeviceptr)attrs.devicePointer));
-//   return flagcxSuccess;
-// }
+flagcxResult_t cannAdaptorGdrMemAlloc(void **ptr, size_t size,
+                                      void *memHandle) {
+  if (ptr == NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(aclrtMalloc(ptr, size, ACL_MEM_MALLOC_HUGE_FIRST));
+  return flagcxSuccess;
+}
 
-// flagcxResult_t cudaAdaptorGdrMemFree(void *ptr, void *memHandle) {
-//   if (ptr == NULL) {
-//     return flagcxSuccess;
-//   }
-//   DEVCHECK(cudaFree(ptr));
-//   return flagcxSuccess;
-// }
+flagcxResult_t cannAdaptorGdrMemFree(void *ptr, void *memHandle) {
+  if (ptr == NULL) {
+    return flagcxSuccess;
+  }
+  DEVCHECK(aclrtFree(ptr));
+  return flagcxSuccess;
+}
 
 flagcxResult_t cannAdaptorStreamCreate(flagcxStream_t *stream) {
   (*stream) = NULL;
@@ -294,8 +270,7 @@ struct flagcxDeviceAdaptor cannAdaptor {
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);
-      NULL, // flagcxResult_t (*gdrMemAlloc)(void **ptr, size_t size, void *memHandle);
-      NULL, // flagcxResult_t (*gdrMemFree)(void *ptr, void *memHandle);
+      cannAdaptorGdrMemAlloc, cannAdaptorGdrMemFree,
       NULL, // flagcxResult_t (*hostShareMemAlloc)(void **ptr, size_t size, void
             // *memHandle);
       NULL, // flagcxResult_t (*hostShareMemFree)(void *ptr, void *memHandle);
