@@ -38,7 +38,7 @@ size_t getC2cCommPatternHash(size_t count, size_t rootClusterId,
 }
 
 flagcxInterRankBufferInfoManager::flagcxInterRankBufferInfoManager(
-    int totalCount)
+    int64_t totalCount)
     : totalCount_(totalCount) {}
 
 flagcxInterRankBufferInfoManager::~flagcxInterRankBufferInfoManager() {}
@@ -509,14 +509,15 @@ flagcxResult_t flagcxC2cHeteroFunc::run(void *sendbuff, void *recvbuff,
 flagcxC2cRefreshFunc::flagcxC2cRefreshFunc()
     : offset_(0), count_(0), totalCount_(0), redOp_(flagcxSum) {}
 flagcxC2cRefreshFunc::flagcxC2cRefreshFunc(int offset, int count,
-                                           int totalCount, flagcxRedOp_t redOp)
+                                           int64_t totalCount,
+                                           flagcxRedOp_t redOp)
     : offset_(offset), count_(count), totalCount_(totalCount), redOp_(redOp) {}
 flagcxC2cRefreshFunc::~flagcxC2cRefreshFunc() {}
 
 flagcxResult_t flagcxC2cRefreshFunc::run(void *buff, flagcxDataType_t datatype,
                                          flagcxStream_t stream) {
   TRACE_CALL(
-      "flagcxC2cRefreshFunc run: offset = %d, count = %d, totalCount = %d, "
+      "flagcxC2cRefreshFunc run: offset = %d, count = %d, totalCount = %ld, "
       "datatype = %d, redOp = %d",
       offset_, count_, totalCount_, datatype, redOp_);
   if (redOp_ == flagcxSum) {
@@ -1176,7 +1177,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
         continue;
       }
       int offset = it->offset_;
-      int totalCount = totalCount_;
+      int64_t totalCount = totalCount_;
       if (commOp_ == flagcxCommOpReduceScatter) {
         offset -= clusterOffset_ * recvCount_;
         totalCount = comm_->cluster_sizes[clusterId_] * recvCount_;

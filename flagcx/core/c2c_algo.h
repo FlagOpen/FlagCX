@@ -78,7 +78,7 @@ public:
 
 class flagcxInterRankBufferInfoManager {
 public:
-  flagcxInterRankBufferInfoManager(int totalCount);
+  flagcxInterRankBufferInfoManager(int64_t totalCount);
   ~flagcxInterRankBufferInfoManager();
   flagcxInterRankBufferInfoManager() = default;
   flagcxInterRankBufferInfoManager(const flagcxInterRankBufferInfoManager &) =
@@ -97,7 +97,7 @@ public:
   void resetBufferInfo();
   void printBufferInfo(int step); // 0: intial, 1: internal, 2: final
 
-  int totalCount_; // total communication count
+  int64_t totalCount_; // total communication count
   std::map<int, std::map<int, std::list<flagcxBufferInfo>>>
       bufferInfos_; // map<clusterId, map<rank, list[struct{offset, count,
                     // isRecv, isScheduled}]>>
@@ -163,7 +163,7 @@ private:
 class flagcxC2cRefreshFunc {
 public:
   flagcxC2cRefreshFunc();
-  flagcxC2cRefreshFunc(int offset, int count, int totalCount,
+  flagcxC2cRefreshFunc(int offset, int count, int64_t totalCount,
                        flagcxRedOp_t redOp);
   ~flagcxC2cRefreshFunc();
 
@@ -172,7 +172,7 @@ public:
 
   int offset_;
   int count_;
-  int totalCount_;
+  int64_t totalCount_;
   flagcxRedOp_t redOp_;
 };
 
@@ -225,7 +225,7 @@ private:
   int homoInterMyRank_;
   int homoInterRootRank_;
   int homoInterRanks_;
-  int totalCount_; // equal to either sendCount_ or recvCount_
+  int64_t totalCount_; // equal to either sendCount_ or recvCount_
   int rootClusterId_;
   int isRootCluster_;
   int clusterCount_;
