@@ -24,12 +24,4 @@ struct flagcxEvent {
     if (ret != ACL_SUCCESS)                                                    \
       return flagcxUnhandledDeviceError;                                       \
   }
-
-#define HCCLCHECK(func)                                                         \
-  {                                                                            \
-    int ret = func;                                                            \
-    if (ret != HCCL_SUCCESS)                                                    \
-      return flagcxUnhandledDeviceError;                                       \
-  }
-
 #endif // USE_ASCEND_ADAPTOR
