@@ -3,7 +3,6 @@
 #ifdef USE_ASCEND_ADAPTOR
 
 #include <map>
-
 std::map<flagcxDataType_t, HcclDataType> f2h_datatype_map = {
     {flagcxInt8, HCCL_DATA_TYPE_INT8},    {flagcxUint8, HCCL_DATA_TYPE_UINT8},
     {flagcxInt, HCCL_DATA_TYPE_INT32},    {flagcxInt32, HCCL_DATA_TYPE_INT32},
@@ -59,9 +58,8 @@ flagcxResult_t hcclAdaptorGetVersion(int *version) {
   return flagcxNotSupported;
 }
 
-// TODO: unsupported
 flagcxResult_t hcclAdaptorGetUniqueId(flagcxUniqueId_t *uniqueId) {
-  return flagcxUnhandledDeviceError;
+  return (flagcxResult_t)h2f_ret_map[HcclGetRootInfo((HcclRootInfo *)(*uniqueId))];
 }
 
 const char *hcclAdaptorGetErrorString(flagcxResult_t result) {
@@ -79,14 +77,7 @@ flagcxResult_t hcclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
   if (*comm == NULL) {
     flagcxCalloc(comm, 1);
   }
-  HcclRootInfo rootInfo;
-  int32_t rootRank = 0;
-  if(rank == rootRank) {
-      if (HcclGetRootInfo(&rootInfo) != HCCL_SUCCESS) {
-        return flagcxUnhandledDeviceError;
-      }
-  }
-  return (flagcxResult_t)h2f_ret_map[HcclCommInitRootInfo(nranks, &rootInfo, rank, &(*comm)->base)];
+  return (flagcxResult_t)h2f_ret_map[HcclCommInitRootInfo(nranks, (HcclRootInfo *)commId, rank, &(*comm)->base)];
 }
 
 // TODO: unsupported
@@ -254,12 +245,12 @@ flagcxResult_t hcclAdaptorRecv(void *recvbuff, size_t count,
 
 // TODO: unsupported
 flagcxResult_t hcclAdaptorGroupStart() {
-  return flagcxUnhandledDeviceError;
+  return flagcxNotSupported;
 }
 
 // TODO: unsupported
 flagcxResult_t hcclAdaptorGroupEnd() { 
-    return flagcxUnhandledDeviceError;
+    return flagcxNotSupported;
 }
 
 struct flagcxCCLAdaptor hcclAdaptor = {
