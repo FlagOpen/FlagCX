@@ -1667,7 +1667,8 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
       commOp_ == flagcxCommOpReduceScatter) {
     int clusterCountValid_ = 1;
     for (int i = 0; i < comm_->nclusters; ++i) {
-      if (comm_->nclusters > int(clusterInterRankList_[i].size())) {
+      if (comm_->nclusters > int(clusterInterRankList_[i].size()) &&
+          comm_->nclusters > 2) {
         clusterCountValid_ = 0;
         break;
       }
