@@ -1,6 +1,7 @@
 # 2025 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
 # 2025 - Modified by DU. All Rights Reserved.
 USE_NVIDIA ?= 0
+USE_ASCEND ?= 0
 USE_ILUVATAR_COREX ?= 0
 USE_CAMBRICON ?= 0
 USE_METAX ?= 0
@@ -8,6 +9,8 @@ USE_KUNLUNXIN ?= 0
 USE_DU ?= 0
 ifeq ($(USE_CAMBRICON), 1)
    DEV="MLU"
+else ifeq ($(USE_ASCEND), 1)
+   DEV="CANN"
 else ifeq ($(USE_METAX), 1)
    DEV="MACA"
 else ifeq ($(USE_KUNLUNXIN), 1)
@@ -121,6 +124,7 @@ run-core-sendrecv:
 print_var:
 	@echo "INCLUDEDIR: $(INCLUDEDIR)"
 	@echo "USE_NVIDIA: $(USE_NVIDIA)"
+        @echo "USE_ASCEND: $(USE_ASCEND)"
 	@echo "USE_ILUVATAR_COREX: $(USE_ILUVATAR_COREX)"
 	@echo "USE_CAMBRICON: $(USE_CAMBRICON)"
 	@echo "USE_DU: $(USE_DU)"

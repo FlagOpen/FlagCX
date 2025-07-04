@@ -22,6 +22,7 @@ extern "C" {
 extern struct flagcxCCLAdaptor bootstrapAdaptor;
 extern struct flagcxCCLAdaptor glooAdaptor;
 extern struct flagcxCCLAdaptor ncclAdaptor;
+extern struct flagcxCCLAdaptor hcclAdaptor;
 extern struct flagcxCCLAdaptor ixncclAdaptor;
 extern struct flagcxCCLAdaptor cnclAdaptor;
 extern struct flagcxCCLAdaptor mcclAdaptor;
@@ -31,6 +32,7 @@ extern struct flagcxCCLAdaptor mpiAdaptor;
 extern struct flagcxCCLAdaptor *cclAdaptors[];
 
 extern struct flagcxDeviceAdaptor cudaAdaptor;
+extern struct flagcxDeviceAdaptor cannAdaptor;
 extern struct flagcxDeviceAdaptor ixcudaAdaptor;
 extern struct flagcxDeviceAdaptor mluAdaptor;
 extern struct flagcxDeviceAdaptor macaAdaptor;
