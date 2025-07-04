@@ -1,0 +1,284 @@
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.054 [aicpusd_drv_manager.cpp:318][InitSocType][tid:29282] Aicpu no need get this soc version, chipType=5
+[INFO] AICPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.256 [aicpu_context.cc:173][SetAicpuRunMode][tid:29282][AICPU_SHARDER] Set runMode:[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.319 [aicpusd_drv_manager.cpp:594][CheckBindHostPid][tid:29282] call drvQueryProcessHostPid result, hostpid[3883489], cpType[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.349 [aicpusd_interface_process.cpp:308][InitAICPUScheduler][tid:29282] Bind pid sign success
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.396 [aicpusd_resource_manager.cpp:258][InitBufManager][tid:29282] Aicpu schedule Init BufManager!
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.562 [aicpusd_drv_manager.cpp:402][InitDrvSchedModule][tid:29282] Attach device[0] to drv scheduler
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.823 [aicpusd_drv_manager.cpp:629][GetAicpuNumPerDevice][tid:29282] Get aicpu core num[6]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.869 [aicpusd_drv_manager.cpp:420][InitDrvSchedModule][tid:29282] Create group[0], device[0], type[1]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.920 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[0] priority[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.938 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[1] priority[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.954 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[2] priority[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.969 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[3] priority[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.984 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[4] priority[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.629.998 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[5] priority[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.013 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[7] priority[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.027 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[8] priority[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.042 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[9] priority[2] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.056 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[17] priority[1] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.071 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[20] priority[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.085 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[21] priority[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.099 [aicpusd_drv_manager.cpp:435][InitDrvSchedModule][tid:29282] Set event[23] priority[0] success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.234 [aicpusd_monitor.cpp:122][InitMonitor][tid:29282] Begin to init aicpu monitor.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.252 [aicpusd_drv_manager.cpp:611][GetAicpuNum][tid:29282] Get aicpu core num[6], device num[1]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.274 [aicpusd_monitor.cpp:455][SetOpTimeoutFlag][tid:29282] Set op timer flag to 1
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.336 [aicpusd_monitor.cpp:166][InitAsyncOpTimer][tid:29282] Start init async op timer in monitor
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.394 [aicpusd_threads_process.cpp:99][Start][tid:29282] Aicpu scheduler start, hostpid[3883489], profilingMode[0], runMode[0], vfId[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.414 [aicpusd_drv_manager.cpp:611][GetAicpuNum][tid:29282] Get aicpu core num[6], device num[1]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.630.433 [profiling_adp.cc:165][tid:29282]:Start init profiling data info.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.633.774 [prof_so_manager.cpp:45][tid:29282]:Load libascend_devprof.so success
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:05.634.363 [agentmm_svm.c:117][devmm] [devmm_is_support_smmu 117] There is 1 svm0.
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:05.636.316 [agentmm_svm.c:156][devmm] [devmm_init_agent_proc 156] Init svm success. (hostpid=3883489; devid=0; vfid=0; devid_mask=0x1)
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:05.636.577 [pool_drv.c:146][bufmng] [buffPoolGetFd 146] pid 29282 open dev file, poolFd 29
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:05.636.729 [pool_drv.c:327][bufmng] [buffPoolAttachEx 327] Pool attach. (pool=150; fd=29; attach_pid=29282; uid=151; cacheType=0)
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.636.988 [aicpusd_threads_process.cpp:481][MemorySvmDevice][tid:29282] Drv mem init svm device success.
+[INFO] AICPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.006 [aicpu_context.cc:173][SetAicpuRunMode][tid:29282][AICPU_SHARDER] Set runMode:[0] success.
+[INFO] AICPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.025 [aicpu_context.cc:105][InitTaskMonitorContext][tid:29282][AICPU_SHARDER] aicpu core count[6]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.061 [aicpusd_drv_manager.cpp:611][GetAicpuNum][tid:29282] Get aicpu core num[6], device num[1]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.076 [aicpusd_drv_manager.cpp:623][GetDeviceList][tid:29282] Get device list
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.093 [aicpusd_worker.cpp:107][CreateWorker][tid:29282] set SIGCHLD to 0, old sighandler[0], errno[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.108 [aicpusd_drv_manager.cpp:629][GetAicpuNumPerDevice][tid:29282] Get aicpu core num[6]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.122 [aicpusd_worker.cpp:154][CreateOneWorker][tid:29282] CreateOneWorker device[0]:thread[0] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.194 [aicpusd_worker.cpp:154][CreateOneWorker][tid:29282] CreateOneWorker device[0]:thread[1] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.249 [aicpusd_worker.cpp:154][CreateOneWorker][tid:29282] CreateOneWorker device[0]:thread[2] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.320 [aicpusd_worker.cpp:154][CreateOneWorker][tid:29282] CreateOneWorker device[0]:thread[3] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.388 [aicpusd_worker.cpp:154][CreateOneWorker][tid:29282] CreateOneWorker device[0]:thread[4] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.443 [aicpusd_worker.cpp:154][CreateOneWorker][tid:29282] CreateOneWorker device[0]:thread[5] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.510 [aicpusd_worker.cpp:178][Work][tid:29300] Aicpu device[0]:thread[4] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.531 [aicpusd_worker.cpp:191][Work][tid:29300] halEschedSubscribeEvent success, deviceId[0], groupId[0], threadIndex[4] eventBitmap[72057594104120319].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.570 [aicpusd_worker.cpp:276][AddPidToTask][tid:29300] AddPidToTask by halBindCgroup
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.627 [aicpusd_worker.cpp:178][Work][tid:29301] Aicpu device[0]:thread[5] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.649 [aicpusd_worker.cpp:191][Work][tid:29301] halEschedSubscribeEvent success, deviceId[0], groupId[0], threadIndex[5] eventBitmap[72057594104120319].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.689 [aicpusd_worker.cpp:276][AddPidToTask][tid:29301] AddPidToTask by halBindCgroup
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.798 [aicpusd_worker.cpp:178][Work][tid:29299] Aicpu device[0]:thread[3] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.800 [aicpusd_worker.cpp:282][AddPidToTask][tid:29300] halBindCgroup success
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.842 [aicpusd_drv_manager.cpp:629][GetAicpuNumPerDevice][tid:29300] Get aicpu core num[6]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.857 [aicpusd_worker.cpp:323][SetAffinityBySelf][tid:29300] [hw]SetAffinityBySelf, physIndex[6], devNum[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.819 [aicpusd_worker.cpp:191][Work][tid:29299] halEschedSubscribeEvent success, deviceId[0], groupId[0], threadIndex[3] eventBitmap[72057594104120319].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.888 [aicpusd_worker.cpp:282][AddPidToTask][tid:29301] halBindCgroup success
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.898 [aicpusd_drv_manager.cpp:629][GetAicpuNumPerDevice][tid:29301] Get aicpu core num[6]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.906 [aicpusd_worker.cpp:323][SetAffinityBySelf][tid:29301] [hw]SetAffinityBySelf, physIndex[7], devNum[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.929 [aicpusd_worker.cpp:276][AddPidToTask][tid:29299] AddPidToTask by halBindCgroup
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.935 [aicpusd_worker.cpp:339][SetAffinityBySelf][tid:29301] set affinity success, aicpu logical index[5], aicpu physical index[7], device id[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.915 [aicpusd_worker.cpp:339][SetAffinityBySelf][tid:29300] set affinity success, aicpu logical index[4], aicpu physical index[6], device id[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.041 [aicpusd_worker.cpp:389][SetAffinity][tid:29300] aicpu bind tid by self, index[4], deviceId[0], res[0].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.071 [aicpusd_worker.cpp:408][SetThreadIdRelation][tid:29300] set thread index:4 and tid:29300 relation to List
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.988 [aicpusd_worker.cpp:178][Work][tid:29295] Aicpu device[0]:thread[0] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.133 [aicpusd_worker.cpp:191][Work][tid:29295] halEschedSubscribeEvent success, deviceId[0], groupId[0], threadIndex[0] eventBitmap[72057594104120319].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.013 [aicpusd_worker.cpp:282][AddPidToTask][tid:29299] halBindCgroup success
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.165 [aicpusd_drv_manager.cpp:629][GetAicpuNumPerDevice][tid:29299] Get aicpu core num[6]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.176 [aicpusd_worker.cpp:323][SetAffinityBySelf][tid:29299] [hw]SetAffinityBySelf, physIndex[5], devNum[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.207 [aicpusd_worker.cpp:276][AddPidToTask][tid:29295] AddPidToTask by halBindCgroup
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.973 [aicpusd_worker.cpp:178][Work][tid:29296] Aicpu device[0]:thread[1] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.253 [aicpusd_worker.cpp:191][Work][tid:29296] halEschedSubscribeEvent success, deviceId[0], groupId[0], threadIndex[1] eventBitmap[72057594104120319].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.276 [aicpusd_worker.cpp:282][AddPidToTask][tid:29295] halBindCgroup success
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.209 [aicpusd_worker.cpp:339][SetAffinityBySelf][tid:29299] set affinity success, aicpu logical index[3], aicpu physical index[5], device id[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.322 [aicpusd_worker.cpp:389][SetAffinity][tid:29299] aicpu bind tid by self, index[3], deviceId[0], res[0].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.006 [aicpusd_worker.cpp:389][SetAffinity][tid:29301] aicpu bind tid by self, index[5], deviceId[0], res[0].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.362 [aicpusd_worker.cpp:408][SetThreadIdRelation][tid:29301] set thread index:5 and tid:29301 relation to List
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.637.834 [aicpusd_worker.cpp:178][Work][tid:29297] Aicpu device[0]:thread[2] started.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.424 [aicpusd_worker.cpp:191][Work][tid:29297] halEschedSubscribeEvent success, deviceId[0], groupId[0], threadIndex[2] eventBitmap[72057594104120319].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.286 [aicpusd_drv_manager.cpp:629][GetAicpuNumPerDevice][tid:29295] Get aicpu core num[6]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.455 [aicpusd_worker.cpp:323][SetAffinityBySelf][tid:29295] [hw]SetAffinityBySelf, physIndex[2], devNum[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.470 [aicpusd_worker.cpp:339][SetAffinityBySelf][tid:29295] set affinity success, aicpu logical index[0], aicpu physical index[2], device id[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.481 [aicpusd_worker.cpp:389][SetAffinity][tid:29295] aicpu bind tid by self, index[0], deviceId[0], res[0].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.494 [aicpusd_worker.cpp:408][SetThreadIdRelation][tid:29295] set thread index:0 and tid:29295 relation to List
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.528 [aicpusd_worker.cpp:276][AddPidToTask][tid:29296] AddPidToTask by halBindCgroup
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.346 [aicpusd_worker.cpp:408][SetThreadIdRelation][tid:29299] set thread index:3 and tid:29299 relation to List
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.597 [aicpusd_worker.cpp:282][AddPidToTask][tid:29296] halBindCgroup success
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.610 [aicpusd_drv_manager.cpp:629][GetAicpuNumPerDevice][tid:29296] Get aicpu core num[6]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.615 [aicpusd_worker.cpp:323][SetAffinityBySelf][tid:29296] [hw]SetAffinityBySelf, physIndex[3], devNum[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.640 [aicpusd_worker.cpp:339][SetAffinityBySelf][tid:29296] set affinity success, aicpu logical index[1], aicpu physical index[3], device id[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.662 [aicpusd_worker.cpp:389][SetAffinity][tid:29296] aicpu bind tid by self, index[1], deviceId[0], res[0].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.672 [aicpusd_worker.cpp:408][SetThreadIdRelation][tid:29296] set thread index:1 and tid:29296 relation to List
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.719 [aicpusd_worker.cpp:276][AddPidToTask][tid:29297] AddPidToTask by halBindCgroup
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.778 [aicpusd_worker.cpp:282][AddPidToTask][tid:29297] halBindCgroup success
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.789 [aicpusd_drv_manager.cpp:629][GetAicpuNumPerDevice][tid:29297] Get aicpu core num[6]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.794 [aicpusd_worker.cpp:323][SetAffinityBySelf][tid:29297] [hw]SetAffinityBySelf, physIndex[4], devNum[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.836 [aicpusd_worker.cpp:339][SetAffinityBySelf][tid:29297] set affinity success, aicpu logical index[2], aicpu physical index[4], device id[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.865 [aicpusd_worker.cpp:389][SetAffinity][tid:29297] aicpu bind tid by self, index[2], deviceId[0], res[0].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.638.875 [aicpusd_worker.cpp:408][SetThreadIdRelation][tid:29297] set thread index:2 and tid:29297 relation to List
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.639.701 [aicpusd_worker.cpp:138][CreateWorker][tid:29282] set SIGCHLD to old sighandler[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.639.830 [aicpusd_monitor.cpp:419][Run][tid:29282] Aicpu monitor thread running
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.639.855 [aicpusd_drv_manager.cpp:623][GetDeviceList][tid:29282] Get device list
+[INFO] TDT(29282,aicpu_scheduler):2025-07-04-11:31:05.639.908 [tsd_event_client.cpp:220][SubmitEvent][tid:29282] [TsdEventClient] Begin submit event to dev[0] pid[10131] eventType[19] subeventId[43].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.640.250 [ae_kernel_lib_manager.cc:76][BatchLoadKernelSo][tid:29282][AICPU_PROCESSER] Start to batch load kernel so. kernelType=2, loadSoNum=3.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.640.300 [ae_kernel_lib_fwk.cc:176][Init][tid:29282][AICPU_PROCESSER] FWKernelTfImpl init success, soFile_=/usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libtf_kernels.so.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.640.319 [ae_kernel_lib_fwk.cc:112][BatchLoadKernelSo][tid:29282][AICPU_PROCESSER] Begin to batch load kernel so, kerelType:[2].
+[WARNING] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.640.336 [ae_so_manager.cc:164][OpenSo][tid:29282][AICPU_PROCESSER] Format to realpath failed:[], path:[]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.640.375 [ae_so_manager.cc:168][OpenSo][tid:29282][AICPU_PROCESSER] Open so /usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libtf_kernels.so begin.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.710.392 [aicpu_process_state.cc:34][operator()][tid:29282][TFAdapter]MallocMemory, func=new, size=152, purpose=AICPUProcessState object
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.710.482 [tf_adpt_session_mgr.cc:361][Initialize][tid:29282][TFAdapter]SessionMgr Initialize success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.729.345 [ae_so_manager.cc:177][OpenSo][tid:29282][AICPU_PROCESSER] Open so /usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libtf_kernels.so success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.729.509 [ae_so_manager.cc:594][ReadTrustSoList][tid:29282][AICPU_PROCESSER] Trust so list is [libccl_kernel.so,libhccl_operator_call.so,libtf_kernels.so,libaicpu_kernels.so,libcpu_kernels.so,libpt_kernels.so,libbuiltin_kernels.so,libdvpp_kernels.so,libmpi_dvpp_kernels.so,libretr_kernels.so,libdvpp_ops.so,libaicpu_extend_kernels.so,libcms_verify.so,Ascend-v7.7-libopmaster.so,Ascend-v7.6-libopmaster.so].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.729.554 [ae_so_manager.cc:646][CreateSingleSoMgr][tid:29282][AICPU_PROCESSER] soname[/usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libaicpu_kernels.so]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.729.573 [ae_so_manager.cc:650][CreateSingleSoMgr][tid:29282][AICPU_PROCESSER] MallocMemory, func=new, size=152, purpose=SingleSoManager object
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.729.611 [ae_so_manager.cc:168][OpenSo][tid:29282][AICPU_PROCESSER] Open so /usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libaicpu_kernels.so begin.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.732.605 [ae_so_manager.cc:177][OpenSo][tid:29282][AICPU_PROCESSER] Open so /usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libaicpu_kernels.so success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.732.649 [ae_so_manager.cc:675][CreateSingleSoMgr][tid:29282][AICPU_PROCESSER] Load so success, soFile=/usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libaicpu_kernels.so.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.732.677 [ae_so_manager.cc:646][CreateSingleSoMgr][tid:29282][AICPU_PROCESSER] soname[/usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libcpu_kernels.so]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.732.694 [ae_so_manager.cc:650][CreateSingleSoMgr][tid:29282][AICPU_PROCESSER] MallocMemory, func=new, size=152, purpose=SingleSoManager object
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.732.729 [ae_so_manager.cc:168][OpenSo][tid:29282][AICPU_PROCESSER] Open so /usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libcpu_kernels.so begin.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.736.593 [ae_so_manager.cc:177][OpenSo][tid:29282][AICPU_PROCESSER] Open so /usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libcpu_kernels.so success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.736.652 [ae_so_manager.cc:675][CreateSingleSoMgr][tid:29282][AICPU_PROCESSER] Load so success, soFile=/usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libcpu_kernels.so.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.736.675 [ae_kernel_lib_manager.cc:106][BatchLoadKernelSo][tid:29282][AICPU_PROCESSER] Finish to batch load kernel so. loadSoNum=3.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.736.728 [ae_kernel_lib_manager.cc:76][BatchLoadKernelSo][tid:29282][AICPU_PROCESSER] Start to batch load kernel so. kernelType=2, loadSoNum=1.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.736.751 [ae_so_manager.cc:646][CreateSingleSoMgr][tid:29282][AICPU_PROCESSER] soname[/usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libaicpu_extend_kernels.so]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.736.766 [ae_so_manager.cc:650][CreateSingleSoMgr][tid:29282][AICPU_PROCESSER] MallocMemory, func=new, size=152, purpose=SingleSoManager object
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.736.814 [ae_so_manager.cc:168][OpenSo][tid:29282][AICPU_PROCESSER] Open so /usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libaicpu_extend_kernels.so begin.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.749.475 [ae_so_manager.cc:177][OpenSo][tid:29282][AICPU_PROCESSER] Open so /usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libaicpu_extend_kernels.so success.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.749.539 [ae_so_manager.cc:675][CreateSingleSoMgr][tid:29282][AICPU_PROCESSER] Load so success, soFile=/usr/lib64/aicpu_kernels/0/aicpu_kernels_device/libaicpu_extend_kernels.so.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.749.564 [ae_kernel_lib_manager.cc:106][BatchLoadKernelSo][tid:29282][AICPU_PROCESSER] Finish to batch load kernel so. loadSoNum=1.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.749.603 [aicpusd_threads_process.cpp:159][Start][tid:29282] Aicpu scheduler start successfully, deviceId[0], hostpid[3883489], profilingMode[0], runMode[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.749.630 [aicpusd_period_statistic.cpp:100][InitStatistic][tid:29282] start init static devid:0, hostpid:3883489
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.750.304 [aicpusd_interface_process.cpp:345][InitAICPUScheduler][tid:29282] Success to start compute process, deviceId[0], hostPid[3883489], runMode[0]
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.750.356 [main.cpp:82][AttachHostGroup][tid:29282] There is not group need to be attached
+[INFO] TDT(29282,aicpu_scheduler):2025-07-04-11:31:05.750.438 [tsd_event_client.cpp:220][SubmitEvent][tid:29282] [TsdEventClient] Begin submit event to dev[0] pid[10131] eventType[19] subeventId[8].
+[INFO] TDT(29282,aicpu_scheduler):2025-07-04-11:31:05.753.051 [tsd_event_client.cpp:434][IsSubscribe][tid:29282] [TsdEventClient] halEschedCreateGrp dev[0] group[30] type[2] success
+[INFO] TDT(29282,aicpu_scheduler):2025-07-04-11:31:05.753.071 [tsd_event_interface.cpp:45][SubscribeEvent][tid:29282] Dev[0] begin subscribe event mask[524288][19].
+[INFO] TDT(29282,aicpu_scheduler):2025-07-04-11:31:05.753.090 [tsd_event_interface.cpp:53][SubscribeEvent][tid:29282] halEschedSubscribeEvent success, deviceId[0], groupId[30], threadIndex[0] eventBitmap[524288].
+[INFO] TDT(29282,aicpu_scheduler):2025-07-04-11:31:05.753.112 [tsd_event_client.cpp:220][SubmitEvent][tid:29282] [TsdEventClient] Begin submit event to dev[0] pid[10131] eventType[19] subeventId[0].
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.754.125 [aicpusd_period_statistic.cpp:126][SetThreadAffinity][tid:29318] prepare bind threadId=246290215910528 to cpuId=0
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.754.395 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:79312 KB, vmHwm:79312 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.754.471 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:05.754.528 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:0, peakHPgCnt:0 summary:peak_page_cnt=0; peak_hpage_cnt=0.
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.853.428 [ra_adp.c:2374]tid:29325,hccp_init(2374) : hccp[0] hdc_type[18] white_list_status[1] init start
+[INFO] ROCE(29325,hccp_service.bin):2025-07-04-11:31:05.853.502 [dl_hal_function.c:233]dl_hal_init(233) : dl_hal_init success!
+[INFO] DRV(29325,hccp_service.bin):2025-07-04-11:31:05.853.793 [hdc_server.c:363][hdc] [drvHdcServerCreate 363] Create server success. (listen_device=0)
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.853.892 [ra_adp.c:2269]tid:29328,ra_hw_hdc_init(2269) : chip_id(0)
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.855.902 [ra_adp.c:2401]tid:29325,hccp_init(2401) : ra_hw_init ok cost [2.280000] ms
+[INFO] ROCE(29325,hccp_service.bin):2025-07-04-11:31:05.855.966 [dl_hal_function.c:233]dl_hal_init(233) : dl_hal_init success!
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.855.990 [rs.c:327]tid:29325,rs_pthread_mutex_init(327) : mutex init ok
+[INFO] ROCE(29325,hccp_service.bin):2025-07-04-11:31:05.856.032 [network_comm.c:309]get_tls_enable_from_hcdev(309) : read enable status from hccn_cdev.ko success.
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.856.088 [rs_epoll.c:692]tid:29325,rs_epoll_connect_handle_init(692) : rs_create_epoll ok
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.856.187 [rs_epoll.c:713]tid:29325,rs_epoll_connect_handle_init(713) : RS INIT OK!
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.856.208 [rs.c:366]tid:29325,rs_init_rscb_cfg(366) : rs_epoll_connect_handle_init ok cost [0.138000] ms
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.856.881 [ra_adp.c:2417]tid:29325,hccp_init(2417) : rs_init ok cost [0.937000] ms
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.856.945 [rs_epoll.c:623]tid:29331,rs_connect_handle(623) : <SOCKET> thread begin! thread_id:246289897373248, pid:29325, ppid:10131
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.856.994 [rs_epoll.c:487]tid:29330,rs_epoll_handle(487) : <EPOLL> thread begin! thread_id:246289905827392, pid:29325, ppid:10131
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.857.050 [rs_epoll.c:448]tid:29330,bind_data_cpu(448) : halGetDeviceInf chip = 0 dev_num = 2, ccpu = 1 dcpu = 1 acpu = 6 cpu_num = 8
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.857.216 [rs_epoll.c:456]tid:29330,bind_data_cpu(456) : bind cgroup success!
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.857.246 [rs_epoll.c:392]tid:29330,set_affinity(392) : dev is 0 thread 246289905827392 is running in processor 1.
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.857.258 [rs_epoll.c:461]tid:29330,bind_data_cpu(461) : chip_id[0] bind data cpu[1] success
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.866.958 [ra_adp.c:2427]tid:29325,hccp_init(2427) : rs_bind_hostpid ok cost [10.056000] ms
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.867.053 [ra_adp.c:2437]tid:29325,hccp_init(2437) : rs_ping_handle_init ok cost [0.059000] ms
+[INFO] TDT(29325,hccp_service.bin):2025-07-04-11:31:05.867.348 [tsd_event_client.cpp:434][IsSubscribe][tid:29325] [TsdEventClient] halEschedCreateGrp dev[0] group[30] type[2] success
+[INFO] TDT(29325,hccp_service.bin):2025-07-04-11:31:05.867.376 [tsd_event_interface.cpp:45][SubscribeEvent][tid:29325] Dev[0] begin subscribe event mask[524288][19].
+[INFO] TDT(29325,hccp_service.bin):2025-07-04-11:31:05.867.396 [tsd_event_interface.cpp:53][SubscribeEvent][tid:29325] halEschedSubscribeEvent success, deviceId[0], groupId[30], threadIndex[0] eventBitmap[524288].
+[INFO] TDT(29325,hccp_service.bin):2025-07-04-11:31:05.867.420 [tsd_event_client.cpp:220][SubmitEvent][tid:29325] [TsdEventClient] Begin submit event to dev[0] pid[10131] eventType[19] subeventId[0].
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.868.004 [rs_ping.c:625]tid:29333,rs_ping_handle(625) : <PING> thread begin! thread_id:246289888390720, pid:29325, ppid:10131
+[INFO] DRV(29325,hccp_service.bin):2025-07-04-11:31:05.868.224 [hdc_core.c:1982][hdc] [drvHdcSetSessionReference 1982] Get pid number. (session=1152; pid=29325)
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.868.337 [ra_adp.c:1314]tid:29329,ra_set_pid(1314) : ra get pid is [3883489]
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.868.374 [rs_rdma.c:1132]tid:29329,rs_set_host_pid(1132) : phy_id[0] host_pid[3883489]
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.868.392 [ra_adp.c:1319]tid:29329,ra_set_pid(1319) : ra_set_pid finish
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:05.875.267 [rs_socket.c:2609]tid:29329,rs_get_device_type(2609) : board_id is (177)
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:06.098.850 [ra_adp.c:1326]tid:29329,ra_rs_close_hdc_session(1326) : ra_rs_close_hdc_session finish
+[WARNING] HCCP(29325,hccp_service.bin):2025-07-04-11:31:06.098.898 [ra_adp.c:2178]tid:29329,ra_hdc_recv_handle_send_pkt(2178) : close_session[1] unsuccessful, ret[0]
+[INFO] DRV(29325,hccp_service.bin):2025-07-04-11:31:06.098.920 [hdc_server.c:584][hdc] [drvHdcServerSessionClose 584] Close server session. (sockfd=1152)
+[INFO] TDT(29325,hccp_service.bin):2025-07-04-11:31:06.100.350 [tsd_event_interface.cpp:25][WaitAndProcessEvent][tid:29325] Begin process event msg.
+[INFO] TDT(29325,hccp_service.bin):2025-07-04-11:31:06.100.389 [tsd_event_client.cpp:476][ProcessEvent][tid:29325] Begin to process tsd event.
+[INFO] TDT(29325,hccp_service.bin):2025-07-04-11:31:06.100.427 [tsd_event_client.cpp:220][SubmitEvent][tid:29325] [TsdEventClient] Begin submit event to dev[0] pid[10131] eventType[19] subeventId[1].
+[WARNING] TDT(29325,hccp_service.bin):2025-07-04-11:31:06.100.642 [internal_api.cpp:101][GetScheduleEnv][tid:29325] Get env[REGISTER_TO_ASCENDMONITOR] failed
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:06.100.772 [ra_adp.c:2459]tid:29325,hccp_deinit(2459) : hccp[0] deinit start
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:06.109.321 [rs_ping.c:699]tid:29333,rs_ping_handle(699) : <PING> QUIT thread_id:246289888390720, pid:29325
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:06.110.810 [rs.c:1783]tid:29325,rs_deinit(1783) : epoll wait up ok, rscb->conn_flag:1
+[WARNING] HCCP(29325,hccp_service.bin):2025-07-04-11:31:06.110.816 [rs_epoll.c:523]tid:29330,rs_epoll_handle(523) : <EPOLL> SHUT DOWN event!!! eventfd:28
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:06.110.847 [rs_epoll.c:544]tid:29330,rs_epoll_handle(544) : <EPOLL> QUIT thread_id:246289905827392, pid:29325, read num:8
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:06.267.491 [rs_epoll.c:679]tid:29331,rs_connect_handle(679) : <SOCKET> QUIT thread_id:246289897373248, pid:29325
+[INFO] ROCE(29325,hccp_service.bin):2025-07-04-11:31:06.271.220 [dl_hal_function.c:208]dl_hal_deinit(208) : dl_hal_deinit success!
+[INFO] DRV(29325,hccp_service.bin):2025-07-04-11:31:06.271.293 [hdc_server.c:453][hdc] [drvHdcServerDestroy 453] Destroy server success. (deviceId=0; service_Type=18)
+[INFO] DRV(29325,hccp_service.bin):2025-07-04-11:31:06.271.355 [hdc_server.c:294][hdc] [drvHdcPcieSessionAccept 294] Server is destroyed or wakeup wait. (dev_id=0; server=43680; ret=18)
+[WARNING] HCCP(29325,hccp_service.bin):2025-07-04-11:31:06.271.378 [ra_adp.c:2285]tid:29328,ra_hw_hdc_init(2285) : Session Accept unsuccessful, chip_id(0), ret(34) 
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:06.271.433 [ra_adp.c:2227]tid:29329,ra_pthread(2227) : thread [29325] is out
+[INFO] ROCE(29325,hccp_service.bin):2025-07-04-11:31:06.291.402 [dl_hal_function.c:208]dl_hal_deinit(208) : dl_hal_deinit success!
+[INFO] HCCP(29325,hccp_service.bin):2025-07-04-11:31:06.291.435 [ra_adp.c:2491]tid:29325,hccp_deinit(2491) : hccp [0] deinit success
+[INFO] ROCE(29325,hccp_service.bin):2025-07-04-11:31:06.291.572 [dl_hal_function.c:208]dl_hal_deinit(208) : dl_hal_deinit success!
+[INFO] DRV(29325,hccp_service.bin):2025-07-04-11:31:06.291.883 [uda_user.c:147][devmng] [uda_char_dev_open 147] The fd and pid info: (fd=4; pid=29325)
+[INFO] DRV(29325,hccp_service.bin):2025-07-04-11:31:06.291.921 [uda_user.c:317][devmng] [_uda_init 317] User info. (admin_flag=1; local_flag=1; max_dev_num=32; max_udev_num=64; uda_dev_num_davinci=2; uda_dev_num_kunpeng=0)
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.341.397 [ra_adp.c:2374]tid:29352,hccp_init(2374) : hccp[0] hdc_type[18] white_list_status[1] init start
+[INFO] ROCE(29352,hccp_service.bin):2025-07-04-11:31:06.341.446 [dl_hal_function.c:233]dl_hal_init(233) : dl_hal_init success!
+[INFO] DRV(29352,hccp_service.bin):2025-07-04-11:31:06.341.734 [hdc_server.c:363][hdc] [drvHdcServerCreate 363] Create server success. (listen_device=0)
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.341.822 [ra_adp.c:2269]tid:29361,ra_hw_hdc_init(2269) : chip_id(0)
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.343.876 [ra_adp.c:2401]tid:29352,hccp_init(2401) : ra_hw_init ok cost [2.327000] ms
+[INFO] ROCE(29352,hccp_service.bin):2025-07-04-11:31:06.343.921 [dl_hal_function.c:233]dl_hal_init(233) : dl_hal_init success!
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.343.936 [rs.c:327]tid:29352,rs_pthread_mutex_init(327) : mutex init ok
+[INFO] ROCE(29352,hccp_service.bin):2025-07-04-11:31:06.343.965 [network_comm.c:309]get_tls_enable_from_hcdev(309) : read enable status from hccn_cdev.ko success.
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.344.009 [rs_epoll.c:692]tid:29352,rs_epoll_connect_handle_init(692) : rs_create_epoll ok
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.344.094 [rs_epoll.c:713]tid:29352,rs_epoll_connect_handle_init(713) : RS INIT OK!
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.344.107 [rs.c:366]tid:29352,rs_init_rscb_cfg(366) : rs_epoll_connect_handle_init ok cost [0.118000] ms
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.344.754 [ra_adp.c:2417]tid:29352,hccp_init(2417) : rs_init ok cost [0.853000] ms
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.344.821 [rs_epoll.c:623]tid:29364,rs_connect_handle(623) : <SOCKET> thread begin! thread_id:246289665093184, pid:29352, ppid:10131
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.344.856 [rs_epoll.c:487]tid:29363,rs_epoll_handle(487) : <EPOLL> thread begin! thread_id:246289744129600, pid:29352, ppid:10131
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.344.919 [rs_epoll.c:448]tid:29363,bind_data_cpu(448) : halGetDeviceInf chip = 0 dev_num = 2, ccpu = 1 dcpu = 1 acpu = 6 cpu_num = 8
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.345.058 [rs_epoll.c:456]tid:29363,bind_data_cpu(456) : bind cgroup success!
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.345.082 [rs_epoll.c:392]tid:29363,set_affinity(392) : dev is 0 thread 246289744129600 is running in processor 1.
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.345.095 [rs_epoll.c:461]tid:29363,bind_data_cpu(461) : chip_id[0] bind data cpu[1] success
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.354.885 [ra_adp.c:2427]tid:29352,hccp_init(2427) : rs_bind_hostpid ok cost [10.106000] ms
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.354.976 [ra_adp.c:2437]tid:29352,hccp_init(2437) : rs_ping_handle_init ok cost [0.060000] ms
+[INFO] TDT(29352,hccp_service.bin):2025-07-04-11:31:06.355.784 [tsd_event_client.cpp:434][IsSubscribe][tid:29352] [TsdEventClient] halEschedCreateGrp dev[0] group[30] type[2] success
+[INFO] TDT(29352,hccp_service.bin):2025-07-04-11:31:06.355.802 [tsd_event_interface.cpp:45][SubscribeEvent][tid:29352] Dev[0] begin subscribe event mask[524288][19].
+[INFO] TDT(29352,hccp_service.bin):2025-07-04-11:31:06.355.812 [tsd_event_interface.cpp:53][SubscribeEvent][tid:29352] halEschedSubscribeEvent success, deviceId[0], groupId[30], threadIndex[0] eventBitmap[524288].
+[INFO] TDT(29352,hccp_service.bin):2025-07-04-11:31:06.355.828 [tsd_event_client.cpp:220][SubmitEvent][tid:29352] [TsdEventClient] Begin submit event to dev[0] pid[10131] eventType[19] subeventId[0].
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.356.271 [rs_ping.c:625]tid:29365,rs_ping_handle(625) : <PING> thread begin! thread_id:246289656639040, pid:29352, ppid:10131
+[INFO] DRV(29352,hccp_service.bin):2025-07-04-11:31:06.356.558 [hdc_core.c:1982][hdc] [drvHdcSetSessionReference 1982] Get pid number. (session=1154; pid=29352)
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.356.717 [ra_adp.c:1314]tid:29362,ra_set_pid(1314) : ra get pid is [3883489]
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.356.752 [rs_rdma.c:1132]tid:29362,rs_set_host_pid(1132) : phy_id[0] host_pid[3883489]
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.356.765 [ra_adp.c:1319]tid:29362,ra_set_pid(1319) : ra_set_pid finish
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.364.296 [rs_socket.c:973]tid:29362,rs_socket_init_listen(973) : listen [0] IP 0xec10201c0, ret_vnic -1
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.364.334 [rs_socket.c:98]tid:29362,rs_find_listen_node(98) : listen node for IP(192.1.2.193), server_port(16666) is not listen!
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.364.346 [rs_socket.c:98]tid:29362,rs_find_listen_node(98) : listen node for IP(192.1.2.193), server_port(16666) is not listen!
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.364.353 [rs_socket.c:163]tid:29362,rs_listen_node_alloc(163) : create listen node for IP(192.1.2.193)!
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.364.382 [rs_socket.c:907]tid:29362,rs_socket_listen_bind_listen(907) : listen state:1, then bind for (IP 192.1.2.193 : port 16666)
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.364.401 [rs_socket.c:916]tid:29362,rs_socket_listen_bind_listen(916) : socket bind: family 2, port 6721, addr 0xc10201c0
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.364.416 [rs_socket.c:947]tid:29362,rs_socket_listen_bind_listen(947) : IP 192.1.2.193 : port 16666 begin listen, fd:33 !
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:06.375.471 [trs_sqcq.c:458][tsdrv] [trsDevSqCqInit 458] Sqcq init. (devid=0)
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:06.376.040 [trs_sqcq.c:394][tsdrv] [trsIdTypeInit 394] Id type init success. (devId=0; tsId=0; id_type=6; num=2044)
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:06.376.567 [trs_sqcq.c:394][tsdrv] [trsIdTypeInit 394] Id type init success. (devId=0; tsId=0; id_type=7; num=2044)
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:06.376.889 [trs_sqcq.c:394][tsdrv] [trsIdTypeInit 394] Id type init success. (devId=0; tsId=0; id_type=10; num=1024)
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:06.377.198 [trs_sqcq.c:394][tsdrv] [trsIdTypeInit 394] Id type init success. (devId=0; tsId=0; id_type=11; num=1024)
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:06.377.785 [trs_sqcq.c:394][tsdrv] [trsIdTypeInit 394] Id type init success. (devId=0; tsId=0; id_type=12; num=2048)
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:06.377.816 [trs_sqcq.c:394][tsdrv] [trsIdTypeInit 394] Id type init success. (devId=0; tsId=0; id_type=8; num=16)
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:06.377.834 [trs_sqcq.c:394][tsdrv] [trsIdTypeInit 394] Id type init success. (devId=0; tsId=0; id_type=9; num=16)
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:06.377.845 [trs_sqcq.c:394][tsdrv] [trsIdTypeInit 394] Id type init success. (devId=0; tsId=0; id_type=13; num=4)
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:06.377.857 [trs_sqcq.c:394][tsdrv] [trsIdTypeInit 394] Id type init success. (devId=0; tsId=0; id_type=14; num=10)
+[INFO] DRV(29282,aicpu_scheduler):2025-07-04-11:31:06.379.926 [trs_dev_drv.c:302][tsdrv] [drvDeviceOpenComm 302] Open success. (devid=0; fd=34; mmapFd=35)
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.402.262 [rs_socket.c:2398]tid:29362,rs_socket_get_ip_info(2398) : white list listen IP 0xff000000c10201c0, ret_vnic -1
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.402.282 [rs_socket.c:2401]tid:29362,rs_socket_get_ip_info(2401) : white list client IP 0xff000000c00301c0, ret_vnic -1
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.402.294 [rs_socket.c:318]tid:29362,rs_find_white_list(318) : white list for IP(192.1.2.193), server_port(16666) doesn't exist!
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:31:06.402.311 [rs_socket.c:294]tid:29362,rs_find_white_list_node(294) : white list node for IP(192.1.3.192), tag(10.1.15.130%enp196s0f0_60008_0_1751599865594803_res_optimize_1_Intra__Intra_MultiSocket_7_0) doesn't exist!
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:15.759.572 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:86176 KB, vmHwm:86176 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:15.759.666 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:15.759.709 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:2048, peakHPgCnt:215 summary:peak_page_cnt=2048; peak_hpage_cnt=215.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:25.764.584 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:86176 KB, vmHwm:86176 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:25.764.681 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:25.764.724 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:2048, peakHPgCnt:215 summary:peak_page_cnt=2048; peak_hpage_cnt=215.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:35.769.352 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:86176 KB, vmHwm:86176 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:35.769.434 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:35.769.477 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:2048, peakHPgCnt:215 summary:peak_page_cnt=2048; peak_hpage_cnt=215.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:45.774.474 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:86176 KB, vmHwm:86176 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:45.774.565 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:45.774.609 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:2048, peakHPgCnt:215 summary:peak_page_cnt=2048; peak_hpage_cnt=215.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:55.779.522 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:86176 KB, vmHwm:86176 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:55.779.618 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:31:55.779.662 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:2048, peakHPgCnt:215 summary:peak_page_cnt=2048; peak_hpage_cnt=215.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:05.784.391 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:86176 KB, vmHwm:86176 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:05.784.468 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:05.784.510 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:2048, peakHPgCnt:215 summary:peak_page_cnt=2048; peak_hpage_cnt=215.
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:32:06.342.805 [rs.c:176]tid:29362,rs_heartbeat_alive_print(176) : pthread[ra_thread] is alive!
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:32:06.356.481 [rs.c:176]tid:29365,rs_heartbeat_alive_print(176) : pthread[ping_pthread] is alive!
+[INFO] HCCP(29352,hccp_service.bin):2025-07-04-11:32:06.361.287 [rs.c:176]tid:29364,rs_heartbeat_alive_print(176) : pthread[connect_pthread] is alive!
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:15.789.453 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:86176 KB, vmHwm:86176 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:15.789.603 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:15.789.675 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:2048, peakHPgCnt:215 summary:peak_page_cnt=2048; peak_hpage_cnt=215.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:25.794.450 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:86176 KB, vmHwm:86176 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:25.794.547 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:25.794.589 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:2048, peakHPgCnt:215 summary:peak_page_cnt=2048; peak_hpage_cnt=215.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:35.799.304 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:86176 KB, vmHwm:86176 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:35.799.467 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:35.799.512 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:2048, peakHPgCnt:215 summary:peak_page_cnt=2048; peak_hpage_cnt=215.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:45.804.246 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:86176 KB, vmHwm:86176 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:45.804.338 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:45.804.384 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:2048, peakHPgCnt:215 summary:peak_page_cnt=2048; peak_hpage_cnt=215.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:55.810.126 [aicpusd_proc_mem_statistic.cpp:185][GetOsMemInfoFromFile][tid:29318] vmRss:86176 KB, vmHwm:86176 KB.
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:55.810.282 [aicpusd_proc_mem_statistic.cpp:126][GetXsMemInfoFromFile][tid:29318] allocsize:0 B, real size:0 B, summary: 0        0       .
+[INFO] CCECPU(29282,aicpu_scheduler):2025-07-04-11:32:55.810.335 [aicpusd_proc_mem_statistic.cpp:87][GetSvmInfoFromFile][tid:29318] peakPgCnt:2048, peakHPgCnt:215 summary:peak_page_cnt=2048; peak_hpage_cnt=215.

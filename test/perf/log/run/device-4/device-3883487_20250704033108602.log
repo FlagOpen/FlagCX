@@ -1,0 +1,75 @@
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.600.229 [main.cpp:307][main][tid:28010] Start para. deviceId=0, hostPid=3883487, pidSign=000000000000000000000000000000000000000000000000, profilingMode=0, vfId=0, logLevel=1, ccecpulogLevel=-1, aicpulogLevel=-1, deviceMode=0, aicpuSchedMode=0, hostProcName=, grpNameNum=0, grpNameList=[]
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.438 [aicpusd_resource_limit.cpp:53][AddToCgroup][tid:28010] Add to cgroup success, cmd:[cd /var/  && sudo ./tsdaemon_add_to_usermemory.sh 28010 0 0].
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.507 [aicpusd_interface_process.cpp:607][GetCurrentRunMode][tid:28010] Current aicpu mode is online (call from host).
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.582 [aicpusd_drv_manager.cpp:321][InitSocType][tid:28010] Soc type is 0
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.602 [aicpusd_drv_manager.cpp:175][GetNormalAicpuInfo][tid:28010] aicpuBitMap[252], aicpuNum[6].
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.618 [aicpusd_drv_manager.cpp:209][GetCcpuInfo][tid:28010] ccpuBitMap[1].
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.653 [aicpusd_drv_manager.cpp:95][GetNormalAicpuDCpuInfo][tid:28010] GetNormalAicpuDCpuInfo, deviceId[0], aicpu_num[6], aicpu_os_sched[1], ccpu_num[1], ccpu_os_sched[1], dcpu_num[1], dcpu_os_sched[1], tscpu_num[0], tscpu_os_sched[0].
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.666 [aicpusd_drv_manager.cpp:292][InitDrvMgrCaluniqueVfId][tid:28010] InitDrvMgr uniqueVfId=0, deviceId=0
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.673 [aicpusd_drv_manager.cpp:372][InitDrvMgr][tid:28010] host pid[3883487], host proc name[], vf id[0], first aicpu index[0], aicpu num[6], dcpu base index[1], dcpu num[1].
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.697 [aicpusd_drv_manager.cpp:568][CheckBindHostPid][tid:28010] Start query process host pid
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.724 [aicpusd_drv_manager.cpp:581][CheckBindHostPid][tid:28010] Query process host pid end, ret=0, hostpid=3883487, expect=3883487, cpType=0
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.743 [aicpusd_drv_manager.cpp:596][CheckBindHostPid][tid:28010] call drvQueryProcessHostPid success, hostpid[3883487], cpType[0]
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.624.812 [aicpusd_resource_manager.cpp:264][InitBufManager][tid:28010] Aicpu schedule SetBuffCfg successfully!
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.625.464 [aicpusd_drv_manager.cpp:441][InitDrvSchedModule][tid:28010] Enable process drv queue msg on ccpu, ret is 0.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.625.519 [aicpusd_monitor.cpp:239][SetModelTimeoutFlag][tid:28010] Not set aicpu model timeout. Env is not set.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.625.569 [aicpusd_monitor.cpp:160][InitMonitor][tid:28010] Init aicpu monitor success, taskTimeout=60s, tickFreq=50000000
+[INFO] DRV(28010,aicpu_scheduler):2025-07-04-11:31:05.631.963 [grp_mng.c:81][bufmng] [halGrpCreate 81] Create grp. (grp_name=svm_share_grp_28010; grp_id=112; max_size=0; cache_flag=0)
+[INFO] DRV(28010,aicpu_scheduler):2025-07-04-11:31:05.631.995 [grp_mng.c:144][bufmng] [halGrpAddProc 144] add grp succ, name:svm_share_grp_28010, pid:28010, grp_id:112, admin:1 alloc:0 read:1 write:1 
+[INFO] DRV(28010,aicpu_scheduler):2025-07-04-11:31:05.632.303 [drv_buff_mbuf.c:65][bufmng] [mbufSetPrivFlag 65] Set mbuf priv flag success. (flag=0, g_mbuf_priv_flag=0)
+[INFO] DRV(28010,aicpu_scheduler):2025-07-04-11:31:05.632.317 [grp_mng.c:212][bufmng] [halGrpAttach 212] grp attach, grp_name:svm_share_grp_28010, grp_id:112, timeout:0ms
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.632.366 [aicpusd_worker.cpp:72][ThreadPool][tid:28010] ThreadPool
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.632.737 [aicpusd_worker.cpp:274][AddPidToTask][tid:28028] Bind pid by hal.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.632.941 [aicpusd_worker.cpp:274][AddPidToTask][tid:28024] Bind pid by hal.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.633.009 [aicpusd_worker.cpp:274][AddPidToTask][tid:28026] Bind pid by hal.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.633.073 [aicpusd_worker.cpp:274][AddPidToTask][tid:28029] Bind pid by hal.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.633.130 [aicpusd_worker.cpp:274][AddPidToTask][tid:28025] Bind pid by hal.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.633.490 [aicpusd_worker.cpp:274][AddPidToTask][tid:28027] Bind pid by hal.
+[INFO] TDT(28010,aicpu_scheduler):2025-07-04-11:31:05.634.780 [tsd_event_client.cpp:645][SetSubProcScheduleMode][tid:28010] [TsdEventClient] Enter Set ScheduleMode deviceid[0],hostPid[3883487],vfId[0].
+[INFO] TDT(28010,aicpu_scheduler):2025-07-04-11:31:05.635.087 [tsd_event_client.cpp:666][SetSubProcScheduleMode][tid:28010] [TsdEventClient] Submit event Set ScheduleMode to tsd success.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.635.104 [aicpusd_threads_process.cpp:61][LoadKernelSo][tid:28010] Start to preload aicpu so.
+[WARNING] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.635.190 [ae_kernel_lib_fwk.cc:329][LoadTfSo][tid:28010][AICPU_PROCESSER] load tensorflow so failed, ret is[11002]
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.719.851 [aicpusd_threads_process.cpp:65][LoadKernelSo][tid:28010] End to preload aicpu so.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.719.862 [aicpusd_threads_process.cpp:81][LoadExtendKernelSo][tid:28010] Start to preload extend kernel so.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.733.148 [aicpusd_threads_process.cpp:85][LoadExtendKernelSo][tid:28010] End to preload extend kernel so.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.733.731 [aicpusd_cust_so_manager.cpp:75][InitAicpuCustSoManager][tid:28010] Cust so manager init success, dir=/home/CustAiCpuUser/cust_aicpu_0_0_3883487/, runMode=0, schedMode=0
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.733.765 [main.cpp:334][main][tid:28010] Aicpu schedule start success, LD_LIBRARY_PATH=/usr/lib64/aicpu_kernels/0/aicpu_kernels_device/:/usr/lib64/aicpu_kernels/0/aicpu_kernels_device/sand_box/:/home/HwHiAiUser/hs/0/runtime/lib64/:
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.733.784 [main.cpp:345][main][tid:28010] Aicpu schedule attach and init success.
+[INFO] TDT(28010,aicpu_scheduler):2025-07-04-11:31:05.733.799 [tsd_event_client.cpp:385][ReportMsgToTsd][tid:28010] [TsdEventClient] Enter ReportMsgToTsd deviceid[0],hostPid[3883487],vfId[0].
+[INFO] TDT(28010,aicpu_scheduler):2025-07-04-11:31:05.733.813 [tsd_event_client.cpp:401][ReportMsgToTsd][tid:28010] [TsdEventClient] subCapabityType[8], value[1]
+[INFO] TDT(28010,aicpu_scheduler):2025-07-04-11:31:05.734.012 [tsd_event_client.cpp:408][ReportMsgToTsd][tid:28010] [TsdEventClient] Submit event ReportMsgToTsd to tsd success.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.736.613 [main.cpp:202][RegQueueScheduleModuleCallBack][tid:28010] RegQueueScheduleModuleCallBack success
+[INFO] TDT(28010,aicpu_scheduler):2025-07-04-11:31:05.736.635 [tsd_event_client.cpp:268][TsdStartupResponse][tid:28010] [TsdEventClient] TsdStartupResponseProc to dev[0] pid[10202] hostpid[3883487] vfId[0] is running.
+[INFO] TDT(28010,aicpu_scheduler):2025-07-04-11:31:05.736.888 [tsd_event_client.cpp:287][TsdStartupResponse][tid:28010] [TsdEventClient] Submit event TSD_EVENT_START_RSP to tsd success.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.736.901 [main.cpp:361][main][tid:28010] Aicpu startup response return success.
+[INFO] TDT(28010,aicpu_scheduler):2025-07-04-11:31:05.736.910 [tsd_event_client.cpp:232][DoLoopProcessEvent][tid:28010] [TsdEventClient] Start wait event, deviceId=0.
+[INFO] CCECPU(28010,aicpu_scheduler):2025-07-04-11:31:05.737.640 [aicpusd_period_statistic.cpp:133][SetThreadAffinity][tid:28047] aicpu bind by self success
+[INFO] HCCP(28055,hccp_service.bin):2025-07-04-11:31:05.850.803 [ra_adp.c:2338]tid:28055,hccp_set_affinity(2338) : chip_id:0 ccpu_num:1, dcpu_num:1, acpu_num:6, cpu_id:0
+[INFO] HCCP(28055,hccp_service.bin):2025-07-04-11:31:05.851.165 [ra_adp.c:2213]tid:28059,ra_pthread(2213) : pthread[ra_thread] is alive!
+[INFO] HCCP(28055,hccp_service.bin):2025-07-04-11:31:05.853.194 [rs_ssl.c:1529]tid:28055,rs_ssl_init(1529) : TLS SWITCH (0)
+[INFO] HCCP(28055,hccp_service.bin):2025-07-04-11:31:05.853.979 [rs.c:471]tid:28055,rs_init(471) : rs init success, chip_id[0]
+[INFO] HCCP(28055,hccp_service.bin):2025-07-04-11:31:05.854.065 [rs_epoll.c:641]tid:28061,rs_connect_handle(641) : pthread[connect_pthread] is alive!
+[INFO] HCCP(28055,hccp_service.bin):2025-07-04-11:31:05.854.321 [rs_epoll.c:511]tid:28060,rs_epoll_handle(511) : pthread[epoll_pthread] is alive!
+[INFO] HCCP(28055,hccp_service.bin):2025-07-04-11:31:05.864.208 [main.c:131]tid:28055,main(131) : hccp init ok cost [13.975000] ms logic_id[0], tgid[3883487]
+[INFO] TDT(28055,hccp_service.bin):2025-07-04-11:31:05.864.222 [tsd_event_client.cpp:268][TsdStartupResponse][tid:28055] [TsdEventClient] TsdStartupResponseProc to dev[0] pid[10202] hostpid[3883487] vfId[0] is running.
+[INFO] TDT(28055,hccp_service.bin):2025-07-04-11:31:05.864.685 [tsd_event_client.cpp:287][TsdStartupResponse][tid:28055] [TsdEventClient] Submit event TSD_EVENT_START_RSP to tsd success.
+[INFO] TDT(28055,hccp_service.bin):2025-07-04-11:31:05.864.705 [tsd_event_client.cpp:232][DoLoopProcessEvent][tid:28055] [TsdEventClient] Start wait event, deviceId=0.
+[INFO] HCCP(28055,hccp_service.bin):2025-07-04-11:31:05.864.984 [rs_ping.c:638]tid:28063,rs_ping_handle(638) : pthread[ping_pthread] is alive!
+[INFO] TDT(28055,hccp_service.bin):2025-07-04-11:31:06.102.653 [tsd_event_client.cpp:62][TsdEventShutdown][tid:28055] [TsdEvent] Do shutdown event proc dev[0] hostPid[3883487] procType[0].
+[INFO] TDT(28055,hccp_service.bin):2025-07-04-11:31:06.102.702 [tsd_event_client.cpp:76][TsdEventShutdown][tid:28055] [TsdEventClient] Submit event TSD_EVENT_SHUTDOWN_RSP to tsd success.
+[INFO] TDT(28055,hccp_service.bin):2025-07-04-11:31:06.102.726 [tsd_event_client.cpp:244][DoLoopProcessEvent][tid:28055] [TsdEventClient] halEschedDettachDevice dev[0].
+[INFO] TDT(28055,hccp_service.bin):2025-07-04-11:31:06.102.821 [tsd_event_client.cpp:248][DoLoopProcessEvent][tid:28055] [TsdEventClient] Wait exit.
+[INFO] HCCP(28055,hccp_service.bin):2025-07-04-11:31:06.273.335 [rs.c:1810]tid:28055,rs_deinit(1810) : rs_deinit chip_id[0] ok
+[INFO] HCCP(28055,hccp_service.bin):2025-07-04-11:31:06.293.469 [main.c:144]tid:28055,main(144) : hccp deinit ok! logic_id=0
+[INFO] HCCP(28094,hccp_service.bin):2025-07-04-11:31:06.348.037 [ra_adp.c:2338]tid:28094,hccp_set_affinity(2338) : chip_id:0 ccpu_num:1, dcpu_num:1, acpu_num:6, cpu_id:0
+[INFO] HCCP(28094,hccp_service.bin):2025-07-04-11:31:06.348.402 [ra_adp.c:2213]tid:28099,ra_pthread(2213) : pthread[ra_thread] is alive!
+[INFO] HCCP(28094,hccp_service.bin):2025-07-04-11:31:06.350.431 [rs_ssl.c:1529]tid:28094,rs_ssl_init(1529) : TLS SWITCH (0)
+[INFO] HCCP(28094,hccp_service.bin):2025-07-04-11:31:06.351.192 [rs.c:471]tid:28094,rs_init(471) : rs init success, chip_id[0]
+[INFO] HCCP(28094,hccp_service.bin):2025-07-04-11:31:06.351.275 [rs_epoll.c:641]tid:28101,rs_connect_handle(641) : pthread[connect_pthread] is alive!
+[INFO] HCCP(28094,hccp_service.bin):2025-07-04-11:31:06.351.514 [rs_epoll.c:511]tid:28100,rs_epoll_handle(511) : pthread[epoll_pthread] is alive!
+[INFO] HCCP(28094,hccp_service.bin):2025-07-04-11:31:06.361.420 [main.c:131]tid:28094,main(131) : hccp init ok cost [14.087000] ms logic_id[0], tgid[3883487]
+[INFO] TDT(28094,hccp_service.bin):2025-07-04-11:31:06.361.434 [tsd_event_client.cpp:268][TsdStartupResponse][tid:28094] [TsdEventClient] TsdStartupResponseProc to dev[0] pid[10202] hostpid[3883487] vfId[0] is running.
+[INFO] TDT(28094,hccp_service.bin):2025-07-04-11:31:06.361.917 [tsd_event_client.cpp:287][TsdStartupResponse][tid:28094] [TsdEventClient] Submit event TSD_EVENT_START_RSP to tsd success.
+[INFO] TDT(28094,hccp_service.bin):2025-07-04-11:31:06.361.933 [tsd_event_client.cpp:232][DoLoopProcessEvent][tid:28094] [TsdEventClient] Start wait event, deviceId=0.
+[INFO] HCCP(28094,hccp_service.bin):2025-07-04-11:31:06.362.160 [rs_ping.c:638]tid:28103,rs_ping_handle(638) : pthread[ping_pthread] is alive!
+[INFO] HCCP(28094,hccp_service.bin):2025-07-04-11:31:06.367.427 [rs_socket.c:910]tid:28099,rs_socket_listen_bind_listen(910) : socket bind: family 2, addr 192.1.2.195, port 16666

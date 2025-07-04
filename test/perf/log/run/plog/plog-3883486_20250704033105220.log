@@ -1,0 +1,197 @@
+[INFO] ATRACE(3883486,test_sendrecv):2025-07-04-03:31:05.219.983 [trace_attr.c:189](tid:3883486) attr init success, timeout=0ms.
+[INFO] ATRACE(3883486,test_sendrecv):2025-07-04-03:31:05.220.003 [trace_recorder.c:121](tid:3883486) use root path: /root/ascend
+[INFO] RUNTIME(3883486,test_sendrecv):2025-07-04-03:31:05.238.030 [task_fail_callback_data_manager.cc:58] 3883486 TaskFailCallBackManager: Constructor.
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.255.416 [adapter_rts.cc:2720] [3883486][adapter_rts.cc][CallBackInitRts] g_deviceType [6] g_deviceLogicId [-1] g_devicePhyId [-1]
+[EVENT] PROFILING(3883486,test_sendrecv):2025-07-04-03:31:05.278.785 [msprof_callback_impl.cpp:358] >>> (tid:3883486) Started to register profiling ctrl callback.
+[EVENT] PROFILING(3883486,test_sendrecv):2025-07-04-03:31:05.278.868 [msprof_callback_impl.cpp:365] >>> (tid:3883486) Started to register profiling hash id callback.
+[INFO] PROFILING(3883486,test_sendrecv):2025-07-04-03:31:05.278.871 [prof_atls_plugin.cpp:117] (tid:3883486) RegisterProfileCallback, callback type is 7
+[EVENT] PROFILING(3883486,test_sendrecv):2025-07-04-03:31:05.278.874 [msprof_callback_impl.cpp:372] >>> (tid:3883486) Started to register profiling enable host freq callback.
+[INFO] PROFILING(3883486,test_sendrecv):2025-07-04-03:31:05.278.875 [prof_atls_plugin.cpp:117] (tid:3883486) RegisterProfileCallback, callback type is 8
+[INFO] RUNTIME(3883486,test_sendrecv):2025-07-04-03:31:05.321.329 [runtime_keeper.cc:149] 3883486 CreateRuntimeImpl: Open libruntime_v100.so success
+[INFO] RUNTIME(3883486,test_sendrecv):2025-07-04-03:31:05.321.381 [runtime.cc:5060] 3883486 GetVisibleDevices: ASCEND_RT_VISIBLE_DEVICES param was not set
+[INFO] PROFILING(3883486,test_sendrecv):2025-07-04-03:31:05.323.042 [prof_atls_plugin.cpp:210] (tid:3883486) Module[7] register callback of ctrl handle.
+[INFO] ATRACE(3883486,test_sendrecv):2025-07-04-03:31:05.327.166 [atrace_client_core.c:160](tid:3883486) start to receive device[3] trace log.
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.327.294 [client_manager.cpp:435][IsHostEnvironment][tid:3883486] [TsdClient] logicDeviceId is [3], hostaicpunum[0]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.327.299 [client_manager.cpp:464][GetClientRunMode][tid:3883486] runningMode:0
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.327.301 [client_manager.cpp:127][GetInstance][tid:3883486] [ClientManager] Current mode:1
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.327.327 [process_mode_base.cpp:149][GetLogLevel][tid:3883486] [TsdClient] get ASCEND_GLOBAL_LOG_LEVEL [1] ASCEND_GLOBAL_EVENT_ENABLE [] ASCEND_MODULE_LOG_LEVEL []
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.327.380 [process_mode_manager.cpp:71][OpenProcess][tid:3883486] [ProcessModeManager] enter into open process deviceId[3] rankSize[0]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.327.777 [process_mode_manager.cpp:403][InitTsdClient][tid:3883486] [TsdClient] deviceId[3] begin to init hdc client
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.327.921 [version_verify.cpp:36][SetVersionInfo][tid:3883486] VersionVerify: send client version to server
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.327.924 [version_verify.cpp:52][SetVersionInfo][tid:3883486] send feature_info:{msg_type:35, features:{check before send aicpu package}}
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.327.926 [version_verify.cpp:52][SetVersionInfo][tid:3883486] send feature_info:{msg_type:37, features:{check before send open qs message}}
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.327.928 [version_verify.cpp:52][SetVersionInfo][tid:3883486] send feature_info:{msg_type:64, features:{get check code retry}}
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.328.490 [version_verify.cpp:68][PeerVersionCheck][tid:3883486] VersionVerify: Check client version info, server[1230], client[1230]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.328.495 [version_verify.cpp:89][ParseVersionInfo][tid:3883486] VersionVerify: pass client version info success
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.328.496 [hdc_client.cpp:275][CheckHdcConnection][tid:3883486] Service[2] create hdc success
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.328.502 [version_verify.cpp:122][SpecialFeatureCheck][tid:3883486] VersionVerify: new type[35], supported
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.328.534 [process_mode_manager.cpp:627][GetDeviceCheckCodeOnce][tid:3883486] [TsdClient][deviceId=3] [sessionId=1] wait package info respond
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.328.824 [version_verify.cpp:122][SpecialFeatureCheck][tid:3883486] VersionVerify: new type[64], supported
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.328.918 [process_mode_manager.cpp:403][InitTsdClient][tid:3883486] [TsdClient] deviceId[3] begin to init hdc client
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.329.053 [version_verify.cpp:36][SetVersionInfo][tid:3883486] VersionVerify: send client version to server
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.329.055 [version_verify.cpp:52][SetVersionInfo][tid:3883486] send feature_info:{msg_type:35, features:{check before send aicpu package}}
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.329.057 [version_verify.cpp:52][SetVersionInfo][tid:3883486] send feature_info:{msg_type:37, features:{check before send open qs message}}
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.329.058 [version_verify.cpp:52][SetVersionInfo][tid:3883486] send feature_info:{msg_type:64, features:{get check code retry}}
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.329.404 [version_verify.cpp:68][PeerVersionCheck][tid:3883486] VersionVerify: Check client version info, server[1230], client[1230]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.329.407 [version_verify.cpp:89][ParseVersionInfo][tid:3883486] VersionVerify: pass client version info success
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.329.409 [hdc_client.cpp:275][CheckHdcConnection][tid:3883486] Service[2] create hdc success
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.329.412 [process_mode_manager.cpp:458][ConstructOpenMsg][tid:3883486] [TsdClient] tsd get process sign successfully, procpid[3883486] signSize[48]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.329.415 [version_verify.cpp:114][SpecialFeatureCheck][tid:3883486] VersionVerify: previous type[6], supported
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.329.432 [process_mode_manager.cpp:88][OpenProcess][tid:3883486] [ProcessModeManager] deviceId[3] sessionId[1] rankSize[0], wait sub process start respond
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:05.549.742 [devmm_svm.c:126][ascend][curpid:3883486,3883486][drv][devmm][devmm_setup_device]DrvMemDeviceOpen. (devid=3)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:05.550.625 [devmm_virt_interface.c:450][ascend][curpid:3883486,3883486][drv][devmm][devmm_ioctl_init_process]Init_process details. (hostpid=3883486)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:05.550.874 [drv_log_user.c:623][ascend][curpid:3883486,3883486][drv][devmm][share_log_read_in_single_module]Setup device succeeded. (logical_devid=3; devid=3; vfid=0; hostpid=3883486; devpid=29198)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:05.550.878 [devmm_svm.c:112][ascend][curpid:3883486,3883486][drv][devmm][devmm_set_device_info]Device info. (devid=3; dvpp_size=17179869184; support_bar_mem=1; support_dev_read_only=1; support_dev_mem_map_host=1; support_bar_huge_mem=1; allocated_by_malloc=0; host_rw_dev_ro=1)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:05.550.881 [devmm_svm.c:116][ascend][curpid:3883486,3883486][drv][devmm][devmm_set_device_info]Device info. (double_pgtable_offset=17592186044416; support_host_pin_pre_register=1; support_host_mem_pool=1; is_support_giant_page=1; support_remote_mmap=1)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:05.551.717 [devmm_host_mem_pool.c:170][ascend][curpid:3883486,3883486][drv][devmm][devmm_host_mem_pool_init]devmm host mem pool init success. (devid=3)
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.551.723 [stub_process_mode_nowin.cpp:60][ProcessQueueForMdc][tid:3883486] [TsdClient] it is unnecessary of current mode[0] to grant queue auth to aicpusd
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.551.725 [stub_process_mode_nowin.cpp:99][OpenInHost][tid:3883486] enter into OpenInHost deviceid[3]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.551.756 [client_manager.cpp:435][IsHostEnvironment][tid:3883486] [TsdClient] logicDeviceId is [3], hostaicpunum[0]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.551.758 [stub_process_mode_nowin.cpp:103][OpenInHost][tid:3883486] host cpu not support
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.551.759 [process_mode_manager.cpp:121][OpenProcess][tid:3883486] [TsdClient][deviceId=3] [sessionId=1] start hccp and computer process success
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:05.554.427 [devmm_svm.c:126][ascend][curpid:3883486,3883486][drv][devmm][devmm_setup_device]DrvMemDeviceOpen. (devid=3)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:05.554.436 [devmm_svm.c:112][ascend][curpid:3883486,3883486][drv][devmm][devmm_set_device_info]Device info. (devid=3; dvpp_size=17179869184; support_bar_mem=1; support_dev_read_only=1; support_dev_mem_map_host=1; support_bar_huge_mem=1; allocated_by_malloc=0; host_rw_dev_ro=1)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:05.554.438 [devmm_svm.c:116][ascend][curpid:3883486,3883486][drv][devmm][devmm_set_device_info]Device info. (double_pgtable_offset=17592186044416; support_host_pin_pre_register=1; support_host_mem_pool=1; is_support_giant_page=1; support_remote_mmap=1)
+[INFO] RUNTIME(3883486,test_sendrecv):2025-07-04-03:31:05.554.510 [raw_device.cc:346] 3883486 Init: isAddrFlat:0x1
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.555.328 [tsd_client.cpp:189][TsdCapabilityGet][tid:3883486] TsdCapabilityGet Begin.
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.555.335 [process_mode_manager.cpp:1042][CapabilityGet][tid:3883486] [ProcessModeManager] enter into CapabilityGet process deviceId[3] type[0]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.555.343 [version_verify.cpp:114][SpecialFeatureCheck][tid:3883486] VersionVerify: previous type[38], supported
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.555.377 [process_mode_manager.cpp:1065][CapabilityGet][tid:3883486] [TsdClient][deviceId=3] [sessionId=1] [type=0]send capability success 
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.556.447 [process_mode_msg_parse.cpp:170][PidQosMsgProc][tid:3883486] [TsdClient] PidQosMsgProc recvMsg realDeviceId[3] msgType[39] localDevId[3] rspCode[0],pidqos[1]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.556.451 [process_mode_manager.cpp:1070][CapabilityGet][tid:3883486] [TsdClient][logicDeviceId_=3][type=0][pidQos=1][ret=0]recv capability respond finish
+[INFO] RUNTIME(3883486,test_sendrecv):2025-07-04-03:31:05.556.456 [engine.cc:78] 3883486 Engine: Constructor.
+[INFO] RUNTIME(3883486,test_sendrecv):2025-07-04-03:31:05.556.458 [stars_engine.cc:51] 3883486 StarsEngine: Constructor.
+[INFO] RUNTIME(3883486,test_sendrecv):2025-07-04-03:31:05.563.758 [npu_driver.cc:6306] 3883562 GetDeviceStatus: GetDeviceStatus status=1.
+[INFO] ATRACE(3883486,test_sendrecv):2025-07-04-03:31:05.569.193 [tracer_mgr_operate.c:66](tid:3883486) create object RUNTIME_ATRACE_DEV3_TS0 success, exitSave(false), noLock(false).
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.569.210 [client_manager.cpp:196][SetProfilingCallback][tid:3883486] [TsdClient] set profiling callback success
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.416 [externalinput.cc:493] [3883486]HCCL_CONNECT_TIMEOUT set by default to [120]s
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.420 [externalinput.cc:430] [3883486]HCCL_EXEC_TIMEOUT set by default to [1836]s
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.424 [externalinput.cc:544] [3883486]HCCL_INTRA_PCIE_ENABLE set by default to [1], HCCL_INTRA_ROCE_ENABLE set by default to [0]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.430 [externalinput.cc:718] [3883486]HCCL_WHITELIST_DISABLE set by default to [1]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.434 [externalinput.cc:822] [3883486]HCCL_IF_IP is not set
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.437 [externalinput.cc:878] [3883486]HCCL_SOCKET_IFNAME set by default to [EmptyString]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.439 [externalinput.cc:845] [3883486]HCCL_SOCKET_FAMILY is not set and is used by default [AF_INET]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.446 [externalinput.cc:807] [3883486]HCCL_IF_BASE_PORT set by default to [60000]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.449 [externalinput.cc:1509] [3883486]HCCL_ALGO is not set
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.458 [externalinput.cc:1520] [3883486]HCCL_RDMA_TC set by default to [132]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.460 [externalinput.cc:1555] [3883486]HCCL_RDMA_SL set by default to [4]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.510 [externalinput.cc:1600] [3883486]HCCL_RDMA_TIMEOUT set by default to [20]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.514 [externalinput.cc:1634] [3883486]HCCL_RDMA_RETRY_CNT set by default to [7]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.516 [externalinput.cc:1779] [3883486]HCCL_BUFFSIZE set by default to [200]M
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.523 [externalinput.cc:1842] [3883486]HCCL_DIAGNOSE_ENABLE set by default to [0]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.526 [externalinput.cc:1942] [3883486]HCCL_ENTRY_LOG_ENABLE set by environment to [1]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.539 [externalinput.cc:2006] [3883486]HCCL_OP_EXPANSION_MODE is not set, aicpuUnfold is [1], aivMode is [0]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.547 [externalinput.cc:2179] [3883486][ParseRetryEnable] HCCL_OP_RETRY_ENABLE is not set. The retryEnable of all levels is set to false.
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.553 [externalinput.cc:2241] [3883486]HCCL_OP_COUNTER_ENABLE set by default to [1]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.555 [externalinput.cc:2309] [3883486]HCCL_OP_RETRY_PARAMS is not set, default value MaxCnt is 1, HoldTime is 5000, IntervalTime is 1000
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.557 [externalinput.cc:2340] [3883486]HCCL_LOGIC_SUPERPOD_ID is not set, default value[]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.559 [externalinput.cc:2297] [3883486]HCCL_STUCK_DETECT_TIME is set default [612]s.
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.562 [externalinput.cc:408] [3883486]HCCL_RDMA_PCIE_DIRECT_POST_NOSTRICT set by default to [EmptyString], rdmaFastPost is [0]
+[WARNING] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.571 [env_config.cc:127] [3883486]HCCL_HOST_SOCKET_PORT_RANGE is not set. Multi-process will not be supported!
+[WARNING] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.573 [env_config.cc:131] [3883486]HCCL_NPU_SOCKET_PORT_RANGE is not set. Multi-process will not be supported!
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.577 [env_config.cc:321] [3883486]HCCL_RDMA_TC set by default to [132]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.579 [env_config.cc:321] [3883486]HCCL_RDMA_SL set by default to [4]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.595.580 [op_base.cc:1092] [3883486]Entry-HcclCommInitRootInfoInner:ranks[8], rank[3], rootinfo: host ip[10.1.15.130] port[60008] nicDeploy[1] identifier[10.1.15.130%enp196s0f0_60008_0_1751599865594803], deviceLogicId[3]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.597.651 [ra_host.c:1605]tid:3883486,ra_socket_set_white_list_status(1605) : Input parameters: enable[0]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.597.677 [ra_host.c:207]tid:3883486,ra_init(207) : Input parameters: phy_id[3], nic_position:[0] hdc_type:[6]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.597.871 [rs_ssl.c:1529]tid:3883486,rs_ssl_init(1529) : TLS SWITCH (0)
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.598.009 [rs_epoll.c:511]tid:3883576,rs_epoll_handle(511) : pthread[epoll_pthread] is alive!
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.598.072 [rs_epoll.c:641]tid:3883579,rs_connect_handle(641) : pthread[connect_pthread] is alive!
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.603.816 [rs.c:472]tid:3883486,rs_init(472) : rs init success, chip_id[3]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.603.834 [ra_host.c:1775]tid:3883486,ra_get_ifnum(1775) : Input parameters: phy_id[3], nic_position:[0], is_all:[0]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.603.854 [adapter_hccp.cc:1378] [3883486][Get][HostIf]hrtGetIfNum success. ifAddrNum[5].
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.603.858 [ra_host.c:1825]tid:3883486,ra_get_ifaddrs(1825) : Input parameters: phy_id[3], nic_position:[0], is_all[0], interface num[5]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.603.948 [sal.cc:432] [3883486]nic class[normal]: find nic[10.1.15.130%enp196s0f0] success.
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.603.962 [ra_host.c:342]tid:3883486,ra_socket_init_v1(342) : socket init:mode=0 phy_id=3 scope_id=0 family=2 ip=10.1.15.130
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.604.032 [tsd_client.cpp:189][TsdCapabilityGet][tid:3883486] TsdCapabilityGet Begin.
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.604.038 [process_mode_manager.cpp:1042][CapabilityGet][tid:3883486] [ProcessModeManager] enter into CapabilityGet process deviceId[3] type[6]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.604.057 [process_mode_manager.cpp:1434][ProcessOpenSubProc][tid:3883486] enter into ProcessOpenSubProc subtype:0
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.604.069 [process_mode_manager.cpp:1680][GetAscendLatestIntallPath][tid:3883486] latest install path:/usr/local/Ascend/ascend-toolkit/latest
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.604.072 [process_mode_manager.cpp:1383][ConstructCommonOpenMsg][tid:3883486] runtimePkgPath:/usr/local/Ascend/ascend-toolkit/latest
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.604.075 [process_mode_manager.cpp:1389][ConstructCommonOpenMsg][tid:3883486] hostLibPath:/usr/local/mpi/lib:/usr/local/mpi/lib:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64/plugin:/usr/local/Ascend/ascend-toolkit/latest/lib64:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/nnengine:/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe/op_tiling/lib/linux/aarch64:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64/plugin:/usr/local/Ascend/ascend-toolkit/latest/lib64:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/nnengine:/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe/op_tiling/lib/linux/aarch64:/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/lib:/usr/lo
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.604.081 [version_verify.cpp:114][SpecialFeatureCheck][tid:3883486] VersionVerify: previous type[48], supported
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.650.902 [process_mode_manager.cpp:1461][ProcessOpenSubProc][tid:3883486] OpenSubProc success stype:0, pid:29240
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.650.925 [ra_host.c:207]tid:3883486,ra_init(207) : Input parameters: phy_id[3], nic_position:[1] hdc_type:[18]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.650.948 [ra_hdc.c:581]tid:3883486,ra_hdc_init(581) : hdc init start! logic id is 3, phy id is 3, hdc_type is 18
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.651.509 [ra_hdc.c:617]tid:3883486,ra_hdc_init(617) : hdc init OK! phy_id[3]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.658.334 [ra_host.c:1775]tid:3883486,ra_get_ifnum(1775) : Input parameters: phy_id[3], nic_position:[1], is_all:[0]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.659.141 [adapter_hccp.cc:1538] [3883486][Get][DeviceIP]hrtGetIfNum success. ifAddrNum[0].
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.659.146 [topoinfo_detect.cc:577] [3883486]select AF_INET family as device socket family.
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.659.158 [topoinfo_detect.cc:750] [3883486]no device ip: use 0 as device ip.
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.659.160 [topoinfo_detect.cc:756] [3883486]no backup device ip: use 0 as device ip.
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:05.659.161 [topoinfo_detect.cc:294] [3883486][HCCL_TRACE]SetupAgent rankNum[8], rank[3], rootInfo identifier[10.1.15.130%enp196s0f0_60008_0_1751599865594803], server[10.1.15.130%enp196s0f0], serverPort[60008]deviceType[4], logicDevId[3], phydevId[3], deviceIp[0.0.0.0]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.659.188 [ra_host.c:761]tid:3883486,ra_socket_batch_connect(761) : Input parameters: [0]th, phy_id[3], local_ip[10.1.15.130], remote_ip[10.1.15.130], port[60008], tag[topo_detect_default_tag_10.1.15.130%enp196s0f0_60008_0_1751599865594803_60008], cnt[0]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.675.420 [ra_host.c:798]tid:3883486,ra_socket_batch_close(798) : Input parameters: [0]th, phy_id[3], local_ip[10.1.15.130], cnt[0]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.716.375 [ra_host.c:406]tid:3883486,ra_socket_deinit(406) : Input parameters: phy_id[3] family[2] local_ip[10.1.15.130]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.716.385 [rs.c:1654]tid:3883486,rs_socket_deinit(1654) : socket deinit success, phy_id:3, local_ip:10.1.15.130
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.716.393 [ra_host.c:250]tid:3883486,ra_deinit(250) : Input parameters: phy_id[3], nic_position:[0]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.876.852 [rs.c:1811]tid:3883486,rs_deinit(1811) : rs_deinit chip_id[3] ok
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.876.875 [ra_host.c:250]tid:3883486,ra_deinit(250) : Input parameters: phy_id[3], nic_position:[1]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.876.876 [ra_hdc.c:652]tid:3883486,ra_hdc_deinit(652) : hdc deinit start! phy_id[3]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:05.877.119 [ra_hdc.c:686]tid:3883486,ra_hdc_deinit(686) : hdc deinit OK! phy_id[3]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.877.129 [tsd_client.cpp:189][TsdCapabilityGet][tid:3883486] TsdCapabilityGet Begin.
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.877.135 [process_mode_manager.cpp:1042][CapabilityGet][tid:3883486] [ProcessModeManager] enter into CapabilityGet process deviceId[3] type[6]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.877.143 [process_mode_manager.cpp:1735][ProcessCloseSubProcList][tid:3883486] enter ExcuteClosePidList cnt:1, tsdSupportLevel_:63
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:05.877.151 [version_verify.cpp:114][SpecialFeatureCheck][tid:3883486] VersionVerify: previous type[60], supported
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:06.090.779 [process_mode_manager.cpp:1809][ExcuteClosePidList][tid:3883486] leave ExcuteClosePidList startindex:0, cnt:1
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:06.090.781 [process_mode_manager.cpp:1769][ProcessCloseSubProcList][tid:3883486] ExcuteClosePidList success reserveCnt:1
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.091.716 [hccl_communicator_attrs.cc:425] [3883486]different module contains different numbers of cards:[0]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.091.718 [hccl_communicator_attrs.cc:426] [3883486]different module contains different type of cards:[0]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.091.729 [hccl_communicator_attrs.cc:458] [3883486][Set][SuperPodInfo]different surperPod contains different numbers of servers:[0]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.092.624 [hccl_communicator_attrs.cc:854] [3883486][Check][SuperDeviceId]: superDevice check success, superPodId[2], superDeviceId[0x450003], userRank[3].
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:06.092.891 [devdrv_pcie.c:888][ascend][curpid:3883486,3883486][drv][devmng][drvP2PAttrOp]Enable P2P. (logic_devid=3; peer_phy_devid=0.)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:06.092.908 [devdrv_pcie.c:888][ascend][curpid:3883486,3883486][drv][devmng][drvP2PAttrOp]Enable P2P. (logic_devid=3; peer_phy_devid=1.)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:06.092.925 [devdrv_pcie.c:888][ascend][curpid:3883486,3883486][drv][devmng][drvP2PAttrOp]Enable P2P. (logic_devid=3; peer_phy_devid=4.)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:06.092.938 [devdrv_pcie.c:888][ascend][curpid:3883486,3883486][drv][devmng][drvP2PAttrOp]Enable P2P. (logic_devid=3; peer_phy_devid=5.)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:06.092.953 [devdrv_pcie.c:888][ascend][curpid:3883486,3883486][drv][devmng][drvP2PAttrOp]Enable P2P. (logic_devid=3; peer_phy_devid=6.)
+[INFO] DRV(3883486,test_sendrecv):2025-07-04-03:31:06.092.966 [devdrv_pcie.c:888][ascend][curpid:3883486,3883486][drv][devmng][drvP2PAttrOp]Enable P2P. (logic_devid=3; peer_phy_devid=7.)
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:06.093.021 [tsd_client.cpp:189][TsdCapabilityGet][tid:3883486] TsdCapabilityGet Begin.
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:06.093.027 [process_mode_manager.cpp:1042][CapabilityGet][tid:3883486] [ProcessModeManager] enter into CapabilityGet process deviceId[3] type[6]
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:06.093.044 [process_mode_manager.cpp:1434][ProcessOpenSubProc][tid:3883486] enter into ProcessOpenSubProc subtype:0
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:06.093.054 [process_mode_manager.cpp:1680][GetAscendLatestIntallPath][tid:3883486] latest install path:/usr/local/Ascend/ascend-toolkit/latest
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:06.093.056 [process_mode_manager.cpp:1383][ConstructCommonOpenMsg][tid:3883486] runtimePkgPath:/usr/local/Ascend/ascend-toolkit/latest
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:06.093.058 [process_mode_manager.cpp:1389][ConstructCommonOpenMsg][tid:3883486] hostLibPath:/usr/local/mpi/lib:/usr/local/mpi/lib:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64/plugin:/usr/local/Ascend/ascend-toolkit/latest/lib64:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/nnengine:/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe/op_tiling/lib/linux/aarch64:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64:/usr/local/Ascend/ascend-toolkit/latest/tools/aml/lib64/plugin:/usr/local/Ascend/ascend-toolkit/latest/lib64:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel:/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/nnengine:/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe/op_tiling/lib/linux/aarch64:/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/lib:/usr/lo
+[INFO] TDT(3883486,test_sendrecv):2025-07-04-03:31:06.134.252 [process_mode_manager.cpp:1461][ProcessOpenSubProc][tid:3883486] OpenSubProc success stype:0, pid:29268
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:06.134.276 [ra_host.c:207]tid:3883486,ra_init(207) : Input parameters: phy_id[3], nic_position:[1] hdc_type:[18]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:06.134.317 [ra_hdc.c:581]tid:3883486,ra_hdc_init(581) : hdc init start! logic id is 3, phy id is 3, hdc_type is 18
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:06.134.761 [ra_hdc.c:617]tid:3883486,ra_hdc_init(617) : hdc init OK! phy_id[3]
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:06.142.394 [ra_host.c:282]tid:3883486,ra_socket_init(282) : socket init:mode=1 phy_id=3 family=2 ip=192.1.3.196
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:31:06.142.406 [ra_host.c:877]tid:3883486,ra_socket_listen_start(877) : Input parameters: [0]th, phy_id[3], local_ip[192.1.3.196], port[16666]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.142.718 [network_manager.cc:448] [3883486][Start][Vnic]Listen on ip[192.1.3.196], port[16666] sucess, devPhyId[3], devLogicId[3], isAutoPort[0]
+[INFO] ATRACE(3883486,test_sendrecv):2025-07-04-03:31:06.142.787 [tracer_mgr_operate.c:66](tid:3883486) create object HCCL_3883486_3 success, exitSave(true), noLock(false).
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.764 [opexecounter.cc:71] [3883486]alloc counter mem resource.
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.820 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[0]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.826 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[1]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.831 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[2]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.837 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[3]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.842 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[4]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.848 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[5]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.853 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[6]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.859 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[7]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.864 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[8]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.869 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[9]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.874 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[10]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.880 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[11]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.885 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[12]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.890 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[13]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.895 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[14]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.901 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[15]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.906 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[16]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.911 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[17]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.144.917 [alg_configurator.cc:134] [3883486]Device Type[4], average device count[8], HccsNum[0], SIONum[8], HCCS_SW_NUM[8], optype[18]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.145.144 [topo_info_extractor.cc:933] [3883486]SetTopoInfoForLevel0: identifier[10.1.15.130%enp196s0f0_60008_0_1751599865594803], userRank[3], userRankSize[8], topoRankInfo[userRank/devicePhyId: 0/0; 1/1; 2/2; 3/3; 4/4; 5/5; 6/6; 7/7; ]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.145.155 [topo_info_extractor.cc:933] [3883486]SetTopoInfoForLevel0: identifier[10.1.15.130%enp196s0f0_60008_0_1751599865594803], userRank[3], userRankSize[8], topoRankInfo[userRank/devicePhyId: 0/0; 7/7; 6/6; 5/5; 4/4; 3/3; 2/2; 1/1; ]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.145.201 [topo_info_extractor.cc:689] [3883486]SetTopoInfoForLevel1: identifier[10.1.15.130%enp196s0f0_60008_0_1751599865594803], userRank[3], userRankSize[8], plane size[8]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.145.209 [topo_info_extractor.cc:739] [3883486]SetTopoInfoForLevel2: identifier[10.1.15.130%enp196s0f0_60008_0_1751599865594803], userRank[3], userRankSize[8], plane size[1]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.145.241 [topo_info_extractor.cc:689] [3883486]SetTopoInfoForLevel1: identifier[10.1.15.130%enp196s0f0_60008_0_1751599865594803], userRank[3], userRankSize[8], plane size[8]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.145.258 [topo_info_extractor.cc:519] [3883486]plane info:topo type[9], device type[4], COMM_COMBINE size[1], COMM_LEVEL0 size[2], COMM_LEVEL1 size[8], COMM_LEVEL2 size[1], COMM_MESH_L0 size[1], COMM_MESH_L1 size[1]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.151.600 [hccl_comm.cc:129] [3883486]hcclCommInitInfo:commId[hccl-3883486-0-1751599866-hccl_world_group], rank[3], totalRanks[8], serverId[10.1.15.130%enp196s0f0], deviceType[4],logicDevId[3], identifier[10.1.15.130%enp196s0f0_60008_0_1751599865594803]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.151.643 [profiler_base.cc:342] [3883486]AddGroupUdi: group[10.1.15.130%enp196s0f0_60008_0_1751599865594803] udi[] deviceLogicId[3]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.151.646 [op_base.cc:1108] [3883486][HCCL_TRACE]HcclCommInitRootInfoInner success, take time [556262]us, rankNum[8], rank[3]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.152.536 [hccl_trace_info.cc:77] [3883486]Entry-HcclSend:tag[worldCommSendRecv_3_4_10.1.15.130%enp196s0f0_60008_0_1751599865594803], sendBuf[0x12c0c0013000], count[32768], dataType[float32], streamId[2], deviceLogicId[3], capture status[0], model id[none].
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.152.859 [ccl_buffer_manager.cc:46] [3883486][HCCL_TRACE][CreateCCLbuffer]Create ccl buffer success. buffer ptr[0x12c100800000], size[209715200]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.153.073 [ccl_buffer_manager.cc:46] [3883486][HCCL_TRACE][CreateCCLbuffer]Create ccl buffer success. buffer ptr[0x12c10d000000], size[209715200]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:31:06.153.603 [ccl_buffer_manager.cc:46] [3883486][HCCL_TRACE][CreateCCLbuffer]Create ccl buffer success. buffer ptr[0x12c180200000], size[1048576]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:33:06.287.523 [op_base.cc:1999] [3883486][HCCL_TRACE]HcclSend identifier[worldCommSendRecv_3_4_10.1.15.130%enp196s0f0_60008_0_1751599865594803]
+[INFO] HCCL(3883486,test_sendrecv):2025-07-04-03:33:06.287.596 [hccl_trace_info.cc:77] [3883486]Entry-HcclRecv:tag[worldCommSendRecv_2_3_10.1.15.130%enp196s0f0_60008_0_1751599865594803], recvBuf[0x12c0c0034000], count[32768], dataType[float32], streamId[2], deviceLogicId[3], capture status[0], model id[none].
+[INFO] HCCP(3883486,test_sendrecv):2025-07-04-03:33:06.288.223 [ra_host.c:761]tid:3883486,ra_socket_batch_connect(761) : Input parameters: [0]th, phy_id[3], local_ip[192.1.3.196], remote_ip[192.1.2.197], port[16666], tag[10.1.15.130%enp196s0f0_60008_0_1751599865594803_res_optimize_1_Intra__Intra_MultiSocket_3_0], cnt[0]
