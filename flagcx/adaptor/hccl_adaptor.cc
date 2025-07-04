@@ -159,7 +159,10 @@ flagcxResult_t hcclAdaptorBroadcast(const void *sendbuff, void *recvbuff,
                                     size_t count, flagcxDataType_t datatype,
                                     int root, flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
-  if (root == 0) {
+  
+  uint32_t rank;
+  HcclGetRankId(comm->base, &rank);
+  if (rank == root) {
     void *sendbuffptr = (void *)sendbuff;
     return (flagcxResult_t)h2f_ret_map[HcclBroadcast(sendbuffptr, count,
                                          (HcclDataType)f2h_datatype_map[datatype],
