@@ -81,7 +81,7 @@ flagcxResult_t cannAdaptorGetVendor(char *vendor) {
   strcpy(vendor, "ASCEND");
   return flagcxSuccess;
 }
-
+// TODO:unsupport
 flagcxResult_t cannAdaptorGdrMemAlloc(void **ptr, size_t size,
                                       void *memHandle) {
   if (ptr == NULL) {
@@ -91,6 +91,7 @@ flagcxResult_t cannAdaptorGdrMemAlloc(void **ptr, size_t size,
   return flagcxSuccess;
 }
 
+// TODO:unsupported
 flagcxResult_t cannAdaptorGdrMemFree(void *ptr, void *memHandle) {
   if (ptr == NULL) {
     return flagcxSuccess;

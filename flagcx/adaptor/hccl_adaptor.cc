@@ -1,8 +1,8 @@
 #include "ascend_adaptor.h"
 
 #ifdef USE_ASCEND_ADAPTOR
-
 #include <map>
+#include <vector>
 std::map<flagcxDataType_t, HcclDataType> f2h_datatype_map = {
     {flagcxInt8, HCCL_DATA_TYPE_INT8},    {flagcxUint8, HCCL_DATA_TYPE_UINT8},
     {flagcxInt, HCCL_DATA_TYPE_INT32},    {flagcxInt32, HCCL_DATA_TYPE_INT32},
@@ -52,6 +52,13 @@ std::map<flagcxResult_t, HcclResult> f2h_ret_map = {
     {flagcxInvalidArgument, HCCL_E_PARA },
     {flagcxRemoteError, HCCL_E_REMOTE},
     {flagcxUnhandledDeviceError, HCCL_E_RESERVED}};
+
+struct HcclSendRecvItemEx {
+    flagcxInnerComm_t comm;
+    flagcxStream_t stream;
+};
+HcclSendRecvItemEx item;
+std::vector<HcclSendRecvItem> sendRecvInfo;
 
 // TODO: unsupported
 flagcxResult_t hcclAdaptorGetVersion(int *version) {
@@ -122,7 +129,7 @@ flagcxResult_t hcclAdaptorCommUserRank(const flagcxInnerComm_t comm,
 // TODO: unsupported
 flagcxResult_t hcclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
                                             flagcxResult_t asyncError) {
-  return flagcxUnhandledDeviceError;
+  return flagcxNotSupported;
 }
 
 flagcxResult_t hcclAdaptorReduce(const void *sendbuff, void *recvbuff,
@@ -165,15 +172,13 @@ flagcxResult_t hcclAdaptorBroadcast(const void *sendbuff, void *recvbuff,
   if (rank == root) {
     void *sendbuffptr = (void *)sendbuff;
     return (flagcxResult_t)h2f_ret_map[HcclBroadcast(sendbuffptr, count,
-                                         (HcclDataType)f2h_datatype_map[datatype],
-                                          root, comm->base, stream->base)];
+                                       (HcclDataType)f2h_datatype_map[datatype],
+                                       root, comm->base, stream->base)];
   }
-  else {
-    return (flagcxResult_t)h2f_ret_map[HcclBroadcast(recvbuff, count,
-                                         (HcclDataType)f2h_datatype_map[datatype],
-                                          root, comm->base, stream->base)];
-  }
-  return flagcxUnhandledDeviceError;
+  return (flagcxResult_t)h2f_ret_map[HcclBroadcast(recvbuff, count,
+		                     (HcclDataType)f2h_datatype_map[datatype],
+                                     root, comm->base, stream->base)];
+  
 }
 
 flagcxResult_t hcclAdaptorAllReduce(const void *sendbuff, void *recvbuff,
@@ -235,25 +240,34 @@ flagcxResult_t hcclAdaptorSend(const void *sendbuff, size_t count,
                                flagcxDataType_t datatype, int peer,
                                flagcxInnerComm_t comm, flagcxStream_t stream) {
   void *sendbuffptr = (void *)sendbuff;
-  return (flagcxResult_t)h2f_ret_map[HcclSend(sendbuffptr, count, (HcclDataType)f2h_datatype_map[datatype],
-                                  (uint32_t)peer, comm->base, stream->base)];
+  item.comm = comm;
+  item.stream = stream;
+  sendRecvInfo.emplace_back(HcclSendRecvItem{HcclSendRecvType::HCCL_SEND,
+		  	    sendbuffptr, count,
+			    (HcclDataType)f2h_datatype_map[datatype],
+			    (uint32_t)peer});
+  return flagcxSuccess; 
 }
 
 flagcxResult_t hcclAdaptorRecv(void *recvbuff, size_t count,
                                flagcxDataType_t datatype, int peer,
                                flagcxInnerComm_t comm, flagcxStream_t stream) {
-  return (flagcxResult_t)h2f_ret_map[HcclRecv(recvbuff, count, (HcclDataType)f2h_datatype_map[datatype],
-                                  peer, comm->base, stream->base)];
+  sendRecvInfo.emplace_back(HcclSendRecvItem{HcclSendRecvType::HCCL_RECV,
+		  	    recvbuff, count,
+			    (HcclDataType)f2h_datatype_map[datatype],
+			    (uint32_t)peer});
+  return flagcxSuccess;
 }
 
-// TODO: unsupported
 flagcxResult_t hcclAdaptorGroupStart() {
-  return flagcxNotSupported;
+  sendRecvInfo.clear();
+  return flagcxSuccess;
 }
 
-// TODO: unsupported
 flagcxResult_t hcclAdaptorGroupEnd() { 
-    return flagcxNotSupported;
+  uint32_t itemNum = sendRecvInfo.size();
+  return (flagcxResult_t)h2f_ret_map[HcclBatchSendRecv(sendRecvInfo.data(), itemNum,
+		    				       item.comm->base, item.stream->base)];
 }
 
 struct flagcxCCLAdaptor hcclAdaptor = {
