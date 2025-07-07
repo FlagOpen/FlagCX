@@ -149,7 +149,28 @@ flagcxResult_t hcclAdaptorGather(const void *sendbuff, void *recvbuff,
                                  size_t count, flagcxDataType_t datatype,
                                  int root, flagcxInnerComm_t comm,
                                  flagcxStream_t stream) {
-  return flagcxUnhandledDeviceError;
+  uint32_t rank, nranks;
+  HcclResult res = HCCL_SUCCESS;  
+  res = HcclGetRankSize(comm->base, &nranks);
+  res = HcclGetRankId(comm->base, &rank);
+  size_t size = count * getFlagcxDataTypeSize(datatype);
+  char *buffer = static_cast<char *>(recvbuff);
+  std::vector<HcclSendRecvItem> sendRecvInfo;
+  if (rank == root) {
+    for (uint32_t r = 0; r < nranks; r++) {
+      sendRecvInfo.emplace_back(HcclSendRecvItem{HcclSendRecvType::HCCL_RECV,
+                                static_cast<void *>(buffer + r * size),
+                                size, HcclDataType::HCCL_DATA_TYPE_INT8, r});
+    }
+  }
+  void *sendbuffptr = (void *)sendbuff;
+  sendRecvInfo.emplace_back(HcclSendRecvItem{HcclSendRecvType::HCCL_SEND,
+                            sendbuffptr,
+                            size, HcclDataType::HCCL_DATA_TYPE_INT8, (uint32_t)root});
+  uint32_t itemNum = sendRecvInfo.size();
+  HcclBatchSendRecv(sendRecvInfo.data(), itemNum, comm->base, stream->base);
+   
+  return (flagcxResult_t)h2f_ret_map[res];
 }
 
 flagcxResult_t hcclAdaptorScatter(const void *sendbuff, void *recvbuff,
