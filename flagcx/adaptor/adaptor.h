@@ -10,6 +10,7 @@
 #include "flagcx.h"
 #include "global_comm.h"
 #include "topo.h"
+#include "launch_kernel.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -168,7 +169,8 @@ struct flagcxDeviceAdaptor {
                                  void *memHandle);
   flagcxResult_t (*copyArgsInit)(void **args);
   flagcxResult_t (*copyArgsFree)(void *args);
-  flagcxResult_t (*launchDeviceFunc)(flagcxStream_t stream, void *args);
+  flagcxResult_t (*launchDeviceFunc)(flagcxStream_t stream,
+                                     flagcxLaunchFunc_t fn, void *args);
 
   // Others
   // TODO: this one shall be moved into Flagcx Core Topology APIs

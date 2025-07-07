@@ -92,7 +92,8 @@ struct flagcxProxyArgs {
   int flushed;
   int transmitted;
   int sendStepMask;
-  volatile bool eventReady;
+  bool *volatile hEventReady;
+  bool *volatile dEventReady;
   size_t totalCopySize;
   size_t totalPostSize;
   size_t totalSendSize;
@@ -427,3 +428,4 @@ flagcxResult_t flagcxProxyShmUnlink(struct flagcxHeteroComm *comm);
 flagcxResult_t flagcxProxyDestroy(struct flagcxHeteroComm *comm);
 
 #endif
+

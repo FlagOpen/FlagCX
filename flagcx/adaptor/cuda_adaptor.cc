@@ -238,6 +238,13 @@ flagcxResult_t cudaAdaptorLaunchHostFunc(flagcxStream_t stream,
   }
   return flagcxSuccess;
 }
+flagcxResult_t cudaAdaptorLaunchDeviceFunc(flagcxStream_t stream,
+                                           flagcxLaunchFunc_t fn, void *args) {
+  if (stream != NULL) {
+    fn(stream, args);
+  }
+  return flagcxSuccess;
+}
 
 flagcxResult_t cudaAdaptorGetDeviceProperties(struct flagcxDevProps *props,
                                               int dev) {
@@ -303,8 +310,8 @@ struct flagcxDeviceAdaptor cudaAdaptor {
             // share_mem, void *stream, void *memHandle);
       NULL, // flagcxResult_t (*copyArgsInit)(void **args);
       NULL, // flagcxResult_t (*copyArgsFree)(void *args);
-      NULL, // flagcxResult_t (*launchDeviceFunc)(flagcxStream_t stream, void
-            // *args);
+      cudaAdaptorLaunchDeviceFunc, // flagcxResult_t (*launchDeviceFunc)(flagcxStream_t stream, void
+                                   // *args);
       // Others
       cudaAdaptorGetDeviceProperties, // flagcxResult_t
                                       // (*getDeviceProperties)(struct

@@ -1,22 +1,22 @@
 #include "launch_kernel.h"
+#include "group.h"
 #include <dlfcn.h>
 #include <stdio.h>
 
-flagcxResult_t loadAsyncKernelSymbol(const char *path) {
+flagcxLaunchFunc_t deviceKernel = NULL;
+
+flagcxResult_t loadAsyncKernelSymbol(const char *path, flagcxLaunchFunc_t *fn) {
   void *handle = dlopen(path, RTLD_LAZY);
   if (!handle) {
     fprintf(stderr, "dlopen failed: %s\n", dlerror());
-    return flagcxRemoteError;
+    return flagcxSystemError;
   }
-
-  deviceAdaptor->launchDeviceFunc =
-      (flagcxResult_t(*)(flagcxStream_t, void *))dlsym(handle,
-                                                       "launchAsyncKernel");
-  if (!deviceAdaptor->launchDeviceFunc) {
+  void *sym = dlsym(handle, "launchAsyncKernel");
+  if (!sym) {
     fprintf(stderr, "dlsym failed: %s\n", dlerror());
-    return flagcxRemoteError;
+    return flagcxSystemError;
   }
-
+  *fn = (flagcxLaunchFunc_t)sym;
   return flagcxSuccess;
 }
 
@@ -26,8 +26,15 @@ void cpuStreamWait(void *_args) {
 }
 
 void cpuAsyncLaunch(void *_args) {
-  bool *volatile args = (bool *)_args;
-  while (!__atomic_load_n(args, __ATOMIC_RELAXED))
+  FuncArgs *args = (FuncArgs *)_args;
+  bool *volatile event = (bool *)args->hEvent;
+
+  __atomic_store_n(event, 1, __ATOMIC_RELAXED);
+  bool *volatile hargs = (bool *)args->hargs;
+  while (!__atomic_load_n(hargs, __ATOMIC_RELAXED))
     ;
+
+  free(hargs);
+  free(event);
   free(args);
 }
