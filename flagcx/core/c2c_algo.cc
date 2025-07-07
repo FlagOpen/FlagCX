@@ -649,6 +649,10 @@ flagcxC2cPlanner::flagcxC2cPlanner(size_t sendCount, size_t recvCount,
   for (int i = 0; i < nPipePostSteps_ + nSeqPostSteps_; ++i) {
     postHomoFuncSteps_.emplace_back();
   }
+  TRACE_CALL("flagcxC2cPlanner(nSeqPreSteps, nPipePreSteps, nSeqInterSteps, "
+             "nPipePostSteps, nSeqPostSteps) = (%d, %d, %d, %d, %d)",
+             nSeqPreSteps_, nPipePreSteps_, nSeqInterSteps_, nPipePostSteps_,
+             nSeqPostSteps_);
 
   // set strategyFound_ to 0
   strategyFound_ = 0;
@@ -840,7 +844,11 @@ flagcxCommOp_t flagcxC2cPlanner::getC2cHomoCommOp(int homoType, int mode) {
         case 1:
           switch (mode) {
             case 0:
-              return flagcxCommOpReduceScatter;
+              if (algorithm_ == flagcxAlgoPipeline) {
+                return flagcxCommOpReduceScatter;
+              } else {
+                return flagcxCommOpAllReduce;
+              }
             case 1:
               return flagcxCommOpAllReduce;
             case 2:
@@ -849,7 +857,11 @@ flagcxCommOp_t flagcxC2cPlanner::getC2cHomoCommOp(int homoType, int mode) {
         case 2:
           switch (mode) {
             case 0:
-              return flagcxCommNoOp;
+              if (algorithm_ == flagcxAlgoPipeline) {
+                return flagcxCommNoOp;
+              } else {
+                return flagcxCommOpReduceScatter;
+              }
             case 1:
               return flagcxCommOpReduceScatter;
             case 2:
@@ -950,8 +962,9 @@ flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
       for (size_t j = 0; j < nClusterInterRanks; ++j) {
         size_t clusterdataoffset = 0;
         for (size_t z = 0; z < clusterInterRankList_.size(); ++z) {
-          if (commOp_ == flagcxCommOpReduceScatter ||
-              commOp_ == flagcxCommOpAllReduce) {
+          if ((commOp_ == flagcxCommOpReduceScatter ||
+               commOp_ == flagcxCommOpAllReduce) &&
+              algorithm_ == flagcxAlgoPipeline) {
             size_t rankCount = totalCount_ / comm_->nranks;
             myCount = rankCount * comm_->cluster_sizes[z] / nClusterInterRanks;
             myRes = rankCount * comm_->cluster_sizes[z] % nClusterInterRanks;
@@ -1544,8 +1557,10 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
                                               homoInterFuncCommOp);
         } else if (homoInterFuncCommOp == flagcxCommOpReduceScatter) {
           for (int c = 0; c < comm_->nclusters; ++c) {
-            int step = algorithm_ == flagcxAlgoSequential ? 0 :
-                (clusterId_ + comm_->nclusters - 1 - c) % comm_->nclusters;
+            int step = algorithm_ == flagcxAlgoSequential
+                           ? 0
+                           : (clusterId_ + comm_->nclusters - 1 - c) %
+                                 comm_->nclusters;
             if (step == comm_->nclusters - 1) {
               continue;
             }
@@ -1878,13 +1893,17 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
 
   // execute pipelined preHomoFunc and heteroFunc steps
   void *refreshBuff = sendTmpBuff;
-  if (commOp_ == flagcxCommOpReduceScatter ||
-      commOp_ == flagcxCommOpAllReduce) {
+  if ((commOp_ == flagcxCommOpReduceScatter ||
+       commOp_ == flagcxCommOpAllReduce) &&
+      algorithm_ == flagcxAlgoPipeline) {
     refreshBuff =
         static_cast<void *>(static_cast<char *>(sendTmpBuff) +
                             clusterOffset_ * totalCount_ / comm_->nranks *
                                 getFlagcxDataTypeSize(datatype));
   }
+  // execute refreshFunc
+  refreshFunc_.run(refreshBuff, datatype, stream);
+  deviceAdaptor->streamSynchronize(stream);
   for (int s = 0; s < nPipePreSteps_; ++s) {
     cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
     for (int i = 0; i < preHomoFuncSteps_[nSeqPreSteps_ + s].size(); ++i) {
@@ -1897,7 +1916,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
     flagcxHeteroGroupStart();
     for (int i = 0; i < heteroFuncSteps_[s].size(); ++i) {
       // execute refreshFunc
-      refreshFunc_.run(refreshBuff, datatype, stream);
+      // refreshFunc_.run(refreshBuff, datatype, stream);
 
       // TODO: use stream wait rather than stream sync to avoid cpu blocking
       // deviceAdaptor->streamSynchronize(stream);
@@ -1914,6 +1933,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
         homoInterFuncSteps_[s][i].run(
             sendbuff, recvbuff, scratchBuffer_, datatype, redOp_,
             comm_->globalrank2homorank[root], comm_, het_stream);
+        refreshFunc_.run(refreshBuff, datatype, het_stream);
       }
     }
     flagcxHeteroGroupEnd();
@@ -1926,7 +1946,9 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
   for (int s = 0; s < nSeqInterSteps_; ++s) {
     for (int i = 0; i < heteroFuncSteps_[nPipePreSteps_ + s].size(); ++i) {
       // execute refreshFunc
-      refreshFunc_.run(refreshBuff, datatype, stream);
+      if (algorithm_ == flagcxAlgoSequential) {
+        refreshFunc_.run(refreshBuff, datatype, stream);
+      }
 
       // TODO: use stream wait rather than stream sync to avoid cpu blocking
       // deviceAdaptor->streamSynchronize(stream);
@@ -1943,6 +1965,9 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
         homoInterFuncSteps_[nPipePreSteps_ + s][i].run(
             sendbuff, recvbuff, scratchBuffer_, datatype, redOp_,
             comm_->globalrank2homorank[root], comm_, stream);
+        if (algorithm_ == flagcxAlgoPipeline) {
+          refreshFunc_.run(refreshBuff, datatype, stream);
+        }
       }
     }
   }
@@ -1965,7 +1990,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
          i < heteroFuncSteps_[nPipePreSteps_ + nSeqInterSteps_ + s].size();
          ++i) {
       // execute refreshFunc
-      refreshFunc_.run(refreshBuff, datatype, stream);
+      // refreshFunc_.run(refreshBuff, datatype, stream);
 
       // TODO: use stream wait rather than stream sync to avoid cpu blocking
       // deviceAdaptor->streamSynchronize(stream);
@@ -1996,7 +2021,9 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
   for (int s = 0; s < nSeqPostSteps_; ++s) {
     for (int i = 0; i < postHomoFuncSteps_[nPipePostSteps_ + s].size(); ++i) {
       // execute refresh func
-      refreshFunc_.run(refreshBuff, datatype, stream);
+      if (algorithm_ == flagcxAlgoSequential) {
+        refreshFunc_.run(refreshBuff, datatype, stream);
+      }
 
       // execute postHomoFunc
       postHomoFuncSteps_[nPipePostSteps_ + s][i].run(
