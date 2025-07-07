@@ -1,0 +1,121 @@
+I am 3 of 8
+I am 4 of 8
+I am 0 of 8
+I am 1 of 8
+I am 2 of 8
+I am 5 of 8
+I am 6 of 8
+I am 7 of 8
+p-perf-huawei-06:3892346:3892346 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3892346:3892427 [0] FLAGCX INFO Bootstrap Root : rank 0 of 8 ranks checked in
+p-perf-huawei-06:3892351:3892351 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3892352:3892352 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3892350:3892350 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3892353:3892353 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3892347:3892347 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3892349:3892349 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3892348:3892348 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3892346:3892427 [0] FLAGCX INFO Bootstrap Root : rank 5 of 8 ranks checked in
+p-perf-huawei-06:3892346:3892427 [0] FLAGCX INFO Bootstrap Root : rank 6 of 8 ranks checked in
+p-perf-huawei-06:3892346:3892427 [0] FLAGCX INFO Bootstrap Root : rank 4 of 8 ranks checked in
+p-perf-huawei-06:3892346:3892427 [0] FLAGCX INFO Bootstrap Root : rank 7 of 8 ranks checked in
+p-perf-huawei-06:3892346:3892427 [0] FLAGCX INFO Bootstrap Root : rank 1 of 8 ranks checked in
+p-perf-huawei-06:3892346:3892427 [0] FLAGCX INFO Bootstrap Root : rank 2 of 8 ranks checked in
+p-perf-huawei-06:3892346:3892427 [0] FLAGCX INFO Bootstrap Root : rank 3 of 8 ranks checked in
+p-perf-huawei-06:3892346:3892427 [0] FLAGCX INFO SENT OUT ALL 8 HANDLES
+p-perf-huawei-06:3892352:3892352 [0] FLAGCX INFO rank 6 nranks 8 - DONE
+p-perf-huawei-06:3892350:3892350 [0] FLAGCX INFO rank 4 nranks 8 - DONE
+p-perf-huawei-06:3892353:3892353 [0] FLAGCX INFO rank 7 nranks 8 - DONE
+p-perf-huawei-06:3892347:3892347 [0] FLAGCX INFO rank 1 nranks 8 - DONE
+p-perf-huawei-06:3892349:3892349 [0] FLAGCX INFO rank 3 nranks 8 - DONE
+p-perf-huawei-06:3892348:3892348 [0] FLAGCX INFO rank 2 nranks 8 - DONE
+p-perf-huawei-06:3892351:3892351 [0] FLAGCX INFO rank 5 nranks 8 - DONE
+p-perf-huawei-06:3892346:3892346 [0] FLAGCX INFO rank 0 nranks 8 - DONE
+p-perf-huawei-06:3892346:3892346 [0] FLAGCX INFO rank = 0, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 0, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+sendbuff = 0.000000
+p-perf-huawei-06:3892352:3892352 [0] FLAGCX INFO rank = 6, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 6, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3892348:3892348 [0] FLAGCX INFO rank = 2, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 2, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3892350:3892350 [0] FLAGCX INFO rank = 4, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 4, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3892353:3892353 [0] FLAGCX INFO rank = 7, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 7, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+sendbuff = 7.000000
+p-perf-huawei-06:3892349:3892349 [0] FLAGCX INFO rank = 3, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 3, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3892351:3892351 [0] FLAGCX INFO rank = 5, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 5, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3892347:3892347 [0] FLAGCX INFO rank = 1, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 1, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+Comm size: 131072 bytes; Elapsed time: 0.000079 sec; Algo bandwidth: 1.656104 GB/s; Bus bandwidth: 1.449091 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 7.000000
+sendbuff = 0.000000
+Comm size: 262144 bytes; Elapsed time: 0.000069 sec; Algo bandwidth: 3.777193 GB/s; Bus bandwidth: 3.305044 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 7.000000
+sendbuff = 0.000000
+Comm size: 524288 bytes; Elapsed time: 0.000068 sec; Algo bandwidth: 7.697237 GB/s; Bus bandwidth: 6.735083 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 0.000000
+sendbuff = 7.000000
+Comm size: 1048576 bytes; Elapsed time: 0.000068 sec; Algo bandwidth: 15.437787 GB/s; Bus bandwidth: 13.508063 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 7.000000
+sendbuff = 0.000000
+Comm size: 2097152 bytes; Elapsed time: 0.000067 sec; Algo bandwidth: 31.102011 GB/s; Bus bandwidth: 27.214260 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 7.000000
+sendbuff = 0.000000
+Comm size: 4194304 bytes; Elapsed time: 0.000067 sec; Algo bandwidth: 62.218684 GB/s; Bus bandwidth: 54.441349 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 7.000000
+sendbuff = 0.000000
+Comm size: 8388608 bytes; Elapsed time: 0.000068 sec; Algo bandwidth: 122.722121 GB/s; Bus bandwidth: 107.381856 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 0.000000
+sendbuff = 7.000000
+Comm size: 16777216 bytes; Elapsed time: 0.000105 sec; Algo bandwidth: 160.137355 GB/s; Bus bandwidth: 140.120186 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 0.000000
+sendbuff = 7.000000
+Comm size: 33554432 bytes; Elapsed time: 0.000191 sec; Algo bandwidth: 175.501565 GB/s; Bus bandwidth: 153.563869 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 0.000000
+sendbuff = 7.000000
+Comm size: 67108864 bytes; Elapsed time: 0.000306 sec; Algo bandwidth: 219.522139 GB/s; Bus bandwidth: 192.081872 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 0.000000
+sendbuff = 7.000000
+Comm size: 134217728 bytes; Elapsed time: 0.000538 sec; Algo bandwidth: 249.683399 GB/s; Bus bandwidth: 218.472974 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 0.000000
+sendbuff = 7.000000
+Comm size: 268435456 bytes; Elapsed time: 0.001074 sec; Algo bandwidth: 249.987499 GB/s; Bus bandwidth: 218.739061 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 0.000000
+sendbuff = 7.000000
+Comm size: 536870912 bytes; Elapsed time: 0.002073 sec; Algo bandwidth: 258.976036 GB/s; Bus bandwidth: 226.604032 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 0.000000
+sendbuff = 7.000000
+Comm size: 1073741824 bytes; Elapsed time: 0.004137 sec; Algo bandwidth: 259.531880 GB/s; Bus bandwidth: 227.090395 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 0.000000
+sendbuff = 7.000000
+Comm size: 2147483648 bytes; Elapsed time: 0.008207 sec; Algo bandwidth: 261.660990 GB/s; Bus bandwidth: 228.953366 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+sendbuff = 0.000000
+sendbuff = 7.000000
+Comm size: 4294967296 bytes; Elapsed time: 0.016340 sec; Algo bandwidth: 262.856137 GB/s; Bus bandwidth: 229.999120 GB/s
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
+recvbuff = 0.000000 1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 
