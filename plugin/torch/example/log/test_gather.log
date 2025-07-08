@@ -1,0 +1,75 @@
+NCCL debug information disabled.
+torchrun --nproc_per_node 8 --nnodes=1 --node_rank=0 --master_addr="localhost" --master_port=8281 example.py
+ddp backend config is cpu:gloo,npu:flagcxddp backend config is cpu:gloo,npu:flagcx
+
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 0, world_size = 8, prev_rank: 7, next_rank: 1
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 1, world_size = 8, prev_rank: 0, next_rank: 2
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 2, world_size = 8, prev_rank: 1, next_rank: 3
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 3, world_size = 8, prev_rank: 2, next_rank: 4
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 5, world_size = 8, prev_rank: 4, next_rank: 6
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 4, world_size = 8, prev_rank: 3, next_rank: 5
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 6, world_size = 8, prev_rank: 5, next_rank: 7
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 7, world_size = 8, prev_rank: 6, next_rank: 0
+rank 2 before gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([2.], device='npu:2'), x_list = [tensor([0.4508], device='npu:2'), tensor([0.5271], device='npu:2'), tensor([0.4070], device='npu:2'), tensor([0.6417], device='npu:2'), tensor([0.1040], device='npu:2'), tensor([0.6654], device='npu:2'), tensor([0.5145], device='npu:2'), tensor([0.6560], device='npu:2')]
+rank 0 before gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([0.], device='npu:0'), x_list = [tensor([0.5649], device='npu:0'), tensor([0.2439], device='npu:0'), tensor([0.3425], device='npu:0'), tensor([0.3064], device='npu:0'), tensor([0.9431], device='npu:0'), tensor([0.7001], device='npu:0'), tensor([0.7265], device='npu:0'), tensor([0.8957], device='npu:0')]
+rank 4 before gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([4.], device='npu:4'), x_list = [tensor([0.8879], device='npu:4'), tensor([0.6751], device='npu:4'), tensor([0.2925], device='npu:4'), tensor([0.3100], device='npu:4'), tensor([0.7187], device='npu:4'), tensor([0.9678], device='npu:4'), tensor([0.5071], device='npu:4'), tensor([0.3360], device='npu:4')]
+rank 1 before gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([1.], device='npu:1'), x_list = [tensor([0.5254], device='npu:1'), tensor([0.6960], device='npu:1'), tensor([0.3672], device='npu:1'), tensor([0.7955], device='npu:1'), tensor([0.3552], device='npu:1'), tensor([0.1343], device='npu:1'), tensor([0.5992], device='npu:1'), tensor([0.6754], device='npu:1')]
+p-perf-huawei-06:3956714:3956714 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+rank 6 before gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([6.], device='npu:6'), x_list = [tensor([0.9907], device='npu:6'), tensor([0.8146], device='npu:6'), tensor([0.7865], device='npu:6'), tensor([0.4105], device='npu:6'), tensor([0.5602], device='npu:6'), tensor([0.7977], device='npu:6'), tensor([0.8768], device='npu:6'), tensor([0.8976], device='npu:6')]
+p-perf-huawei-06:3956716:3956716 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3956712:3956712 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+rank 5 before gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([5.], device='npu:5'), x_list = [tensor([0.1768], device='npu:5'), tensor([0.7002], device='npu:5'), tensor([0.9745], device='npu:5'), tensor([0.6408], device='npu:5'), tensor([0.5993], device='npu:5'), tensor([0.8333], device='npu:5'), tensor([0.8023], device='npu:5'), tensor([0.4851], device='npu:5')]
+rank 7 before gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([7.], device='npu:7'), x_list = [tensor([0.6039], device='npu:7'), tensor([0.7622], device='npu:7'), tensor([0.4434], device='npu:7'), tensor([0.9123], device='npu:7'), tensor([0.6573], device='npu:7'), tensor([0.8401], device='npu:7'), tensor([0.3491], device='npu:7'), tensor([0.7846], device='npu:7')]
+rank 3 before gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([3.], device='npu:3'), x_list = [tensor([0.4660], device='npu:3'), tensor([0.0532], device='npu:3'), tensor([0.1436], device='npu:3'), tensor([0.7273], device='npu:3'), tensor([0.5670], device='npu:3'), tensor([0.7320], device='npu:3'), tensor([0.3167], device='npu:3'), tensor([0.6306], device='npu:3')]
+p-perf-huawei-06:3956710:3956710 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3956710:3958593 [0] FLAGCX INFO Bootstrap Root : rank 0 of 8 ranks checked in
+p-perf-huawei-06:3956710:3958593 [0] FLAGCX INFO Bootstrap Root : rank 4 of 8 ranks checked in
+p-perf-huawei-06:3956710:3958593 [0] FLAGCX INFO Bootstrap Root : rank 6 of 8 ranks checked in
+p-perf-huawei-06:3956710:3958593 [0] FLAGCX INFO Bootstrap Root : rank 2 of 8 ranks checked in
+p-perf-huawei-06:3956711:3956711 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3956713:3956713 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3956715:3956715 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3956717:3956717 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:3956710:3958593 [0] FLAGCX INFO Bootstrap Root : rank 7 of 8 ranks checked in
+p-perf-huawei-06:3956710:3958593 [0] FLAGCX INFO Bootstrap Root : rank 5 of 8 ranks checked in
+p-perf-huawei-06:3956710:3958593 [0] FLAGCX INFO Bootstrap Root : rank 1 of 8 ranks checked in
+p-perf-huawei-06:3956710:3958593 [0] FLAGCX INFO Bootstrap Root : rank 3 of 8 ranks checked in
+p-perf-huawei-06:3956710:3958593 [0] FLAGCX INFO SENT OUT ALL 8 HANDLES
+p-perf-huawei-06:3956711:3956711 [0] FLAGCX INFO rank 1 nranks 8 - DONE
+p-perf-huawei-06:3956717:3956717 [0] FLAGCX INFO rank 7 nranks 8 - DONE
+p-perf-huawei-06:3956715:3956715 [0] FLAGCX INFO rank 5 nranks 8 - DONE
+p-perf-huawei-06:3956712:3956712 [0] FLAGCX INFO rank 2 nranks 8 - DONE
+p-perf-huawei-06:3956714:3956714 [0] FLAGCX INFO rank 4 nranks 8 - DONE
+p-perf-huawei-06:3956710:3956710 [0] FLAGCX INFO rank 0 nranks 8 - DONE
+p-perf-huawei-06:3956716:3956716 [0] FLAGCX INFO rank 6 nranks 8 - DONE
+p-perf-huawei-06:3956713:3956713 [0] FLAGCX INFO rank 3 nranks 8 - DONE
+p-perf-huawei-06:3956710:3956710 [0] FLAGCX INFO rank = 0, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 0, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3956715:3956715 [0] FLAGCX INFO rank = 5, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 5, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3956717:3956717 [0] FLAGCX INFO rank = 7, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 7, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3956714:3956714 [0] FLAGCX INFO rank = 4, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 4, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3956711:3956711 [0] FLAGCX INFO rank = 1, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 1, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3956716:3956716 [0] FLAGCX INFO rank = 6, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 6, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3956713:3956713 [0] FLAGCX INFO rank = 3, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 3, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:3956712:3956712 [0] FLAGCX INFO rank = 2, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 2, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+rank 2 after gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([2.], device='npu:2'), x_list = [tensor([0.4508], device='npu:2'), tensor([0.5271], device='npu:2'), tensor([0.4070], device='npu:2'), tensor([0.6417], device='npu:2'), tensor([0.1040], device='npu:2'), tensor([0.6654], device='npu:2'), tensor([0.5145], device='npu:2'), tensor([0.6560], device='npu:2')]
+rank 5 after gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([5.], device='npu:5'), x_list = [tensor([0.1768], device='npu:5'), tensor([0.7002], device='npu:5'), tensor([0.9745], device='npu:5'), tensor([0.6408], device='npu:5'), tensor([0.5993], device='npu:5'), tensor([0.8333], device='npu:5'), tensor([0.8023], device='npu:5'), tensor([0.4851], device='npu:5')]
+rank 6 after gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([6.], device='npu:6'), x_list = [tensor([0.9907], device='npu:6'), tensor([0.8146], device='npu:6'), tensor([0.7865], device='npu:6'), tensor([0.4105], device='npu:6'), tensor([0.5602], device='npu:6'), tensor([0.7977], device='npu:6'), tensor([0.8768], device='npu:6'), tensor([0.8976], device='npu:6')]
+rank 1 after gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([1.], device='npu:1'), x_list = [tensor([0.5254], device='npu:1'), tensor([0.6960], device='npu:1'), tensor([0.3672], device='npu:1'), tensor([0.7955], device='npu:1'), tensor([0.3552], device='npu:1'), tensor([0.1343], device='npu:1'), tensor([0.5992], device='npu:1'), tensor([0.6754], device='npu:1')]
+rank 3 after gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([3.], device='npu:3'), x_list = [tensor([0.4660], device='npu:3'), tensor([0.0532], device='npu:3'), tensor([0.1436], device='npu:3'), tensor([0.7273], device='npu:3'), tensor([0.5670], device='npu:3'), tensor([0.7320], device='npu:3'), tensor([0.3167], device='npu:3'), tensor([0.6306], device='npu:3')]
+rank 0 after gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([0.], device='npu:0'), x_list = [tensor([0.8957], device='npu:0'), tensor([0.], device='npu:0'), tensor([0.], device='npu:0'), tensor([0.], device='npu:0'), tensor([0.], device='npu:0'), tensor([0.], device='npu:0'), tensor([0.], device='npu:0'), tensor([0.], device='npu:0')]
+rank 4 after gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([4.], device='npu:4'), x_list = [tensor([0.8879], device='npu:4'), tensor([0.6751], device='npu:4'), tensor([0.2925], device='npu:4'), tensor([0.3100], device='npu:4'), tensor([0.7187], device='npu:4'), tensor([0.9678], device='npu:4'), tensor([0.5071], device='npu:4'), tensor([0.3360], device='npu:4')]
+rank 7 after gather on dst rank 0 with FLAGCX_GROUP1: z = tensor([7.], device='npu:7'), x_list = [tensor([0.6039], device='npu:7'), tensor([0.7622], device='npu:7'), tensor([0.4434], device='npu:7'), tensor([0.9123], device='npu:7'), tensor([0.6573], device='npu:7'), tensor([0.8401], device='npu:7'), tensor([0.3491], device='npu:7'), tensor([0.7846], device='npu:7')]
