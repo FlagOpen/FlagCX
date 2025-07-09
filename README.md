@@ -90,7 +90,7 @@ Tests for FlagCX are maintained in `test/perf`.
 ```sh
 cd test/perf
 make [USE_NVIDIA/USE_ILUVATAR_COREX/USE_CAMBRICON/USE_METAX/USE_KUNLUNXIN/USE_DU/USE_ASCEND]=1
-./test_allreduce -b 128M -e 8G -f 2
+mpirun --allow-run-as-root -np 8 ./test_allreduce -b 128K -e 4G -f 2
 ```
 Note that the default MPI install path is set to `/usr/local/mpi`, you may specify the MPI path with:
 ```sh
