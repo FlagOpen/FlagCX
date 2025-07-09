@@ -197,19 +197,6 @@ flagcxResult_t hcclAdaptorBroadcast(const void *sendbuff, void *recvbuff,
   return (flagcxResult_t)h2f_ret_map[HcclBroadcast(buffer, count,
                                        (HcclDataType)f2h_datatype_map[datatype],
                                        root, comm->base, stream->base)];
-/*
-  if (rank == root) {
-    void *sendbuffptr = (void *)sendbuff;
-    aclrtMemcpy(recvbuff, count, sendbuff, count, ACL_MEMCPY_DEVICE_TO_DEVICE);
-    return (flagcxResult_t)h2f_ret_map[HcclBroadcast(sendbuffptr, count,
-                                       (HcclDataType)f2h_datatype_map[datatype],
-                                       root, comm->base, stream->base)];
-  } else {
-    return (flagcxResult_t)h2f_ret_map[HcclBroadcast(recvbuff, count,
-		                     (HcclDataType)f2h_datatype_map[datatype],
-                                     root, comm->base, stream->base)];
-  }
-  */
 }
 
 flagcxResult_t hcclAdaptorAllReduce(const void *sendbuff, void *recvbuff,
