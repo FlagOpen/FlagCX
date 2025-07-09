@@ -277,45 +277,50 @@ flagcxResult_t ducudaAdaptorGetDeviceByPciBusId(int *dev,
   return flagcxSuccess;
 }
 
-struct flagcxDeviceAdaptor ducudaAdaptor{
-    "DUCUDA",
-    // Basic functions
-    ducudaAdaptorDeviceSynchronize, ducudaAdaptorDeviceMemcpy,
-    ducudaAdaptorDeviceMemset, ducudaAdaptorDeviceMalloc,
-    ducudaAdaptorDeviceFree, ducudaAdaptorSetDevice, ducudaAdaptorGetDevice,
-    ducudaAdaptorGetDeviceCount, ducudaAdaptorGetVendor,
-    // GDR functions
-    NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
-    NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);
-    ducudaAdaptorGdrMemAlloc, ducudaAdaptorGdrMemFree,
-    NULL, // flagcxResult_t (*hostShareMemAlloc)(void **ptr, size_t size, void
-          // *memHandle);
-    NULL, // flagcxResult_t (*hostShareMemFree)(void *ptr, void *memHandle);
-    // Stream functions
-    ducudaAdaptorStreamCreate, ducudaAdaptorStreamDestroy,
-    ducudaAdaptorStreamCopy, ducudaAdaptorStreamFree,
-    ducudaAdaptorStreamSynchronize, ducudaAdaptorStreamQuery,
-    ducudaAdaptorStreamWaitEvent,
-    // Event functions
-    ducudaAdaptorEventCreate, ducudaAdaptorEventDestroy,
-    ducudaAdaptorEventRecord, ducudaAdaptorEventSynchronize,
-    ducudaAdaptorEventQuery,
-    // Kernel launch
-    NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
-          // unsigned int block_y, unsigned int block_z, unsigned int grid_x,
-          // unsigned int grid_y, unsigned int grid_z, void **args, size_t
-          // share_mem, void *stream, void *memHandle);
-    NULL, // flagcxResult_t (*copyArgsInit)(void **args);
-    NULL, // flagcxResult_t (*copyArgsFree)(void *args);
-    // Others
-    ducudaAdaptorGetDeviceProperties, // flagcxResult_t
-                                      // (*getDeviceProperties)(struct
-                                      // flagcxDevProps *props, int dev);
-    ducudaAdaptorGetDevicePciBusId, // flagcxResult_t (*getDevicePciBusId)(char
-                                    // *pciBusId, int len, int dev);
-    ducudaAdaptorGetDeviceByPciBusId, // flagcxResult_t
-                                      // (*getDeviceByPciBusId)(int
-                                      // *dev, const char *pciBusId);
-    ducudaAdaptorLaunchHostFunc};
+struct flagcxDeviceAdaptor ducudaAdaptor {
+  "DUCUDA",
+      // Basic functions
+      ducudaAdaptorDeviceSynchronize, ducudaAdaptorDeviceMemcpy,
+      ducudaAdaptorDeviceMemset, ducudaAdaptorDeviceMalloc,
+      ducudaAdaptorDeviceFree, ducudaAdaptorSetDevice, ducudaAdaptorGetDevice,
+      ducudaAdaptorGetDeviceCount, ducudaAdaptorGetVendor,
+      // GDR functions
+      NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
+      NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);
+      ducudaAdaptorGdrMemAlloc, ducudaAdaptorGdrMemFree,
+      NULL, // flagcxResult_t (*hostShareMemAlloc)(void **ptr, size_t size, void
+            // *memHandle);
+      NULL, // flagcxResult_t (*hostShareMemFree)(void *ptr, void *memHandle);
+      // Stream functions
+      ducudaAdaptorStreamCreate, ducudaAdaptorStreamDestroy,
+      ducudaAdaptorStreamCopy, ducudaAdaptorStreamFree,
+      ducudaAdaptorStreamSynchronize, ducudaAdaptorStreamQuery,
+      ducudaAdaptorStreamWaitEvent,
+      // Event functions
+      ducudaAdaptorEventCreate, ducudaAdaptorEventDestroy,
+      ducudaAdaptorEventRecord, ducudaAdaptorEventSynchronize,
+      ducudaAdaptorEventQuery,
+      // Kernel launch
+      NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
+            // unsigned int block_y, unsigned int block_z, unsigned int grid_x,
+            // unsigned int grid_y, unsigned int grid_z, void **args, size_t
+            // share_mem, void *stream, void *memHandle);
+      NULL, // flagcxResult_t (*copyArgsInit)(void **args);
+      NULL, // flagcxResult_t (*copyArgsFree)(void *args);
+      NULL, // flagcxResult_t
+            // (*launchDeviceFunc)(flagcxStream_t stream,
+            // void *args);
+      // Others
+      ducudaAdaptorGetDeviceProperties, // flagcxResult_t
+                                        // (*getDeviceProperties)(struct
+                                        // flagcxDevProps *props, int dev);
+      ducudaAdaptorGetDevicePciBusId,   // flagcxResult_t
+                                        // (*getDevicePciBusId)(char *pciBusId,
+                                        // int len, int dev);
+      ducudaAdaptorGetDeviceByPciBusId, // flagcxResult_t
+                                        // (*getDeviceByPciBusId)(int
+                                        // *dev, const char *pciBusId);
+      ducudaAdaptorLaunchHostFunc
+};
 
 #endif // USE_DU_ADAPTOR

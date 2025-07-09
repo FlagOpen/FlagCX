@@ -34,7 +34,8 @@ flagcxResult_t kunlunAdaptorDeviceMemset(void *ptr, int value, size_t size,
     if (stream == NULL) {
       DEVCHECK(cudaMemset(ptr, value, size));
     } else {
-      // The underlying interface here is synchronous, not an asynchronous implementation.
+      // The underlying interface here is synchronous, not an asynchronous
+      // implementation.
       DEVCHECK(cudaMemsetAsync(ptr, value, size, stream->base));
     }
   }
@@ -50,7 +51,8 @@ flagcxResult_t kunlunAdaptorDeviceMalloc(void **ptr, size_t size,
     if (stream == NULL) {
       DEVCHECK(cudaMalloc(ptr, size));
     } else {
-      // The underlying interface here is synchronous, not an asynchronous implementation.
+      // The underlying interface here is synchronous, not an asynchronous
+      // implementation.
       DEVCHECK(cudaMallocAsync(ptr, size, stream->base));
     }
   } else if (type == flagcxMemManaged) {
@@ -67,7 +69,8 @@ flagcxResult_t kunlunAdaptorDeviceFree(void *ptr, flagcxMemType_t type,
     if (stream == NULL) {
       DEVCHECK(cudaFree(ptr));
     } else {
-      // The underlying interface here is synchronous, not an asynchronous implementation.
+      // The underlying interface here is synchronous, not an asynchronous
+      // implementation.
       DEVCHECK(cudaFreeAsync(ptr, stream->base));
     }
   } else if (type == flagcxMemManaged) {
@@ -96,7 +99,8 @@ flagcxResult_t kunlunAdaptorGetVendor(char *vendor) {
   return flagcxSuccess;
 }
 
-flagcxResult_t kunlunAdaptorGdrMemAlloc(void **ptr, size_t size, void *memHandle) {
+flagcxResult_t kunlunAdaptorGdrMemAlloc(void **ptr, size_t size,
+                                        void *memHandle) {
   if (ptr == NULL) {
     return flagcxInvalidArgument;
   }
@@ -134,7 +138,8 @@ flagcxResult_t kunlunAdaptorStreamDestroy(flagcxStream_t stream) {
   return flagcxSuccess;
 }
 
-flagcxResult_t kunlunAdaptorStreamCopy(flagcxStream_t *newStream, void *oldStream) {
+flagcxResult_t kunlunAdaptorStreamCopy(flagcxStream_t *newStream,
+                                       void *oldStream) {
   (*newStream) = NULL;
   flagcxCalloc(newStream, 1);
   memcpy((void *)*newStream, oldStream, sizeof(cudaStream_t));
@@ -171,7 +176,8 @@ flagcxResult_t kunlunAdaptorStreamQuery(flagcxStream_t stream) {
   return res;
 }
 
-flagcxResult_t kunlunAdaptorStreamWaitEvent(flagcxStream_t stream, flagcxEvent_t event) {
+flagcxResult_t kunlunAdaptorStreamWaitEvent(flagcxStream_t stream,
+                                            flagcxEvent_t event) {
   if (stream != NULL && event != NULL) {
     DEVCHECK(
         cudaStreamWaitEvent(stream->base, event->base, cudaEventWaitDefault));
@@ -196,7 +202,8 @@ flagcxResult_t kunlunAdaptorEventDestroy(flagcxEvent_t event) {
   return flagcxSuccess;
 }
 
-flagcxResult_t kunlunAdaptorEventRecord(flagcxEvent_t event, flagcxStream_t stream) {
+flagcxResult_t kunlunAdaptorEventRecord(flagcxEvent_t event,
+                                        flagcxStream_t stream) {
   if (event != NULL) {
     if (stream != NULL) {
       DEVCHECK(cudaEventRecordWithFlags(event->base, stream->base,
@@ -258,7 +265,8 @@ flagcxResult_t kunlunAdaptorGetDeviceProperties(struct flagcxDevProps *props,
   return flagcxSuccess;
 }
 
-flagcxResult_t kunlunAdaptorGetDevicePciBusId(char *pciBusId, int len, int dev) {
+flagcxResult_t kunlunAdaptorGetDevicePciBusId(char *pciBusId, int len,
+                                              int dev) {
   if (pciBusId == NULL) {
     return flagcxInvalidArgument;
   }
@@ -266,7 +274,8 @@ flagcxResult_t kunlunAdaptorGetDevicePciBusId(char *pciBusId, int len, int dev) 
   return flagcxSuccess;
 }
 
-flagcxResult_t kunlunAdaptorGetDeviceByPciBusId(int *dev, const char *pciBusId) {
+flagcxResult_t kunlunAdaptorGetDeviceByPciBusId(int *dev,
+                                                const char *pciBusId) {
   if (dev == NULL || pciBusId == NULL) {
     return flagcxInvalidArgument;
   }
@@ -278,9 +287,9 @@ struct flagcxDeviceAdaptor kunlunAdaptor {
   "KUNLUN",
       // Basic functions
       kunlunAdaptorDeviceSynchronize, kunlunAdaptorDeviceMemcpy,
-      kunlunAdaptorDeviceMemset, kunlunAdaptorDeviceMalloc, kunlunAdaptorDeviceFree,
-      kunlunAdaptorSetDevice, kunlunAdaptorGetDevice, kunlunAdaptorGetDeviceCount,
-      kunlunAdaptorGetVendor,
+      kunlunAdaptorDeviceMemset, kunlunAdaptorDeviceMalloc,
+      kunlunAdaptorDeviceFree, kunlunAdaptorSetDevice, kunlunAdaptorGetDevice,
+      kunlunAdaptorGetDeviceCount, kunlunAdaptorGetVendor,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);
@@ -289,12 +298,14 @@ struct flagcxDeviceAdaptor kunlunAdaptor {
             // *memHandle);
       NULL, // flagcxResult_t (*hostShareMemFree)(void *ptr, void *memHandle);
       // Stream functions
-      kunlunAdaptorStreamCreate, kunlunAdaptorStreamDestroy, kunlunAdaptorStreamCopy,
-      kunlunAdaptorStreamFree, kunlunAdaptorStreamSynchronize,
-      kunlunAdaptorStreamQuery, kunlunAdaptorStreamWaitEvent,
+      kunlunAdaptorStreamCreate, kunlunAdaptorStreamDestroy,
+      kunlunAdaptorStreamCopy, kunlunAdaptorStreamFree,
+      kunlunAdaptorStreamSynchronize, kunlunAdaptorStreamQuery,
+      kunlunAdaptorStreamWaitEvent,
       // Event functions
-      kunlunAdaptorEventCreate, kunlunAdaptorEventDestroy, kunlunAdaptorEventRecord,
-      kunlunAdaptorEventSynchronize, kunlunAdaptorEventQuery,
+      kunlunAdaptorEventCreate, kunlunAdaptorEventDestroy,
+      kunlunAdaptorEventRecord, kunlunAdaptorEventSynchronize,
+      kunlunAdaptorEventQuery,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,
@@ -302,15 +313,18 @@ struct flagcxDeviceAdaptor kunlunAdaptor {
             // share_mem, void *stream, void *memHandle);
       NULL, // flagcxResult_t (*copyArgsInit)(void **args);
       NULL, // flagcxResult_t (*copyArgsFree)(void *args);
+      NULL, // flagcxResult_t// (*launchDeviceFunc)(flagcxStream_t stream,
+            // void *args);
       // Others
       kunlunAdaptorGetDeviceProperties, // flagcxResult_t
-                                      // (*getDeviceProperties)(struct
-                                      // flagcxDevProps *props, int dev);
-      kunlunAdaptorGetDevicePciBusId, // flagcxResult_t (*getDevicePciBusId)(char
-                                    // *pciBusId, int len, int dev);
+                                        // (*getDeviceProperties)(struct
+                                        // flagcxDevProps *props, int dev);
+      kunlunAdaptorGetDevicePciBusId,   // flagcxResult_t
+                                        // (*getDevicePciBusId)(char *pciBusId,
+                                        // int len, int dev);
       kunlunAdaptorGetDeviceByPciBusId, // flagcxResult_t
-                                      // (*getDeviceByPciBusId)(int
-                                      // *dev, const char *pciBusId);
+                                        // (*getDeviceByPciBusId)(int
+                                        // *dev, const char *pciBusId);
       kunlunAdaptorLaunchHostFunc
 };
 

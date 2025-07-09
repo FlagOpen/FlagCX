@@ -195,11 +195,10 @@ flagcxResult_t mluAdaptorGetDeviceByPciBusId(int *dev, const char *pciBusId) {
 }
 
 flagcxResult_t mluAdaptorStreamWaitEvent(flagcxStream_t stream,
-                                          flagcxEvent_t event) {
+                                         flagcxEvent_t event) {
   if (stream != NULL && event != NULL) {
-    DEVCHECK(
-      cnrtQueueWaitNotifier(event->base, stream->base, CNRT_NOTIFIER_WAIT_DEFAULT);  
-    )
+    DEVCHECK(cnrtQueueWaitNotifier(event->base, stream->base,
+                                   CNRT_NOTIFIER_WAIT_DEFAULT);)
   }
   return flagcxSuccess;
 }
@@ -221,13 +220,12 @@ flagcxResult_t mluAdaptorEventDestroy(flagcxEvent_t event) {
   return flagcxSuccess;
 }
 
-
 flagcxResult_t mluAdaptorEventRecord(flagcxEvent_t event,
-                                      flagcxStream_t stream) {
+                                     flagcxStream_t stream) {
   if (event != NULL) {
     if (stream != NULL) {
       DEVCHECK(cnrtPlaceNotifierWithFlags(event->base, stream->base,
-                                         CNRT_NOTIFIER_PLACE_DEFAULT));
+                                          CNRT_NOTIFIER_PLACE_DEFAULT));
     }
   }
   return flagcxSuccess;
@@ -283,6 +281,8 @@ struct flagcxDeviceAdaptor mluAdaptor {
             // share_mem, void *stream, void *memHandle);
       NULL, // flagcxResult_t (*copyArgsInit)(void **args);
       NULL, // flagcxResult_t (*copyArgsFree)(void *args);
+      NULL, // flagcxResult_t (*launchDeviceFunc)(flagcxStream_t stream,
+            // void *args);
       // Others
       mluAdaptorGetDeviceProperties, // flagcxResult_t
                                      // (*getDeviceProperties)(struct
