@@ -11,7 +11,7 @@ if '--adaptor' in sys.argv:
     arg_index = sys.argv.index('--adaptor')
     sys.argv.remove("--adaptor")
     if arg_index < len(sys.argv):
-        assert sys.argv[arg_index] in ["nvidia", "iluvatar_corex", "cambricon", "metax", "du", "klx"], f"Invalid adaptor: {adaptor_flag}"
+        assert sys.argv[arg_index] in ["nvidia", "iluvatar_corex", "cambricon", "metax", "du", "klx", "ascend"], f"Invalid adaptor: {adaptor_flag}"
         print(f"Using {sys.argv[arg_index]} adaptor")
         if sys.argv[arg_index] == "iluvatar_corex":
             adaptor_flag = "-DUSE_ILUVATAR_COREX_ADAPTOR"
@@ -23,6 +23,8 @@ if '--adaptor' in sys.argv:
             adaptor_flag = "-DUSE_DU_ADAPTOR"
         elif sys.argv[arg_index] == "klx":
             adaptor_flag = "-DUSE_KUNLUNXIN_ADAPTOR"
+        elif sys.argv[arg_index] == "ascend":
+            adaptor_flag = "-DUSE_ASCEND_ADAPTOR"
     else:
         print("No adaptor provided after '--adaptor'. Using default nvidia adaptor")
     sys.argv.remove(sys.argv[arg_index])
@@ -69,6 +71,12 @@ elif adaptor_flag == "-DUSE_KUNLUNXIN_ADAPTOR":
     include_dirs += ["/opt/kunlun/include"]
     library_dirs += ["/opt/kunlun/lib"]
     libs += ["cuda", "cudart", "c10_cuda", "torch_cuda"]
+elif adaptor_flag == "-DUSE_ASCEND_ADAPTOR":
+    PYTORCH_NPU_INSTALL_PATH="/work/package/pytorch/libtorch_npu"
+    pytorch_library_path = os.path.join(PYTORCH_NPU_INSTALL_PATH, "lib")
+    include_dirs += ["/work/package/pytorch/libtorch_npu/include", "/work/package/pytorch"]
+    library_dirs += [pytorch_library_path]
+    libs += ["torch_npu"]
 module = cpp_extension.CppExtension(
     name='flagcx._C',
     sources=sources,

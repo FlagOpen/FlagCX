@@ -98,6 +98,11 @@ void check_device(at::Device dev1, at::Device dev2) {
     throw std::runtime_error(
         "flagcxBackend does not support multidevice tensors");
   }
+#elif USE_ASCEND_ADAPTOR
+  if (dev1.is_privateuseone() && dev2.is_privateuseone() && dev1 != dev2) {
+    throw std::runtime_error(
+        "flagcxBackend does not support multidevice tensors");
+  }
 #else
   if (dev1.is_cuda() && dev2.is_cuda() && dev1 != dev2) {
     throw std::runtime_error(
@@ -198,6 +203,8 @@ std::unique_ptr<flagcxEvent> &flagcxBackend::getEventByIndex(int eventId) {
   } else {
 #ifdef USE_NVIDIA_ADAPTOR
     flagcxEvents_[eventId] = std::make_unique<flagcxCudaEvent>();
+#elif USE_ASCEND_ADAPTOR
+    flagcxEvents_[eventId] = std::make_unique<flagcxCannEvent>();
 #elif USE_ILUVATAR_COREX_ADAPTOR
     flagcxEvents_[eventId] = std::make_unique<flagcxIxcudaEvent>();
 #elif USE_CAMBRICON_ADAPTOR
@@ -264,6 +271,10 @@ void flagcxBackend::initComm() {
 #elif defined(USE_CAMBRICON_ADAPTOR)
   initComm(
       c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice());
+#elif defined(USE_ASCEND_ADAPTOR)
+  initComm(
+      c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice()
+      );
 #endif
 }
 

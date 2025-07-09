@@ -5,10 +5,13 @@
 #pragma once
 
 #include "flagcx.h"
-
+#include <iostream>
 #ifdef USE_NVIDIA_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
+#elif USE_ASCEND_ADAPTOR
+#include "torch_npu/csrc/core/npu/NPUStream.h"
+#include "torch_npu/csrc/core/npu/NPUEvent.h"
 #elif USE_ILUVATAR_COREX_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
@@ -94,6 +97,37 @@ public:
 
 private:
   at::cuda::CUDAEvent ixcuda_event;
+};
+#elif USE_ASCEND_ADAPTOR
+class flagcxCannEvent : public flagcxEvent {
+public:
+  flagcxCannEvent() { npu_event = c10_npu::NPUEvent(); }
+
+  void record(const int device_id) override {
+    npu_event.record(c10_npu::getCurrentNPUStream(device_id));
+  }
+
+  void record(const flagcxStream_t &stream, const int device_id) override {
+//    npu_event.record(c10_npu::getNPUStreamFromPool(device_id))
+    //c10::Stream(c10::Stream::UNSAFE,
+//		c10::Device(c10::DeviceType::PrivateUse1, prt->device_index),
+//		NPUStream_getStreamId(ptr))
+    std::cout<<"/**********************  enter flagcxCannEvent.record ********************/"<<std::endl;
+    npu_event.record(c10_npu::getCurrentNPUStream(device_id));
+  }
+
+  void block(const int device_id) override {
+    npu_event.block(c10_npu::getCurrentNPUStream(device_id));
+  }
+
+  void block(const flagcxStream_t &stream, const int device_id) override {
+    //npu_event.block(c10_npu::getNPUStreamFromPool(device_id));
+    std::cout<<"/**********************  enter flagcxCannEvent.block ********************/"<<std::endl;
+    npu_event.block(c10_npu::getCurrentNPUStream(device_id));
+  }
+
+private:
+  c10_npu::NPUEvent npu_event;
 };
 #elif USE_CAMBRICON_ADAPTOR
 class flagcxMluEvent : public flagcxEvent {
