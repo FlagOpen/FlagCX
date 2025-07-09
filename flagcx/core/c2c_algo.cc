@@ -1567,7 +1567,8 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
             size_t rankCount = totalCount_ / comm_->nranks;
             size_t recvoffset =
                 clusterOffset_ * rankCount + homoMyRank_ * rankCount;
-            int recvFlag = commOp_ == flagcxCommOpReduceScatter &&
+            int recvFlag = algorithm_ == flagcxAlgoPipeline &&
+                           commOp_ == flagcxCommOpReduceScatter &&
                            eachNicPerRank_ && step == comm_->nclusters - 2;
             homoInterFuncSteps_[step].emplace_back(
                 -1, sendType, recvFlag ? 1 : recvType,
@@ -1616,6 +1617,9 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
               size_t step = (comm_->cluster_ids[it->peerRank_] +
                              comm_->nclusters - 1 - clusterId_) %
                             comm_->nclusters;
+              if (algorithm_ == flagcxAlgoPipeline) {
+                step = 0;
+              }
               postHomoFuncSteps_[step].emplace_back(
                   clusterInterRankList_[clusterId_][i] - (rank_ - homoMyRank_),
                   1, 1, it->offset_, it->offset_, it->count_, 2,
