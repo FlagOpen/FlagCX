@@ -72,9 +72,10 @@ elif adaptor_flag == "-DUSE_KUNLUNXIN_ADAPTOR":
     library_dirs += ["/opt/kunlun/lib"]
     libs += ["cuda", "cudart", "c10_cuda", "torch_cuda"]
 elif adaptor_flag == "-DUSE_ASCEND_ADAPTOR":
-    PYTORCH_NPU_INSTALL_PATH="/work/package/pytorch/libtorch_npu"
+#    /root/.pyenv/versions/3.9.17/lib/python3.9/site-packages/torch_npu/lib/libtorch_npu.so
+    PYTORCH_NPU_INSTALL_PATH="/root/.pyenv/versions/3.9.17/lib/python3.9/site-packages/torch_npu"
     pytorch_library_path = os.path.join(PYTORCH_NPU_INSTALL_PATH, "lib")
-    include_dirs += ["/work/package/pytorch/libtorch_npu/include", "/work/package/pytorch"]
+    include_dirs += ["/root/.pyenv/versions/3.9.17/lib/python3.9/site-packages/torch_npu/include"]
     library_dirs += [pytorch_library_path]
     libs += ["torch_npu"]
 module = cpp_extension.CppExtension(

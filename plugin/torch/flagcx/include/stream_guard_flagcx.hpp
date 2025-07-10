@@ -67,7 +67,8 @@ public:
         guard_(
             at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId))
 #elif USE_ASCEND_ADAPTOR
-        guard_(c10_npu::getCurrentNPUStream(deviceId))
+        //guard_(c10_npu::getCurrentNPUStream(deviceId))
+	guard_(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, deviceId_))
 #endif
   {
     std::cout<<"/**********************  enter guard_(c10_npu::getCurrentNPUStream(deviceId)) ********************/"<<std::endl;
@@ -104,7 +105,8 @@ public:
 #elif USE_ASCEND_ADAPTOR
         // guard_ = c10_npu::getNPUStreamFromPool(deviceId_);
 	std::cout<<"/**********************  enter guard_(c10_npu::getCurrentNPUStream(deviceId)) ********************/"<<std::endl;
-	guard_ = c10_npu::getCurrentNPUStream(deviceId_);
+	guard_ = c10_npu::getStreamFromExternal(*(aclrtStream *)stream, deviceId_);
+//	guard_ = c10_npu::getCurrentNPUStream(deviceId_);
 #endif
     currentStream_ = stream;
   }

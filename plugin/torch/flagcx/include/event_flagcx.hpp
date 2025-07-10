@@ -108,14 +108,16 @@ public:
   }
 
   void record(const flagcxStream_t &stream, const int device_id) override {
+//      NPUStream getStreamFromExternal(aclrtStream ext_stream, c10::DeviceIndex device_index)
+      npu_event.record(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, device_id));
 //    npu_event.record(c10_npu::getNPUStreamFromPool(device_id))
 //    c10::Stream(c10::Stream::UNSAFE,
 //		c10::Device(c10::DeviceType::PrivateUse1, prt->device_index),
 //		NPUStream_getStreamId(ptr))
 //    std::cout<<"/**********************  enter flagcxCannEvent.record ********************/"<<std::endl;
-
+    /*
     aclrtEvent tmp_event = npu_event;
-    aclrtRecordEvent(tmp_event, *(aclrtStream *)stream);
+    aclrtRecordEvent(tmp_event, *(aclrtStream *)stream);*/
     //npu_event.record(c10_npu::getCurrentNPUStream(device_id));
   }
 
@@ -124,12 +126,14 @@ public:
   }
 
   void block(const flagcxStream_t &stream, const int device_id) override {
+    npu_event.block(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, device_id));
     //npu_event.block(c10_npu::getNPUStreamFromPool(device_id));
     //std::cout<<"/**********************  enter flagcxCannEvent.block ********************/"<<std::endl;
     //npu_event.block(c10_npu::getCurrentNPUStream(device_id));
+    /*
     aclrtEvent tmp_event = npu_event;
     aclrtStreamWaitEvent(*(aclrtStream *)stream, tmp_event);
-    aclrtResetEvent(tmp_event, *(aclrtStream *)stream);
+    aclrtResetEvent(tmp_event, *(aclrtStream *)stream);*/
   }
 
 private:
