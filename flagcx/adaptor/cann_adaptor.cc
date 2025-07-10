@@ -1,4 +1,5 @@
 #include "ascend_adaptor.h"
+#include <iostream>
 
 #ifdef USE_ASCEND_ADAPTOR
 
@@ -103,11 +104,13 @@ flagcxResult_t cannAdaptorGdrMemFree(void *ptr, void *memHandle) {
 flagcxResult_t cannAdaptorStreamCreate(flagcxStream_t *stream) {
   (*stream) = NULL;
   flagcxCalloc(stream, 1);
+  std::cout<<">>>>>>>>>> cannAdaptorStreamCreate <<<<<<<<<<"<<std::endl;
   DEVCHECK(aclrtCreateStream((aclrtStream *)(*stream)));
   return flagcxSuccess;
 }
 
 flagcxResult_t cannAdaptorStreamDestroy(flagcxStream_t stream) {
+  std::cout<<">>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<"<<std::endl;
   if (stream != NULL) {
     DEVCHECK(aclrtDestroyStream(stream->base));
     free(stream);
@@ -118,6 +121,7 @@ flagcxResult_t cannAdaptorStreamDestroy(flagcxStream_t stream) {
 
 flagcxResult_t cannAdaptorStreamCopy(flagcxStream_t *newStream,
                                      void *oldStream) {
+  std::cout<<">>>>>>>>>> cannAdaptorStreamCopy <<<<<<<<<<"<<std::endl;
   (*newStream) = NULL;
   flagcxCalloc(newStream, 1);
   memcpy((void *)*newStream, oldStream, sizeof(aclrtStream));
@@ -125,6 +129,7 @@ flagcxResult_t cannAdaptorStreamCopy(flagcxStream_t *newStream,
 }
 
 flagcxResult_t cannAdaptorStreamFree(flagcxStream_t stream) {
+  std::cout<<">>>>>>>>>> cannAdaptorStreamFree <<<<<<<<<<"<<std::endl;
   if (stream != NULL) {
     free(stream);
     stream = NULL;
@@ -133,6 +138,7 @@ flagcxResult_t cannAdaptorStreamFree(flagcxStream_t stream) {
 }
 
 flagcxResult_t cannAdaptorStreamSynchronize(flagcxStream_t stream) {
+  std::cout<<">>>>>>>>>> cannAdaptorStreamSynchronize <<<<<<<<<<"<<std::endl;
   if (stream != NULL) {
     DEVCHECK(aclrtSynchronizeStream(stream->base));
   }
@@ -140,6 +146,7 @@ flagcxResult_t cannAdaptorStreamSynchronize(flagcxStream_t stream) {
 }
 
 flagcxResult_t cannAdaptorStreamQuery(flagcxStream_t stream) {
+  std::cout<<">>>>>>>>>> cannAdaptorStreamQuery <<<<<<<<<<"<<std::endl;
   flagcxResult_t res = flagcxSuccess;
   if (stream != NULL) {
     aclrtStreamStatus status;
@@ -157,6 +164,7 @@ flagcxResult_t cannAdaptorStreamQuery(flagcxStream_t stream) {
 
 flagcxResult_t cannAdaptorStreamWaitEvent(flagcxStream_t stream,
                                           flagcxEvent_t event) {
+  std::cout<<">>>>>>>>>> cannAdaptorStreamWaitEvent  <<<<<<<<<<"<<std::endl;
   if (stream != NULL && event != NULL) {
     DEVCHECK(
         aclrtStreamWaitEvent(stream->base, event->base));
@@ -165,6 +173,7 @@ flagcxResult_t cannAdaptorStreamWaitEvent(flagcxStream_t stream,
 }
 
 flagcxResult_t cannAdaptorEventCreate(flagcxEvent_t *event) {
+  std::cout<<">>>>>>>>>> cannAdaptorEventCreate  <<<<<<<<<<"<<std::endl;
   (*event) = NULL;
   flagcxCalloc(event, 1);
   DEVCHECK(aclrtCreateEventWithFlag((aclrtEvent *)(*event),
