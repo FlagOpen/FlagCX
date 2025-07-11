@@ -201,7 +201,6 @@ protected:
   std::unordered_map<int, flagcxStream_t> flagcxStreams_;
   std::unordered_map<int, std::unique_ptr<flagcxEvent>> flagcxEvents_;
   flagcxHandlerGroup_t handler_ = nullptr;
-
 private:
   // Helper that encapsulates work shared across all collective communication
   // primitives.  The callbacks have the following signatures:

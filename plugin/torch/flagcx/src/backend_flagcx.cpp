@@ -189,9 +189,12 @@ flagcxStream_t flagcxBackend::getStreamByIndex(int streamId) {
     return search->second;
   } else {
     flagcxStreams_[streamId] = nullptr;
+    flagcxStreams_[streamId] = (flagcxStream_t)c10_npu::getCurrentNPUStream().stream(false);
+/*
     C10D_FLAGCX_CHECK(
         handler_->devHandle->streamCreate(&flagcxStreams_[streamId]),
         std::nullopt);
+*/
     return flagcxStreams_[streamId];
   }
 }
@@ -501,13 +504,11 @@ flagcxBackend::allreduce(std::vector<at::Tensor> &tensors,
                                               handler_->devHandle);
   initComm(tensor.device());
   syncStream(tensor.device());
-
   // Perform the allreduce operation
   C10D_FLAGCX_CHECK(flagcxAllReduce(tensor.data_ptr(), tensor.data_ptr(),
                                     tensor.numel(), flagcxDataType,
                                     flagcxReduceOp, handler_->comm, stream),
                     std::nullopt);
-
   work->event_->record(stream, deviceId_);
   work->deviceId_ = deviceId_;
   // Create a future to track the allreduce operation

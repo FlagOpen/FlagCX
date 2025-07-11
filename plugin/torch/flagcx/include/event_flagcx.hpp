@@ -101,15 +101,21 @@ private:
 #elif USE_ASCEND_ADAPTOR
 class flagcxCannEvent : public flagcxEvent {
 public:
-  flagcxCannEvent() { npu_event = c10_npu::NPUEvent(); }
+  flagcxCannEvent() { 
+  npu_event = c10_npu::NPUEvent();
+  //auto testStream = stream.unwrap();
+  //c10_npu::NPUStream testStream(stream);
+  //npu_stream = c10_npu::NPUStream::NPUStream(stream);
+  }
 
   void record(const int device_id) override {
     npu_event.record(c10_npu::getCurrentNPUStream(device_id));
   }
 
   void record(const flagcxStream_t &stream, const int device_id) override {
-    npu_event.record(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, device_id));
-    //npu_event.record(c10_npu::getNPUStreamFromPool(device_id))
+    //npu_event.record(npu_stream);
+    //npu_event.record(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, device_id));
+    npu_event.record(c10_npu::getNPUStreamFromPool(device_id));
     //npu_event.record(c10_npu::getCurrentNPUStream(device_id));
     /*
     aclrtEvent tmp_event = npu_event;
@@ -121,8 +127,9 @@ public:
   }
 
   void block(const flagcxStream_t &stream, const int device_id) override {
-    npu_event.block(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, device_id));
-    //npu_event.block(c10_npu::getNPUStreamFromPool(device_id));
+    //npu_event.block(npu_stream);
+    //npu_event.block(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, device_id));
+    npu_event.block(c10_npu::getNPUStreamFromPool(device_id));
     //npu_event.block(c10_npu::getCurrentNPUStream(device_id));
     /*
     aclrtEvent tmp_event = npu_event;
@@ -133,6 +140,7 @@ public:
 
 private:
   c10_npu::NPUEvent npu_event;
+  //c10_npu::NPUStream npu_stream;
 };
 #elif USE_CAMBRICON_ADAPTOR
 class flagcxMluEvent : public flagcxEvent {

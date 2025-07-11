@@ -13,8 +13,8 @@
 #include <cuda_runtime.h>
 #elif USE_ASCEND_ADAPTOR
 #include "torch_npu/csrc/core/npu/NPUStream.h"
-#include "torch_npu/csrc/core/npu/NPUGuard.h"
-#include "torch_npu/csrc/core/npu/impl/NPUGuardImpl.h"
+//#include "torch_npu/csrc/core/npu/NPUGuard.h"
+//#include "torch_npu/csrc/core/npu/impl/NPUGuardImpl.h"
 #include "torch_npu/csrc/core/npu/NPUEvent.h"
 #elif USE_ILUVATAR_COREX_ADAPTOR
 #include <c10/core/impl/InlineStreamGuard.h>
@@ -69,8 +69,8 @@ public:
         guard_(
             at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId))
 #elif USE_ASCEND_ADAPTOR
-        //guard_(c10_npu::getCurrentNPUStream(deviceId))
-	guard_(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, deviceId_))
+        guard_(c10_npu::getNPUStreamFromPool(deviceId))
+	//guard_(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, deviceId_))
 #endif
   {
   }
@@ -104,8 +104,9 @@ public:
     guard_.reset_stream(
         at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId_));
 #elif USE_ASCEND_ADAPTOR
-	guard_.reset_stream(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, deviceId_));
+	//guard_.reset_stream(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, deviceId_));
 	//guard_.reset_stream(c10_npu::getNPUStreamFromPool(deviceId_));
+	guard_ = c10_npu::getNPUStreamFromPool(deviceId_);
         //guard_.reset_stream(c10_npu::getCurrentNPUStream(deviceId_));
 #endif
     currentStream_ = stream;
@@ -132,7 +133,8 @@ private:
 #elif USE_KUNLUNXIN_ADAPTOR
   c10::cuda::CUDAStreamGuard guard_;
 #elif USE_ASCEND_ADAPTOR
-   c10_npu::NPUStreamGuard guard_;
+   //c10_npu::NPUStreamGuard guard_;
+   c10_npu::NPUStream guard_;
   
 #endif
 };
