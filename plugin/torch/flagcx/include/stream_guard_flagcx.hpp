@@ -25,6 +25,12 @@
 #include <c10/cuda/CUDAGuard.h>
 #include <c10/cuda/impl/CUDAGuardImpl.h>
 #include <cuda_runtime.h>
+#elif USE_MUSA_ADAPTOR
+#include <c10/core/impl/InlineStreamGuard.h>
+#include <torch_musa/csrc/core/MUSAStream.h>
+#include <torch_musa/csrc/core/MUSAGuard.h>
+#include <torch_musa/csrc/core/GuardImpl.h>
+#include <musa_runtime.h>
 #elif USE_DU_ADAPTOR
 #include <c10/core/impl/InlineStreamGuard.h>
 #include <c10/cuda/CUDAGuard.h>
@@ -57,6 +63,9 @@ public:
 #elif USE_METAX_ADAPTOR
         guard_(
             at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId))
+#elif USE_MUSA_ADAPTOR
+        guard_(
+            at::musa::getStreamFromExternal(*(musaStream_t *)stream, deviceId))
 #elif USE_DU_ADAPTOR
         guard_(
             at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId))
@@ -89,6 +98,9 @@ public:
 #elif USE_METAX_ADAPTOR
     guard_.reset_stream(
         at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId_));
+#elif USE_MUSA_ADAPTOR
+    guard_.reset_stream(
+        at::musa::getStreamFromExternal(*(musaStream_t *)stream, deviceId_));
 #elif USE_DU_ADAPTOR
     guard_.reset_stream(
         at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId_));
@@ -115,6 +127,8 @@ private:
   torch_mlu::mlu::MLUStreamGuard guard_;
 #elif USE_METAX_ADAPTOR
   c10::cuda::CUDAStreamGuard guard_;
+#elif USE_MUSA_ADAPTOR
+  c10::musa::MUSAStreamGuard guard_;
 #elif USE_DU_ADAPTOR
   c10::cuda::CUDAStreamGuard guard_;
 #elif USE_KUNLUNXIN_ADAPTOR

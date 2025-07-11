@@ -44,6 +44,8 @@ public:
     event_ = std::make_unique<flagcxMluEvent>();
 #elif USE_METAX_ADAPTOR
     event_ = std::make_unique<flagcxMacaEvent>();
+#elif USE_MUSA_ADAPTOR
+    event_ = std::make_unique<flagcxMusaEvent>();
 #elif USE_DU_ADAPTOR
     event_ = std::make_unique<flagcxDuEvent>();
 #elif USE_KUNLUNXIN_ADAPTOR
@@ -168,6 +170,8 @@ public:
     devName = "mlu";
 #elif USE_METAX_ADAPTOR
     devName = "maca";
+#elif USE_MUSA_ADAPTOR
+    devName = "musa";
 #elif USE_DU_ADAPTOR
     devName = "cuda";
 #elif USE_KUNLUNXIN_ADAPTOR
