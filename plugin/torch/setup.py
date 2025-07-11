@@ -78,6 +78,12 @@ elif adaptor_flag == "-DUSE_ASCEND_ADAPTOR":
     include_dirs += ["/root/.pyenv/versions/3.9.17/lib/python3.9/site-packages/torch_npu/include"]
     library_dirs += [pytorch_library_path]
     libs += ["torch_npu"]
+#    /usr/local/python3.10.17/lib/python3.10/site-packages/torch_npu/lib/libtorch_npu.so
+   # PYTORCH_NPU_INSTALL_PATH="/usr/local/python3.10.17/lib/python3.10/site-packages/torch_npu"
+   # pytorch_library_path = os.path.join(PYTORCH_NPU_INSTALL_PATH, "lib")
+   # include_dirs += ["/usr/local/python3.10.17/lib/python3.10/site-packages/torch_npu/include"]
+   # library_dirs += [pytorch_library_path]
+   # libs += ["torch_npu"]
 module = cpp_extension.CppExtension(
     name='flagcx._C',
     sources=sources,
