@@ -11,8 +11,6 @@ metadata:
   name: jenkins
   namespace: jenkins
 spec:
-  nodeSelector:
-    jenkins-agent: "true"
   hostNetwork: true
   volumes:
     - name: dshm
