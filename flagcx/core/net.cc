@@ -5,7 +5,12 @@
 
 flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
-  if (!__atomic_load_n(&args->eventReady, __ATOMIC_RELAXED))
+  if (deviceKernel) {
+    deviceAdaptor->deviceMemcpy(args->hEventReady,args->dEventReady, 1,
+                                flagcxMemcpyDeviceToHost, resources->cpStream,
+                                NULL);
+  }
+  if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
     return flagcxSuccess;
   if (args->transmitted < args->chunkSteps) {
     int stepMask = args->sendStepMask;
@@ -56,7 +61,7 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
   } else {
     __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
     args->done = true;
-    if (deviceAdaptor->launchDeviceFunc) {
+    if (deviceKernel) {
       deviceAdaptor->deviceMemcpy(args->dlArgs, args->hlArgs, 1,
                                   flagcxMemcpyHostToDevice, resources->cpStream,
                                   NULL);
@@ -68,7 +73,12 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
 
 flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
-  if (!__atomic_load_n(&args->eventReady, __ATOMIC_RELAXED))
+  if (deviceKernel) {
+    deviceAdaptor->deviceMemcpy(args->hEventReady,args->dEventReady, 1,
+                                flagcxMemcpyDeviceToHost, resources->cpStream,
+                                NULL);
+  }
+  if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
     return flagcxSuccess;
   if (args->copied < args->chunkSteps) {
     int stepMask = args->sendStepMask;
@@ -142,7 +152,7 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
   } else {
     __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
     args->done = true;
-    if (deviceAdaptor->launchDeviceFunc) {
+    if (deviceKernel) {
       deviceAdaptor->deviceMemcpy(args->dlArgs, args->hlArgs, 1,
                                   flagcxMemcpyHostToDevice, resources->cpStream,
                                   NULL);

@@ -12,6 +12,11 @@
 #include <string>
 #include <unordered_map>
 
+typedef enum {
+  flagcxAlgoSequential = 0,
+  flagcxAlgoPipeline = 1
+} flagcxAlgorithm_t;
+
 size_t getC2cCommPatternHash(size_t count, size_t rootClusterId,
                              flagcxCommOp_t commOp, flagcxRedOp_t redOp,
                              flagcxComm_t comm);
@@ -239,6 +244,7 @@ private:
   int strategyFound_;
   flagcxInterRankBufferInfoManager interRankBufferInfoManager_;
   flagcxC2cRefreshFunc refreshFunc_;
+  flagcxAlgorithm_t algorithm_;
   std::vector<std::vector<flagcxC2cHomoFunc>> preHomoFuncSteps_;
   std::vector<std::vector<flagcxC2cHeteroFunc>> heteroFuncSteps_;
   std::vector<std::vector<flagcxC2cHomoFunc>> homoInterFuncSteps_;

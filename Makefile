@@ -4,6 +4,7 @@ BUILDDIR ?= $(abspath ./build)
 
 # set to 0 if not provided
 USE_NVIDIA ?= 0
+USE_ASCEND ?= 0
 USE_ILUVATAR_COREX ?= 0
 USE_CAMBRICON ?= 0
 USE_GLOO ?= 0
@@ -22,6 +23,8 @@ MPI_HOME ?=
 ifeq ($(strip $(DEVICE_HOME)),)
 	ifeq ($(USE_NVIDIA), 1)
 		DEVICE_HOME = /usr/local/cuda
+	else ifeq ($(USE_ASCEND), 1)
+		DEVICE_HOME = /usr/local/Ascend/ascend-toolkit/latest
 	else ifeq ($(USE_ILUVATAR_COREX), 1)
 		DEVICE_HOME = /usr/local/corex
 	else ifeq ($(USE_CAMBRICON), 1)
@@ -40,6 +43,8 @@ endif
 ifeq ($(strip $(CCL_HOME)),)
 	ifeq ($(USE_NVIDIA), 1)
 		CCL_HOME = /usr/local/nccl/build
+	else ifeq ($(USE_ASCEND), 1)
+		CCL_HOME = /usr/local/Ascend/ascend-toolkit/latest
 	else ifeq ($(USE_ILUVATAR_COREX), 1)
 		CCL_HOME = /usr/local/corex
 	else ifeq ($(USE_CAMBRICON), 1)
@@ -90,6 +95,14 @@ ifeq ($(USE_NVIDIA), 1)
 	CCL_INCLUDE = $(CCL_HOME)/include
 	CCL_LINK = -lnccl
 	ADAPTOR_FLAG = -DUSE_NVIDIA_ADAPTOR
+else ifeq ($(USE_ASCEND), 1)
+	DEVICE_LIB = $(DEVICE_HOME)/lib64
+	DEVICE_INCLUDE = $(DEVICE_HOME)/include
+	DEVICE_LINK = -lascendcl
+	CCL_LIB = $(CCL_HOME)/lib64
+	CCL_INCLUDE = $(CCL_HOME)/include
+	CCL_LINK = -lhccl
+	ADAPTOR_FLAG = -DUSE_ASCEND_ADAPTOR
 else ifeq ($(USE_ILUVATAR_COREX), 1)
 	DEVICE_LIB = $(DEVICE_HOME)/lib
 	DEVICE_INCLUDE = $(DEVICE_HOME)/include
