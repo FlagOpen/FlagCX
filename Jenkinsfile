@@ -16,10 +16,10 @@ spec:
     - name: dshm
       emptyDir:
         medium: Memory
-        sizeLimit: "50G"
+        sizeLimit: "40G"
   containers:
     - name: jnlp
-      image: jenkins/inbound-agent:latest
+      image: harbor.local.clusters/bp/jenkins/inbound-agent:latest
       imagePullPolicy: IfNotPresent
       args:
         - -webSocket
@@ -34,7 +34,7 @@ spec:
           value: localhost,127.0.0.1,jenkins,jenkins.jenkins.svc
 
     - name: main
-      image: harbor.local.clusters/kubesphereio/infrawaves24.10@sha256:153c7ebd06473540fd6c740cb6b9acf1ec76d016904b8e66e09bee521609e923
+      image:  harbor.local.clusters/bp/megatron-mla:25.02_cuda128_vllm084_20250527_ci_v3
       imagePullPolicy: IfNotPresent
       command: ["sleep", "inf"]
       env:
