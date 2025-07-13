@@ -1,7 +1,7 @@
 pipeline {
   agent {
     kubernetes {
-      cloud 'test'
+      cloud 'bp-k8s-cluster'
       label 'vci-agent'
       defaultContainer 'main'
       yaml """
