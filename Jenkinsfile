@@ -16,7 +16,7 @@ spec:
     - name: dshm
       emptyDir:
         medium: Memory
-        sizeLimit: "40G"
+        sizeLimit: "10G"
   containers:
     - name: jnlp
       image: harbor.local.clusters/bp/jenkins/inbound-agent:latest
