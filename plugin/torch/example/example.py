@@ -106,17 +106,17 @@ def test_allreduce():
         print(f"rank {MY_RANK} after allreduce sum with FLAGCX_GROUP1: x = {x}")
 
         # Perform all_reduce_coalesced with FLAGCX_GROUP1
-        #print(f"rank {MY_RANK} before all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = {x}, y = {y}")
-        #with dist._coalescing_manager(group=FLAGCX_GROUP1):
-        #    dist.all_reduce(x, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
-        #    dist.all_reduce(y, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
-        #print(f"rank {MY_RANK} after all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = {x}, y = {y}")
-        #print(f"rank {MY_RANK} before all_reduce_coalesced async sum with FLAGCX_GROUP1: x = {x}, y = {y}")
-        #with dist._coalescing_manager(group=FLAGCX_GROUP1, async_ops=True)  as cm:
-        #    dist.all_reduce(x, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
-        #    dist.all_reduce(y, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
-        #cm.wait()
-        #print(f"rank {MY_RANK} after all_reduce_coalesced async sum with FLAGCX_GROUP1: x = {x}, y = {y}")
+        print(f"rank {MY_RANK} before all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = {x}, y = {y}")
+        with dist._coalescing_manager(group=FLAGCX_GROUP1):
+            dist.all_reduce(x, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+            dist.all_reduce(y, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+        print(f"rank {MY_RANK} after all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = {x}, y = {y}")
+        print(f"rank {MY_RANK} before all_reduce_coalesced async sum with FLAGCX_GROUP1: x = {x}, y = {y}")
+        with dist._coalescing_manager(group=FLAGCX_GROUP1, async_ops=True)  as cm:
+            dist.all_reduce(x, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+            dist.all_reduce(y, op=dist.ReduceOp.SUM, group=FLAGCX_GROUP1)
+        cm.wait()
+        print(f"rank {MY_RANK} after all_reduce_coalesced async sum with FLAGCX_GROUP1: x = {x}, y = {y}")
 
 def test_sendrecv():
     if torch.npu.is_available():
@@ -311,15 +311,15 @@ def test_alltoall():
         print(f"rank {MY_RANK} after all_to_all_single with FLAGCX_GROUP1 (with splits): x = {x}, y = {y}")
 
 def test_all():
-    #test_broadcast()
-    #test_reduce()
+    test_broadcast()
+    test_reduce()
     test_allreduce()
-    #test_sendrecv()
-    #test_allgather()
-    #test_reducescatter()
-    #test_gather()
-    #test_scatter()
-    #test_alltoall()
+    test_sendrecv()
+    test_allgather()
+    test_reducescatter()
+    test_gather()
+    test_scatter()
+    test_alltoall()
 
 dict_op_to_test = {
     "broadcast": test_broadcast,

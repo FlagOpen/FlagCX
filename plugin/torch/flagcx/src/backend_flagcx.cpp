@@ -189,12 +189,13 @@ flagcxStream_t flagcxBackend::getStreamByIndex(int streamId) {
     return search->second;
   } else {
     flagcxStreams_[streamId] = nullptr;
-    flagcxStreams_[streamId] = (flagcxStream_t)c10_npu::getCurrentNPUStream().stream(false);
-/*
+    acl_stream = c10_npu::getCurrentNPUStream().stream(false);
+    flagcxStreams_[streamId] = reinterpret_cast<flagcxStream_t>(&acl_stream);
+    /*
     C10D_FLAGCX_CHECK(
         handler_->devHandle->streamCreate(&flagcxStreams_[streamId]),
         std::nullopt);
-*/
+    */
     return flagcxStreams_[streamId];
   }
 }
@@ -282,6 +283,7 @@ void flagcxBackend::initComm() {
 }
 
 void flagcxBackend::syncStream(at::Device device, int index) {
+  //printf("flagcxBackend::syncStream index = %d\n",index);
   auto &event = getEventByIndex(index);
   auto stream = getStreamByIndex(index);
   event->record(device.index());
