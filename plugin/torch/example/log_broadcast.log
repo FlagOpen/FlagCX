@@ -1,0 +1,97 @@
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 2, world_size = 8, prev_rank: 1, next_rank: 3
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 3, world_size = 8, prev_rank: 2, next_rank: 4
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]rank: 0, world_size = 8, prev_rank: 7, next_rank: 1
+
+rank: 1, world_size = 8, prev_rank: 0, next_rank: 2
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 4, world_size = 8, prev_rank: 3, next_rank: 5
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 6, world_size = 8, prev_rank: 5, next_rank: 7
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 5, world_size = 8, prev_rank: 4, next_rank: 6
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 7, world_size = 8, prev_rank: 6, next_rank: 0
+rank 3 before broadcast with FLAGCX_GROUP2: x = tensor([0.0443, 0.2309, 0.8846, 0.5166, 0.9680, 0.3418, 0.1910, 0.6088],
+       device='npu:3')
+p-perf-huawei-06:4139393:4139393 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+rank 0 before broadcast with FLAGCX_GROUP2: x = tensor([0.1143, 0.5762, 0.0457, 0.8144, 0.1117, 0.9842, 0.4156, 0.9210],
+       device='npu:0')
+p-perf-huawei-06:4139390:4139390 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:4139390:4140278 [0] FLAGCX INFO Bootstrap Root : rank 0 of 8 ranks checked in
+p-perf-huawei-06:4139390:4140278 [0] FLAGCX INFO Bootstrap Root : rank 3 of 8 ranks checked in
+rank 4 before broadcast with FLAGCX_GROUP2: x = tensor([0.2033, 0.8473, 0.6446, 0.8210, 0.7995, 0.9216, 0.7737, 0.4912],
+       device='npu:4')
+p-perf-huawei-06:4139394:4139394 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:4139390:4140278 [0] FLAGCX INFO Bootstrap Root : rank 4 of 8 ranks checked in
+rank 2 before broadcast with FLAGCX_GROUP2: x = tensor([0.5366, 0.5988, 0.0070, 0.7970, 0.2742, 0.6667, 0.0102, 0.7215],
+       device='npu:2')
+p-perf-huawei-06:4139392:4139392 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:4139390:4140278 [0] FLAGCX INFO Bootstrap Root : rank 2 of 8 ranks checked in
+rank 6 before broadcast with FLAGCX_GROUP2: x = tensor([0.7400, 0.5679, 0.3530, 0.9299, 0.5804, 0.7826, 0.3027, 0.3524],
+       device='npu:6')
+p-perf-huawei-06:4139396:4139396 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:4139390:4140278 [0] FLAGCX INFO Bootstrap Root : rank 6 of 8 ranks checked in
+rank 7 before broadcast with FLAGCX_GROUP2: x = tensor([0.0561, 0.8280, 0.8579, 0.0150, 0.3680, 0.5202, 0.1880, 0.0114],
+       device='npu:7')
+p-perf-huawei-06:4139397:4139397 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:4139390:4140278 [0] FLAGCX INFO Bootstrap Root : rank 7 of 8 ranks checked in
+rank 5 before broadcast with FLAGCX_GROUP2: x = tensor([0.4350, 0.2432, 0.0781, 0.6468, 0.5329, 0.7955, 0.2549, 0.2083],
+       device='npu:5')
+p-perf-huawei-06:4139395:4139395 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:4139390:4140278 [0] FLAGCX INFO Bootstrap Root : rank 5 of 8 ranks checked in
+rank 1 before broadcast with FLAGCX_GROUP2: x = tensor([0.9190, 0.7424, 0.3484, 0.2116, 0.1884, 0.8690, 0.4189, 0.9554],
+       device='npu:1')
+p-perf-huawei-06:4139391:4139391 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:4139390:4140278 [0] FLAGCX INFO Bootstrap Root : rank 1 of 8 ranks checked in
+p-perf-huawei-06:4139390:4140278 [0] FLAGCX INFO SENT OUT ALL 8 HANDLES
+p-perf-huawei-06:4139396:4139396 [0] FLAGCX INFO rank 6 nranks 8 - DONE
+p-perf-huawei-06:4139397:4139397 [0] FLAGCX INFO rank 7 nranks 8 - DONE
+p-perf-huawei-06:4139395:4139395 [0] FLAGCX INFO rank 5 nranks 8 - DONE
+p-perf-huawei-06:4139393:4139393 [0] FLAGCX INFO rank 3 nranks 8 - DONE
+p-perf-huawei-06:4139390:4139390 [0] FLAGCX INFO rank 0 nranks 8 - DONE
+p-perf-huawei-06:4139394:4139394 [0] FLAGCX INFO rank 4 nranks 8 - DONE
+p-perf-huawei-06:4139392:4139392 [0] FLAGCX INFO rank 2 nranks 8 - DONE
+p-perf-huawei-06:4139391:4139391 [0] FLAGCX INFO rank 1 nranks 8 - DONE
+p-perf-huawei-06:4139390:4139390 [0] FLAGCX INFO rank = 0, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 0, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4139397:4139397 [0] FLAGCX INFO rank = 7, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 7, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4139395:4139395 [0] FLAGCX INFO rank = 5, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 5, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4139393:4139393 [0] FLAGCX INFO rank = 3, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 3, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4139394:4139394 [0] FLAGCX INFO rank = 4, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 4, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4139396:4139396 [0] FLAGCX INFO rank = 6, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 6, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4139391:4139391 [0] FLAGCX INFO rank = 1, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 1, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4139392:4139392 [0] FLAGCX INFO rank = 2, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 2, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+rank 4 after broadcast with FLAGCX_GROUP2: x = tensor([0.1143, 0.5762, 0.0457, 0.8144, 0.1117, 0.9842, 0.4156, 0.9210],
+       device='npu:4')
+rank 0 after broadcast with FLAGCX_GROUP2: x = tensor([0.1143, 0.5762, 0.0457, 0.8144, 0.1117, 0.9842, 0.4156, 0.9210],
+       device='npu:0')
+rank 1 after broadcast with FLAGCX_GROUP2: x = tensor([0.1143, 0.5762, 0.0457, 0.8144, 0.1117, 0.9842, 0.4156, 0.9210],
+       device='npu:1')
+rank 5 after broadcast with FLAGCX_GROUP2: x = tensor([0.1143, 0.5762, 0.0457, 0.8144, 0.1117, 0.9842, 0.4156, 0.9210],
+       device='npu:5')
+rank 7 after broadcast with FLAGCX_GROUP2: x = tensor([0.1143, 0.5762, 0.0457, 0.8144, 0.1117, 0.9842, 0.4156, 0.9210],
+       device='npu:7')rank 2 after broadcast with FLAGCX_GROUP2: x = tensor([0.1143, 0.5762, 0.0457, 0.8144, 0.1117, 0.9842, 0.4156, 0.9210],
+       device='npu:2')
+rank 3 after broadcast with FLAGCX_GROUP2: x = tensor([0.1143, 0.5762, 0.0457, 0.8144, 0.1117, 0.9842, 0.4156, 0.9210],
+       device='npu:3')
+
+rank 6 after broadcast with FLAGCX_GROUP2: x = tensor([0.1143, 0.5762, 0.0457, 0.8144, 0.1117, 0.9842, 0.4156, 0.9210],
+       device='npu:6')
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<

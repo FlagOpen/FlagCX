@@ -1,0 +1,153 @@
+ddp backend config is cpu:gloo,npu:flagcxddp backend config is cpu:gloo,npu:flagcx
+
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcxddp backend config is cpu:gloo,npu:flagcx
+
+ddp backend config is cpu:gloo,npu:flagcx
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 0, world_size = 8, prev_rank: 7, next_rank: 1
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 2, world_size = 8, prev_rank: 1, next_rank: 3
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 7, world_size = 8, prev_rank: 6, next_rank: 0
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+
+rank: 4, world_size = 8, prev_rank: 3, next_rank: 5rank: 1, world_size = 8, prev_rank: 0, next_rank: 2
+
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 3, world_size = 8, prev_rank: 2, next_rank: 4
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 6, world_size = 8, prev_rank: 5, next_rank: 7
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 5, world_size = 8, prev_rank: 4, next_rank: 6
+rank 3 before allreduce: x = tensor([0.9925, 0.3870, 0.5586, 0.2966, 0.8571, 0.3126, 0.0634, 0.5983],
+       device='npu:3'), y = tensor([0.8953, 0.9846, 0.1262, 0.1414, 0.1759, 0.6696, 0.9923, 0.5853],
+       device='npu:3')
+p-perf-huawei-06:4144483:4144483 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+rank 2 before allreduce: x = tensor([0.5942, 0.3712, 0.7374, 0.2142, 0.0257, 0.1116, 0.4010, 0.2908],
+       device='npu:2'), y = tensor([0.0197, 0.4333, 0.4768, 0.1671, 0.0190, 0.6223, 0.6661, 0.1966],
+       device='npu:2')
+p-perf-huawei-06:4144482:4144482 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+rank 1 before allreduce: x = tensor([0.3726, 0.0997, 0.9791, 0.0396, 0.7331, 0.5410, 0.4540, 0.6667],
+       device='npu:1'), y = tensor([0.4116, 0.0622, 0.9551, 0.4276, 0.9389, 0.0611, 0.5594, 0.6729],
+       device='npu:1')
+p-perf-huawei-06:4144481:4144481 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+rank 7 before allreduce: x = tensor([0.1799, 0.6348, 0.9371, 0.0451, 0.8957, 0.4224, 0.1483, 0.3836],
+       device='npu:7'), y = tensor([0.4432, 0.2177, 0.4915, 0.7315, 0.0408, 0.1008, 0.4891, 0.0859],
+       device='npu:7')
+p-perf-huawei-06:4144487:4144487 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+rank 5 before allreduce: x = tensor([0.4857, 0.0029, 0.4069, 0.2421, 0.6535, 0.7507, 0.5480, 0.2612],
+       device='npu:5'), y = tensor([0.0591, 0.9422, 0.2831, 0.7099, 0.0971, 0.5837, 0.9886, 0.3456],
+       device='npu:5')
+p-perf-huawei-06:4144485:4144485 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+rank 4 before allreduce: x = tensor([0.3027, 0.0423, 0.7993, 0.1845, 0.2000, 0.6540, 0.6702, 0.4129],
+       device='npu:4'), y = tensor([0.8681, 0.4722, 0.7541, 0.8374, 0.9082, 0.9162, 0.2836, 0.5623],
+       device='npu:4')
+p-perf-huawei-06:4144484:4144484 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+rank 0 before allreduce: x = tensor([0.8401, 0.0527, 0.2301, 0.0727, 0.8438, 0.5806, 0.1077, 0.6249],
+       device='npu:0'), y = tensor([0.6199, 0.9713, 0.1238, 0.8609, 0.2736, 0.4677, 0.6714, 0.7608],
+       device='npu:0')
+p-perf-huawei-06:4144480:4144480 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:4144480:4146375 [0] FLAGCX INFO Bootstrap Root : rank 0 of 8 ranks checked in
+p-perf-huawei-06:4144480:4146375 [0] FLAGCX INFO Bootstrap Root : rank 2 of 8 ranks checked in
+p-perf-huawei-06:4144480:4146375 [0] FLAGCX INFO Bootstrap Root : rank 3 of 8 ranks checked in
+p-perf-huawei-06:4144480:4146375 [0] FLAGCX INFO Bootstrap Root : rank 1 of 8 ranks checked in
+p-perf-huawei-06:4144480:4146375 [0] FLAGCX INFO Bootstrap Root : rank 5 of 8 ranks checked in
+p-perf-huawei-06:4144480:4146375 [0] FLAGCX INFO Bootstrap Root : rank 7 of 8 ranks checked in
+p-perf-huawei-06:4144480:4146375 [0] FLAGCX INFO Bootstrap Root : rank 4 of 8 ranks checked in
+rank 6 before allreduce: x = tensor([0.8461, 0.8662, 0.0906, 0.4415, 0.4463, 0.2353, 0.0323, 0.6688],
+       device='npu:6'), y = tensor([0.6590, 0.2973, 0.9649, 0.8018, 0.8733, 0.1055, 0.5866, 0.9629],
+       device='npu:6')
+p-perf-huawei-06:4144486:4144486 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:4144480:4146375 [0] FLAGCX INFO Bootstrap Root : rank 6 of 8 ranks checked in
+p-perf-huawei-06:4144480:4146375 [0] FLAGCX INFO SENT OUT ALL 8 HANDLES
+p-perf-huawei-06:4144483:4144483 [0] FLAGCX INFO rank 3 nranks 8 - DONE
+p-perf-huawei-06:4144487:4144487 [0] FLAGCX INFO rank 7 nranks 8 - DONE
+p-perf-huawei-06:4144484:4144484 [0] FLAGCX INFO rank 4 nranks 8 - DONE
+p-perf-huawei-06:4144482:4144482 [0] FLAGCX INFO rank 2 nranks 8 - DONE
+p-perf-huawei-06:4144485:4144485 [0] FLAGCX INFO rank 5 nranks 8 - DONE
+p-perf-huawei-06:4144486:4144486 [0] FLAGCX INFO rank 6 nranks 8 - DONE
+p-perf-huawei-06:4144480:4144480 [0] FLAGCX INFO rank 0 nranks 8 - DONE
+p-perf-huawei-06:4144481:4144481 [0] FLAGCX INFO rank 1 nranks 8 - DONE
+p-perf-huawei-06:4144480:4144480 [0] FLAGCX INFO rank = 0, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 0, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4144484:4144484 [0] FLAGCX INFO rank = 4, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 4, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4144482:4144482 [0] FLAGCX INFO rank = 2, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 2, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4144486:4144486 [0] FLAGCX INFO rank = 6, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 6, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4144481:4144481 [0] FLAGCX INFO rank = 1, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 1, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4144485:4144485 [0] FLAGCX INFO rank = 5, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 5, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4144483:4144483 [0] FLAGCX INFO rank = 3, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 3, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:4144487:4144487 [0] FLAGCX INFO rank = 7, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 7, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+rank 1 after allreduce min with FLAGCX_GROUP1: x = tensor([0.1799, 0.0029, 0.0906, 0.0396, 0.0257, 0.1116, 0.0323, 0.2612],
+       device='npu:1')
+rank 4 after allreduce min with FLAGCX_GROUP1: x = tensor([0.1799, 0.0029, 0.0906, 0.0396, 0.0257, 0.1116, 0.0323, 0.2612],
+       device='npu:4')
+rank 0 after allreduce min with FLAGCX_GROUP1: x = tensor([0.1799, 0.0029, 0.0906, 0.0396, 0.0257, 0.1116, 0.0323, 0.2612],
+       device='npu:0')
+rank 3 after allreduce min with FLAGCX_GROUP1: x = tensor([0.1799, 0.0029, 0.0906, 0.0396, 0.0257, 0.1116, 0.0323, 0.2612],
+       device='npu:3')
+rank 2 after allreduce min with FLAGCX_GROUP1: x = tensor([0.1799, 0.0029, 0.0906, 0.0396, 0.0257, 0.1116, 0.0323, 0.2612],
+       device='npu:2')
+rank 7 after allreduce min with FLAGCX_GROUP1: x = tensor([0.1799, 0.0029, 0.0906, 0.0396, 0.0257, 0.1116, 0.0323, 0.2612],
+       device='npu:7')rank 5 after allreduce min with FLAGCX_GROUP1: x = tensor([0.1799, 0.0029, 0.0906, 0.0396, 0.0257, 0.1116, 0.0323, 0.2612],
+       device='npu:5')
+
+rank 6 after allreduce min with FLAGCX_GROUP1: x = tensor([0.1799, 0.0029, 0.0906, 0.0396, 0.0257, 0.1116, 0.0323, 0.2612],
+       device='npu:6')
+rank 4 after allreduce max with FLAGCX_GROUP1: y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:4')
+rank 5 after allreduce max with FLAGCX_GROUP1: y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:5')
+rank 1 after allreduce max with FLAGCX_GROUP1: y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:1')
+rank 0 after allreduce max with FLAGCX_GROUP1: y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:0')
+rank 7 after allreduce max with FLAGCX_GROUP1: y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:7')
+rank 3 after allreduce max with FLAGCX_GROUP1: y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:3')
+rank 6 after allreduce max with FLAGCX_GROUP1: y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:6')
+rank 2 after allreduce max with FLAGCX_GROUP1: y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:2')
+rank 4 after allreduce sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:4')
+rank 0 after allreduce sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:0')
+rank 7 after allreduce sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:7')rank 1 after allreduce sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:1')
+
+rank 5 after allreduce sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:5')
+rank 2 after allreduce sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:2')
+rank 3 after allreduce sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:3')
+rank 6 after allreduce sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:6')
+rank 4 before all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:4'), y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:4')
+rank 7 before all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:7'), y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:7')
+rank 0 before all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:0'), y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:0')
+rank 1 before all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:1'), y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:1')
+rank 5 before all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:5'), y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:5')
+rank 2 before all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:2'), y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:2')
+rank 3 before all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:3'), y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:3')
+rank 6 before all_reduce_coalesced sync sum with FLAGCX_GROUP1: x = tensor([1.4391, 0.0228, 0.7248, 0.3171, 0.2057, 0.8932, 0.2580, 2.0896],
+       device='npu:6'), y = tensor([0.8953, 0.9846, 0.9649, 0.8609, 0.9389, 0.9162, 0.9923, 0.9629],
+       device='npu:6')
