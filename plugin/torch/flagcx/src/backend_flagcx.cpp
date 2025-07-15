@@ -188,14 +188,13 @@ flagcxStream_t flagcxBackend::getStreamByIndex(int streamId) {
       search != flagcxStreams_.end()) {
     return search->second;
   } else {
-    flagcxStreams_[streamId] = nullptr;
-    acl_stream = c10_npu::getCurrentNPUStream().stream(false);
-    flagcxStreams_[streamId] = reinterpret_cast<flagcxStream_t>(&acl_stream);
-    /*
+    //acl_stream = c10_npu::getCurrentNPUStream().stream(false);
+    //flagcxStreams_[streamId] = reinterpret_cast<flagcxStream_t>(&acl_stream);
+    
     C10D_FLAGCX_CHECK(
         handler_->devHandle->streamCreate(&flagcxStreams_[streamId]),
         std::nullopt);
-    */
+    
     return flagcxStreams_[streamId];
   }
 }
@@ -283,7 +282,6 @@ void flagcxBackend::initComm() {
 }
 
 void flagcxBackend::syncStream(at::Device device, int index) {
-  //printf("flagcxBackend::syncStream index = %d\n",index);
   auto &event = getEventByIndex(index);
   auto stream = getStreamByIndex(index);
   event->record(device.index());
@@ -396,6 +394,7 @@ flagcxBackend::collectiveCoalesced(std::vector<at::Tensor> &inputs,
   work->future_ = c10::make_intrusive<c10::ivalue::Future>(
       c10::ListType::create(c10::TensorType::get()), devices);
   work->future_->markCompleted(c10::IValue(outputs[0]));
+  std::cout<<"all reduce is exe 1"<<std::endl;
   return work;
 }
 
