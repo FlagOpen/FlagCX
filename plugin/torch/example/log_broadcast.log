@@ -1,0 +1,107 @@
+NCCL debug information disabled.
+torchrun --nproc_per_node 8 --nnodes=1 --node_rank=0 --master_addr="localhost" --master_port=8281 example.py
+ddp backend config is cpu:gloo,npu:flagcxddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcx
+
+ddp backend config is cpu:gloo,npu:flagcx
+ddp backend config is cpu:gloo,npu:flagcxddp backend config is cpu:gloo,npu:flagcxddp backend config is cpu:gloo,npu:flagcx
+
+
+ddp backend config is cpu:gloo,npu:flagcx
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 0, world_size = 8, prev_rank: 7, next_rank: 1
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 1, world_size = 8, prev_rank: 0, next_rank: 2
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 3, world_size = 8, prev_rank: 2, next_rank: 4
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 2, world_size = 8, prev_rank: 1, next_rank: 3
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 4, world_size = 8, prev_rank: 3, next_rank: 5
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 5, world_size = 8, prev_rank: 4, next_rank: 6
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 6, world_size = 8, prev_rank: 5, next_rank: 7
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 7, world_size = 8, prev_rank: 6, next_rank: 0
+rank 6 before broadcast with FLAGCX_GROUP2: x = tensor([0.0846, 0.1173, 0.9169, 0.6226, 0.6530, 0.7504, 0.5966, 0.2008],
+       device='npu:6')
+>>>>>>>>>> cannAdaptorStreamCreate <<<<<<<<<<
+p-perf-huawei-06:27647:27647 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+rank 5 before broadcast with FLAGCX_GROUP2: x = tensor([0.2115, 0.4850, 0.7692, 0.0027, 0.1374, 0.4244, 0.2595, 0.6243],
+       device='npu:5')
+>>>>>>>>>> cannAdaptorStreamCreate <<<<<<<<<<
+p-perf-huawei-06:27646:27646 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+rank 0 before broadcast with FLAGCX_GROUP2: x = tensor([0.5358, 0.0952, 0.3690, 0.1340, 0.0085, 0.9286, 0.0422, 0.2749],
+       device='npu:0')
+>>>>>>>>>> cannAdaptorStreamCreate <<<<<<<<<<
+rank 1 before broadcast with FLAGCX_GROUP2: x = tensor([0.9077, 0.5239, 0.1056, 0.3917, 0.6878, 0.9844, 0.5462, 0.9215],
+       device='npu:1')
+>>>>>>>>>> cannAdaptorStreamCreate <<<<<<<<<<
+p-perf-huawei-06:27641:27641 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:27641:27819 [0] FLAGCX INFO Bootstrap Root : rank 0 of 8 ranks checked in
+p-perf-huawei-06:27641:27819 [0] FLAGCX INFO Bootstrap Root : rank 6 of 8 ranks checked in
+p-perf-huawei-06:27641:27819 [0] FLAGCX INFO Bootstrap Root : rank 5 of 8 ranks checked in
+p-perf-huawei-06:27642:27642 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:27641:27819 [0] FLAGCX INFO Bootstrap Root : rank 1 of 8 ranks checked in
+rank 3 before broadcast with FLAGCX_GROUP2: x = tensor([0.0222, 0.4907, 0.0931, 0.6404, 0.1710, 0.1060, 0.7647, 0.4980],
+       device='npu:3')
+>>>>>>>>>> cannAdaptorStreamCreate <<<<<<<<<<
+p-perf-huawei-06:27644:27644 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:27641:27819 [0] FLAGCX INFO Bootstrap Root : rank 3 of 8 ranks checked in
+rank 2 before broadcast with FLAGCX_GROUP2: x = tensor([0.5051, 0.6641, 0.8929, 0.4837, 0.4053, 0.6956, 0.1927, 0.3259],
+       device='npu:2')
+>>>>>>>>>> cannAdaptorStreamCreate <<<<<<<<<<
+rank 4 before broadcast with FLAGCX_GROUP2: x = tensor([0.0871, 0.7466, 0.9948, 0.6492, 0.7245, 0.0501, 0.2809, 0.8894],
+       device='npu:4')
+>>>>>>>>>> cannAdaptorStreamCreate <<<<<<<<<<
+p-perf-huawei-06:27643:27643 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:27641:27819 [0] FLAGCX INFO Bootstrap Root : rank 2 of 8 ranks checked in
+p-perf-huawei-06:27645:27645 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:27641:27819 [0] FLAGCX INFO Bootstrap Root : rank 4 of 8 ranks checked in
+rank 7 before broadcast with FLAGCX_GROUP2: x = tensor([0.8962, 0.2011, 0.6041, 0.2957, 0.9039, 0.2776, 0.5974, 0.7675],
+       device='npu:7')
+>>>>>>>>>> cannAdaptorStreamCreate <<<<<<<<<<
+p-perf-huawei-06:27648:27648 [0] FLAGCX INFO Bootstrap : Using enp196s0f0:10.1.15.130<0>
+p-perf-huawei-06:27641:27819 [0] FLAGCX INFO Bootstrap Root : rank 7 of 8 ranks checked in
+p-perf-huawei-06:27641:27819 [0] FLAGCX INFO SENT OUT ALL 8 HANDLES
+p-perf-huawei-06:27642:27642 [0] FLAGCX INFO rank 1 nranks 8 - DONE
+p-perf-huawei-06:27648:27648 [0] FLAGCX INFO rank 7 nranks 8 - DONE
+p-perf-huawei-06:27641:27641 [0] FLAGCX INFO rank 0 nranks 8 - DONE
+p-perf-huawei-06:27647:27647 [0] FLAGCX INFO rank 6 nranks 8 - DONE
+p-perf-huawei-06:27646:27646 [0] FLAGCX INFO rank 5 nranks 8 - DONE
+p-perf-huawei-06:27644:27644 [0] FLAGCX INFO rank 3 nranks 8 - DONE
+p-perf-huawei-06:27645:27645 [0] FLAGCX INFO rank 4 nranks 8 - DONE
+p-perf-huawei-06:27643:27643 [0] FLAGCX INFO rank 2 nranks 8 - DONE
+p-perf-huawei-06:27641:27641 [0] FLAGCX INFO rank = 0, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 0, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:27642:27642 [0] FLAGCX INFO rank = 1, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 1, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:27648:27648 [0] FLAGCX INFO rank = 7, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 7, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:27646:27646 [0] FLAGCX INFO rank = 5, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 5, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:27647:27647 [0] FLAGCX INFO rank = 6, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 6, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:27644:27644 [0] FLAGCX INFO rank = 3, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 3, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:27645:27645 [0] FLAGCX INFO rank = 4, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 4, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+p-perf-huawei-06:27643:27643 [0] FLAGCX INFO rank = 2, nranks = 8, nclusters = 1, cluster_id = 0, cluster_size = 8, cluster_inter_rank = -1, homo_rank = 2, homo_root_rank = 0, homo_inter_rank = -1, homo_ranks = 8, has_single_rank_homo_comm = 0, 
+rank 7 after broadcast with FLAGCX_GROUP2: x = tensor([0.5358, 0.0952, 0.3690, 0.1340, 0.0085, 0.9286, 0.0422, 0.2749],
+       device='npu:7')rank 6 after broadcast with FLAGCX_GROUP2: x = tensor([0.5358, 0.0952, 0.3690, 0.1340, 0.0085, 0.9286, 0.0422, 0.2749],
+       device='npu:6')
+
+rank 1 after broadcast with FLAGCX_GROUP2: x = tensor([0.5358, 0.0952, 0.3690, 0.1340, 0.0085, 0.9286, 0.0422, 0.2749],
+       device='npu:1')rank 0 after broadcast with FLAGCX_GROUP2: x = tensor([0.5358, 0.0952, 0.3690, 0.1340, 0.0085, 0.9286, 0.0422, 0.2749],
+       device='npu:0')
+
+rank 2 after broadcast with FLAGCX_GROUP2: x = tensor([0.5358, 0.0952, 0.3690, 0.1340, 0.0085, 0.9286, 0.0422, 0.2749],
+       device='npu:2')
+rank 5 after broadcast with FLAGCX_GROUP2: x = tensor([0.5358, 0.0952, 0.3690, 0.1340, 0.0085, 0.9286, 0.0422, 0.2749],
+       device='npu:5')
+rank 3 after broadcast with FLAGCX_GROUP2: x = tensor([0.5358, 0.0952, 0.3690, 0.1340, 0.0085, 0.9286, 0.0422, 0.2749],
+       device='npu:3')
+rank 4 after broadcast with FLAGCX_GROUP2: x = tensor([0.5358, 0.0952, 0.3690, 0.1340, 0.0085, 0.9286, 0.0422, 0.2749],
+       device='npu:4')
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<>>>>>>>>>> cannAdaptorStreamDestroy <<<<<<<<<<
+

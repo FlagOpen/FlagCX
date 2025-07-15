@@ -2,18 +2,16 @@ import os
 
 import torch
 try:
-    #deps for cambricon devices
-    import torch_mlu
-    from torch_mlu.utils.gpu_migration import migration
-    dev_name = "mlu"
+    import torch_npu
+
+    if torch.npu.is_available():
+        dev_name = "npu"
 except:
     dev_name = "cuda"
 
 import flagcx
 import torch.distributed as dist
 import argparse
-#import pdb
-#pdb.set_trace()
 
 FLAGCX_GROUP1 = None
 FLAGCX_GROUP2 = None
@@ -61,27 +59,30 @@ def init_pg():
     NEXT_RANK = (MY_RANK + 1) % WORLD_SIZE
     print(f"rank: {MY_RANK}, world_size = {WORLD_SIZE}, prev_rank: {PREV_RANK}, next_rank: {NEXT_RANK}")
 
-    if torch.cuda.is_available():
+    # if torch.cuda.is_available():
+    #     # Set device
+    #     torch.cuda.set_device(MY_RANK % 8)
+    
+    if torch.npu.is_available():
         # Set device
-        torch.cuda.set_device(MY_RANK % 8)
+        torch.npu.set_device(MY_RANK % 8)
 
 def destroy_pg():
     dist.destroy_process_group()
 
 def test_broadcast():
-    if torch.cuda.is_available():
+    if torch.npu.is_available():
         # Create tensors
-        x = torch.rand(WORLD_SIZE).cuda()
-
+        x = torch.rand(WORLD_SIZE).npu()
         # Perform broadcast with FLAGCX_GROUP2
         print(f"rank {MY_RANK} before broadcast with FLAGCX_GROUP2: x = {x}")
         dist.broadcast(x, 0, group=FLAGCX_GROUP2)
         print(f"rank {MY_RANK} after broadcast with FLAGCX_GROUP2: x = {x}")
 
 def test_reduce():
-    if torch.cuda.is_available():
+    if torch.npu.is_available():
         # Create tensors
-        x = torch.rand(WORLD_SIZE).cuda()
+        x = torch.rand(WORLD_SIZE).npu()
         for i in range(WORLD_SIZE):
             x[i] = i
 
@@ -91,10 +92,10 @@ def test_reduce():
         print(f"rank {MY_RANK} after reduce on src rank 0 with FLAGCX_GROUP1: x = {x}")
 
 def test_allreduce():
-    if torch.cuda.is_available():
+    if torch.npu.is_available():
         # Create tensors
-        x = torch.rand(WORLD_SIZE).cuda()
-        y = torch.rand(WORLD_SIZE).cuda()
+        x = torch.rand(WORLD_SIZE).npu()
+        y = torch.rand(WORLD_SIZE).npu()
         print(f"rank {MY_RANK} before allreduce: x = {x}, y = {y}")
         # Perform allreduce with FLAGCX_GROUP1
         dist.all_reduce(x, op=dist.ReduceOp.MIN, group=FLAGCX_GROUP1)
@@ -118,10 +119,10 @@ def test_allreduce():
         print(f"rank {MY_RANK} after all_reduce_coalesced async sum with FLAGCX_GROUP1: x = {x}, y = {y}")
 
 def test_sendrecv():
-    if torch.cuda.is_available():
+    if torch.npu.is_available():
         # Create tensors
-        x = torch.rand(WORLD_SIZE).cuda()
-        y = torch.rand(WORLD_SIZE).cuda()
+        x = torch.rand(WORLD_SIZE).npu()
+        y = torch.rand(WORLD_SIZE).npu()
         for i in range(WORLD_SIZE):
             x[i] = MY_RANK
 
@@ -145,11 +146,11 @@ def test_sendrecv():
         print(f"rank {MY_RANK} after send/recv with FLAGCX_GROUP2: x = {x}, y = {y}")
 
 def test_allgather():
-    if torch.cuda.is_available():
+    if torch.npu.is_available():
         # Create tensors
-        x = torch.rand(WORLD_SIZE).cuda()
-        y = torch.rand(WORLD_SIZE).cuda()
-        z = torch.rand(1).cuda()
+        x = torch.rand(WORLD_SIZE).npu()
+        y = torch.rand(WORLD_SIZE).npu()
+        z = torch.rand(1).npu()
         z[0] = MY_RANK
 
         # Perform allgather with FLAGCX_GROUP1
@@ -167,15 +168,15 @@ def test_allgather():
         print(f"rank {MY_RANK} after all_gather_object with FLAGCX_GROUP1: all_rank_infos = {all_rank_infos}")
 
         # Perform all_gather_coalesced with FLAGCX_GROUP1
-        z1 = torch.rand(1).cuda()
+        z1 = torch.rand(1).npu()
         z1[0] = MY_RANK * 10
         print(f"rank {MY_RANK} before all_gather_coalesced sync with FLAGCX_GROUP1: x = {x}, y = {y}, z = {z}, z1 = {z1}")
         with dist._coalescing_manager(group=FLAGCX_GROUP1):
             dist.all_gather_into_tensor(x, z1, group=FLAGCX_GROUP1)
             dist.all_gather_into_tensor(y, z, group=FLAGCX_GROUP1)
         print(f"rank {MY_RANK} after all_gather_coalesced sync with FLAGCX_GROUP1: x = {x}, y = {y}, z = {z}, z1 = {z1}")
-        x = torch.rand(WORLD_SIZE).cuda()
-        y = torch.rand(WORLD_SIZE).cuda()
+        x = torch.rand(WORLD_SIZE).npu()
+        y = torch.rand(WORLD_SIZE).npu()
         print(f"rank {MY_RANK} before all_gather_coalesced async with FLAGCX_GROUP1: x = {x}, y = {y}, z = {z}, z1 = {z1}")
         with dist._coalescing_manager(group=FLAGCX_GROUP1, async_ops=True)  as cm:
             dist.all_gather_into_tensor(x, z1, group=FLAGCX_GROUP1)
@@ -184,12 +185,12 @@ def test_allgather():
         print(f"rank {MY_RANK} after all_gather_coalesced async with FLAGCX_GROUP1: x = {x}, y = {y}, z = {z}, z1 = {z1}")
 
 def test_reducescatter():
-    if torch.cuda.is_available():
+    if torch.npu.is_available():
         # Create tensors
-        x = torch.rand(WORLD_SIZE).cuda()
-        y = torch.rand(WORLD_SIZE).cuda()
-        z = torch.rand(1).cuda()
-        z1 = torch.rand(1).cuda()
+        x = torch.rand(WORLD_SIZE).npu()
+        y = torch.rand(WORLD_SIZE).npu()
+        z = torch.rand(1).npu()
+        z1 = torch.rand(1).npu()
         z[0] = 0
         z1[0] = MY_RANK * 10
 
@@ -207,8 +208,8 @@ def test_reducescatter():
         print(f"rank {MY_RANK} after _reduce_scatter_base with FLAGCX_GROUP1: x = {x}, z = {z}")
 
         # Perform reduce_scatter_coalesced with FLAGCX_GROUP1
-        x = torch.rand(WORLD_SIZE).cuda()
-        y = torch.rand(WORLD_SIZE).cuda()
+        x = torch.rand(WORLD_SIZE).npu()
+        y = torch.rand(WORLD_SIZE).npu()
         z[0] = 0
         z1[0] = 0
         print(f"rank {MY_RANK} before reduce_scatter_coalesced sync with FLAGCX_GROUP1: x = {x}, y = {y}, z={z}, z1={z1}")
@@ -227,11 +228,11 @@ def test_reducescatter():
 
 
 def test_gather():
-    if torch.cuda.is_available():
+    if torch.npu.is_available():
         # Create tensors
-        x = torch.rand(WORLD_SIZE).cuda()
+        x = torch.rand(WORLD_SIZE).npu()
         x_list = list(torch.chunk(x, WORLD_SIZE, dim=0))
-        z = torch.rand(1).cuda()
+        z = torch.rand(1).npu()
         z[0] = MY_RANK
 
         # Perform gather with FLAGCX_GROUP1
@@ -244,11 +245,11 @@ def test_gather():
         print(f"rank {MY_RANK} after gather on dst rank 0 with FLAGCX_GROUP1: z = {z}, x_list = {x_list}")
 
 def test_scatter():
-    if torch.cuda.is_available():
+    if torch.npu.is_available():
         # Create tensors
-        x = torch.rand(WORLD_SIZE).cuda()
+        x = torch.rand(WORLD_SIZE).npu()
         x_list = list(torch.chunk(x, WORLD_SIZE, dim=0))
-        z = torch.rand(1).cuda()
+        z = torch.rand(1).npu()
         z[0] = -1
 
         # Perform scatter with FLAGCX_GROUP2
@@ -260,10 +261,10 @@ def test_scatter():
         print(f"rank {MY_RANK} after scatter from src rank 0 with FLAGCX_GROUP2: z = {z}, x_list = {x_list}")
 
 def test_alltoall():
-    if torch.cuda.is_available():
+    if torch.npu.is_available():
         # Create tensors
-        x = torch.rand(WORLD_SIZE).cuda()
-        y = torch.rand(WORLD_SIZE).cuda()
+        x = torch.rand(WORLD_SIZE).npu()
+        y = torch.rand(WORLD_SIZE).npu()
         for i in range(WORLD_SIZE):
             x[i] = MY_RANK
             y[i] = 0
