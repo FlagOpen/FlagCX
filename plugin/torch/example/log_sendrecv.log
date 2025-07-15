@@ -1,48 +1,50 @@
+NCCL debug information disabled.
+torchrun --nproc_per_node 8 --nnodes=1 --node_rank=0 --master_addr="localhost" --master_port=8281 example.py
+ddp backend config is cpu:gloo,npu:flagcxddp backend config is cpu:gloo,npu:flagcxddp backend config is cpu:gloo,npu:flagcx
 ddp backend config is cpu:gloo,npu:flagcx
+
 ddp backend config is cpu:gloo,npu:flagcx
+
 ddp backend config is cpu:gloo,npu:flagcx
-ddp backend config is cpu:gloo,npu:flagcx
-ddp backend config is cpu:gloo,npu:flagcx
-ddp backend config is cpu:gloo,npu:flagcx
-ddp backend config is cpu:gloo,npu:flagcx
-ddp backend config is cpu:gloo,npu:flagcx
-ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
-rank: 0, world_size = 8, prev_rank: 7, next_rank: 1
+ddp backend config is cpu:gloo,npu:flagcxddp backend config is cpu:gloo,npu:flagcx
+
 ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
 rank: 1, world_size = 8, prev_rank: 0, next_rank: 2
 ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
-rank: 3, world_size = 8, prev_rank: 2, next_rank: 4
+rank: 0, world_size = 8, prev_rank: 7, next_rank: 1
 ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
 rank: 2, world_size = 8, prev_rank: 1, next_rank: 3
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 3, world_size = 8, prev_rank: 2, next_rank: 4
 ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
 rank: 4, world_size = 8, prev_rank: 3, next_rank: 5
 ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
 rank: 5, world_size = 8, prev_rank: 4, next_rank: 6
 ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
-rank: 7, world_size = 8, prev_rank: 6, next_rank: 0
-ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
 rank: 6, world_size = 8, prev_rank: 5, next_rank: 7
-rank 7 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([7., 7., 7., 7., 7., 7., 7., 7.], device='npu:7'), y = tensor([0.9571, 0.5901, 0.9657, 0.4371, 0.1827, 0.1134, 0.2779, 0.4145],
-       device='npu:7')
-rank 4 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([4., 4., 4., 4., 4., 4., 4., 4.], device='npu:4'), y = tensor([0.3597, 0.5829, 0.0904, 0.8194, 0.8230, 0.6343, 0.0859, 0.5285],
-       device='npu:4')
-rank 5 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([5., 5., 5., 5., 5., 5., 5., 5.], device='npu:5'), y = tensor([0.2578, 0.4895, 0.1455, 0.8414, 0.4468, 0.8904, 0.3239, 0.8004],
-       device='npu:5')
-rank 1 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([1., 1., 1., 1., 1., 1., 1., 1.], device='npu:1'), y = tensor([0.4883, 0.6972, 0.7308, 0.1584, 0.4917, 0.1565, 0.9736, 0.3240],
-       device='npu:1')
-rank 0 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([0., 0., 0., 0., 0., 0., 0., 0.], device='npu:0'), y = tensor([0.9113, 0.2598, 0.1080, 0.5538, 0.0526, 0.1576, 0.8154, 0.7074],
+ranks_flagcx: [0, 1, 2, 3, 4, 5, 6, 7]
+rank: 7, world_size = 8, prev_rank: 6, next_rank: 0
+rank 0 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([0., 0., 0., 0., 0., 0., 0., 0.], device='npu:0'), y = tensor([0.4311, 0.1454, 0.0292, 0.8849, 0.8801, 0.7714, 0.7580, 0.5444],
        device='npu:0')
-rank 3 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([3., 3., 3., 3., 3., 3., 3., 3.], device='npu:3'), y = tensor([0.5303, 0.3047, 0.7554, 0.5537, 0.6682, 0.4225, 0.6049, 0.6826],
-       device='npu:3')
-rank 6 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([6., 6., 6., 6., 6., 6., 6., 6.], device='npu:6'), y = tensor([0.6001, 0.7100, 0.1462, 0.3499, 0.8382, 0.6887, 0.2457, 0.8605],
+rank 4 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([4., 4., 4., 4., 4., 4., 4., 4.], device='npu:4'), y = tensor([0.5413, 0.2389, 0.2355, 0.2723, 0.1999, 0.9361, 0.2784, 0.4649],
+       device='npu:4')
+rank 7 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([7., 7., 7., 7., 7., 7., 7., 7.], device='npu:7'), y = tensor([0.6334, 0.3624, 0.2285, 0.7170, 0.4273, 0.2751, 0.9223, 0.6368],
+       device='npu:7')
+rank 6 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([6., 6., 6., 6., 6., 6., 6., 6.], device='npu:6'), y = tensor([0.0798, 0.2993, 0.1912, 0.9224, 0.9864, 0.6944, 0.3172, 0.4439],
        device='npu:6')
-[ERROR] 2025-07-14-14:38:20 (PID:4152429, Device:1, RankID:-1) ERR99999 UNKNOWN applicaiton exception
-[ERROR] 2025-07-14-14:38:20 (PID:4152428, Device:0, RankID:-1) ERR99999 UNKNOWN applicaiton exception
-[ERROR] 2025-07-14-14:38:20 (PID:4152433, Device:5, RankID:-1) ERR99999 UNKNOWN applicaiton exception
-[ERROR] 2025-07-14-14:38:20 (PID:4152432, Device:4, RankID:-1) ERR99999 UNKNOWN applicaiton exception
-[ERROR] 2025-07-14-14:38:21 (PID:4152435, Device:7, RankID:-1) ERR99999 UNKNOWN applicaiton exception
-[ERROR] 2025-07-14-14:38:21 (PID:4152431, Device:3, RankID:-1) ERR99999 UNKNOWN applicaiton exception
-rank 2 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([2., 2., 2., 2., 2., 2., 2., 2.], device='npu:2'), y = tensor([0.7854, 0.8488, 0.1340, 0.0312, 0.0039, 0.8469, 0.0717, 0.8606],
+rank 2 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([2., 2., 2., 2., 2., 2., 2., 2.], device='npu:2'), y = tensor([0.3262, 0.1674, 0.4296, 0.1624, 0.1929, 0.1748, 0.5125, 0.1000],
        device='npu:2')
-[ERROR] 2025-07-14-14:38:22 (PID:4152434, Device:6, RankID:-1) ERR99999 UNKNOWN applicaiton exception
-[ERROR] 2025-07-14-14:38:23 (PID:4152430, Device:2, RankID:-1) ERR99999 UNKNOWN applicaiton exception
+rank 5 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([5., 5., 5., 5., 5., 5., 5., 5.], device='npu:5'), y = tensor([0.7539, 0.5975, 0.7328, 0.2121, 0.2280, 0.1545, 0.8612, 0.6822],
+       device='npu:5')
+rank 3 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([3., 3., 3., 3., 3., 3., 3., 3.], device='npu:3'), y = tensor([0.7353, 0.7130, 0.5999, 0.8963, 0.2970, 0.1322, 0.7745, 0.4784],
+       device='npu:3')
+rank 1 before batch_isend_irecv with FLAGCX_GROUP2: x = tensor([1., 1., 1., 1., 1., 1., 1., 1.], device='npu:1'), y = tensor([0.8628, 0.7751, 0.8572, 0.0908, 0.6983, 0.6855, 0.7798, 0.7394],
+       device='npu:1')
+[ERROR] 2025-07-15-16:50:31 (PID:30640, Device:5, RankID:-1) ERR99999 UNKNOWN application exception
+[ERROR] 2025-07-15-16:50:31 (PID:30639, Device:4, RankID:-1) ERR99999 UNKNOWN application exception
+[ERROR] 2025-07-15-16:50:31 (PID:30638, Device:3, RankID:-1) ERR99999 UNKNOWN application exception[ERROR] 2025-07-15-16:50:31 (PID:30637, Device:2, RankID:-1) ERR99999 UNKNOWN application exception
+
+[ERROR] 2025-07-15-16:50:31 (PID:30642, Device:7, RankID:-1) ERR99999 UNKNOWN application exception
+[ERROR] 2025-07-15-16:50:31 (PID:30641, Device:6, RankID:-1) ERR99999 UNKNOWN application exception
+[ERROR] 2025-07-15-16:50:31 (PID:30635, Device:0, RankID:-1) ERR99999 UNKNOWN application exception
+[ERROR] 2025-07-15-16:50:31 (PID:30636, Device:1, RankID:-1) ERR99999 UNKNOWN application exception

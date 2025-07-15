@@ -190,7 +190,7 @@ flagcxStream_t flagcxBackend::getStreamByIndex(int streamId) {
   } else {
     //acl_stream = c10_npu::getCurrentNPUStream().stream(false);
     //flagcxStreams_[streamId] = reinterpret_cast<flagcxStream_t>(&acl_stream);
-    
+    flagcxStreams_[streamId] = nullptr;
     C10D_FLAGCX_CHECK(
         handler_->devHandle->streamCreate(&flagcxStreams_[streamId]),
         std::nullopt);
