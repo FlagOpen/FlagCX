@@ -5,7 +5,6 @@
 #pragma once
 
 #include "flagcx.h"
-#include <iostream>
 #ifdef USE_NVIDIA_ADAPTOR
 #include <c10/core/impl/InlineStreamGuard.h>
 #include <c10/cuda/CUDAGuard.h>
