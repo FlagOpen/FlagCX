@@ -108,7 +108,7 @@ public:
   }
 
   void record(const flagcxStream_t &stream, const int device_id) override {
-    npu_event.record(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, device_id));
+    npu_event.record(c10_npu::getNPUStreamFromPool(device_id));
   }
 
   void block(const int device_id) override {
@@ -116,7 +116,7 @@ public:
   }
 
   void block(const flagcxStream_t &stream, const int device_id) override {
-    npu_event.block(c10_npu::getStreamFromExternal(*(aclrtStream *)stream, device_id));
+    npu_event.block(c10_npu::getNPUStreamFromPool(device_id));
   }
 
 private:

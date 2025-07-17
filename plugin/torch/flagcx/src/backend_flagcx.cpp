@@ -189,9 +189,14 @@ flagcxStream_t flagcxBackend::getStreamByIndex(int streamId) {
     return search->second;
   } else {
     flagcxStreams_[streamId] = nullptr;
+#ifdef USE_ASCEND_ADAPTOR
+    acl_stream = c10_npu::getCurrentNPUStream().stream(false);
+    flagcxStreams_[streamId] = reinterpret_cast<flagcxStream_t>(&acl_stream);
+#else
     C10D_FLAGCX_CHECK(
         handler_->devHandle->streamCreate(&flagcxStreams_[streamId]),
         std::nullopt);
+#endif
     return flagcxStreams_[streamId];
   }
 }

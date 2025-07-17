@@ -201,6 +201,7 @@ protected:
   std::unordered_map<int, flagcxStream_t> flagcxStreams_;
   std::unordered_map<int, std::unique_ptr<flagcxEvent>> flagcxEvents_;
   flagcxHandlerGroup_t handler_ = nullptr;
+  aclrtStream acl_stream;
 
 private:
   // Helper that encapsulates work shared across all collective communication
