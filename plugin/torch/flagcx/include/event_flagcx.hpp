@@ -5,6 +5,7 @@
 #pragma once
 
 #include "flagcx.h"
+
 #ifdef USE_NVIDIA_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
