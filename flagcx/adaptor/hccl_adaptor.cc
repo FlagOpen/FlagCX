@@ -288,9 +288,8 @@ flagcxResult_t hcclAdaptorGroupEnd() {
   if (itemNum > 0) {
     return (flagcxResult_t)h2f_ret_map[HcclBatchSendRecv(sendRecvInfo.data(), itemNum,
 		    				       item.comm->base, item.stream->base)];
-  } else {
-    return flagcxSuccess;
-  }
+  } 
+  return flagcxSuccess;  
 }
 
 struct flagcxCCLAdaptor hcclAdaptor = {
