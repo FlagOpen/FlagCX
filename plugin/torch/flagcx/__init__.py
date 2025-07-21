@@ -47,4 +47,9 @@ def _batch_isend_irecv(p2p_op_list):
                 p2p_op.op(p2p_op.tensor, p2p_op.peer, p2p_op.group, p2p_op.tag)
         return cm.works
 replace_device(dist.distributed_c10d.PrefixStore, "__init__")
-torch.distributed.batch_isend_irecv=_batch_isend_irecv
+try: 
+    import torch_npu
+    torch.distributed.batch_isend_irecv=_batch_isend_irecv
+    print("NPU-optimized batch_isend_irecv implementation enabled")
+except ImportError:
+    print("Using PyTorch's native batch_isend_irecv implementation")
