@@ -190,6 +190,7 @@ flagcxStream_t flagcxBackend::getStreamByIndex(int streamId) {
   } else {
     flagcxStreams_[streamId] = nullptr;
 #ifdef USE_ASCEND_ADAPTOR
+// TODO: The getStreamFromExternal interface is not supported at this stage on NPU. Adaptation modifications will be made in the future.
     acl_stream = c10_npu::getCurrentNPUStream().stream(false);
     flagcxStreams_[streamId] = reinterpret_cast<flagcxStream_t>(&acl_stream);
 #else
