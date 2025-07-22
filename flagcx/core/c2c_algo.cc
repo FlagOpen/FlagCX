@@ -66,7 +66,6 @@ inline bool readTagValue(char *line, const char *tag, char *value) {
     start += len + 2; // skip over <tag>
     *end = '\0';      // terminate at </tag>
     strcpy(value, start);
-    INFO(FLAGCX_INIT, "read tag %s value %s", tag, value);
     return true;
   }
 
@@ -1106,7 +1105,7 @@ flagcxResult_t flagcxC2cPlanner::importXml(const char *path) {
       filename, "%s/%lu_%d.xml", path,
       genC2cAlgoHash(sendCount_, recvCount_, rootClusterId_, commOp_, redOp_),
       rank_);
-  INFO(FLAGCX_INIT, "rank %d algo input set to %s", rank_, filename);
+  TRACE_CALL("rank %d algo input set to %s", rank_, filename);
   FILE *file = fopen(filename, "r");
   if (!file)
     return flagcxInternalError;
@@ -1144,10 +1143,10 @@ flagcxResult_t flagcxC2cPlanner::importXml(const char *path) {
     if (strstr(line, "<redOp>"))
       redOp = static_cast<flagcxRedOp_t>(readIntTag(line, "redOp"));
   }
-  INFO(FLAGCX_INIT,
-       "init refreshFunc with: offset = %lu, count = %lu, totalCount = %lu, "
-       "redOp = %d",
-       offset, count, totalCount, redOp);
+  TRACE_CALL(
+      "init refreshFunc with: offset = %lu, count = %lu, totalCount = %lu, "
+      "redOp = %d",
+      offset, count, totalCount, redOp);
   refreshFunc_ = flagcxC2cRefreshFunc(offset, count, totalCount, redOp);
 
   // function sequences
@@ -2185,8 +2184,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
     }
   }
   if (!strategyFound_ && res != flagcxSuccess) {
-    INFO(FLAGCX_INIT,
-         "Unable to load existing algorithm. Calling `findStrategy`...");
+    TRACE_CALL("Unable to load existing algorithm. Calling `findStrategy`...");
     FLAGCXCHECK(findStrategy());
     strategyFound_ = 1;
   }
