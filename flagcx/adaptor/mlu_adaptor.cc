@@ -292,7 +292,10 @@ struct flagcxDeviceAdaptor mluAdaptor {
       mluAdaptorGetDeviceByPciBusId, // flagcxResult_t
                                      // (*getDeviceByPciBusId)(int
                                      // *dev, const char *pciBusId);
-      mluAdaptorLaunchHostFunc
+      mluAdaptorLaunchHostFunc,
+      NULL, // flagcxResult_t (*gdrPtrMmap)(void **pcpuptr, void *devptr, size_t
+            // sz);
+      NULL, // flagcxResult_t (*gdrPtrMummap)(void *cpuptr, size_t sz);
 };
 
 #endif // USE_CAMBRICON_ADAPTOR
