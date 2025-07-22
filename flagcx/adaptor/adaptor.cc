@@ -17,6 +17,18 @@ struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&mpiAdaptor,
                                                       &ncclAdaptor};
 #endif
 struct flagcxDeviceAdaptor *deviceAdaptor = &cudaAdaptor;
+#elif USE_ASCEND_ADAPTOR
+#ifdef USE_BOOTSTRAP_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
+                                                      &hcclAdaptor};
+#elif USE_GLOO_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&glooAdaptor,
+                                                      &hcclAdaptor};
+#elif USE_MPI_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&mpiAdaptor,
+                                                      &hcclAdaptor};
+#endif
+struct flagcxDeviceAdaptor *deviceAdaptor = &cannAdaptor;
 #elif USE_ILUVATAR_COREX_ADAPTOR
 #ifdef USE_BOOTSTRAP_ADAPTOR
 struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
@@ -53,6 +65,20 @@ struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&mpiAdaptor,
                                                       &mcclAdaptor};
 #endif
 struct flagcxDeviceAdaptor *deviceAdaptor = &macaAdaptor;
+
+#elif USE_MUSA_ADAPTOR
+#ifdef USE_BOOTSTRAP_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
+                                                      &musa_mcclAdaptor};
+#elif USE_GLOO_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&glooAdaptor,
+                                                      &musa_mcclAdaptor};
+#elif USE_MPI_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&mpiAdaptor,
+                                                      &musa_mcclAdaptor};
+#endif
+struct flagcxDeviceAdaptor *deviceAdaptor = &musaAdaptor;
+
 #elif USE_KUNLUNXIN_ADAPTOR
 #ifdef USE_BOOTSTRAP_ADAPTOR
 struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
