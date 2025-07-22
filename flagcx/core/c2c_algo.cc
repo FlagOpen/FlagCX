@@ -39,6 +39,17 @@ size_t getC2cCommPatternHash(size_t count, size_t rootClusterId,
                              (h5 << 4));
 }
 
+size_t genC2cAlgoHash(size_t sendCount, size_t recvCount, size_t rootClusterId,
+                      flagcxCommOp_t commOp, flagcxRedOp_t redOp) {
+  std::size_t h1 = std::hash<size_t>()(sendCount);
+  std::size_t h2 = std::hash<size_t>()(recvCount);
+  std::size_t h3 = std::hash<size_t>()(rootClusterId);
+  std::size_t h4 = std::hash<size_t>()(commOp);
+  std::size_t h5 = std::hash<size_t>()(redOp);
+  return static_cast<size_t>(h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3) ^
+                             (h5 << 4));
+}
+
 // Max line length for reading xml
 #define LINE_LEN 512
 
@@ -824,7 +835,7 @@ flagcxC2cPlanner::flagcxC2cPlanner(size_t sendCount, size_t recvCount,
 }
 
 flagcxC2cPlanner::flagcxC2cPlanner(const char *path) {
-  INFO(FLAGCX_ENV, "FLAGCX_ALGO_FILE set by environment to %s", path);
+  INFO(FLAGCX_ENV, "FLAGCX_ALGO_IMPORT_PATH set by environment to %s", path);
   importXml(path);
 }
 
@@ -1091,7 +1102,10 @@ std::vector<std::vector<T>> readFunc2DVector(FILE *file, const char *tagName) {
 
 flagcxResult_t flagcxC2cPlanner::importXml(const char *path) {
   char filename[128];
-  sprintf(filename, "%s_%d.xml", path, rank_);
+  sprintf(
+      filename, "%s/%lu_%d.xml", path,
+      genC2cAlgoHash(sendCount_, recvCount_, rootClusterId_, commOp_, redOp_),
+      rank_);
   INFO(FLAGCX_INIT, "rank %d algo input set to %s", rank_, filename);
   FILE *file = fopen(filename, "r");
   if (!file)
@@ -1152,7 +1166,10 @@ flagcxResult_t flagcxC2cPlanner::importXml(const char *path) {
 
 flagcxResult_t flagcxC2cPlanner::exportXml(const char *path) {
   char filename[128];
-  sprintf(filename, "%s_%d.xml", path, rank_);
+  sprintf(
+      filename, "%s/%lu_%d.xml", path,
+      genC2cAlgoHash(sendCount_, recvCount_, rootClusterId_, commOp_, redOp_),
+      rank_);
   FILE *file = fopen(filename, "w");
   if (!file)
     return flagcxInternalError;
@@ -2161,7 +2178,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
   flagcxResult_t res = flagcxSuccess;
   if (getenv("FLAGCX_C2C_ALGO")) {
     if (strcmp(getenv("FLAGCX_C2C_ALGO"), "XML_INPUT") == 0) {
-      const char *algo_path = getenv("FLAGCX_ALGO_FILE");
+      const char *algo_path = getenv("FLAGCX_ALGO_IMPORT_PATH");
       res = importXml(algo_path);
     } else {
       res = flagcxNotSupported;
