@@ -48,6 +48,7 @@ struct flagcxPreconnectJob {
   struct flagcxHeteroComm *comm;
 };
 
+
 flagcxResult_t flagcxPreconnectFunc(struct flagcxAsyncJob *job_) {
   struct flagcxPreconnectJob *job = (struct flagcxPreconnectJob *)job_;
   struct flagcxHeteroComm *comm = job->comm;
@@ -88,11 +89,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
       *asyncJobsMain = gjob->asyncJobsPtr;
   // volatile bool *groupAbortFlag = gjob->abortFlagPtr;
 
-  struct hostFuncArgs {
-    flagcxStream_t stream;
-    void *args;
-  };
-  std::queue<struct hostFuncArgs> hostFuncQueue;
+  std::queue<FuncArgs *> FuncQueue;
 
   if (groupCommPreconnectHeadMain != nullptr) {
     struct flagcxHeteroComm *comm = groupCommPreconnectHeadMain;
@@ -157,15 +154,21 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.sendStepMask = MAXSTEPS - 1;
           op->stream = p2p->stream;
           flagcxCalloc((bool **)&op->args.hlArgs, 1);
-          if (deviceAdaptor->launchDeviceFunc) {
+          flagcxCalloc((bool **)&op->args.hEventReady, 0);
+          if (deviceKernel) {
             deviceAdaptor->deviceMalloc((void **)&op->args.dlArgs, sizeof(bool),
                                         flagcxMemDevice, op->stream);
-            hostFuncQueue.push({op->stream, (void *)op->args.dlArgs});
-          } else {
-            hostFuncQueue.push({op->stream, (void *)op->args.hlArgs});
+            deviceAdaptor->deviceMalloc((void **)&op->args.dEventReady,
+                                        sizeof(bool), flagcxMemDevice,
+                                        op->stream);
           }
-          FLAGCXCHECK(deviceAdaptor->launchHostFunc(
-              op->stream, cpuStreamWait, (void *)&op->args.eventReady));
+          FuncArgs *args = (FuncArgs *)malloc(sizeof(FuncArgs));
+          args->stream = op->stream;
+          args->hargs = op->args.hlArgs;
+          args->hEvent = op->args.hEventReady;
+          args->dargs = op->args.dlArgs;
+          args->dEvent = op->args.dEventReady;
+          FuncQueue.push(args);
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));
           free(p2p);
         }
@@ -188,15 +191,21 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.sendStepMask = MAXSTEPS - 1;
           op->stream = p2p->stream;
           flagcxCalloc((bool **)&op->args.hlArgs, 1);
-          if (deviceAdaptor->launchDeviceFunc) {
+          flagcxCalloc((bool **)&op->args.hEventReady, 0);
+          if (deviceKernel) {
             deviceAdaptor->deviceMalloc((void **)&op->args.dlArgs, sizeof(bool),
                                         flagcxMemDevice, op->stream);
-            hostFuncQueue.push({op->stream, (void *)op->args.dlArgs});
-          } else {
-            hostFuncQueue.push({op->stream, (void *)op->args.hlArgs});
+            deviceAdaptor->deviceMalloc((void **)&op->args.dEventReady,
+                                        sizeof(bool), flagcxMemDevice,
+                                        op->stream);
           }
-          FLAGCXCHECK(deviceAdaptor->launchHostFunc(
-              op->stream, cpuStreamWait, (void *)&op->args.eventReady));
+          FuncArgs *args = (FuncArgs *)malloc(sizeof(FuncArgs));
+          args->stream = op->stream;
+          args->hargs = op->args.hlArgs;
+          args->hEvent = op->args.hEventReady;
+          args->dargs = op->args.dlArgs;
+          args->dEvent = op->args.dEventReady;
+          FuncQueue.push(args);
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));
           free(p2p);
         }
@@ -206,15 +215,16 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
     } while (comm != nullptr);
   }
 
-  while (!hostFuncQueue.empty()) {
-    struct hostFuncArgs args;
-    args = hostFuncQueue.front();
-    hostFuncQueue.pop();
-    if (deviceAdaptor->launchDeviceFunc) {
-      FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(args.stream, args.args));
+  while (!FuncQueue.empty()) {
+    FuncArgs *args = FuncQueue.front();
+    FuncQueue.pop();
+
+    if (deviceKernel) {
+      FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(args->stream, deviceKernel,
+                                                  (void *)args));
     } else {
-      FLAGCXCHECK(deviceAdaptor->launchHostFunc(args.stream, cpuAsyncLaunch,
-                                                args.args));
+      FLAGCXCHECK(deviceAdaptor->launchHostFunc(args->stream, cpuAsyncLaunch,
+                                                (void *)args));
     }
   }
 
@@ -234,3 +244,4 @@ exit:
 fail:
   goto exit;
 }
+

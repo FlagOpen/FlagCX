@@ -554,50 +554,6 @@ flagcxC2cPlanner::flagcxC2cPlanner(size_t sendCount, size_t recvCount,
   rootClusterId_ = comm_->cluster_ids[rootRank_];
   isRootCluster_ = (rootClusterId_ == clusterId_) ? 1 : 0;
 
-  // set #steps and initialize pipelines, sequential implementation by default
-  nSeqPreSteps_ = 1;
-  nPipePreSteps_ = 0;
-  nSeqInterSteps_ = 1;
-  nPipePostSteps_ = 0;
-  nSeqPostSteps_ = 1;
-  // pipeline optimizations for AllGather
-  if (commOp_ == flagcxCommOpAllGather) {
-    if (eachNicPerRank_) { // rank_local
-      nSeqPreSteps_ = 0;
-      nPipePreSteps_ = 1;
-      nSeqInterSteps_ = 0;
-      nPipePostSteps_ = comm_->nclusters - 2;
-    } else if (multiNic_) { // general multi-nic
-      nSeqPreSteps_ = 1;
-      nPipePreSteps_ = 0;
-      nSeqInterSteps_ = 1;
-      nPipePostSteps_ = comm_->nclusters - 2;
-    } else { // single nic
-      nSeqPreSteps_ = 1;
-      nPipePreSteps_ = 0;
-      nSeqInterSteps_ = 0;
-      nPipePostSteps_ = comm_->nclusters - 1;
-    }
-  } else if (commOp_ == flagcxCommOpReduceScatter) {
-    nPipePreSteps_ = comm_->nclusters - 2;
-    nSeqInterSteps_ = 1;
-  } else if (commOp_ == flagcxCommOpAllReduce) {
-    nPipePreSteps_ = comm_->nclusters - 2;
-    nSeqInterSteps_ = 1;
-    nPipePostSteps_ = comm_->nclusters - 1;
-  }
-
-  for (int i = 0; i < nSeqPreSteps_ + nPipePreSteps_; ++i) {
-    preHomoFuncSteps_.emplace_back();
-  }
-  for (int i = 0; i < nSeqInterSteps_ + nPipePreSteps_ + nPipePostSteps_; ++i) {
-    heteroFuncSteps_.emplace_back();
-    homoInterFuncSteps_.emplace_back();
-  }
-  for (int i = 0; i < nPipePostSteps_ + nSeqPostSteps_; ++i) {
-    postHomoFuncSteps_.emplace_back();
-  }
-
   // calculate clusterOffset_ and clusterCount_
   clusterOffset_ = 0;
   for (int i = 0; i < clusterId_; ++i) {
@@ -641,6 +597,62 @@ flagcxC2cPlanner::flagcxC2cPlanner(size_t sendCount, size_t recvCount,
       break;
     }
   }
+
+  // initialize #steps and algorithm, sequential implementation by default
+  algorithm_ = flagcxAlgoSequential;
+  nSeqPreSteps_ = 1;
+  nPipePreSteps_ = 0;
+  nSeqInterSteps_ = 1;
+  nPipePostSteps_ = 0;
+  nSeqPostSteps_ = 1;
+  // use ring pipeline algo if FLAGCX_C2C_ALGO=RING_PIPELINED
+  const char *algorithm = getenv("FLAGCX_C2C_ALGO");
+  if (algorithm == NULL || strcmp(algorithm, "RING_PIPELINED") == 0) {
+    // pipeline optimizations for AllGather
+    if (commOp_ == flagcxCommOpAllGather) {
+      algorithm_ = flagcxAlgoPipeline;
+      if (eachNicPerRank_) { // rank_local
+        nSeqPreSteps_ = 0;
+        nPipePreSteps_ = 1;
+        nSeqInterSteps_ = 0;
+        nPipePostSteps_ = comm_->nclusters - 2;
+      } else if (multiNic_) { // general multi-nic
+        nSeqPreSteps_ = 1;
+        nPipePreSteps_ = 0;
+        nSeqInterSteps_ = 1;
+        nPipePostSteps_ = comm_->nclusters - 2;
+      } else { // single nic
+        nSeqPreSteps_ = 1;
+        nPipePreSteps_ = 0;
+        nSeqInterSteps_ = 0;
+        nPipePostSteps_ = comm_->nclusters - 1;
+      }
+    } else if (commOp_ == flagcxCommOpReduceScatter && multiNic_) {
+      algorithm_ = flagcxAlgoPipeline;
+      nPipePreSteps_ = comm_->nclusters - 2;
+      nSeqInterSteps_ = 1;
+    } else if (commOp_ == flagcxCommOpAllReduce && multiNic_) {
+      algorithm_ = flagcxAlgoPipeline;
+      nPipePreSteps_ = comm_->nclusters - 2;
+      nSeqInterSteps_ = 1;
+      nPipePostSteps_ = comm_->nclusters - 1;
+    }
+  }
+  // initialize an empty func queue for each step
+  for (int i = 0; i < nSeqPreSteps_ + nPipePreSteps_; ++i) {
+    preHomoFuncSteps_.emplace_back();
+  }
+  for (int i = 0; i < nSeqInterSteps_ + nPipePreSteps_ + nPipePostSteps_; ++i) {
+    heteroFuncSteps_.emplace_back();
+    homoInterFuncSteps_.emplace_back();
+  }
+  for (int i = 0; i < nPipePostSteps_ + nSeqPostSteps_; ++i) {
+    postHomoFuncSteps_.emplace_back();
+  }
+  TRACE_CALL("flagcxC2cPlanner(nSeqPreSteps, nPipePreSteps, nSeqInterSteps, "
+             "nPipePostSteps, nSeqPostSteps) = (%d, %d, %d, %d, %d)",
+             nSeqPreSteps_, nPipePreSteps_, nSeqInterSteps_, nPipePostSteps_,
+             nSeqPostSteps_);
 
   // set strategyFound_ to 0
   strategyFound_ = 0;
@@ -778,6 +790,9 @@ flagcxCommOp_t flagcxC2cPlanner::getC2cHomoCommOp(int homoType, int mode) {
               return flagcxCommOpReduce;
           }
         case 1:
+          if (algorithm_ == flagcxAlgoSequential) {
+            return flagcxCommOpAllReduce;
+          }
           switch (mode) {
             case 0:
               return flagcxCommOpReduceScatter;
@@ -787,7 +802,17 @@ flagcxCommOp_t flagcxC2cPlanner::getC2cHomoCommOp(int homoType, int mode) {
               return flagcxCommOpAllReduce;
           }
         case 2:
-          return flagcxCommOpBroadcast;
+          if (algorithm_ == flagcxAlgoPipeline) {
+            return flagcxCommOpBroadcast;
+          }
+          switch (mode) {
+            case 0:
+              return flagcxCommNoOp;
+            case 1:
+              return flagcxCommOpAllReduce;
+            case 2:
+              return flagcxCommNoOp;
+          }
       }
     case flagcxCommOpAllGather:
       switch (homoType) {
@@ -819,7 +844,11 @@ flagcxCommOp_t flagcxC2cPlanner::getC2cHomoCommOp(int homoType, int mode) {
         case 1:
           switch (mode) {
             case 0:
-              return flagcxCommOpReduceScatter;
+              if (algorithm_ == flagcxAlgoPipeline) {
+                return flagcxCommOpReduceScatter;
+              } else {
+                return flagcxCommOpAllReduce;
+              }
             case 1:
               return flagcxCommOpAllReduce;
             case 2:
@@ -828,7 +857,11 @@ flagcxCommOp_t flagcxC2cPlanner::getC2cHomoCommOp(int homoType, int mode) {
         case 2:
           switch (mode) {
             case 0:
-              return flagcxCommNoOp;
+              if (algorithm_ == flagcxAlgoPipeline) {
+                return flagcxCommNoOp;
+              } else {
+                return flagcxCommOpReduceScatter;
+              }
             case 1:
               return flagcxCommOpReduceScatter;
             case 2:
@@ -929,8 +962,9 @@ flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
       for (size_t j = 0; j < nClusterInterRanks; ++j) {
         size_t clusterdataoffset = 0;
         for (size_t z = 0; z < clusterInterRankList_.size(); ++z) {
-          if (commOp_ == flagcxCommOpReduceScatter ||
-              commOp_ == flagcxCommOpAllReduce) {
+          if ((commOp_ == flagcxCommOpReduceScatter ||
+               commOp_ == flagcxCommOpAllReduce) &&
+              algorithm_ == flagcxAlgoPipeline) {
             size_t rankCount = totalCount_ / comm_->nranks;
             myCount = rankCount * comm_->cluster_sizes[z] / nClusterInterRanks;
             myRes = rankCount * comm_->cluster_sizes[z] % nClusterInterRanks;
@@ -1172,6 +1206,11 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     auto &bufferList =
         interRankBufferInfoManager_.getBufferInfoList(clusterId_, rank_);
     for (auto it = bufferList.begin(); it != bufferList.end(); ++it) {
+      if (algorithm_ == flagcxAlgoSequential) {
+        refreshFunc_ =
+            flagcxC2cRefreshFunc(it->offset_, it->count_, totalCount_, redOp_);
+        break;
+      }
       if ((commOp_ == flagcxCommOpReduceScatter ||
            commOp_ == flagcxCommOpAllReduce) &&
           !(it->isScheduled_)) {
@@ -1235,7 +1274,8 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
           interRankBufferInfoManager_.getBufferInfoList(clusterId_, rank_)
               .front();
       if (preHomoFuncCommOp == flagcxCommOpReduceScatter) {
-        if (commOp_ == flagcxCommOpReduce) {
+        if (commOp_ == flagcxCommOpReduce ||
+            algorithm_ == flagcxAlgoSequential) {
           preHomoFuncSteps_[0].emplace_back(
               -1, 0, recvType, 0, homoMyRank_ * buffer.count_, buffer.count_, 0,
               preHomoFuncCommOp);
@@ -1304,7 +1344,8 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
           for (auto &buffer : interRankBufferInfoManager_.getBufferInfoList(
                    clusterId_, clusterInterRankList_[clusterId_][i])) {
             int step = 0;
-            if (commOp_ != flagcxCommOpReduce) {
+            if (commOp_ != flagcxCommOpReduce &&
+                algorithm_ == flagcxAlgoPipeline) {
               step = (clusterId_ + comm_->nclusters - 1 -
                       comm_->cluster_ids[buffer.clusterIdToSend_]) %
                      comm_->nclusters;
@@ -1429,7 +1470,8 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
             }
           }
         }
-        if (commOp_ == flagcxCommOpAllReduce) {
+        if (commOp_ == flagcxCommOpAllReduce &&
+            algorithm_ == flagcxAlgoPipeline) {
           refresh(2);
           size_t clusterOffset = 0;
           for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
@@ -1515,15 +1557,18 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
                                               homoInterFuncCommOp);
         } else if (homoInterFuncCommOp == flagcxCommOpReduceScatter) {
           for (int c = 0; c < comm_->nclusters; ++c) {
-            int step =
-                (clusterId_ + comm_->nclusters - 1 - c) % comm_->nclusters;
+            int step = algorithm_ == flagcxAlgoSequential
+                           ? 0
+                           : (clusterId_ + comm_->nclusters - 1 - c) %
+                                 comm_->nclusters;
             if (step == comm_->nclusters - 1) {
               continue;
             }
             size_t rankCount = totalCount_ / comm_->nranks;
             size_t recvoffset =
                 clusterOffset_ * rankCount + homoMyRank_ * rankCount;
-            int recvFlag = commOp_ == flagcxCommOpReduceScatter &&
+            int recvFlag = algorithm_ == flagcxAlgoPipeline &&
+                           commOp_ == flagcxCommOpReduceScatter &&
                            eachNicPerRank_ && step == comm_->nclusters - 2;
             homoInterFuncSteps_[step].emplace_back(
                 -1, sendType, recvFlag ? 1 : recvType,
@@ -1572,6 +1617,9 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
               size_t step = (comm_->cluster_ids[it->peerRank_] +
                              comm_->nclusters - 1 - clusterId_) %
                             comm_->nclusters;
+              if (algorithm_ == flagcxAlgoPipeline) {
+                step = 0;
+              }
               postHomoFuncSteps_[step].emplace_back(
                   clusterInterRankList_[clusterId_][i] - (rank_ - homoMyRank_),
                   1, 1, it->offset_, it->offset_, it->count_, 2,
@@ -1681,14 +1729,23 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
           continue;
         }
         if (homoInterMyRank_ != -1) {
-          size_t step =
-              (clusterId_ + comm_->nclusters - 1 - i) % comm_->nclusters;
-          heteroFuncStep[step].addP2pOp(rank_, clusterInterRankList_[i][0],
-                                        clusterOffset_ * sendCount_,
-                                        clusterCount_ * sendCount_, 0);
-          heteroFuncStep[comm_->nclusters - 1 - step].addP2pOp(
-              rank_, clusterInterRankList_[i][0], recvOffset * sendCount_,
-              comm_->cluster_sizes[i] * sendCount_, 1);
+          if (algorithm_ == flagcxAlgoPipeline) {
+            size_t step =
+                (clusterId_ + comm_->nclusters - 1 - i) % comm_->nclusters;
+            heteroFuncStep[step].addP2pOp(rank_, clusterInterRankList_[i][0],
+                                          clusterOffset_ * sendCount_,
+                                          clusterCount_ * sendCount_, 0);
+            heteroFuncStep[comm_->nclusters - 1 - step].addP2pOp(
+                rank_, clusterInterRankList_[i][0], recvOffset * sendCount_,
+                comm_->cluster_sizes[i] * sendCount_, 1);
+          } else if (algorithm_ == flagcxAlgoSequential) {
+            heteroFuncStep[0].addP2pOp(rank_, clusterInterRankList_[i][0],
+                                       clusterOffset_ * sendCount_,
+                                       clusterCount_ * sendCount_, 0);
+            heteroFuncStep[0].addP2pOp(rank_, clusterInterRankList_[i][0],
+                                       recvOffset * sendCount_,
+                                       comm_->cluster_sizes[i] * sendCount_, 1);
+          }
         }
         recvOffset += comm_->cluster_sizes[i];
       }
@@ -1840,13 +1897,17 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
 
   // execute pipelined preHomoFunc and heteroFunc steps
   void *refreshBuff = sendTmpBuff;
-  if (commOp_ == flagcxCommOpReduceScatter ||
-      commOp_ == flagcxCommOpAllReduce) {
+  if ((commOp_ == flagcxCommOpReduceScatter ||
+       commOp_ == flagcxCommOpAllReduce) &&
+      algorithm_ == flagcxAlgoPipeline) {
     refreshBuff =
         static_cast<void *>(static_cast<char *>(sendTmpBuff) +
                             clusterOffset_ * totalCount_ / comm_->nranks *
                                 getFlagcxDataTypeSize(datatype));
   }
+  // execute refreshFunc
+  refreshFunc_.run(refreshBuff, datatype, stream);
+  deviceAdaptor->streamSynchronize(stream);
   for (int s = 0; s < nPipePreSteps_; ++s) {
     cclAdaptors[flagcxCCLAdaptorDevice]->groupStart();
     for (int i = 0; i < preHomoFuncSteps_[nSeqPreSteps_ + s].size(); ++i) {
@@ -1859,7 +1920,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
     flagcxHeteroGroupStart();
     for (int i = 0; i < heteroFuncSteps_[s].size(); ++i) {
       // execute refreshFunc
-      refreshFunc_.run(refreshBuff, datatype, stream);
+      // refreshFunc_.run(refreshBuff, datatype, stream);
 
       // TODO: use stream wait rather than stream sync to avoid cpu blocking
       // deviceAdaptor->streamSynchronize(stream);
@@ -1876,6 +1937,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
         homoInterFuncSteps_[s][i].run(
             sendbuff, recvbuff, scratchBuffer_, datatype, redOp_,
             comm_->globalrank2homorank[root], comm_, het_stream);
+        refreshFunc_.run(refreshBuff, datatype, het_stream);
       }
     }
     flagcxHeteroGroupEnd();
@@ -1888,7 +1950,9 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
   for (int s = 0; s < nSeqInterSteps_; ++s) {
     for (int i = 0; i < heteroFuncSteps_[nPipePreSteps_ + s].size(); ++i) {
       // execute refreshFunc
-      refreshFunc_.run(refreshBuff, datatype, stream);
+      if (algorithm_ == flagcxAlgoSequential) {
+        refreshFunc_.run(refreshBuff, datatype, stream);
+      }
 
       // TODO: use stream wait rather than stream sync to avoid cpu blocking
       // deviceAdaptor->streamSynchronize(stream);
@@ -1905,6 +1969,9 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
         homoInterFuncSteps_[nPipePreSteps_ + s][i].run(
             sendbuff, recvbuff, scratchBuffer_, datatype, redOp_,
             comm_->globalrank2homorank[root], comm_, stream);
+        if (algorithm_ == flagcxAlgoPipeline) {
+          refreshFunc_.run(refreshBuff, datatype, stream);
+        }
       }
     }
   }
@@ -1927,7 +1994,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
          i < heteroFuncSteps_[nPipePreSteps_ + nSeqInterSteps_ + s].size();
          ++i) {
       // execute refreshFunc
-      refreshFunc_.run(refreshBuff, datatype, stream);
+      // refreshFunc_.run(refreshBuff, datatype, stream);
 
       // TODO: use stream wait rather than stream sync to avoid cpu blocking
       // deviceAdaptor->streamSynchronize(stream);
@@ -1958,7 +2025,9 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
   for (int s = 0; s < nSeqPostSteps_; ++s) {
     for (int i = 0; i < postHomoFuncSteps_[nPipePostSteps_ + s].size(); ++i) {
       // execute refresh func
-      refreshFunc_.run(refreshBuff, datatype, stream);
+      if (algorithm_ == flagcxAlgoSequential) {
+        refreshFunc_.run(refreshBuff, datatype, stream);
+      }
 
       // execute postHomoFunc
       postHomoFuncSteps_[nPipePostSteps_ + s][i].run(

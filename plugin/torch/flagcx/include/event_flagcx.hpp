@@ -21,6 +21,9 @@
 #elif USE_METAX_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
+#elif USE_MUSA_ADAPTOR
+#include <torch_musa/csrc/core/MUSAEvent.h>
+#include <musa_runtime.h>
 #elif USE_DU_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
@@ -175,6 +178,34 @@ public:
 
 private:
   at::cuda::CUDAEvent maca_event;
+};
+#elif USE_MUSA_ADAPTOR
+class flagcxMusaEvent : public flagcxEvent {
+public:
+  flagcxMusaEvent() {
+    musa_event = at::musa::MUSAEvent(musaEventDisableTiming);
+  }
+
+  void record(const int device_id) override {
+    musa_event.record(at::musa::getCurrentMUSAStream(device_id));
+  }
+
+  void record(const flagcxStream_t &stream, const int device_id) override {
+    musa_event.record(
+        at::musa::getStreamFromExternal(*(musaStream_t *)stream, device_id));
+  }
+
+  void block(const int device_id) override {
+    musa_event.block(at::musa::getCurrentMUSAStream(device_id));
+  }
+
+  void block(const flagcxStream_t &stream, const int device_id) override {
+    musa_event.block(
+        at::musa::getStreamFromExternal(*(musaStream_t *)stream, device_id));
+  }
+
+private:
+  at::musa::MUSAEvent musa_event;
 };
 #elif USE_DU_ADAPTOR
 class flagcxDuEvent : public flagcxEvent {

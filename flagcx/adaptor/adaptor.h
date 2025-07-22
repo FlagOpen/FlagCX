@@ -10,6 +10,7 @@
 #include "flagcx.h"
 #include "global_comm.h"
 #include "topo.h"
+#include "launch_kernel.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,6 +27,7 @@ extern struct flagcxCCLAdaptor hcclAdaptor;
 extern struct flagcxCCLAdaptor ixncclAdaptor;
 extern struct flagcxCCLAdaptor cnclAdaptor;
 extern struct flagcxCCLAdaptor mcclAdaptor;
+extern struct flagcxCCLAdaptor musa_mcclAdaptor;
 extern struct flagcxCCLAdaptor xcclAdaptor;
 extern struct flagcxCCLAdaptor duncclAdaptor;
 extern struct flagcxCCLAdaptor mpiAdaptor;
@@ -36,6 +38,7 @@ extern struct flagcxDeviceAdaptor cannAdaptor;
 extern struct flagcxDeviceAdaptor ixcudaAdaptor;
 extern struct flagcxDeviceAdaptor mluAdaptor;
 extern struct flagcxDeviceAdaptor macaAdaptor;
+extern struct flagcxDeviceAdaptor musaAdaptor;
 extern struct flagcxDeviceAdaptor kunlunAdaptor;
 extern struct flagcxDeviceAdaptor ducudaAdaptor;
 extern struct flagcxDeviceAdaptor *deviceAdaptor;
@@ -170,7 +173,8 @@ struct flagcxDeviceAdaptor {
                                  void *memHandle);
   flagcxResult_t (*copyArgsInit)(void **args);
   flagcxResult_t (*copyArgsFree)(void *args);
-  flagcxResult_t (*launchDeviceFunc)(flagcxStream_t stream, void *args);
+  flagcxResult_t (*launchDeviceFunc)(flagcxStream_t stream,
+                                     flagcxLaunchFunc_t fn, void *args);
 
   // Others
   // TODO: this one shall be moved into Flagcx Core Topology APIs

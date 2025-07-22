@@ -65,6 +65,20 @@ struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&mpiAdaptor,
                                                       &mcclAdaptor};
 #endif
 struct flagcxDeviceAdaptor *deviceAdaptor = &macaAdaptor;
+
+#elif USE_MUSA_ADAPTOR
+#ifdef USE_BOOTSTRAP_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
+                                                      &musa_mcclAdaptor};
+#elif USE_GLOO_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&glooAdaptor,
+                                                      &musa_mcclAdaptor};
+#elif USE_MPI_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&mpiAdaptor,
+                                                      &musa_mcclAdaptor};
+#endif
+struct flagcxDeviceAdaptor *deviceAdaptor = &musaAdaptor;
+
 #elif USE_KUNLUNXIN_ADAPTOR
 #ifdef USE_BOOTSTRAP_ADAPTOR
 struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
