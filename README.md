@@ -44,7 +44,6 @@ Note that `Homo` and `Hetero` modes refer to communications among homogeneous an
 - [IXCCL](https://www.iluvatar.com/software?fullCode=cpjs-rj-rjz), Iluvatar Corex Collective Communications Library.
 - [CNCL](https://www.cambricon.com/docs/sdk_1.7.0/cncl_1.2.1/user_guide/index.html#), Cambricon Communications Library.
 - [MCCL](https://developer.metax-tech.com/softnova/metax), Metax Collective Communications Library.
-- [MUSACCL](https://docs.mthreads.com/musa-sdk/musa-sdk-doc-online/programming_guide/Chapter08/), Musa Collective Communications Library.
 - [XCCL](WIP), XPU Collective Communications Library.
 - [DUCCL](https://developer.sourcefind.cn), DU Collective Communications Library.
 - [HCCL](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/hccl/hcclug/hcclug_000001.html), Ascend Communications Library.

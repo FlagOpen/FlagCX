@@ -89,14 +89,13 @@ flagcxResult_t flagcxEnsureCommReady(flagcxComm_t comm) {
 }
 
 bool is_homo_comm(flagcxComm_t comm) {
-  assert(flagcxEnsureCommReady(comm) == flagcxSuccess);
-#ifdef FORCE_HOMO_COMM
+#if defined(FORCE_HOMO_COMM)
   return true;
-#endif
-#ifdef FORCE_HYBRID_COMM
+#elif defined(FORCE_HYBRID_COMM)
   return false;
-#endif
+#else
   return comm->comm_type == flagcxCommunicatorHomo;
+#endif
 }
 
 bool use_host_comm() {

@@ -46,12 +46,27 @@ int main(int argc, char *argv[]) {
   size_t count;
   timer tim;
 
+  devHandle->deviceMalloc(&sendbuff, max_bytes, flagcxMemDevice, NULL);
+  devHandle->deviceMalloc(&recvbuff, max_bytes, flagcxMemDevice, NULL);
+  devHandle->deviceMalloc(&hello, max_bytes, flagcxMemHost, NULL);
+  devHandle->deviceMemset(hello, 0, max_bytes, flagcxMemHost, NULL);
+
+  // Warm-up for large size
+  for (int i = 0; i < num_warmup_iters; i++) {
+    flagcxAlltoAll(sendbuff, recvbuff, (max_bytes / sizeof(float)) / totalProcs,
+                   DATATYPE, comm, stream);
+  }
+  devHandle->streamSynchronize(stream);
+
+  // Warm-up for small size
+  for (int i = 0; i < num_warmup_iters; i++) {
+    flagcxAlltoAll(sendbuff, recvbuff, (min_bytes / sizeof(float)) / totalProcs,
+                   DATATYPE, comm, stream);
+  }
+  devHandle->streamSynchronize(stream);
+
   for (size_t size = min_bytes; size <= max_bytes; size *= step_factor) {
     count = size / sizeof(float);
-    devHandle->deviceMalloc(&sendbuff, size, flagcxMemDevice, NULL);
-    devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice, NULL);
-    devHandle->deviceMalloc(&hello, size, flagcxMemHost, NULL);
-    devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
 
     for (int i = 0; i < totalProcs; i++) {
       ((float *)hello)[i * (count / totalProcs)] = 10 * proc + i;
@@ -68,12 +83,6 @@ int main(int argc, char *argv[]) {
       printf("\n");
     }
 
-    for (int i = 0; i < num_warmup_iters; i++) {
-      flagcxAlltoAll(sendbuff, recvbuff, count / totalProcs, DATATYPE, comm,
-                     stream);
-    }
-    devHandle->streamSynchronize(stream);
-
     MPI_Barrier(MPI_COMM_WORLD);
 
     tim.reset();
@@ -84,6 +93,10 @@ int main(int argc, char *argv[]) {
     devHandle->streamSynchronize(stream);
 
     double elapsed_time = tim.elapsed() / num_iters;
+    MPI_Allreduce(MPI_IN_PLACE, (void *)&elapsed_time, 1, MPI_DOUBLE, MPI_SUM,
+                  MPI_COMM_WORLD);
+    elapsed_time /= totalProcs;
+
     double base_bw = (double)(size) / 1.0E9 / elapsed_time;
     double alg_bw = base_bw;
     double factor = ((double)(totalProcs - 1)) / ((double)(totalProcs));
@@ -106,12 +119,11 @@ int main(int argc, char *argv[]) {
       }
       printf("\n");
     }
-
-    devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
-    devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
-    devHandle->deviceFree(hello, flagcxMemHost, NULL);
   }
 
+  devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
+  devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
+  devHandle->deviceFree(hello, flagcxMemHost, NULL);
   devHandle->streamDestroy(stream);
   flagcxCommDestroy(comm);
   flagcxHandleFree(handler);
