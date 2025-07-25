@@ -138,6 +138,10 @@ void serializeFunc2DVector(FILE *file, const std::vector<std::vector<T>> &steps,
                            const char *tagName, int indent = 2) {
   fprintf(file, "%*s<%s>\n", indent, "", tagName);
   for (const auto &stepVec : steps) {
+    if (stepVec.size() == 0) {
+      fprintf(file, "%*s<Step/>\n", indent + 2, "");
+      continue;
+    }
     fprintf(file, "%*s<Step>\n", indent + 2, "");
     for (const auto &func : stepVec) {
       if constexpr (std::is_same<T, flagcxC2cHomoFunc>::value) {
@@ -1080,6 +1084,10 @@ std::vector<std::vector<T>> readFunc2DVector(FILE *file, const char *tagName) {
   while (fgets(line, sizeof(line), file)) {
     if (strstr(line, closeTag))
       break;
+    if (strstr(line, "<Step/>")) {
+      std::vector<T> step;
+      result.push_back(step);
+    }
     if (strstr(line, "<Step>")) {
       std::vector<T> step;
       while (fgets(line, sizeof(line), file)) {
