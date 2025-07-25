@@ -7,7 +7,12 @@ try:
     from torch_mlu.utils.gpu_migration import migration
     dev_name = "mlu"
 except:
-    dev_name = "cuda"
+    try:
+        import torch_npu
+        from torch_npu.contrib import transfer_to_npu
+        dev_name = "npu"
+    except:
+        dev_name = "cuda"
 
 import flagcx
 import torch.distributed as dist
