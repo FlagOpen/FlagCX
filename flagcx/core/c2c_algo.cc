@@ -563,7 +563,7 @@ flagcxC2cPlanner::flagcxC2cPlanner(size_t sendCount, size_t recvCount,
 
   // if inter ranks in all clusters equal to 1 （single-nic）
   if (commOp_ == flagcxCommOpAllReduce ||
-      commOp_ == flagcxCommOpReduceScatter) {
+      commOp_ == flagcxCommOpReduceScatter || commOp_ == flagcxCommOpReduce) {
     multiNic_ = 1;
     for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
       if (clusterInterRankList_[i].size() == 1) {
@@ -607,7 +607,7 @@ flagcxC2cPlanner::flagcxC2cPlanner(size_t sendCount, size_t recvCount,
   nSeqPostSteps_ = 1;
   // use ring pipeline algo if FLAGCX_C2C_ALGO=RING_PIPELINED
   const char *algorithm = getenv("FLAGCX_C2C_ALGO");
-  if (algorithm == NULL || strcmp(algorithm, "RING_PIPELINED") == 0) {
+  if (algorithm != NULL && strcmp(algorithm, "RING_PIPELINED") == 1) {
     // pipeline optimizations for AllGather
     if (commOp_ == flagcxCommOpAllGather) {
       algorithm_ = flagcxAlgoPipeline;
@@ -996,8 +996,8 @@ flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
                 interRankBufferInfoManager_.pushBackBufferInfo(
                     i, clusterInterRankList_[i][j],
                     (sendCount_ >= recvCount_)
-                        ? myCount * j
-                        : clusterOffset * sendCount_ + myCount * j,
+                        ? myCount * (j + 1)
+                        : clusterOffset * sendCount_ + myCount * (j + 1),
                     myRes, z, 0, isScheduled, -1, -1);
               }
             }
@@ -1205,30 +1205,33 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
            .empty()) {
     auto &bufferList =
         interRankBufferInfoManager_.getBufferInfoList(clusterId_, rank_);
+    size_t offset = 0;
+    size_t count = 0;
+    size_t totalCount = 0;
+    int counter = 0;
     for (auto it = bufferList.begin(); it != bufferList.end(); ++it) {
-      if (algorithm_ == flagcxAlgoSequential) {
-        refreshFunc_ =
-            flagcxC2cRefreshFunc(it->offset_, it->count_, totalCount_, redOp_);
+      if (algorithm_ == flagcxAlgoPipeline) {
+        offset = it->offset_;
+        count = it->count_;
+        totalCount = totalCount_;
+        if (commOp_ == flagcxCommOpReduceScatter) {
+          offset -= clusterOffset_ * recvCount_;
+          totalCount = comm_->cluster_sizes[clusterId_] * recvCount_;
+        } else if (commOp_ == flagcxCommOpAllReduce) {
+          offset -= clusterOffset_ * totalCount_ / comm_->nranks;
+          totalCount =
+              comm_->cluster_sizes[clusterId_] * totalCount_ / comm_->nranks;
+        }
         break;
       }
-      if ((commOp_ == flagcxCommOpReduceScatter ||
-           commOp_ == flagcxCommOpAllReduce) &&
-          !(it->isScheduled_)) {
-        continue;
+      if (counter == 0) {
+        offset = it->offset_;
+        totalCount = totalCount_;
       }
-      size_t offset = it->offset_;
-      size_t totalCount = totalCount_;
-      if (commOp_ == flagcxCommOpReduceScatter) {
-        offset -= clusterOffset_ * recvCount_;
-        totalCount = comm_->cluster_sizes[clusterId_] * recvCount_;
-      } else if (commOp_ == flagcxCommOpAllReduce) {
-        offset -= clusterOffset_ * totalCount_ / comm_->nranks;
-        totalCount =
-            comm_->cluster_sizes[clusterId_] * totalCount_ / comm_->nranks;
-      }
-      refreshFunc_ =
-          flagcxC2cRefreshFunc(offset, it->count_, totalCount, redOp_);
+      count += it->count_;
+      counter++;
     }
+    refreshFunc_ = flagcxC2cRefreshFunc(offset, count, totalCount, redOp_);
   } else {
     refreshFunc_ = flagcxC2cRefreshFunc(0, 0, totalCount_, redOp_);
   }
@@ -1710,8 +1713,14 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
           if (homoMyRank_ ==
               comm_
                   ->globalrank2homorank[clusterInterRankList_[clusterId_][0]]) {
-            heteroFunc.addP2pOp(rank_, globalRankToSendToCluster, 0,
-                                totalCount_, 0);
+            if ((commOp_ == flagcxCommOpReduce &&
+                 comm_->cluster_ids[globalRankToSendToCluster] ==
+                     rootClusterId_) ||
+                (commOp_ == flagcxCommOpAllReduce ||
+                 commOp_ == flagcxCommOpReduceScatter)) {
+              heteroFunc.addP2pOp(rank_, globalRankToSendToCluster, 0,
+                                  totalCount_, 0);
+            }
           }
         }
       }
@@ -1829,8 +1838,9 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
       commOp_ == flagcxCommOpReduceScatter) {
     int clusterCountValid_ = 1;
     for (int i = 0; i < comm_->nclusters; ++i) {
-      if (comm_->nclusters > int(clusterInterRankList_[i].size()) &&
-          comm_->nclusters > 2) {
+      int interRanks = int(clusterInterRankList_[i].size());
+      if (comm_->nclusters > interRanks && comm_->nclusters > 2 &&
+          interRanks > 1) {
         clusterCountValid_ = 0;
         break;
       }
