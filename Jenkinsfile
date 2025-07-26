@@ -59,7 +59,7 @@ spec:
   stages {
     stage('Verify') {
       steps {
-        echo '✅ Running on jenkins pods4444'
+        echo '✅ Running on jenkins pod'
         sh 'env | grep -i proxy'
       }
     }
