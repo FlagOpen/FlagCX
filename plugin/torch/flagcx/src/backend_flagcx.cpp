@@ -98,6 +98,11 @@ void check_device(at::Device dev1, at::Device dev2) {
     throw std::runtime_error(
         "flagcxBackend does not support multidevice tensors");
   }
+#elif USE_ASCEND_ADAPTOR
+  if (dev1.is_privateuseone() && dev2.is_privateuseone() && dev1 != dev2) {
+    throw std::runtime_error(
+        "flagcxBackend does not support multidevice tensors");
+  }
 #else
   if (dev1.is_cuda() && dev2.is_cuda() && dev1 != dev2) {
     throw std::runtime_error(
@@ -184,9 +189,15 @@ flagcxStream_t flagcxBackend::getStreamByIndex(int streamId) {
     return search->second;
   } else {
     flagcxStreams_[streamId] = nullptr;
+#ifdef USE_ASCEND_ADAPTOR
+// TODO: The getStreamFromExternal interface is not supported at this stage on NPU. Adaptation modifications will be made in the future.
+    acl_stream = c10_npu::getCurrentNPUStream().stream(false);
+    flagcxStreams_[streamId] = reinterpret_cast<flagcxStream_t>(&acl_stream);
+#else
     C10D_FLAGCX_CHECK(
         handler_->devHandle->streamCreate(&flagcxStreams_[streamId]),
         std::nullopt);
+#endif
     return flagcxStreams_[streamId];
   }
 }
@@ -198,12 +209,16 @@ std::unique_ptr<flagcxEvent> &flagcxBackend::getEventByIndex(int eventId) {
   } else {
 #ifdef USE_NVIDIA_ADAPTOR
     flagcxEvents_[eventId] = std::make_unique<flagcxCudaEvent>();
+#elif USE_ASCEND_ADAPTOR
+    flagcxEvents_[eventId] = std::make_unique<flagcxCannEvent>();
 #elif USE_ILUVATAR_COREX_ADAPTOR
     flagcxEvents_[eventId] = std::make_unique<flagcxIxcudaEvent>();
 #elif USE_CAMBRICON_ADAPTOR
     flagcxEvents_[eventId] = std::make_unique<flagcxMluEvent>();
 #elif USE_METAX_ADAPTOR
     flagcxEvents_[eventId] = std::make_unique<flagcxMacaEvent>();
+#elif USE_MUSA_ADAPTOR
+    flagcxEvents_[eventId] = std::make_unique<flagcxMusaEvent>();
 #elif USE_DU_ADAPTOR
     flagcxEvents_[eventId] = std::make_unique<flagcxDuEvent>();
 #elif USE_KUNLUNXIN_ADAPTOR
@@ -258,12 +273,16 @@ void flagcxBackend::initComm(at::Device dev) {
 
 void flagcxBackend::initComm() {
 #if defined(USE_NVIDIA_ADAPTOR) || defined(USE_ILUVATAR_COREX_ADAPTOR) ||      \
-    defined(USE_METAX_ADAPTOR) || defined(USE_DU_ADAPTOR)|| \
+    defined(USE_METAX_ADAPTOR) || defined(USE_MUSA_ADAPTOR) || defined(USE_DU_ADAPTOR)|| \
     defined(USE_KUNLUNXIN_ADAPTOR)
   initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::CUDA)->getDevice());
 #elif defined(USE_CAMBRICON_ADAPTOR)
   initComm(
       c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice());
+#elif defined(USE_ASCEND_ADAPTOR)
+  initComm(
+      c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice()
+      );
 #endif
 }
 

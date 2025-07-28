@@ -7,6 +7,7 @@ import torch
 os.environ.pop('TORCH_DEVICE_BACKEND_AUTOLOAD')
 from functools import wraps
 import torch.distributed as dist
+from torch.distributed.distributed_c10d import _coalescing_manager
 
 from ._C import *
 
@@ -36,5 +37,19 @@ def replace_device(module, fn_name):
     if fn:
         setattr(module, fn_name, replace_device_args(fn))
 
+def _batch_isend_irecv(p2p_op_list):
+    group = p2p_op_list[0].group
+    device = p2p_op_list[0].tensor.device
+    is_multi_pg = True
+    if device.type == "cuda" or device.type == "npu":
+        with _coalescing_manager(group, device, async_ops=True) as cm:
+            for p2p_op in p2p_op_list:
+                p2p_op.op(p2p_op.tensor, p2p_op.peer, p2p_op.group, p2p_op.tag)
+        return cm.works
 replace_device(dist.distributed_c10d.PrefixStore, "__init__")
-
+try: 
+    import torch_npu
+    torch.distributed.batch_isend_irecv=_batch_isend_irecv
+    print("NPU-optimized batch_isend_irecv implementation enabled")
+except ImportError:
+    print("Using PyTorch's native batch_isend_irecv implementation")

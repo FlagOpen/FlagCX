@@ -10,6 +10,7 @@ USE_CAMBRICON ?= 0
 USE_GLOO ?= 0
 USE_BOOTSTRAP ?= 0
 USE_METAX ?= 0
+USE_MUSA ?= 0
 USE_KUNLUNXIN ?=0
 USE_DU ?= 0
 USE_MPI ?= 0
@@ -31,6 +32,8 @@ ifeq ($(strip $(DEVICE_HOME)),)
 		DEVICE_HOME = $(NEUWARE_HOME)
 	else ifeq ($(USE_METAX), 1)
 		DEVICE_HOME = /opt/maca
+	else ifeq ($(USE_MUSA), 1)
+		DEVICE_HOME = /usr/local/musa
 	else ifeq ($(USE_KUNLUNXIN), 1)
 		DEVICE_HOME = /usr/local/xpu
 	else ifeq ($(USE_DU), 1)
@@ -51,6 +54,8 @@ ifeq ($(strip $(CCL_HOME)),)
 		CCL_HOME = $(NEUWARE_HOME)
 	else ifeq ($(USE_METAX), 1)
 		CCL_HOME = /opt/maca
+	else ifeq ($(USE_MUSA), 1)
+		CCL_HOME = /usr/local/musa
 	else ifeq ($(USE_KUNLUNXIN), 1)
 		CCL_HOME = /usr/local/xccl
 	else ifeq ($(USE_DU), 1)
@@ -126,6 +131,13 @@ else ifeq ($(USE_METAX), 1)
 	CCL_INCLUDE = $(CCL_HOME)/include
 	CCL_LINK = -lmccl
 	ADAPTOR_FLAG = -DUSE_METAX_ADAPTOR
+else ifeq ($(USE_MUSA), 1)
+	DEVICE_LIB = $(DEVICE_HOME)/lib
+	DEVICE_INCLUDE = $(DEVICE_HOME)/include
+	CCL_LIB = $(CCL_HOME)/lib
+	CCL_INCLUDE = $(CCL_HOME)/include
+	CCL_LINK = -lmccl -lmusa
+	ADAPTOR_FLAG = -DUSE_MUSA_ADAPTOR
 else ifeq ($(USE_KUNLUNXIN), 1)
 	DEVICE_LIB = $(DEVICE_HOME)/so
 	DEVICE_INCLUDE = $(DEVICE_HOME)/include
@@ -206,6 +218,7 @@ print_var:
 	@echo "USE_KUNLUNXIN: $(USE_KUNLUNXIN)"
 	@echo "USE_GLOO: $(USE_GLOO)"
 	@echo "USE_MPI: $(USE_MPI)"
+	@echo "USE_MUSA: $(USE_MUSA)"
 	@echo "USE_DU: $(USE_DU)"
 	@echo "DEVICE_LIB: $(DEVICE_LIB)"
 	@echo "DEVICE_INCLUDE: $(DEVICE_INCLUDE)"

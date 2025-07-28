@@ -283,9 +283,13 @@ flagcxResult_t hcclAdaptorGroupStart() {
 }
 
 flagcxResult_t hcclAdaptorGroupEnd() { 
-  uint32_t itemNum = sendRecvInfo.size();
-  return (flagcxResult_t)h2f_ret_map[HcclBatchSendRecv(sendRecvInfo.data(), itemNum,
+  uint32_t itemNum = 0;
+  itemNum = sendRecvInfo.size();
+  if (itemNum > 0) {
+    return (flagcxResult_t)h2f_ret_map[HcclBatchSendRecv(sendRecvInfo.data(), itemNum,
 		    				       item.comm->base, item.stream->base)];
+  } 
+  return flagcxSuccess;  
 }
 
 struct flagcxCCLAdaptor hcclAdaptor = {

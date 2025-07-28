@@ -9,6 +9,9 @@
 #ifdef USE_NVIDIA_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
+#elif USE_ASCEND_ADAPTOR
+#include "torch_npu/csrc/core/npu/NPUStream.h"
+#include "torch_npu/csrc/core/npu/NPUEvent.h"
 #elif USE_ILUVATAR_COREX_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
@@ -18,6 +21,9 @@
 #elif USE_METAX_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
+#elif USE_MUSA_ADAPTOR
+#include <torch_musa/csrc/core/MUSAEvent.h>
+#include <musa_runtime.h>
 #elif USE_DU_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
@@ -95,6 +101,30 @@ public:
 private:
   at::cuda::CUDAEvent ixcuda_event;
 };
+#elif USE_ASCEND_ADAPTOR
+class flagcxCannEvent : public flagcxEvent {
+public:
+  flagcxCannEvent() { npu_event = c10_npu::NPUEvent(); }
+
+  void record(const int device_id) override {
+    npu_event.record(c10_npu::getCurrentNPUStream(device_id));
+  }
+
+  void record(const flagcxStream_t &stream, const int device_id) override {
+    npu_event.record(c10_npu::getNPUStreamFromPool(device_id));
+  }
+
+  void block(const int device_id) override {
+    npu_event.block(c10_npu::getCurrentNPUStream(device_id));
+  }
+
+  void block(const flagcxStream_t &stream, const int device_id) override {
+    npu_event.block(c10_npu::getNPUStreamFromPool(device_id));
+  }
+
+private:
+  c10_npu::NPUEvent npu_event;
+};
 #elif USE_CAMBRICON_ADAPTOR
 class flagcxMluEvent : public flagcxEvent {
 public:
@@ -148,6 +178,34 @@ public:
 
 private:
   at::cuda::CUDAEvent maca_event;
+};
+#elif USE_MUSA_ADAPTOR
+class flagcxMusaEvent : public flagcxEvent {
+public:
+  flagcxMusaEvent() {
+    musa_event = at::musa::MUSAEvent(musaEventDisableTiming);
+  }
+
+  void record(const int device_id) override {
+    musa_event.record(at::musa::getCurrentMUSAStream(device_id));
+  }
+
+  void record(const flagcxStream_t &stream, const int device_id) override {
+    musa_event.record(
+        at::musa::getStreamFromExternal(*(musaStream_t *)stream, device_id));
+  }
+
+  void block(const int device_id) override {
+    musa_event.block(at::musa::getCurrentMUSAStream(device_id));
+  }
+
+  void block(const flagcxStream_t &stream, const int device_id) override {
+    musa_event.block(
+        at::musa::getStreamFromExternal(*(musaStream_t *)stream, device_id));
+  }
+
+private:
+  at::musa::MUSAEvent musa_event;
 };
 #elif USE_DU_ADAPTOR
 class flagcxDuEvent : public flagcxEvent {

@@ -47,6 +47,27 @@ int main(int argc, char *argv[]) {
   size_t count;
   timer tim;
 
+  devHandle->deviceMalloc(&sendbuff, max_bytes / totalProcs, flagcxMemDevice,
+                          NULL);
+  devHandle->deviceMalloc(&recvbuff, max_bytes, flagcxMemDevice, NULL);
+
+  devHandle->deviceMalloc(&hello, max_bytes, flagcxMemHost, NULL);
+  devHandle->deviceMemset(hello, 0, max_bytes, flagcxMemHost, NULL);
+
+  // Warm-up for large size
+  for (int i = 0; i < num_warmup_iters; i++) {
+    flagcxGather(sendbuff, recvbuff, (max_bytes / sizeof(float)) / totalProcs,
+                 DATATYPE, 0, comm, stream);
+  }
+  devHandle->streamSynchronize(stream);
+
+  // Warm-up for small size
+  for (int i = 0; i < num_warmup_iters; i++) {
+    flagcxGather(sendbuff, recvbuff, (min_bytes / sizeof(float)) / totalProcs,
+                 DATATYPE, 0, comm, stream);
+  }
+  devHandle->streamSynchronize(stream);
+
   for (size_t size = min_bytes; size <= max_bytes; size *= step_factor) {
     int begin_root, end_root;
     double sum_alg_bw = 0;
@@ -62,31 +83,17 @@ int main(int argc, char *argv[]) {
     }
     for (int r = begin_root; r <= end_root; r++) {
       count = size / sizeof(float);
-      devHandle->deviceMalloc(&sendbuff, size / totalProcs, flagcxMemDevice,
-                              NULL);
-      devHandle->deviceMalloc(&hello, size, flagcxMemHost, NULL);
-      devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
 
       ((float *)hello)[0] = proc;
 
       devHandle->deviceMemcpy(sendbuff, hello, size / totalProcs,
                               flagcxMemcpyHostToDevice, NULL);
 
-      if (proc == r) {
-        devHandle->deviceMalloc(&recvbuff, size, flagcxMemDevice, NULL);
-      }
-
       if ((proc == 0 || proc == totalProcs - 1) && print_buffer) {
         printf("root rank is %d\n", r);
         printf("sendbuff = ");
         printf("%f\n", ((float *)hello)[0]);
       }
-
-      for (int i = 0; i < num_warmup_iters; i++) {
-        flagcxGather(sendbuff, recvbuff, count / totalProcs, DATATYPE, r, comm,
-                     stream);
-      }
-      devHandle->streamSynchronize(stream);
 
       MPI_Barrier(MPI_COMM_WORLD);
 
@@ -100,6 +107,10 @@ int main(int argc, char *argv[]) {
       MPI_Barrier(MPI_COMM_WORLD);
 
       double elapsed_time = tim.elapsed() / num_iters;
+      MPI_Allreduce(MPI_IN_PLACE, (void *)&elapsed_time, 1, MPI_DOUBLE, MPI_SUM,
+                    MPI_COMM_WORLD);
+      elapsed_time /= totalProcs;
+
       double base_bw = (double)(size) / 1.0E9 / elapsed_time;
       double alg_bw = base_bw;
       double factor = ((double)(totalProcs - 1)) / ((double)(totalProcs));
@@ -120,12 +131,9 @@ int main(int argc, char *argv[]) {
           }
           printf("\n");
         }
-
-        devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
       }
-      devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
-      devHandle->deviceFree(hello, flagcxMemHost, NULL);
     }
+
     if (proc == 0) {
       double alg_bw = sum_alg_bw / test_count;
       double bus_bw = sum_bus_bw / test_count;
@@ -136,6 +144,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
+  devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
+  devHandle->deviceFree(hello, flagcxMemHost, NULL);
   devHandle->streamDestroy(stream);
   flagcxCommDestroy(comm);
   flagcxHandleFree(handler);
