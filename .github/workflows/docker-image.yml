@@ -16,7 +16,7 @@ jobs:
 
     - name: Log in to Aliyun ACR
       run: |
-        echo "${{ secrets.ACR_PASSWORD }}" | docker login registry.cn-hangzhou.aliyuncs.com \
+        echo "${{ secrets.ACR_PASSWORD }}" | docker login crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com \
           -u ${{ secrets.ACR_USERNAME }} --password-stdin
 
     - name: Generate timestamp tag
