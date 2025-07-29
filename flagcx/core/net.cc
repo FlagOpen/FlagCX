@@ -405,7 +405,7 @@ static void* openNetPluginLib(void) {
     len = PATH_MAX - strlen(ptr);
     snprintf(ptr + strlen(ptr), len + 1, "%s ", netPluginLibName);
 
-    snprintf(netPluginLibName, PATH_MAX, "libflagcx-net-%s.so", envNetPluginName);
+    snprintf(netPluginLibName, PATH_MAX, "libnccl-net-%s.so", envNetPluginName);
     pluginLib = tryOpenDynamicLib(netPluginLibName);
     if (pluginLib) {
       INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Plugin name set by env to %s", netPluginLibName);
@@ -414,7 +414,7 @@ static void* openNetPluginLib(void) {
     len = PATH_MAX - strlen(ptr);
     snprintf(ptr + strlen(ptr), len + 1, "%s ", netPluginLibName);
   } else {
-    snprintf(netPluginLibName, PATH_MAX, "libflagcx-net.so");
+    snprintf(netPluginLibName, PATH_MAX, "libnccl-net.so");
     pluginLib = tryOpenDynamicLib(netPluginLibName);
     if (pluginLib) {
       return pluginLib;
