@@ -17,7 +17,7 @@
     cudaError_t err = cmd;                                  \
     if( err != cudaSuccess ) {                              \
         WARN("Cuda failure '%s'", cudaGetErrorString(err)); \
-        return ncclUnhandledCudaError;                      \
+        return flagcxUnhandledDeviceError;                      \
     }                                                       \
 } while(false)
 
@@ -26,7 +26,7 @@
     cudaError_t err = cmd;                                  \
     if( err != cudaSuccess ) {                              \
         WARN("Cuda failure '%s'", cudaGetErrorString(err)); \
-        RES = ncclUnhandledCudaError;                       \
+        RES = flagcxUnhandledDeviceError;                       \
         goto label;                                         \
     }                                                       \
 } while(false)
@@ -36,7 +36,7 @@
 #define CUDACHECKIGNORE(cmd) do {  \
     cudaError_t err = cmd;         \
     if( err != cudaSuccess ) {     \
-        INFO(NCCL_ALL,"%s:%d Cuda failure '%s'", __FILE__, __LINE__, cudaGetErrorString(err)); \
+        INFO(FLAGCX_ALL,"%s:%d Cuda failure '%s'", __FILE__, __LINE__, cudaGetErrorString(err)); \
         (void) cudaGetLastError(); \
     }                              \
 } while(false)

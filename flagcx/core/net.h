@@ -30,6 +30,7 @@ flagcxResult_t flagcxGpuGdrSupport(struct flagcxHeteroComm *comm,
 extern flagcxNet_t flagcxNetIb;
 extern flagcxNet_t flagcxNetSocket;
 
+
 struct sendNetResources {
   void *netSendComm;
   struct flagcxSendMem *sendMem;

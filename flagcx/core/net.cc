@@ -337,7 +337,6 @@ static flagcxResult_t flagcxCollNet_v7_as_v8_init(flagcxDebugLogger_t logfn) {
 }
 
 
-
 static pthread_mutex_t netLock = PTHREAD_MUTEX_INITIALIZER;
 flagcxNet_t* flagcxNets[3] = { nullptr, &flagcxNetIb, &flagcxNetSocket };
 flagcxCollNet_t* flagcxCollNets[3] = { nullptr, nullptr, nullptr };
@@ -507,6 +506,7 @@ flagcxResult_t flagcxNetPluginInit() {
   }
   return flagcxSuccess;
 }
+
 
 
 flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
