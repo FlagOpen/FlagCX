@@ -5,6 +5,7 @@
  ************************************************************************/
 
 #include "ibvwrap.h"
+#include "adaptor.h"
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -164,12 +165,29 @@ struct ibv_mr * wrap_direct_ibv_reg_mr(struct ibv_pd *pd, void *addr, size_t len
   return ibvSymbols.ibv_internal_reg_mr(pd, addr, length, access);
 }
 
-flagcxResult_t wrap_ibv_reg_mr_iova2(struct ibv_mr **ret, struct ibv_pd *pd, void *addr, size_t length, uint64_t iova, int access) {
+flagcxResult_t wrap_ibv_reg_mr_iova2(struct ibv_mr **ret, struct ibv_pd *pd,
+                                     void *addr, size_t length, uint64_t iova,
+                                     int access) {
   if (ibvSymbols.ibv_internal_reg_mr_iova2 == NULL) {
     return flagcxInternalError;
   }
-  if (ret == NULL) { return flagcxSuccess; } // Assume dummy call
-  IBV_PTR_CHECK_ERRNO(ibvSymbols, ibv_internal_reg_mr_iova2, ibv_internal_reg_mr_iova2(pd, addr, length, iova, access), *ret, NULL, "ibv_reg_mr_iova2");
+  if (ret == NULL) {
+    return flagcxSuccess;
+  } // Assume dummy call
+  if (deviceAdaptor->gdrPtrMmap && deviceAdaptor->gdrPtrMummap) {
+    void *cpuptr;
+    deviceAdaptor->gdrPtrMmap(&cpuptr, addr, length);
+    IBV_PTR_CHECK_ERRNO(
+        ibvSymbols, ibv_internal_reg_mr_iova2,
+        ibv_internal_reg_mr_iova2(pd, cpuptr, length, iova, access), *ret, NULL,
+        "ibv_reg_mr_iova2");
+    deviceAdaptor->gdrPtrMummap(cpuptr, length);
+  } else {
+    IBV_PTR_CHECK_ERRNO(
+        ibvSymbols, ibv_internal_reg_mr_iova2,
+        ibv_internal_reg_mr_iova2(pd, addr, length, iova, access), *ret, NULL,
+        "ibv_reg_mr_iova2");
+  }
 }
 
 /* DMA-BUF support */

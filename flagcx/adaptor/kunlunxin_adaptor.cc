@@ -282,7 +282,22 @@ flagcxResult_t kunlunAdaptorGetDeviceByPciBusId(int *dev,
   DEVCHECK(cudaDeviceGetByPCIBusId(dev, pciBusId));
   return flagcxSuccess;
 }
+flagcxResult_t kunlunAdaptorGdrPtrMmap(void **pcpuptr, void *devptr,
+                                       size_t sz) {
+  if (pcpuptr == NULL || devptr == NULL || sz == 0) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(baidu::xpu::bkcl::xccl_mmap(pcpuptr, devptr, sz));
+  return flagcxSuccess;
+}
 
+flagcxResult_t kunlunAdaptorGdrPtrMunmap(void *cpuptr, size_t sz) {
+  if (cpuptr == NULL || sz == 0) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(baidu::xpu::bkcl::xccl_munmap(cpuptr, sz));
+  return flagcxSuccess;
+}
 struct flagcxDeviceAdaptor kunlunAdaptor {
   "KUNLUN",
       // Basic functions
@@ -325,7 +340,11 @@ struct flagcxDeviceAdaptor kunlunAdaptor {
       kunlunAdaptorGetDeviceByPciBusId, // flagcxResult_t
                                         // (*getDeviceByPciBusId)(int
                                         // *dev, const char *pciBusId);
-      kunlunAdaptorLaunchHostFunc
+      kunlunAdaptorLaunchHostFunc,
+      kunlunAdaptorGdrPtrMmap,   // flagcxResult_t (*gdrPtrMmap)(void **pcpuptr,
+                                 // void *devptr, size_t sz);
+      kunlunAdaptorGdrPtrMunmap, // flagcxResult_t (*gdrPtrMummap)(void *cpuptr,
+                                 // size_t sz);
 };
 
 #endif // USE_KUNLUNXIN_ADAPTOR

@@ -317,7 +317,10 @@ struct flagcxDeviceAdaptor ixcudaAdaptor {
       ixcudaAdaptorGetDeviceByPciBusId, // flagcxResult_t
                                         // (*getDeviceByPciBusId)(int *dev,
                                         // const char *pciBusId);
-      ixcudaAdaptorLaunchHostFunc
+      ixcudaAdaptorLaunchHostFunc,
+      NULL, // flagcxResult_t (*gdrPtrMmap)(void **pcpuptr, void *devptr, size_t
+            // sz);
+      NULL, // flagcxResult_t (*gdrPtrMummap)(void *cpuptr, size_t sz);
 };
 
 #endif // USE_ILUVATAR_COREX_ADAPTOR
