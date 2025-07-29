@@ -48,9 +48,11 @@ struct flagcxComm {
   flagcxInnerComm_t homoInterComm;
   std::vector<flagcxVendorType> clusterVendorMap;
 
+  int cudaDev;
   flagcxConfig_t config;
   flagcxNet_t* flagcxNet;
   flagcxCollNet_t* flagcxCollNet;
+  
 };
 
 #endif // end include guard

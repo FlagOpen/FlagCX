@@ -598,271 +598,271 @@ flagcxResult_t flagcxNetInit(struct flagcxComm* comm) {
 }
 
 
-flagcxResult_t flagcxGpuGdrSupport(struct flagcxComm* comm, int* gdrSupport) {
-  constexpr int GPU_BUF_SIZE = 2*1024*1024;
-#if CUDART_VERSION >= 11030
-  // In CUDA 11.3 and later we can now query the cudaDevAttrGPUDirectRDMASupported attribute
-  int driverVersion;
-  CUDACHECK(cudaDriverGetVersion(&driverVersion));
-  if (driverVersion >= 11030) {
-    int cudaDev, attr = 0;
-    CUDACHECK(cudaGetDevice(&cudaDev));
-    CUDACHECK(cudaDeviceGetAttribute(&attr, cudaDevAttrGPUDirectRDMASupported, cudaDev));
-    *gdrSupport = attr;
-    return flagcxSuccess;
-  }
-#endif
-  static int gdrSupportMatrix[32] = {
-	  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-  if (gdrSupportMatrix[comm->cudaDev] == -1) {
-    int netDevs;
-    FLAGCXCHECK(comm->flagcxNet->devices(&netDevs));
-    gdrSupportMatrix[comm->cudaDev] = 0;
-    for (int dev=0; dev<netDevs; dev++) {
-      // Find a net device which is GDR-capable
-      flagcxNetProperties_t props;
-      FLAGCXCHECK(comm->flagcxNet->getProperties(dev, &props));
-      if ((props.ptrSupport & flagcx_PTR_CUDA) == 0) continue;
+// flagcxResult_t flagcxGpuGdrSupport(struct flagcxComm* comm, int* gdrSupport) {
+//   constexpr int GPU_BUF_SIZE = 2*1024*1024;
+// #if CUDART_VERSION >= 11030
+//   // In CUDA 11.3 and later we can now query the cudaDevAttrGPUDirectRDMASupported attribute
+//   int driverVersion;
+//   CUDACHECK(cudaDriverGetVersion(&driverVersion));
+//   if (driverVersion >= 11030) {
+//     int cudaDev, attr = 0;
+//     CUDACHECK(cudaGetDevice(&cudaDev));
+//     CUDACHECK(cudaDeviceGetAttribute(&attr, cudaDevAttrGPUDirectRDMASupported, cudaDev));
+//     *gdrSupport = attr;
+//     return flagcxSuccess;
+//   }
+// #endif
+//   static int gdrSupportMatrix[32] = {
+// 	  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+// 	  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+//   if (gdrSupportMatrix[comm->cudaDev] == -1) {
+//     int netDevs;
+//     FLAGCXCHECK(comm->flagcxNet->devices(&netDevs));
+//     gdrSupportMatrix[comm->cudaDev] = 0;
+//     for (int dev=0; dev<netDevs; dev++) {
+//       // Find a net device which is GDR-capable
+//       flagcxNetProperties_t props;
+//       FLAGCXCHECK(comm->flagcxNet->getProperties(dev, &props));
+//       if ((props.ptrSupport & FLAGCX_PTR_CUDA) == 0) continue;
 
-    // Allocate memory on the GPU and try to register it on the NIC.
-    void *lComm = NULL, *sComm = NULL, *rComm = NULL;
-    flagcxNetHandle_t handle;
-    char* gpuPtr = NULL;
-    void* mHandle = NULL;
-    flagcxResult_t ret;
-    flagcxDebugNoWarn = flagcx_NET;
-    FLAGCXCHECKGOTO(comm->flagcxNet->listen(dev, &handle, &lComm), ret, cleanup1);
+//     // Allocate memory on the GPU and try to register it on the NIC.
+//     void *lComm = NULL, *sComm = NULL, *rComm = NULL;
+//     flagcxNetHandle_t handle;
+//     char* gpuPtr = NULL;
+//     void* mHandle = NULL;
+//     flagcxResult_t ret;
+//     flagcxDebugNoWarn = FLAGCX_NET;
+//     FLAGCXCHECKGOTO(comm->flagcxNet->listen(dev, &handle, &lComm), ret, cleanup1);
 
-    bool connected;
-    connected = false;
-    while (!connected) {
+//     bool connected;
+//     connected = false;
+//     while (!connected) {
 
-      // If we're aborting now, skip to cleanup
-      if (__atomic_load_n(comm->abortFlag, __ATOMIC_RELAXED)) {
-        goto cleanup2;
-      }
+//       // If we're aborting now, skip to cleanup
+//       if (__atomic_load_n(comm->abortFlag, __ATOMIC_RELAXED)) {
+//         goto cleanup2;
+//       }
 
-      if (sComm == NULL)
-        FLAGCXCHECKGOTO(comm->flagcxNet->connect(dev, &handle, &sComm, NULL), ret, cleanup2);
+//       if (sComm == NULL)
+//         FLAGCXCHECKGOTO(comm->flagcxNet->connect(dev, &handle, &sComm, NULL), ret, cleanup2);
 
-      if (rComm == NULL)
-        FLAGCXCHECKGOTO(comm->flagcxNet->accept(lComm, &rComm, NULL), ret, cleanup2);
+//       if (rComm == NULL)
+//         FLAGCXCHECKGOTO(comm->flagcxNet->accept(lComm, &rComm, NULL), ret, cleanup2);
 
-      connected = (rComm != NULL) && (sComm != NULL);
-    }
+//       connected = (rComm != NULL) && (sComm != NULL);
+//     }
 
-    FLAGCXCHECKGOTO(flagcxCudaMalloc(&gpuPtr, GPU_BUF_SIZE), ret, cleanup2);
-    if (comm->flagcxNet->regMr(sComm, gpuPtr, GPU_BUF_SIZE, flagcx_PTR_CUDA, &mHandle) == flagcxSuccess) {
-      FLAGCXCHECK(comm->flagcxNet->deregMr(sComm, mHandle));
-      FLAGCXCHECK(comm->flagcxNet->regMr(rComm, gpuPtr, GPU_BUF_SIZE, flagcx_PTR_CUDA, &mHandle));
-      FLAGCXCHECK(comm->flagcxNet->deregMr(rComm, mHandle));
-      gdrSupportMatrix[comm->cudaDev] = 1;
-    }
-    flagcxDebugNoWarn = 0;
-    FLAGCXCHECK(flagcxCudaFree(gpuPtr));
-cleanup2:
-    if (rComm != NULL)
-      FLAGCXCHECK(comm->flagcxNet->closeRecv(rComm));
-    if (sComm != NULL)
-      FLAGCXCHECK(comm->flagcxNet->closeSend(sComm));
-    FLAGCXCHECK(comm->flagcxNet->closeListen(lComm));
-cleanup1:
-      break;
-    }
-  }
-  *gdrSupport = gdrSupportMatrix[comm->cudaDev];
-  return flagcxSuccess;
-}
+//     FLAGCXCHECKGOTO(flagcxCalloc(&gpuPtr, GPU_BUF_SIZE), ret, cleanup2);
+//     if (comm->flagcxNet->regMr(sComm, gpuPtr, GPU_BUF_SIZE, FLAGCX_PTR_CUDA, &mHandle) == flagcxSuccess) {
+//       FLAGCXCHECK(comm->flagcxNet->deregMr(sComm, mHandle));
+//       FLAGCXCHECK(comm->flagcxNet->regMr(rComm, gpuPtr, GPU_BUF_SIZE, FLAGCX_PTR_CUDA, &mHandle));
+//       FLAGCXCHECK(comm->flagcxNet->deregMr(rComm, mHandle));
+//       gdrSupportMatrix[comm->cudaDev] = 1;
+//     }
+//     flagcxDebugNoWarn = 0;
+//     FLAGCXCHECK(flagcxCudaFree(gpuPtr));
+// cleanup2:
+//     if (rComm != NULL)
+//       FLAGCXCHECK(comm->flagcxNet->closeRecv(rComm));
+//     if (sComm != NULL)
+//       FLAGCXCHECK(comm->flagcxNet->closeSend(sComm));
+//     FLAGCXCHECK(comm->flagcxNet->closeListen(lComm));
+// cleanup1:
+//       break;
+//     }
+//   }
+//   *gdrSupport = gdrSupportMatrix[comm->cudaDev];
+//   return flagcxSuccess;
+// }
 
-int flagcxNetVersion(struct flagcxComm* comm) {
-  return
-    (comm->flagcxNet == &flagcxNet_v5_as_v8) ? 5 :
-    (comm->flagcxNet == &flagcxNet_v6_as_v8) ? 6 :
-    (comm->flagcxNet == &flagcxNet_v7_as_v8) ? 7 :
-    8;
-}
+// int flagcxNetVersion(struct flagcxComm* comm) {
+//   return
+//     (comm->flagcxNet == &flagcxNet_v5_as_v8) ? 5 :
+//     (comm->flagcxNet == &flagcxNet_v6_as_v8) ? 6 :
+//     (comm->flagcxNet == &flagcxNet_v7_as_v8) ? 7 :
+//     8;
+// }
 
 
 
-flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
-                               size_t size, flagcxProxyArgs *args) {
-  if (deviceKernel) {
-    deviceAdaptor->deviceMemcpy(args->hEventReady,args->dEventReady, 1,
-                                flagcxMemcpyDeviceToHost, resources->cpStream,
-                                NULL);
-  }
-  if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
-    return flagcxSuccess;
-  if (args->transmitted < args->chunkSteps) {
-    int stepMask = args->sendStepMask;
+// flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
+//                                size_t size, flagcxProxyArgs *args) {
+//   if (deviceKernel) {
+//     deviceAdaptor->deviceMemcpy(args->hEventReady,args->dEventReady, 1,
+//                                 flagcxMemcpyDeviceToHost, resources->cpStream,
+//                                 NULL);
+//   }
+//   if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
+//     return flagcxSuccess;
+//   if (args->transmitted < args->chunkSteps) {
+//     int stepMask = args->sendStepMask;
 
-    if (args->waitCopy < args->chunkSteps &&
-        args->waitCopy - args->transmitted < MAXSTEPS) {
-      int step = args->waitCopy & stepMask;
-      args->subs[step].stepSize =
-          std::min(args->chunkSize, size - args->totalCopySize);
-      args->subs[step].stepBuff = resources->buffers[0] + (CHUNKSIZE * step);
-      deviceAdaptor->deviceMemcpy(
-          args->subs[step].stepBuff, (char *)data + args->totalCopySize,
-          args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
-          resources->cpStream, args->subs[step].copyArgs);
-      deviceAdaptor->eventRecord(resources->cpEvents[step],
-                                 resources->cpStream);
-      args->totalCopySize += args->subs[step].stepSize;
-      args->waitCopy++;
-    }
+//     if (args->waitCopy < args->chunkSteps &&
+//         args->waitCopy - args->transmitted < MAXSTEPS) {
+//       int step = args->waitCopy & stepMask;
+//       args->subs[step].stepSize =
+//           std::min(args->chunkSize, size - args->totalCopySize);
+//       args->subs[step].stepBuff = resources->buffers[0] + (CHUNKSIZE * step);
+//       deviceAdaptor->deviceMemcpy(
+//           args->subs[step].stepBuff, (char *)data + args->totalCopySize,
+//           args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
+//           resources->cpStream, args->subs[step].copyArgs);
+//       deviceAdaptor->eventRecord(resources->cpEvents[step],
+//                                  resources->cpStream);
+//       args->totalCopySize += args->subs[step].stepSize;
+//       args->waitCopy++;
+//     }
 
-    if (args->copied < args->waitCopy) {
-      int step = args->copied & stepMask;
-      if (deviceAdaptor->eventQuery(resources->cpEvents[step]) ==
-          flagcxSuccess) {
-        args->copied++;
-      }
-    }
+//     if (args->copied < args->waitCopy) {
+//       int step = args->copied & stepMask;
+//       if (deviceAdaptor->eventQuery(resources->cpEvents[step]) ==
+//           flagcxSuccess) {
+//         args->copied++;
+//       }
+//     }
 
-    if (args->posted < args->copied) {
-      void *req = NULL;
-      flagcxNetIb.isend(resources->netSendComm,
-                        args->subs[args->posted & stepMask].stepBuff,
-                        args->subs[args->posted & stepMask].stepSize, 0,
-                        resources->mhandles[0], &req);
-      if (req) {
-        args->subs[args->posted++ & stepMask].requests[0] = req;
-      }
-    }
+//     if (args->posted < args->copied) {
+//       void *req = NULL;
+//       flagcxNetIb.isend(resources->netSendComm,
+//                         args->subs[args->posted & stepMask].stepBuff,
+//                         args->subs[args->posted & stepMask].stepSize, 0,
+//                         resources->mhandles[0], &req);
+//       if (req) {
+//         args->subs[args->posted++ & stepMask].requests[0] = req;
+//       }
+//     }
 
-    if (args->transmitted < args->posted) {
-      void *req = args->subs[args->transmitted & stepMask].requests[0];
-      int done = 0, sizes;
-      flagcxNetIb.test(req, &done, &sizes);
-      if (done) {
-        args->transmitted++;
-      }
-    }
-  } else {
-    __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
-    args->done = true;
-    if (deviceKernel) {
-      deviceAdaptor->deviceMemcpy(args->dlArgs, args->hlArgs, 1,
-                                  flagcxMemcpyHostToDevice, resources->cpStream,
-                                  NULL);
-    }
-  }
+//     if (args->transmitted < args->posted) {
+//       void *req = args->subs[args->transmitted & stepMask].requests[0];
+//       int done = 0, sizes;
+//       flagcxNetIb.test(req, &done, &sizes);
+//       if (done) {
+//         args->transmitted++;
+//       }
+//     }
+//   } else {
+//     __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
+//     args->done = true;
+//     if (deviceKernel) {
+//       deviceAdaptor->deviceMemcpy(args->dlArgs, args->hlArgs, 1,
+//                                   flagcxMemcpyHostToDevice, resources->cpStream,
+//                                   NULL);
+//     }
+//   }
 
-  return flagcxSuccess;
-}
+//   return flagcxSuccess;
+// }
 
-flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
-                               size_t size, flagcxProxyArgs *args) {
-  if (deviceKernel) {
-    deviceAdaptor->deviceMemcpy(args->hEventReady,args->dEventReady, 1,
-                                flagcxMemcpyDeviceToHost, resources->cpStream,
-                                NULL);
-  }
-  if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
-    return flagcxSuccess;
-  if (args->copied < args->chunkSteps) {
-    int stepMask = args->sendStepMask;
-    if (args->posted < args->chunkSteps &&
-        args->posted - args->copied < MAXSTEPS) {
-      int tags[8] = {0};
-      void *req = NULL;
-      args->subs[args->posted & stepMask].stepSize =
-          std::min(args->chunkSize, size - args->totalPostSize);
-      args->subs[args->posted & stepMask].stepBuff =
-          resources->buffers[0] + CHUNKSIZE * (args->posted & stepMask);
-      flagcxNetIb.irecv(resources->netRecvComm, 1,
-                        &args->subs[args->posted & stepMask].stepBuff,
-                        (int *)&args->subs[args->posted & stepMask].stepSize,
-                        tags, resources->mhandles, &req);
-      if (req) {
-        args->subs[args->posted & stepMask].requests[0] = req;
-        args->totalPostSize += args->subs[args->posted++ & stepMask].stepSize;
-      }
-    }
+// flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
+//                                size_t size, flagcxProxyArgs *args) {
+//   if (deviceKernel) {
+//     deviceAdaptor->deviceMemcpy(args->hEventReady,args->dEventReady, 1,
+//                                 flagcxMemcpyDeviceToHost, resources->cpStream,
+//                                 NULL);
+//   }
+//   if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
+//     return flagcxSuccess;
+//   if (args->copied < args->chunkSteps) {
+//     int stepMask = args->sendStepMask;
+//     if (args->posted < args->chunkSteps &&
+//         args->posted - args->copied < MAXSTEPS) {
+//       int tags[8] = {0};
+//       void *req = NULL;
+//       args->subs[args->posted & stepMask].stepSize =
+//           std::min(args->chunkSize, size - args->totalPostSize);
+//       args->subs[args->posted & stepMask].stepBuff =
+//           resources->buffers[0] + CHUNKSIZE * (args->posted & stepMask);
+//       flagcxNetIb.irecv(resources->netRecvComm, 1,
+//                         &args->subs[args->posted & stepMask].stepBuff,
+//                         (int *)&args->subs[args->posted & stepMask].stepSize,
+//                         tags, resources->mhandles, &req);
+//       if (req) {
+//         args->subs[args->posted & stepMask].requests[0] = req;
+//         args->totalPostSize += args->subs[args->posted++ & stepMask].stepSize;
+//       }
+//     }
 
-    if (args->transmitted < args->posted) {
-      void *req = args->subs[args->transmitted & stepMask].requests[0];
-      int done = 0, sizes;
-      flagcxNetIb.test(req, &done, &sizes);
-      if (done) {
-        args->transmitted++;
-      }
-    }
+//     if (args->transmitted < args->posted) {
+//       void *req = args->subs[args->transmitted & stepMask].requests[0];
+//       int done = 0, sizes;
+//       flagcxNetIb.test(req, &done, &sizes);
+//       if (done) {
+//         args->transmitted++;
+//       }
+//     }
 
-    if (args->postFlush < args->transmitted) {
-      void *req = NULL;
-      void *allData[] = {args->subs[args->postFlush & stepMask].stepBuff};
-      flagcxNetIb.iflush(resources->netRecvComm, 1, allData,
-                         &args->subs[args->postFlush & stepMask].stepSize,
-                         resources->mhandles, &req);
-      if (req) {
-        args->subs[args->postFlush++ & stepMask].requests[0] = req;
-      }
-    }
+//     if (args->postFlush < args->transmitted) {
+//       void *req = NULL;
+//       void *allData[] = {args->subs[args->postFlush & stepMask].stepBuff};
+//       flagcxNetIb.iflush(resources->netRecvComm, 1, allData,
+//                          &args->subs[args->postFlush & stepMask].stepSize,
+//                          resources->mhandles, &req);
+//       if (req) {
+//         args->subs[args->postFlush++ & stepMask].requests[0] = req;
+//       }
+//     }
 
-    if (args->flushed < args->postFlush) {
-      void *req = args->subs[args->flushed & stepMask].requests[0];
-      int done = 0, sizes;
-      flagcxNetIb.test(req, &done, &sizes);
-      if (done) {
-        args->flushed++;
-      }
-    }
+//     if (args->flushed < args->postFlush) {
+//       void *req = args->subs[args->flushed & stepMask].requests[0];
+//       int done = 0, sizes;
+//       flagcxNetIb.test(req, &done, &sizes);
+//       if (done) {
+//         args->flushed++;
+//       }
+//     }
 
-    if (args->waitCopy < args->flushed) {
-      int step = args->waitCopy & stepMask;
-      deviceAdaptor->deviceMemcpy(
-          (char *)data + args->totalCopySize, args->subs[step].stepBuff,
-          args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
-          resources->cpStream, args->subs[step].copyArgs);
-      deviceAdaptor->eventRecord(resources->cpEvents[step],
-                                 resources->cpStream);
-      args->totalCopySize += args->subs[step].stepSize;
-      args->waitCopy++;
-    }
+//     if (args->waitCopy < args->flushed) {
+//       int step = args->waitCopy & stepMask;
+//       deviceAdaptor->deviceMemcpy(
+//           (char *)data + args->totalCopySize, args->subs[step].stepBuff,
+//           args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
+//           resources->cpStream, args->subs[step].copyArgs);
+//       deviceAdaptor->eventRecord(resources->cpEvents[step],
+//                                  resources->cpStream);
+//       args->totalCopySize += args->subs[step].stepSize;
+//       args->waitCopy++;
+//     }
 
-    if (args->copied < args->waitCopy) {
-      int step = args->copied & stepMask;
-      if (deviceAdaptor->eventQuery(resources->cpEvents[step]) ==
-          flagcxSuccess) {
-        args->copied++;
-      }
-    }
+//     if (args->copied < args->waitCopy) {
+//       int step = args->copied & stepMask;
+//       if (deviceAdaptor->eventQuery(resources->cpEvents[step]) ==
+//           flagcxSuccess) {
+//         args->copied++;
+//       }
+//     }
 
-  } else {
-    __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
-    args->done = true;
-    if (deviceKernel) {
-      deviceAdaptor->deviceMemcpy(args->dlArgs, args->hlArgs, 1,
-                                  flagcxMemcpyHostToDevice, resources->cpStream,
-                                  NULL);
-    }
-  }
+//   } else {
+//     __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
+//     args->done = true;
+//     if (deviceKernel) {
+//       deviceAdaptor->deviceMemcpy(args->dlArgs, args->hlArgs, 1,
+//                                   flagcxMemcpyHostToDevice, resources->cpStream,
+//                                   NULL);
+//     }
+//   }
 
-  return flagcxSuccess;
-}
+//   return flagcxSuccess;
+// }
 
-flagcxResult_t flagcxSendProxyFree(sendNetResources *resources) {
-  flagcxNetIb.deregMr(resources->netSendComm, resources->mhandles[0]);
-  flagcxNetIb.closeSend(resources->netSendComm);
-  deviceAdaptor->gdrMemFree(resources->buffers[0], NULL);
-  for (int s = 0; s < MAXSTEPS; s++) {
-    deviceAdaptor->eventDestroy(resources->cpEvents[s]);
-  }
-  deviceAdaptor->streamDestroy(resources->cpStream);
-  return flagcxSuccess;
-}
+// flagcxResult_t flagcxSendProxyFree(sendNetResources *resources) {
+//   flagcxNetIb.deregMr(resources->netSendComm, resources->mhandles[0]);
+//   flagcxNetIb.closeSend(resources->netSendComm);
+//   deviceAdaptor->gdrMemFree(resources->buffers[0], NULL);
+//   for (int s = 0; s < MAXSTEPS; s++) {
+//     deviceAdaptor->eventDestroy(resources->cpEvents[s]);
+//   }
+//   deviceAdaptor->streamDestroy(resources->cpStream);
+//   return flagcxSuccess;
+// }
 
-flagcxResult_t flagcxRecvProxyFree(recvNetResources *resources) {
-  flagcxNetIb.deregMr(resources->netRecvComm, resources->mhandles[0]);
-  flagcxNetIb.closeRecv(resources->netRecvComm);
-  flagcxNetIb.closeListen(resources->netListenComm);
-  deviceAdaptor->gdrMemFree(resources->buffers[0], NULL);
-  for (int s = 0; s < MAXSTEPS; s++) {
-    deviceAdaptor->eventDestroy(resources->cpEvents[s]);
-  }
-  deviceAdaptor->streamDestroy(resources->cpStream);
-  return flagcxSuccess;
-}
+// flagcxResult_t flagcxRecvProxyFree(recvNetResources *resources) {
+//   flagcxNetIb.deregMr(resources->netRecvComm, resources->mhandles[0]);
+//   flagcxNetIb.closeRecv(resources->netRecvComm);
+//   flagcxNetIb.closeListen(resources->netListenComm);
+//   deviceAdaptor->gdrMemFree(resources->buffers[0], NULL);
+//   for (int s = 0; s < MAXSTEPS; s++) {
+//     deviceAdaptor->eventDestroy(resources->cpEvents[s]);
+//   }
+//   deviceAdaptor->streamDestroy(resources->cpStream);
+//   return flagcxSuccess;
+// }
