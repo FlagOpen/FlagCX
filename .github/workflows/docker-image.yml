@@ -33,7 +33,3 @@ jobs:
       run: |
         docker push crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.tag }}
 
-    - name: Output tag
-      run: echo "Pushed tag: ${{ steps.vars.outputs.tag }}"
-
-
