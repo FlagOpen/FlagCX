@@ -4,6 +4,10 @@
 #include "proxy.h"
 
 
+#include <string.h>
+#include <errno.h>
+#include <dlfcn.h>
+
 static flagcxNet_v8_t flagcxNet_v5_as_v8;
 static flagcxNet_v8_t flagcxNet_v6_as_v8;
 static flagcxNet_v8_t flagcxNet_v7_as_v8;

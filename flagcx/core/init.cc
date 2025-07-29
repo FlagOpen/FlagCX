@@ -347,3 +347,6 @@ flagcxResult_t flagcxHeteroCommDestroy(flagcxHeteroComm_t comm) {
 
   return flagcxSuccess;
 }
+
+
+

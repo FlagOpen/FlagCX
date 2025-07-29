@@ -11,6 +11,7 @@
 #include "utils.h"
 #include <stdlib.h>
 #include <cstddef>
+#include "flagcx_net.h"
 
 #include <unistd.h>
 #include <ifaddrs.h>
@@ -878,3 +879,7 @@ flagcxResult_t flagcxSocketSetFd(int fd, struct flagcxSocket* sock) {
   sock->fd = fd;
   return flagcxSuccess;
 }
+
+
+
+
