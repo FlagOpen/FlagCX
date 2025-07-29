@@ -36,3 +36,4 @@ jobs:
     - name: Output tag
       run: echo "Pushed tag: ${{ steps.vars.outputs.tag }}"
 
+
