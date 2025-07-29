@@ -7,12 +7,32 @@ on:
     branches: [ "main" ]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Log in to Aliyun ACR
+      run: |
+        echo "${{ secrets.ACR_PASSWORD }}" | docker login registry.cn-hangzhou.aliyuncs.com \
+          -u ${{ secrets.ACR_USERNAME }} --password-stdin
+
+    - name: Generate timestamp tag
+      id: vars
+      run: |
+        echo "tag=$(date +%s)" >> $GITHUB_OUTPUT
+
+    - name: Build Docker image
+      run: |
+        docker build . --file Dockerfile \
+          --tag crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.tag }}
+
+    - name: Push Docker image to ACR
+      run: |
+        docker push crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.tag }}
+
+    - name: Output tag
+      run: echo "Pushed tag: ${{ steps.vars.outputs.tag }}"
+
