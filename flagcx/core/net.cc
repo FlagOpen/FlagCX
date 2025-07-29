@@ -510,7 +510,7 @@ flagcxResult_t flagcxNetPluginInit() {
 flagcxResult_t flagcxNetCheckDeviceVersion(struct flagcxComm* comm, flagcxNet_t* net, int dev) {
   flagcxNetProperties_t props;
 
-  flagcxCHECK(net->getProperties(dev, &props));
+  FLAGCXCHECK(net->getProperties(dev, &props));
   flagcxNetDeviceType type = props.netDeviceType;
   if (type) switch (type) {
     case FLAGCX_NET_DEVICE_UNPACK:
