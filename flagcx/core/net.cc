@@ -337,7 +337,7 @@ static flagcxResult_t flagcxCollNet_v7_as_v8_init(flagcxDebugLogger_t logfn) {
 }
 
 
-// static pthread_mutex_t netLock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t netLock = PTHREAD_MUTEX_INITIALIZER;
 flagcxNet_t* flagcxNets[3] = { nullptr, &flagcxNetIb, &flagcxNetSocket };
 flagcxCollNet_t* flagcxCollNets[3] = { nullptr, nullptr, nullptr };
 enum flagcxNetState {
@@ -362,7 +362,6 @@ static void* tryOpenDynamicLib(char* name) {
   }
   return handle;
 }
-
 
 static void summarizeOpenNetPluginErrors(char* pluginNames) {
   const char *separator = " ";
@@ -405,7 +404,7 @@ static void* openNetPluginLib(void) {
     len = PATH_MAX - strlen(ptr);
     snprintf(ptr + strlen(ptr), len + 1, "%s ", netPluginLibName);
 
-    snprintf(netPluginLibName, PATH_MAX, "libnccl-net-%s.so", envNetPluginName);
+    snprintf(netPluginLibName, PATH_MAX, "libflagcx-net-%s.so", envNetPluginName);
     pluginLib = tryOpenDynamicLib(netPluginLibName);
     if (pluginLib) {
       INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Plugin name set by env to %s", netPluginLibName);
@@ -414,7 +413,7 @@ static void* openNetPluginLib(void) {
     len = PATH_MAX - strlen(ptr);
     snprintf(ptr + strlen(ptr), len + 1, "%s ", netPluginLibName);
   } else {
-    snprintf(netPluginLibName, PATH_MAX, "libnccl-net.so");
+    snprintf(netPluginLibName, PATH_MAX, "libflagcx-net.so");
     pluginLib = tryOpenDynamicLib(netPluginLibName);
     if (pluginLib) {
       return pluginLib;
@@ -428,14 +427,13 @@ static void* openNetPluginLib(void) {
 }
 
 
-
 flagcxResult_t flagcxNetPluginInit() {
   void* netPluginLib = openNetPluginLib();
   if (netPluginLib == nullptr) {
     INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Using internal network plugin.");
     return flagcxSuccess;
   }
-
+  
   flagcxNets[0] = (flagcxNet_v8_t*)dlsym(netPluginLib, "flagcxNetPlugin_v8");
   if (flagcxNets[0] == nullptr) {
     INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Failed to find flagcxNetPlugin_v8 symbol.");
@@ -505,6 +503,184 @@ flagcxResult_t flagcxNetPluginInit() {
     }
   }
   return flagcxSuccess;
+}
+
+
+
+flagcxResult_t flagcxNetCheckDeviceVersion(struct flagcxComm* comm, flagcxNet_t* net, int dev) {
+  flagcxNetProperties_t props;
+
+  flagcxCHECK(net->getProperties(dev, &props));
+  flagcxNetDeviceType type = props.netDeviceType;
+  if (type) switch (type) {
+    case FLAGCX_NET_DEVICE_UNPACK:
+      if (props.netDeviceVersion == FLAGCX_NET_DEVICE_UNPACK_VERSION) {
+        INFO(FLAGCX_INIT, "Using FLAGCX_NET_DEVICE_UNPACK net plugin version %d",
+          props.netDeviceVersion);
+        return flagcxSuccess;
+      } else {
+        WARN("FLAGCX_DEVICE_UNPACK plugin has incompatible version %d, this flagcx build is compatible with %d, not using it",
+          props.netDeviceVersion, FLAGCX_NET_DEVICE_UNPACK_VERSION);
+        return flagcxInternalError;
+      }
+    default:
+      WARN("Unknown device code index");
+      return flagcxInternalError;
+  }
+
+  INFO(FLAGCX_INIT, "Using non-device net plugin version %d",
+    props.netDeviceVersion);
+  return flagcxSuccess;
+}
+
+static flagcxResult_t netGetState(int i, enum flagcxNetState* state) {
+  pthread_mutex_lock(&netLock);
+  if (flagcxNetStates[i] == flagcxNetStateInit) {
+    int ndev;
+    if (flagcxNets[i]->init(flagcxDebugLog) != flagcxSuccess) flagcxNetStates[i] = flagcxNetStateDisabled;
+    else if (flagcxNets[i]->devices(&ndev) != flagcxSuccess || ndev <= 0) flagcxNetStates[i] = flagcxNetStateDisabled;
+    else flagcxNetStates[i] = flagcxNetStateEnabled;
+  }
+  *state = flagcxNetStates[i];
+  pthread_mutex_unlock(&netLock);
+  return flagcxSuccess;
+}
+
+static flagcxResult_t collNetGetState(int i, enum flagcxNetState* state) {
+  pthread_mutex_lock(&netLock);
+  if (flagcxCollNetStates[i] == flagcxNetStateInit) {
+    int ndev;
+    if (flagcxCollNets[i]->init(flagcxDebugLog) != flagcxSuccess) flagcxCollNetStates[i] = flagcxNetStateDisabled;
+    else if (flagcxCollNets[i]->devices(&ndev) != flagcxSuccess || ndev <= 0) flagcxCollNetStates[i] = flagcxNetStateDisabled;
+    else flagcxCollNetStates[i] = flagcxNetStateEnabled;
+  }
+  *state = flagcxCollNetStates[i];
+  pthread_mutex_unlock(&netLock);
+  return flagcxSuccess;
+}
+
+
+
+flagcxResult_t flagcxNetInit(struct flagcxComm* comm) {
+  // Initialize main communication network
+  const char* netName;
+  bool ok = false;
+
+  netName = comm->config.netName;
+  for (int i=0; i<3; i++) {
+    if (flagcxNets[i] == nullptr) continue;
+    enum flagcxNetState state;
+    FLAGCXCHECK(netGetState(i, &state));
+    if (state != flagcxNetStateEnabled) continue;
+    if (netName && strcasecmp(netName, flagcxNets[i]->name) != 0) continue;
+    if (flagcxSuccess != flagcxNetCheckDeviceVersion(comm, flagcxNets[i], 0)) {
+      // Mismatched device plugin version
+      continue;
+    }
+
+    comm->flagcxNet = flagcxNets[i];
+    ok = true;
+
+    if (flagcxCollNets[i]) {
+      FLAGCXCHECK(collNetGetState(i, &state));
+      if (state == flagcxNetStateEnabled) {
+        comm->flagcxCollNet = flagcxCollNets[i];
+      }
+    }
+    break;
+  }
+
+  if (!ok) {
+    WARN("Error: network %s not found.", netName ? netName : "");
+    return flagcxInvalidUsage;
+  }
+  return flagcxSuccess;
+}
+
+
+flagcxResult_t flagcxGpuGdrSupport(struct flagcxComm* comm, int* gdrSupport) {
+  constexpr int GPU_BUF_SIZE = 2*1024*1024;
+#if CUDART_VERSION >= 11030
+  // In CUDA 11.3 and later we can now query the cudaDevAttrGPUDirectRDMASupported attribute
+  int driverVersion;
+  CUDACHECK(cudaDriverGetVersion(&driverVersion));
+  if (driverVersion >= 11030) {
+    int cudaDev, attr = 0;
+    CUDACHECK(cudaGetDevice(&cudaDev));
+    CUDACHECK(cudaDeviceGetAttribute(&attr, cudaDevAttrGPUDirectRDMASupported, cudaDev));
+    *gdrSupport = attr;
+    return flagcxSuccess;
+  }
+#endif
+  static int gdrSupportMatrix[32] = {
+	  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  if (gdrSupportMatrix[comm->cudaDev] == -1) {
+    int netDevs;
+    FLAGCXCHECK(comm->flagcxNet->devices(&netDevs));
+    gdrSupportMatrix[comm->cudaDev] = 0;
+    for (int dev=0; dev<netDevs; dev++) {
+      // Find a net device which is GDR-capable
+      flagcxNetProperties_t props;
+      FLAGCXCHECK(comm->flagcxNet->getProperties(dev, &props));
+      if ((props.ptrSupport & flagcx_PTR_CUDA) == 0) continue;
+
+    // Allocate memory on the GPU and try to register it on the NIC.
+    void *lComm = NULL, *sComm = NULL, *rComm = NULL;
+    flagcxNetHandle_t handle;
+    char* gpuPtr = NULL;
+    void* mHandle = NULL;
+    flagcxResult_t ret;
+    flagcxDebugNoWarn = flagcx_NET;
+    FLAGCXCHECKGOTO(comm->flagcxNet->listen(dev, &handle, &lComm), ret, cleanup1);
+
+    bool connected;
+    connected = false;
+    while (!connected) {
+
+      // If we're aborting now, skip to cleanup
+      if (__atomic_load_n(comm->abortFlag, __ATOMIC_RELAXED)) {
+        goto cleanup2;
+      }
+
+      if (sComm == NULL)
+        FLAGCXCHECKGOTO(comm->flagcxNet->connect(dev, &handle, &sComm, NULL), ret, cleanup2);
+
+      if (rComm == NULL)
+        FLAGCXCHECKGOTO(comm->flagcxNet->accept(lComm, &rComm, NULL), ret, cleanup2);
+
+      connected = (rComm != NULL) && (sComm != NULL);
+    }
+
+    FLAGCXCHECKGOTO(flagcxCudaMalloc(&gpuPtr, GPU_BUF_SIZE), ret, cleanup2);
+    if (comm->flagcxNet->regMr(sComm, gpuPtr, GPU_BUF_SIZE, flagcx_PTR_CUDA, &mHandle) == flagcxSuccess) {
+      FLAGCXCHECK(comm->flagcxNet->deregMr(sComm, mHandle));
+      FLAGCXCHECK(comm->flagcxNet->regMr(rComm, gpuPtr, GPU_BUF_SIZE, flagcx_PTR_CUDA, &mHandle));
+      FLAGCXCHECK(comm->flagcxNet->deregMr(rComm, mHandle));
+      gdrSupportMatrix[comm->cudaDev] = 1;
+    }
+    flagcxDebugNoWarn = 0;
+    FLAGCXCHECK(flagcxCudaFree(gpuPtr));
+cleanup2:
+    if (rComm != NULL)
+      FLAGCXCHECK(comm->flagcxNet->closeRecv(rComm));
+    if (sComm != NULL)
+      FLAGCXCHECK(comm->flagcxNet->closeSend(sComm));
+    FLAGCXCHECK(comm->flagcxNet->closeListen(lComm));
+cleanup1:
+      break;
+    }
+  }
+  *gdrSupport = gdrSupportMatrix[comm->cudaDev];
+  return flagcxSuccess;
+}
+
+int flagcxNetVersion(struct flagcxComm* comm) {
+  return
+    (comm->flagcxNet == &flagcxNet_v5_as_v8) ? 5 :
+    (comm->flagcxNet == &flagcxNet_v6_as_v8) ? 6 :
+    (comm->flagcxNet == &flagcxNet_v7_as_v8) ? 7 :
+    8;
 }
 
 

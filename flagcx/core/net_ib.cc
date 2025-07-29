@@ -431,6 +431,7 @@ int flagcxIbFindMatchingDev(int dev) {
   return flagcxNMergedIbDevs;
 }
 
+
 flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
   flagcxResult_t ret;
   if (flagcxParamIbDisable())
@@ -459,7 +460,6 @@ flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
 
       // Check if user defined which IB device:port to use
       char *userIbEnv = getenv("FLAGCX_IB_HCA");
-      printf("FLAGCX_IB_HCA set to %s\n", userIbEnv);
       if (userIbEnv != NULL && shownIbHcaEnv++ == 0)
         INFO(FLAGCX_NET | FLAGCX_ENV, "FLAGCX_IB_HCA set to %s", userIbEnv);
       struct netIf userIfs[MAX_IB_DEVS];
