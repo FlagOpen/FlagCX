@@ -53,8 +53,8 @@ jobs:
         id: vars
         run: |
           commit_id=$(git rev-parse --short HEAD)
-          echo "commit_id=$commit_id" >> $GITHUB_ENV  # 将 commit_id 存储到环境变量中
-          echo "commit_id=$commit_id" >> $GITHUB_OUTPUT  # 可选：也可以存储在 GITHUB_OUTPUT 中
+          echo "commit_id=$commit_id" >> $GITHUB_ENV  
+          echo "commit_id=$commit_id" >> $GITHUB_OUTPUT  
 
       - name: Build and push flagcx Docker image
         if: needs.detect-changes.outputs.build_flagcx == 'true'
@@ -100,3 +100,17 @@ jobs:
         run: |
           echo "Using tag: ${{ needs.build-and-push.outputs.test_image }}"
           KUBECONFIG=./kubeconfig kubectl set image deployment/test-dev test=${{ needs.build-and-push.outputs.test_image }} -n test
+
+      - name: Send message to Feishu Group
+        run: |
+          COMMIT_ID="${{ steps.vars.outputs.commit_id }}"
+          MESSAGE="Deployment completed successfully. Commit ID: $COMMIT_ID"
+
+          curl -X POST https://open.feishu.cn/open-apis/bot/v2/hook/2a011115-ca1d-4ea7-a0f9-e665f6353739 \
+            -H "Content-Type: application/json" \
+            -d '{
+                  "msg_type": "text",
+                  "content": {
+                    "text": "'"${MESSAGE}"'"
+                  }
+                }'
