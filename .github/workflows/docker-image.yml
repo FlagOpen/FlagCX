@@ -5,31 +5,86 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  paths:
+    - 'flagcx/**'  
+    - 'test/**'   
 
 jobs:
-  build:
+  detect-changes:
     runs-on: ubuntu-latest
-
+    outputs:
+      build_flagcx: ${{ steps.filter.outputs.flagcx }}
+      build_test: ${{ steps.filter.outputs.test }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Log in to Aliyun ACR
-      run: |
-        echo "${{ secrets.ACR_PASSWORD }}" | docker login crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com \
-          -u ${{ secrets.ACR_USERNAME }} --password-stdin
+      - name: Detect changes in directories
+        id: filter
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            flagcx:
+              - 'flagcx/**'
+            test:
+              - 'test/**'
 
-    - name: Generate timestamp tag
-      id: vars
-      run: |
-        echo "tag=$(date +%s)" >> $GITHUB_OUTPUT
+  build-and-push:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Build Docker image
-      run: |
-        docker build . --file ./test/Dockerfile \
-          --tag crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }}
+      - name: Log in to Aliyun ACR
+        run: |
+          echo "${{ secrets.ACR_PASSWORD }}" | docker login crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com \
+            -u ${{ secrets.ACR_USERNAME }} --password-stdin
 
-    - name: Push Docker image to ACR
-      run: |
-        docker push crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }}
+      - name: Generate timestamp tag
+        id: vars
+        run: |
+          echo "tag=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Build and push flagcx Docker image
+        if: needs.detect-changes.outputs.build_flagcx == 'true'
+        run: |
+          docker build . --file Dockerfile \
+            --tag crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.tag }}
+          docker push crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.tag }}
+
+      - name: Build and push test Docker image
+        if: needs.detect-changes.outputs.build_test == 'true'
+        run: |
+          docker build . --file ./test/Dockerfile \
+            --tag crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }}
+          docker push crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }}
+
+      - name: Output image info
+        run: |
+          echo "FlagCX Image: crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.tag }}"
+          echo "Test Image: crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }}"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up kubeconfig for Volcano Engine
+        run: |
+          echo "${{ secrets.KUBECONFIG_DEV }}" > kubeconfig
+        env:
+          KUBECONFIG_DEV: ${{ secrets.KUBECONFIG_DEV }}
+
+      - name: Deploy FlagCX with new image
+        if: needs.build-and-push.outputs.build_flagcx == 'true'
+        run: |
+          KUBECONFIG=./kubeconfig kubectl set image deployment/flagcx-dev flagcx=crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.tag }} -n test
+          KUBECONFIG=./kubeconfig kubectl rollout restart deployment/flagcx-dev -n test
+
+      - name: Deploy Test with new image
+        if: needs.build-and-push.outputs.build_test == 'true'
+        run: |
+          KUBECONFIG=./kubeconfig kubectl set image deployment/test-dev  test=crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }} -n test
+          KUBECONFIG=./kubeconfig kubectl rollout restart deployment/test-dev -n test
 
