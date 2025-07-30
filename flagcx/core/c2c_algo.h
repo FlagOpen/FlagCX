@@ -168,7 +168,7 @@ public:
                      flagcxComm_t comm, flagcxStream_t stream);
   flagcxC2cHeteroFunc(FILE *file);
 
-// private:
+  // private:
   std::vector<flagcxC2cP2pOp> p2pOps_;
 };
 
