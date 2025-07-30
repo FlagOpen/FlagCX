@@ -103,7 +103,7 @@ jobs:
 
       - name: Send message to Feishu Group
         run: |
-          COMMIT_ID="${{ env.commit_id }}"
+          COMMIT_ID="${{  needs.build-and-push.outputs.commit_id }}"
           MESSAGE="Deployment completed successfully. Commit ID: $COMMIT_ID"
 
           curl -X POST https://open.feishu.cn/open-apis/bot/v2/hook/2a011115-ca1d-4ea7-a0f9-e665f6353739 \
