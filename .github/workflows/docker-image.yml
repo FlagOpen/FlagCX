@@ -12,6 +12,8 @@ on:
       - 'flagcx/**'
       - 'test/**'
 
+env:
+  FEISHU_WEBHOOK_URL: https://open.feishu.cn/open-apis/bot/v2/hook/2a011115-ca1d-4ea7-a0f9-e665f6353739
 
 jobs:
   detect-changes:
@@ -107,7 +109,7 @@ jobs:
           COMMIT_ID="${{  needs.build-and-push.outputs.commit_id }}"
           MESSAGE="Deployment completed successfully. Commit ID: $COMMIT_ID"
 
-          curl -X POST https://open.feishu.cn/open-apis/bot/v2/hook/2a011115-ca1d-4ea7-a0f9-e665f6353739 \
+          curl -X POST $FEISHU_WEBHOOK_URL \
             -H "Content-Type: application/json" \
             -d '{
                   "msg_type": "text",
