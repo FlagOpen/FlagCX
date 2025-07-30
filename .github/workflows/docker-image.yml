@@ -89,7 +89,7 @@ jobs:
           KUBECONFIG=./kubeconfig kubectl get pod -n test
 
       - name: Deploy FlagCX with new image
-        if: needs.detect-changes.outputs.build_test == 'true'
+        if: needs.detect-changes.outputs.build_flagcx == 'true'
         run: |
           echo "Using tag: ${{ needs.build-and-push.outputs.flagcx_image }}"
           KUBECONFIG=./kubeconfig kubectl set image deployment/flagcx-dev flagcx=${{ needs.build-and-push.outputs.flagcx_image }} -n test
