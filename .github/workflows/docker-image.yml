@@ -100,5 +100,3 @@ jobs:
         run: |
           echo "Using tag: ${{ needs.build-and-push.outputs.test_image }}"
           KUBECONFIG=./kubeconfig kubectl set image deployment/test-dev test=${{ needs.build-and-push.outputs.test_image }} -n test
-          KUBECONFIG=./kubeconfig kubectl rollout restart deployment/test-dev -n test
-
