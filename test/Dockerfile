@@ -1,10 +1,8 @@
 FROM ubuntu:22.04
 
-# 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
 
-# 安装常用工具和开发工具链
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         python3 python3-pip \
@@ -16,7 +14,6 @@ RUN apt-get update && \
         unzip zip \
         htop lsof \
         jq \
-        openjdk-11-jdk \
         maven \
         mysql-client \
         redis-tools \
