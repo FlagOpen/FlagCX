@@ -10,7 +10,6 @@ RUN apt-get update && \
         curl wget git vim \
         build-essential \
         ca-certificates \
-        net-tools  \
         htop lsof \
         jq \
         openjdk-11-jdk \
