@@ -159,6 +159,8 @@ public:
 class flagcxC2cHeteroFunc {
 public:
   friend class flagcxAlgoTimeEstimator;
+  friend void serializeHeteroFunc(FILE *file, const flagcxC2cHeteroFunc &func,
+                                  int indent);
   flagcxC2cHeteroFunc();
   ~flagcxC2cHeteroFunc();
 
@@ -168,7 +170,7 @@ public:
                      flagcxComm_t comm, flagcxStream_t stream);
   flagcxC2cHeteroFunc(FILE *file);
 
-  // private:
+private:
   std::vector<flagcxC2cP2pOp> p2pOps_;
 };
 
