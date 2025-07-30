@@ -52,9 +52,9 @@ jobs:
       - name: Generate timestamp tag
         id: vars
         run: |
-          tag=$(date +%s)  # 获取当前时间戳
-          echo "tag=$tag" >> $GITHUB_OUTPUT  # 设置为 GitHub Actions 输出，供后续步骤使用
-          echo "tag=$tag" >> $GITHUB_ENV  # 设置为环境变量，供后续步骤使用
+          tag=$(date +%s)  
+          echo "tag=$tag" >> $GITHUB_OUTPUT 
+          echo "tag=$tag" >> $GITHUB_ENV  
 
       - name: Build and push flagcx Docker image
         if: needs.detect-changes.outputs.build_flagcx == 'true'
@@ -63,7 +63,7 @@ jobs:
           image="crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.tag }}"
           docker build . --file Dockerfile --tag $image
           docker push $image
-          echo "::set-output name=image::$image"  # 将镜像名输出给后续作业
+          echo "::set-output name=image::$image"  
 
       - name: Build and push test Docker image
         if: needs.detect-changes.outputs.build_test == 'true'
@@ -72,7 +72,7 @@ jobs:
           image="crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }}"
           docker build . --file ./test/Dockerfile --tag $image
           docker push $image
-          echo "::set-output name=image::$image"  # 将镜像名输出给后续作业
+          echo "::set-output name=image::$image"  
 
       - name: Output image info
         run: |
@@ -87,18 +87,16 @@ jobs:
         run: |
           echo "${{ secrets.KUBECONFIG_DEV }}" > kubeconfig
           KUBECONFIG=./kubeconfig kubectl get pod -n test
-          KUBECONFIG=./kubeconfig kubectl set image deployment/test-dev test=${{ needs.build-and-push.outputs.test_image }} -n test
-          KUBECONFIG=./kubeconfig kubectl rollout restart deployment/test-dev -n test
 
       - name: Deploy FlagCX with new image
-        if: needs.build-and-push.outputs.build_flagcx == 'true'
+        if: needs.detect-changes.outputs.build_test == 'true'
         run: |
           echo "Using tag: ${{ needs.build-and-push.outputs.flagcx_image }}"
           KUBECONFIG=./kubeconfig kubectl set image deployment/flagcx-dev flagcx=${{ needs.build-and-push.outputs.flagcx_image }} -n test
           KUBECONFIG=./kubeconfig kubectl rollout restart deployment/flagcx-dev -n test
 
       - name: Deploy Test with new image
-        if: needs.build-and-push.outputs.build_test == 'true'
+        if: needs.detect-changes.outputs.build_test == 'true'
         run: |
           echo "Using tag: ${{ needs.build-and-push.outputs.test_image }}"
           KUBECONFIG=./kubeconfig kubectl set image deployment/test-dev test=${{ needs.build-and-push.outputs.test_image }} -n test
