@@ -48,7 +48,9 @@ jobs:
       - name: Generate timestamp tag
         id: vars
         run: |
-          echo "tag=$(date +%s)" >> $GITHUB_OUTPUT
+          tag=$(date +%s)  
+          echo "tag=$tag" >> $GITHUB_OUTPUT  
+          echo "tag=$tag" >> $GITHUB_ENV  
 
       - name: Build and push flagcx Docker image
         if: needs.detect-changes.outputs.build_flagcx == 'true'
@@ -78,7 +80,7 @@ jobs:
           echo "${{ secrets.KUBECONFIG_DEV }}" > kubeconfig
           cat kubeconfig
           KUBECONFIG=./kubeconfig kubectl get pod -n test
-          KUBECONFIG=./kubeconfig kubectl set image deployment/test-dev  test=crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }} -n test
+          KUBECONFIG=./kubeconfig kubectl set image deployment/test-dev  test=crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ needs.build-and-push.outputs.tag }} -n test
           KUBECONFIG=./kubeconfig kubectl rollout restart deployment/test-dev -n test
         env:
           KUBECONFIG_DEV: ${{ secrets.KUBECONFIG_DEV }}
@@ -86,6 +88,6 @@ jobs:
       - name: Deploy Test with new image
         if: needs.build-and-push.outputs.build_test == 'true'
         run: |
-          KUBECONFIG=./kubeconfig kubectl set image deployment/test-dev  test=crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }} -n test
+          KUBECONFIG=./kubeconfig kubectl set image deployment/test-dev  test=crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ needs.build-and-push.outputs.tag }} -n test
           KUBECONFIG=./kubeconfig kubectl rollout restart deployment/test-dev -n test
 
