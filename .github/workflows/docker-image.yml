@@ -40,6 +40,7 @@ jobs:
     outputs:
       flagcx_image: ${{ steps.flagcx_image.outputs.image }}
       test_image: ${{ steps.test_image.outputs.image }}
+      commit_id: ${{ steps.vars.outputs.commit_id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
