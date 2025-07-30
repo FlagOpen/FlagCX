@@ -14,12 +14,18 @@ RUN apt-get update && \
         unzip zip \
         htop lsof \
         jq \
+        openjdk-11-jdk \
+        maven \
+        mysql-client \
+        redis-tools \
         python3-dev \
         libffi-dev \
+        libxml2-dev \
         libxslt-dev \
         bash \
         tzdata \
         libssl-dev \
+        zlib1g-dev \
         libpq-dev \
         python3-pandas \
         python3-numpy \
@@ -27,6 +33,7 @@ RUN apt-get update && \
         python3-sklearn && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
 
 RUN python3 --version && node -v && npm -v && gcc --version && \
     java -version && \
