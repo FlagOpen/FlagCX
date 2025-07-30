@@ -63,7 +63,7 @@ jobs:
           image="crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.commit_id }}"
           docker build . --file ./test/Dockerfile --tag $image
           docker push $image
-          echo "::set-output name=image::$image"
+          echo "image=$image" >> $GITHUB_OUTPUT
 
       - name: Build and push test Docker image
         if: needs.detect-changes.outputs.build_test == 'true'
@@ -72,7 +72,7 @@ jobs:
           image="crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.commit_id }}"
           docker build . --file ./test/Dockerfile --tag $image
           docker push $image
-          echo "::set-output name=image::$image"
+          echo "image=$image" >> $GITHUB_OUTPUT
 
       - name: Output image info
         run: |
