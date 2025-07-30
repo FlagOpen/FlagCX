@@ -11,7 +11,6 @@ RUN apt-get update && \
         build-essential \
         ca-certificates \
         net-tools iproute2 iputils-ping \
-        unzip zip \
         htop lsof \
         jq \
         openjdk-11-jdk \
