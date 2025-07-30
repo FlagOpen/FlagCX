@@ -52,9 +52,9 @@ jobs:
       - name: Generate timestamp tag
         id: vars
         run: |
-          tag=$(date +%s) 
-          echo "tag=$tag" >> $GITHUB_OUTPUT 
-          echo "tag=$tag" >> $GITHUB_ENV  
+          tag=$(date +%s)
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+          echo "tag=$tag" >> $GITHUB_ENV
 
       - name: Build and push flagcx Docker image
         if: needs.detect-changes.outputs.build_flagcx == 'true'
@@ -63,7 +63,7 @@ jobs:
           image="crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.tag }}"
           docker build . --file Dockerfile --tag $image
           docker push $image
-          echo "image=$image" >> $GITHUB_ENV 
+          echo "::set-output name=image::$image"
 
       - name: Build and push test Docker image
         if: needs.detect-changes.outputs.build_test == 'true'
@@ -72,7 +72,7 @@ jobs:
           image="crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }}"
           docker build . --file ./test/Dockerfile --tag $image
           docker push $image
-          echo "image=$image" >> $GITHUB_ENV 
+          echo "::set-output name=image::$image"
 
       - name: Output image info
         run: |
