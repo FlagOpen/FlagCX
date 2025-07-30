@@ -52,7 +52,8 @@ jobs:
       - name: Generate timestamp tag
         id: vars
         run: |
-          tag=$(date +%s)  
+          tag=$(date +%s) 
+          echo "tag=$tag" >> $GITHUB_OUTPUT 
           echo "tag=$tag" >> $GITHUB_ENV  
 
       - name: Build and push flagcx Docker image
