@@ -558,7 +558,6 @@ static flagcxResult_t collNetGetState(int i, enum flagcxNetState* state) {
 }
 
 
-
 flagcxResult_t flagcxNetInit(struct flagcxComm* comm) {
   // Initialize main communication network
   const char* netName;
@@ -594,94 +593,6 @@ flagcxResult_t flagcxNetInit(struct flagcxComm* comm) {
   }
   return flagcxSuccess;
 }
-
-
-// flagcxResult_t flagcxGpuGdrSupport(struct flagcxComm* comm, int* gdrSupport) {
-//   constexpr int GPU_BUF_SIZE = 2*1024*1024;
-// #if CUDART_VERSION >= 11030
-//   // In CUDA 11.3 and later we can now query the cudaDevAttrGPUDirectRDMASupported attribute
-//   int driverVersion;
-//   CUDACHECK(cudaDriverGetVersion(&driverVersion));
-//   if (driverVersion >= 11030) {
-//     int cudaDev, attr = 0;
-//     CUDACHECK(cudaGetDevice(&cudaDev));
-//     CUDACHECK(cudaDeviceGetAttribute(&attr, cudaDevAttrGPUDirectRDMASupported, cudaDev));
-//     *gdrSupport = attr;
-//     return flagcxSuccess;
-//   }
-// #endif
-//   static int gdrSupportMatrix[32] = {
-// 	  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-// 	  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-//   if (gdrSupportMatrix[comm->cudaDev] == -1) {
-//     int netDevs;
-//     FLAGCXCHECK(comm->flagcxNet->devices(&netDevs));
-//     gdrSupportMatrix[comm->cudaDev] = 0;
-//     for (int dev=0; dev<netDevs; dev++) {
-//       // Find a net device which is GDR-capable
-//       flagcxNetProperties_t props;
-//       FLAGCXCHECK(comm->flagcxNet->getProperties(dev, &props));
-//       if ((props.ptrSupport & FLAGCX_PTR_CUDA) == 0) continue;
-
-//     // Allocate memory on the GPU and try to register it on the NIC.
-//     void *lComm = NULL, *sComm = NULL, *rComm = NULL;
-//     flagcxNetHandle_t handle;
-//     char* gpuPtr = NULL;
-//     void* mHandle = NULL;
-//     flagcxResult_t ret;
-//     flagcxDebugNoWarn = FLAGCX_NET;
-//     FLAGCXCHECKGOTO(comm->flagcxNet->listen(dev, &handle, &lComm), ret, cleanup1);
-
-//     bool connected;
-//     connected = false;
-//     while (!connected) {
-
-//       // If we're aborting now, skip to cleanup
-//       if (__atomic_load_n(comm->abortFlag, __ATOMIC_RELAXED)) {
-//         goto cleanup2;
-//       }
-
-//       if (sComm == NULL)
-//         FLAGCXCHECKGOTO(comm->flagcxNet->connect(dev, &handle, &sComm, NULL), ret, cleanup2);
-
-//       if (rComm == NULL)
-//         FLAGCXCHECKGOTO(comm->flagcxNet->accept(lComm, &rComm, NULL), ret, cleanup2);
-
-//       connected = (rComm != NULL) && (sComm != NULL);
-//     }
-
-//     FLAGCXCHECKGOTO(flagcxCalloc(&gpuPtr, GPU_BUF_SIZE), ret, cleanup2);
-//     if (comm->flagcxNet->regMr(sComm, gpuPtr, GPU_BUF_SIZE, FLAGCX_PTR_CUDA, &mHandle) == flagcxSuccess) {
-//       FLAGCXCHECK(comm->flagcxNet->deregMr(sComm, mHandle));
-//       FLAGCXCHECK(comm->flagcxNet->regMr(rComm, gpuPtr, GPU_BUF_SIZE, FLAGCX_PTR_CUDA, &mHandle));
-//       FLAGCXCHECK(comm->flagcxNet->deregMr(rComm, mHandle));
-//       gdrSupportMatrix[comm->cudaDev] = 1;
-//     }
-//     flagcxDebugNoWarn = 0;
-//     FLAGCXCHECK(flagcxCudaFree(gpuPtr));
-// cleanup2:
-//     if (rComm != NULL)
-//       FLAGCXCHECK(comm->flagcxNet->closeRecv(rComm));
-//     if (sComm != NULL)
-//       FLAGCXCHECK(comm->flagcxNet->closeSend(sComm));
-//     FLAGCXCHECK(comm->flagcxNet->closeListen(lComm));
-// cleanup1:
-//       break;
-//     }
-//   }
-//   *gdrSupport = gdrSupportMatrix[comm->cudaDev];
-//   return flagcxSuccess;
-// }
-
-int flagcxNetVersion(struct flagcxComm* comm) {
-  return
-    (comm->flagcxNet == &flagcxNet_v5_as_v8) ? 5 :
-    (comm->flagcxNet == &flagcxNet_v6_as_v8) ? 6 :
-    (comm->flagcxNet == &flagcxNet_v7_as_v8) ? 7 :
-    8;
-}
-
-
 
 flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
