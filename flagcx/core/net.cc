@@ -46,8 +46,6 @@ static flagcxResult_t flagcxNet_v7_as_v8_regMr(void* comm, void* data, size_t si
   return flagcxNet_v7->regMr(comm, data, (int) size, type, mhandle);
 }
 
-
-
 static flagcxResult_t flagcxNet_v7_as_v8_init(flagcxDebugLogger_t logfn) {
   FLAGCXCHECK(flagcxNet_v7->init(logfn));
   flagcxNet_v7_as_v8.name = flagcxNet_v7->name;
