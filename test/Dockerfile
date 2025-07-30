@@ -14,7 +14,6 @@ RUN apt-get update && \
         unzip zip \
         htop lsof \
         jq \
-        maven \
         python3-dev \
         libffi-dev \
         libxslt-dev \
