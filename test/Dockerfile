@@ -16,7 +16,6 @@ RUN apt-get update && \
         jq \
         maven \
         mysql-client \
-        redis-tools \
         python3-dev \
         libffi-dev \
         libxslt-dev \
