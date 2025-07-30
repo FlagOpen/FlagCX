@@ -19,7 +19,6 @@ RUN apt-get update && \
         redis-tools \
         python3-dev \
         libffi-dev \
-        libxml2-dev \
         libxslt-dev \
         bash \
         tzdata \
