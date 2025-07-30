@@ -76,6 +76,8 @@ jobs:
       - name: Set up kubeconfig for Volcano Engine
         run: |
           echo "${{ secrets.KUBECONFIG_DEV }}" > kubeconfig
+          cat kubeconfig
+          KUBECONFIG=./kubeconfig kubectl get pod -n test
         env:
           KUBECONFIG_DEV: ${{ secrets.KUBECONFIG_DEV }}
 
