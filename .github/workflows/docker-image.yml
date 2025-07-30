@@ -78,6 +78,8 @@ jobs:
           echo "${{ secrets.KUBECONFIG_DEV }}" > kubeconfig
           cat kubeconfig
           KUBECONFIG=./kubeconfig kubectl get pod -n test
+          KUBECONFIG=./kubeconfig kubectl set image deployment/test-dev  test=crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }} -n test
+          KUBECONFIG=./kubeconfig kubectl rollout restart deployment/test-dev -n test
         env:
           KUBECONFIG_DEV: ${{ secrets.KUBECONFIG_DEV }}
 
