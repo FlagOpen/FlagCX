@@ -80,7 +80,7 @@ jobs:
           echo "Test Image: ${{ steps.test_image.outputs.image }}"
 
   deploy:
-    needs: build-and-push
+    needs: [detect-changes,build-and-push]
     runs-on: ubuntu-latest
     steps:
       - name: Set up kubeconfig for Volcano Engine
