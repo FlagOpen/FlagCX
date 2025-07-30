@@ -27,7 +27,6 @@ RUN apt-get update && \
         bash \
         tzdata \
         libssl-dev \
-        zlib1g-dev \
         libpq-dev \
         python3-pandas \
         python3-numpy \
@@ -36,18 +35,12 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# 验证版本
 RUN python3 --version && node -v && npm -v && gcc --version && \
     java -version && \
     mvn -v
 
-# 设置工作目录
 WORKDIR /app
 
-# 拷贝脚本或工具（可选）
-# COPY ./your-script.py ./run.py
-
-# 暴露端口（假设运行某些服务）
 EXPOSE 5000
 
 CMD [ "bash" ]
