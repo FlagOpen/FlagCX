@@ -81,12 +81,6 @@ jobs:
         env:
           KUBECONFIG_DEV: ${{ secrets.KUBECONFIG_DEV }}
 
-      - name: Deploy FlagCX with new image
-        if: needs.build-and-push.outputs.build_flagcx == 'true'
-        run: |
-          KUBECONFIG=./kubeconfig kubectl set image deployment/flagcx-dev flagcx=crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.tag }} -n test
-          KUBECONFIG=./kubeconfig kubectl rollout restart deployment/flagcx-dev -n test
-
       - name: Deploy Test with new image
         if: needs.build-and-push.outputs.build_test == 'true'
         run: |
