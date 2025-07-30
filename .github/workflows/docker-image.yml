@@ -52,16 +52,16 @@ jobs:
       - name: Generate timestamp tag
         id: vars
         run: |
-          tag=$(date +%s)
-          echo "tag=$tag" >> $GITHUB_OUTPUT
-          echo "tag=$tag" >> $GITHUB_ENV
+          commit_id=$(git rev-parse --short HEAD)
+          echo "commit_id=$commit_id" >> $GITHUB_ENV  # 将 commit_id 存储到环境变量中
+          echo "commit_id=$commit_id" >> $GITHUB_OUTPUT  # 可选：也可以存储在 GITHUB_OUTPUT 中
 
       - name: Build and push flagcx Docker image
         if: needs.detect-changes.outputs.build_flagcx == 'true'
         id: flagcx_image
         run: |
-          image="crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.tag }}"
-          docker build . --file Dockerfile --tag $image
+          image="crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/flagcx:${{ steps.vars.outputs.commit_id }}"
+          docker build . --file ./test/Dockerfile --tag $image
           docker push $image
           echo "::set-output name=image::$image"
 
@@ -69,7 +69,7 @@ jobs:
         if: needs.detect-changes.outputs.build_test == 'true'
         id: test_image
         run: |
-          image="crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.tag }}"
+          image="crpi-w4le1oy1gd4wy3vu.cn-hangzhou.personal.cr.aliyuncs.com/ai-stack/test:${{ steps.vars.outputs.commit_id }}"
           docker build . --file ./test/Dockerfile --tag $image
           docker push $image
           echo "::set-output name=image::$image"
