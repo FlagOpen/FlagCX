@@ -15,7 +15,6 @@ RUN apt-get update && \
         htop lsof \
         jq \
         maven \
-        mysql-client \
         python3-dev \
         libffi-dev \
         libxslt-dev \
