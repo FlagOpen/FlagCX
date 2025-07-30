@@ -9,7 +9,7 @@ RUN apt-get update && \
         nodejs npm \
         build-essential \
         ca-certificates \
-        htop lsof net-tools \
+        htop lsof net-tools vim \
         jq \
         openjdk-11-jdk \
         maven \
