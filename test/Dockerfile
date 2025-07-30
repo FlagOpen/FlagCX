@@ -10,7 +10,7 @@ RUN apt-get update && \
         curl wget git vim \
         build-essential \
         ca-certificates \
-        net-tools iproute2 iputils-ping \
+        net-tools  iputils-ping \
         htop lsof \
         jq \
         openjdk-11-jdk \
