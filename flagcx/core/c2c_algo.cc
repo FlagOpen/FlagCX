@@ -667,7 +667,7 @@ flagcxC2cPlanner::flagcxC2cPlanner(size_t sendCount, size_t recvCount,
   nSeqPostSteps_ = 1;
   // use ring pipeline algo if FLAGCX_C2C_ALGO=RING_PIPELINED
   const char *algorithm = getenv("FLAGCX_C2C_ALGO");
-  if (algorithm != NULL && strcmp(algorithm, "RING_PIPELINED") == 1) {
+  if (algorithm != NULL && strcmp(algorithm, "RING_PIPELINED") == 0) {
     // pipeline optimizations for AllGather
     if (commOp_ == flagcxCommOpAllGather) {
       algorithm_ = flagcxAlgoPipeline;
@@ -1372,6 +1372,11 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     size_t totalCount = 0;
     int counter = 0;
     for (auto it = bufferList.begin(); it != bufferList.end(); ++it) {
+      if ((commOp_ == flagcxCommOpReduceScatter ||
+           commOp_ == flagcxCommOpAllReduce) &&
+          !(it->isScheduled_) && algorithm_ == flagcxAlgoPipeline) {
+        continue;
+      }
       if (algorithm_ == flagcxAlgoPipeline) {
         offset = it->offset_;
         count = it->count_;
