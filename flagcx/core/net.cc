@@ -257,7 +257,6 @@ static flagcxResult_t flagcxCollNet_v6_as_v8_getProperties(int dev, flagcxNetPro
 }
 
 
-
 static flagcxResult_t flagcxCollNet_v6_as_v8_regMr(void* comm, void* data, size_t size, int type, void** mhandle) {
   if (size >= 1<<31) return flagcxInternalError;
   return flagcxCollNet_v6->regMr(comm, data, (int) size, type, mhandle);
@@ -336,7 +335,8 @@ static flagcxResult_t flagcxCollNet_v7_as_v8_init(flagcxDebugLogger_t logfn) {
 
 
 static pthread_mutex_t netLock = PTHREAD_MUTEX_INITIALIZER;
-flagcxNet_t* flagcxNets[3] = { nullptr, &flagcxNetIb, &flagcxNetSocket };
+// flagcxNet_t* flagcxNets[3] = { nullptr, &flagcxNetIb, &flagcxNetSocket };
+flagcxNet_t* flagcxNets[3] = { nullptr, &flagcxNetIb, nullptr };
 flagcxCollNet_t* flagcxCollNets[3] = { nullptr, nullptr, nullptr };
 enum flagcxNetState {
   flagcxNetStateInit = 0,
@@ -360,6 +360,7 @@ static void* tryOpenDynamicLib(char* name) {
   }
   return handle;
 }
+
 
 static void summarizeOpenNetPluginErrors(char* pluginNames) {
   const char *separator = " ";
@@ -431,8 +432,8 @@ flagcxResult_t flagcxNetPluginInit() {
     INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Using internal network plugin.");
     return flagcxSuccess;
   }
-  
   flagcxNets[0] = (flagcxNet_v8_t*)dlsym(netPluginLib, "flagcxNetPlugin_v8");
+    printf("flagcxNets:%p\n", flagcxNets[0]);
   if (flagcxNets[0] == nullptr) {
     INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Failed to find flagcxNetPlugin_v8 symbol.");
     // Try v7 plugin
@@ -450,24 +451,26 @@ flagcxResult_t flagcxNetPluginInit() {
         } else {
           flagcxNets[0] = &flagcxNet_v5_as_v8;
           flagcxNet_v5_as_v8.init = flagcxNet_v5_as_v8_init;
-          // Set the name right away to allow for flagcx_NET=... to work
+          // Set the name right away to allow for FLAGCX_NET=... to work
           flagcxNet_v5_as_v8.name = flagcxNet_v5->name;
           INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Loaded net plugin %s (v5)", flagcxNets[0]->name);
         }
       } else {
         flagcxNets[0] = &flagcxNet_v6_as_v8;
         flagcxNet_v6_as_v8.init = flagcxNet_v6_as_v8_init;
-        // Set the name right away to allow for flagcx_NET=... to work
+        // Set the name right away to allow for FLAGCX_NET=... to work
         flagcxNet_v6_as_v8.name = flagcxNet_v6->name;
         INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Loaded net plugin %s (v6)", flagcxNets[0]->name);
       }
     } else {
       flagcxNets[0] = &flagcxNet_v7_as_v8;
       flagcxNet_v7_as_v8.init = flagcxNet_v7_as_v8_init;
-      // Set the name right away to allow for flagcx_NET=... to work
+      // Set the name right away to allow for FLAGCX_NET=... to work
       flagcxNet_v7_as_v8.name = flagcxNet_v7->name;
       INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Loaded net plugin %s (v7)", flagcxNets[0]->name);
     }
+  }else{
+    INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Loaded net plugin %s (v8)", flagcxNets[0]->name);
   }
 
   // Check for CollNet

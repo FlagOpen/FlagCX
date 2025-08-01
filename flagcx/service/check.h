@@ -11,37 +11,6 @@
 #include "type.h"
 #include <errno.h>
 
-#include <cuda_runtime.h>
-
-// Check CUDA RT calls
-#define CUDACHECK(cmd) do {                                 \
-    cudaError_t err = cmd;                                  \
-    if( err != cudaSuccess ) {                              \
-        WARN("Cuda failure '%s'", cudaGetErrorString(err)); \
-        return flagcxUnhandledDeviceError;                      \
-    }                                                       \
-} while(false)
-
-
-#define CUDACHECKGOTO(cmd, RES, label) do {                 \
-    cudaError_t err = cmd;                                  \
-    if( err != cudaSuccess ) {                              \
-        WARN("Cuda failure '%s'", cudaGetErrorString(err)); \
-        RES = flagcxUnhandledDeviceError;                       \
-        goto label;                                         \
-    }                                                       \
-} while(false)
-
-
-// Report failure but clear error and continue
-#define CUDACHECKIGNORE(cmd) do {  \
-    cudaError_t err = cmd;         \
-    if( err != cudaSuccess ) {     \
-        INFO(FLAGCX_ALL,"%s:%d Cuda failure '%s'", __FILE__, __LINE__, cudaGetErrorString(err)); \
-        (void) cudaGetLastError(); \
-    }                              \
-} while(false)
-
 
 // Check system calls
 #define SYSCHECK(call, name) do { \

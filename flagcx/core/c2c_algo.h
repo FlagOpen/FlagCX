@@ -143,6 +143,8 @@ public:
                      size_t *sendCounts = nullptr, size_t *sDispls = nullptr,
                      size_t *recvCounts = nullptr, size_t *rDispls = nullptr);
 
+  flagcxC2cHomoFunc(FILE *file);
+
   int rootRank_;
   int sendType_;
   int recvType_;
@@ -157,6 +159,8 @@ public:
 class flagcxC2cHeteroFunc {
 public:
   friend class flagcxAlgoTimeEstimator;
+  friend void serializeHeteroFunc(FILE *file, const flagcxC2cHeteroFunc &func,
+                                  int indent);
   flagcxC2cHeteroFunc();
   ~flagcxC2cHeteroFunc();
 
@@ -164,6 +168,7 @@ public:
                 int isRecv);
   flagcxResult_t run(void *sendbuff, void *recvbuff, flagcxDataType_t datatype,
                      flagcxComm_t comm, flagcxStream_t stream);
+  flagcxC2cHeteroFunc(FILE *file);
 
 private:
   std::vector<flagcxC2cP2pOp> p2pOps_;
@@ -194,9 +199,15 @@ public:
   ~flagcxC2cPlanner();
   flagcxC2cPlanner() = default;
   flagcxC2cPlanner(const flagcxC2cPlanner &) = default;
+  // constructor for reading a c2c algorithm from an xml input file
+  flagcxC2cPlanner(const char *path);
   flagcxC2cPlanner &operator=(const flagcxC2cPlanner &) = default;
 
   flagcxCommOp_t getC2cHomoCommOp(int homoType, int mode);
+  // import a planner from an xml file
+  flagcxResult_t importXml(const char *path);
+  // export a planner to an xml file
+  flagcxResult_t exportXml(const char *path);
   flagcxResult_t refresh(
       int isSendRecv); // 0: refresh recv info only; 1: refresh send+recv info
   flagcxResult_t searchHeteroSendRecvOps(int searchMethod,

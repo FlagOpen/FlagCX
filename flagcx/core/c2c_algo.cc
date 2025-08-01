@@ -1,6 +1,8 @@
 #include "c2c_algo.h"
+#include "c2c_ir.h"
 #include <cstdint>
 #include <cstdlib>
+#include <stdlib.h>
 
 // GCD using Euclidean algorithm
 inline int gcd(int a, int b) {
@@ -254,6 +256,31 @@ flagcxC2cHomoFunc::flagcxC2cHomoFunc(
       homoType_(homoType), commOp_(commOp),
       interRankBufferInfoManager_(interRankBufferInfoManager) {}
 
+flagcxC2cHomoFunc::flagcxC2cHomoFunc(FILE *file) {
+  char line[LINE_LEN];
+
+  while (fgets(line, sizeof(line), file)) {
+    if (strstr(line, "</HomoFunc>"))
+      break;
+    if (strstr(line, "<rootRank>"))
+      rootRank_ = readIntTag(line, "rootRank");
+    if (strstr(line, "<sendType>"))
+      sendType_ = readIntTag(line, "sendType");
+    if (strstr(line, "<recvType>"))
+      recvType_ = readIntTag(line, "recvType");
+    if (strstr(line, "<sendOffset>"))
+      sendOffset_ = readSizeTag(line, "sendOffset");
+    if (strstr(line, "<recvOffset>"))
+      recvOffset_ = readSizeTag(line, "recvOffset");
+    if (strstr(line, "<count>"))
+      count_ = readSizeTag(line, "count");
+    if (strstr(line, "<homoType>"))
+      homoType_ = readIntTag(line, "homoType");
+    if (strstr(line, "<commOp>"))
+      commOp_ = static_cast<flagcxCommOp_t>(readIntTag(line, "commOp"));
+  }
+}
+
 flagcxC2cHomoFunc::~flagcxC2cHomoFunc() {}
 
 flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
@@ -483,6 +510,39 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
   }
 }
 
+flagcxC2cHeteroFunc::flagcxC2cHeteroFunc(FILE *file) {
+  char line[LINE_LEN];
+
+  while (fgets(line, sizeof(line), file)) {
+    if (strstr(line, "</HeteroFunc>"))
+      break;
+    if (strstr(line, "<P2pOp>")) {
+      int rank;
+      int peerRank;
+      size_t offset;
+      size_t count;
+      int isRecv;
+      char line[LINE_LEN];
+
+      while (fgets(line, sizeof(line), file)) {
+        if (strstr(line, "</P2pOp>"))
+          break;
+        if (strstr(line, "<rank>"))
+          rank = readIntTag(line, "rank");
+        if (strstr(line, "<peerRank>"))
+          peerRank = readIntTag(line, "peerRank");
+        if (strstr(line, "<offset>"))
+          offset = readSizeTag(line, "offset");
+        if (strstr(line, "<count>"))
+          count = readSizeTag(line, "count");
+        if (strstr(line, "<isRecv>"))
+          isRecv = readIntTag(line, "isRecv");
+      }
+      addP2pOp(rank, peerRank, offset, count, isRecv);
+    }
+  }
+}
+
 flagcxC2cHeteroFunc::flagcxC2cHeteroFunc() {}
 flagcxC2cHeteroFunc::~flagcxC2cHeteroFunc() {}
 
@@ -607,7 +667,7 @@ flagcxC2cPlanner::flagcxC2cPlanner(size_t sendCount, size_t recvCount,
   nSeqPostSteps_ = 1;
   // use ring pipeline algo if FLAGCX_C2C_ALGO=RING_PIPELINED
   const char *algorithm = getenv("FLAGCX_C2C_ALGO");
-  if (algorithm != NULL && strcmp(algorithm, "RING_PIPELINED") == 1) {
+  if (algorithm != NULL && strcmp(algorithm, "RING_PIPELINED") == 0) {
     // pipeline optimizations for AllGather
     if (commOp_ == flagcxCommOpAllGather) {
       algorithm_ = flagcxAlgoPipeline;
@@ -659,6 +719,11 @@ flagcxC2cPlanner::flagcxC2cPlanner(size_t sendCount, size_t recvCount,
 
   // init inter-rank buffer info manager
   interRankBufferInfoManager_ = flagcxInterRankBufferInfoManager(totalCount_);
+}
+
+flagcxC2cPlanner::flagcxC2cPlanner(const char *path) {
+  INFO(FLAGCX_ENV, "FLAGCX_ALGO_IMPORT_PATH set by environment to %s", path);
+  importXml(path);
 }
 
 flagcxC2cPlanner::~flagcxC2cPlanner() {}
@@ -889,6 +954,103 @@ flagcxCommOp_t flagcxC2cPlanner::getC2cHomoCommOp(int homoType, int mode) {
     default:
       return flagcxCommNoOp;
   }
+}
+
+flagcxResult_t flagcxC2cPlanner::importXml(const char *path) {
+  char filename[128];
+  sprintf(
+      filename, "%s/%lu_%d.xml", path,
+      genC2cAlgoHash(sendCount_, recvCount_, rootClusterId_, commOp_, redOp_),
+      rank_);
+  TRACE_CALL("rank %d algo input set to %s", rank_, filename);
+  FILE *file = fopen(filename, "r");
+  if (!file)
+    return flagcxInternalError;
+
+  // primitive fields
+  char line[LINE_LEN];
+  while (fgets(line, sizeof(line), file)) {
+    if (strstr(line, "<nSeqPreSteps>"))
+      break;
+  }
+  nSeqPreSteps_ = readIntTag(line, "nSeqPreSteps");
+  fgets(line, sizeof(line), file);
+  nPipePreSteps_ = readIntTag(line, "nPipePreSteps");
+  fgets(line, sizeof(line), file);
+  nSeqInterSteps_ = readIntTag(line, "nSeqInterSteps");
+  fgets(line, sizeof(line), file);
+  nPipePostSteps_ = readIntTag(line, "nPipePostSteps");
+  fgets(line, sizeof(line), file);
+  nSeqPostSteps_ = readIntTag(line, "nSeqPostSteps");
+
+  // load refreshFunc
+  size_t offset;
+  size_t count;
+  size_t totalCount;
+  flagcxRedOp_t redOp;
+  while (fgets(line, sizeof(line), file)) {
+    if (strstr(line, "</RefreshFunc>"))
+      break;
+    if (strstr(line, "<offset>"))
+      offset = readSizeTag(line, "offset");
+    if (strstr(line, "<count>"))
+      count = readSizeTag(line, "count");
+    if (strstr(line, "<totalCount>"))
+      totalCount = readSizeTag(line, "totalCount");
+    if (strstr(line, "<redOp>"))
+      redOp = static_cast<flagcxRedOp_t>(readIntTag(line, "redOp"));
+  }
+  TRACE_CALL(
+      "init refreshFunc with: offset = %lu, count = %lu, totalCount = %lu, "
+      "redOp = %d",
+      offset, count, totalCount, redOp);
+  refreshFunc_ = flagcxC2cRefreshFunc(offset, count, totalCount, redOp);
+
+  // function sequences
+  preHomoFuncSteps_ =
+      readFunc2DVector<flagcxC2cHomoFunc>(file, "PreHomoFuncSteps");
+  heteroFuncSteps_ =
+      readFunc2DVector<flagcxC2cHeteroFunc>(file, "HeteroFuncSteps");
+  homoInterFuncSteps_ =
+      readFunc2DVector<flagcxC2cHomoFunc>(file, "HomoInterFuncSteps");
+  postHomoFuncSteps_ =
+      readFunc2DVector<flagcxC2cHomoFunc>(file, "PostHomoFuncSteps");
+
+  fclose(file);
+  return flagcxSuccess;
+}
+
+flagcxResult_t flagcxC2cPlanner::exportXml(const char *path) {
+  char filename[128];
+  sprintf(
+      filename, "%s/%lu_%d.xml", path,
+      genC2cAlgoHash(sendCount_, recvCount_, rootClusterId_, commOp_, redOp_),
+      rank_);
+  FILE *file = fopen(filename, "w");
+  if (!file)
+    return flagcxInternalError;
+
+  fprintf(file, "<FlagcxC2cPlanner>\n");
+
+  // Serialize primitive members
+  fprintf(file, "  <nSeqPreSteps>%d</nSeqPreSteps>\n", nSeqPreSteps_);
+  fprintf(file, "  <nPipePreSteps>%d</nPipePreSteps>\n", nPipePreSteps_);
+  fprintf(file, "  <nSeqInterSteps>%d</nSeqInterSteps>\n", nSeqInterSteps_);
+  fprintf(file, "  <nPipePostSteps>%d</nPipePostSteps>\n", nPipePostSteps_);
+  fprintf(file, "  <nSeqPostSteps>%d</nSeqPostSteps>\n", nSeqPostSteps_);
+
+  // Serialize refreshFunc
+  serializRefreshFunc(file, refreshFunc_);
+
+  // Serialize function steps
+  serializeFunc2DVector(file, preHomoFuncSteps_, "PreHomoFuncSteps");
+  serializeFunc2DVector(file, heteroFuncSteps_, "HeteroFuncSteps");
+  serializeFunc2DVector(file, homoInterFuncSteps_, "HomoInterFuncSteps");
+  serializeFunc2DVector(file, postHomoFuncSteps_, "PostHomoFuncSteps");
+
+  fprintf(file, "</FlagcxC2cPlanner>\n");
+  fclose(file);
+  return flagcxSuccess;
 }
 
 flagcxResult_t flagcxC2cPlanner::refresh(int isSendRecv) {
@@ -1210,6 +1372,11 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
     size_t totalCount = 0;
     int counter = 0;
     for (auto it = bufferList.begin(); it != bufferList.end(); ++it) {
+      if ((commOp_ == flagcxCommOpReduceScatter ||
+           commOp_ == flagcxCommOpAllReduce) &&
+          !(it->isScheduled_) && algorithm_ == flagcxAlgoPipeline) {
+        continue;
+      }
       if (algorithm_ == flagcxAlgoPipeline) {
         offset = it->offset_;
         count = it->count_;
@@ -1809,6 +1976,9 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
       }
     }
   }
+  if (getenv("FLAGCX_ALGO_EXPORT_PATH")) {
+    exportXml(getenv("FLAGCX_ALGO_EXPORT_PATH"));
+  }
   return flagcxSuccess;
 }
 
@@ -1866,7 +2036,17 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
     rDispls_ = rDispls;
   }
 
-  if (!strategyFound_) {
+  flagcxResult_t res = flagcxSuccess;
+  if (getenv("FLAGCX_C2C_ALGO")) {
+    if (strcmp(getenv("FLAGCX_C2C_ALGO"), "XML_INPUT") == 0) {
+      const char *algo_path = getenv("FLAGCX_ALGO_IMPORT_PATH");
+      res = importXml(algo_path);
+    } else {
+      res = flagcxNotSupported;
+    }
+  }
+  if (!strategyFound_ && res != flagcxSuccess) {
+    TRACE_CALL("Unable to load existing algorithm. Calling `findStrategy`...");
     FLAGCXCHECK(findStrategy());
     strategyFound_ = 1;
   }

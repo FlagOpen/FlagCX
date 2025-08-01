@@ -11,7 +11,6 @@
 #include "utils.h"
 #include <stdlib.h>
 #include <cstddef>
-#include "flagcx_net.h"
 
 #include <unistd.h>
 #include <ifaddrs.h>
