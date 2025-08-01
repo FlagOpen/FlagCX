@@ -46,6 +46,7 @@ static flagcxResult_t flagcxInit() {
   if (!initialized) {
     // FLAGCXCHECK(loadDeviceSymbol());
     FLAGCXCHECK(bootstrapNetInit());
+    FLAGCXCHECK(flagcxNetPluginInit());
     __atomic_store_n(&initialized, true, __ATOMIC_RELEASE);
   }
   pthread_mutex_unlock(&initLock);

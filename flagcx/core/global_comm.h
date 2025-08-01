@@ -3,7 +3,7 @@
 
 #include "bootstrap.h"
 #include "flagcx.h"
-
+#include "flagcx_net.h"
 #include <vector>
 
 /* Opaque handle to flagcxInnerComm */
@@ -47,6 +47,11 @@ struct flagcxComm {
   std::vector<std::vector<int>> clusterInterRankList;
   flagcxInnerComm_t homoInterComm;
   std::vector<flagcxVendorType> clusterVendorMap;
+
+  int cudaDev;
+  flagcxConfig_t config;
+  flagcxNet_t* flagcxNet;
+  flagcxCollNet_t* flagcxCollNet;
 };
 
 #endif // end include guard
