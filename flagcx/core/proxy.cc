@@ -162,8 +162,10 @@ static void flagcxProgressQueEmptyCheck(struct flagcxProxyState *proxyState) {
 // process all the ProxyOps in the consumer queue
 // idle is set to 1 if no operations are pending
 // if idle is set to 0, it means there are pending operations
-// For simplicity, if these are any pending operations in queue, we set idle to 0
-static flagcxResult_t progressOps(struct flagcxProxyState* proxyState, int* idle) {
+// For simplicity, if these are any pending operations in queue, we set idle to
+// 0
+static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
+                                  int *idle) {
   *idle = 1;
   if (!flagcxConsProgChannelListEmpty(proxyState->consProgChannelHead)) {
     struct flagcxProxyOps *proxyOps = proxyState->consProgChannelHead;
@@ -219,18 +221,23 @@ static flagcxResult_t progressOps(struct flagcxProxyState* proxyState, int* idle
 
 // get proxy operations from the producer queue
 // and move them to the consumer queue
-// added means the number of operations fetched from producer queue and added to the consumer queue.
-static flagcxResult_t flagcxProxyGetPostedOps(struct flagcxProxyState* proxyState, int* added) {
-  struct flagcxProxyProgressState* state = &proxyState->progressState;
-  // No need to block waiting for the lock to be available. Exit, continue progress, and come back later.
+// added means the number of operations fetched from producer queue and added to
+// the consumer queue.
+static flagcxResult_t
+flagcxProxyGetPostedOps(struct flagcxProxyState *proxyState, int *added) {
+  struct flagcxProxyProgressState *state = &proxyState->progressState;
+  // No need to block waiting for the lock to be available. Exit, continue
+  // progress, and come back later.
   if (pthread_mutex_trylock(&proxyState->mutex) != 0) {
     *added = 0;
     return flagcxSuccess;
   }
 
-  // If we have ops to progress, no need to block waiting for something to arrive
+  // If we have ops to progress, no need to block waiting for something to
+  // arrive
   if (flagcxConsProgChannelListEmpty(proxyState->consProgChannelHead)) {
-    while (flagcxProdProgChannelListEmpty(proxyState->prodProgChannelHead) && state->stop == 0) {
+    while (flagcxProdProgChannelListEmpty(proxyState->prodProgChannelHead) &&
+           state->stop == 0) {
       pthread_cond_wait(&proxyState->cond, &proxyState->mutex);
     }
     if (state->stop != 0) {
@@ -240,15 +247,14 @@ static flagcxResult_t flagcxProxyGetPostedOps(struct flagcxProxyState* proxyStat
     }
   }
 
-  // Put anything available right now in the producer queue into the consumer queue.
+  // Put anything available right now in the producer queue into the consumer
+  // queue.
   while (!flagcxProdProgChannelListEmpty(proxyState->prodProgChannelHead)) {
     struct flagcxProxyOps *proxyOps =
         flagcxProdProgChannelListDeList(&proxyState->prodProgChannelHead);
 
-    flagcxConsProgChannelListEnList(&proxyState->consProgChannelHead,
-                                    proxyOps);
-    struct flagcxIntruQueue<struct flagcxProxyOp, &flagcxProxyOp::next>
-        *queue;
+    flagcxConsProgChannelListEnList(&proxyState->consProgChannelHead, proxyOps);
+    struct flagcxIntruQueue<struct flagcxProxyOp, &flagcxProxyOp::next> *queue;
     queue = &proxyOps->prodPeers.sendQueue;
     while (!flagcxIntruQueueEmpty(queue)) {
       struct flagcxProxyOp *op = flagcxIntruQueueDequeue(queue);
@@ -276,14 +282,16 @@ inline void *flagcxProxyProgress(void *proxyState_) {
   struct flagcxProxyState *proxyState = (flagcxProxyState *)proxyState_;
   // flag indicating if there is any in-operating operation
   int idle = 1;
-  /* Too frequent call of ncclProxyGetPostedOps() will result in perf regression for small message
-   * communication. proxyOpAppendCounter is a counter that helps us decide if we need to append proxy ops.
-   * After each progress, proxyOpAppendCounter will increase by 1 and compare with environment variable
-   * ncclParamProgressAppendOpFreq(). If they are equal, we will append proxy ops. This will decrease the
-   * frequency of calling ncclProxyGetPostedOps() and reduce the perf impact. */
+  /* Too frequent call of ncclProxyGetPostedOps() will result in perf regression
+   * for small message communication. proxyOpAppendCounter is a counter that
+   * helps us decide if we need to append proxy ops. After each progress,
+   * proxyOpAppendCounter will increase by 1 and compare with environment
+   * variable ncclParamProgressAppendOpFreq(). If they are equal, we will append
+   * proxy ops. This will decrease the frequency of calling
+   * ncclProxyGetPostedOps() and reduce the perf impact. */
   int proxyOpAppendCounter = 0;
   deviceAdaptor->setDevice(proxyState->cudaDev);
-  struct flagcxProxyProgressState* state = &proxyState->progressState;
+  struct flagcxProxyProgressState *state = &proxyState->progressState;
 
   while (state->stop == 0 || idle == 0) {
     idle = 1;
@@ -477,6 +485,13 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
                                          int *asyncOpCount) {
   int done = 0;
   // flagcxResult_t res = flagcxInternalError;
+  const char *dmaBufEnable = flagcxGetEnv("FLAGCX_DMABUF_ENABLE");
+  int dmaEnabled = 0; // 默认为关闭
+  if (dmaBufEnable != NULL) {
+    if (strcmp(dmaBufEnable, "1") == 0) {
+      dmaEnabled = 1;
+    }
+  }
   if (op->type == flagcxProxyMsgConnect) {
     if (op->connection->send) {
       struct sendNetResources *resources =
@@ -485,9 +500,23 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
         FLAGCXCHECK(flagcxNetIb.connect(resources->netDev, (void *)op->reqBuff,
                                         &resources->netSendComm, NULL));
       } else {
-        FLAGCXCHECK(flagcxNetIb.regMr(
-            resources->netSendComm, resources->buffers[0],
-            resources->buffSizes[0], 2, &resources->mhandles[0]));
+        bool dmaBufferSupport = false;
+        deviceAdaptor->dmaSupport(&dmaBufferSupport);
+        if (dmaBufferSupport && dmaEnabled) {
+          INFO(FLAGCX_PROXY, "DMA_BUFFER Enable");
+          int dmabuf_fd;
+          FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
+              (void *)&dmabuf_fd, resources->buffers[0],
+              resources->buffSizes[0], 0));
+          FLAGCXCHECK(flagcxNetIb.regMrDmaBuf(
+              resources->netSendComm, resources->buffers[0],
+              resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
+              &resources->mhandles[0]));
+        } else {
+          FLAGCXCHECK(flagcxNetIb.regMr(
+              resources->netSendComm, resources->buffers[0],
+              resources->buffSizes[0], 2, &resources->mhandles[0]));
+        }
         done = 1;
       }
     } else {
@@ -497,9 +526,23 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
         FLAGCXCHECK(flagcxNetIb.accept(resources->netListenComm,
                                        &resources->netRecvComm, NULL));
       } else {
-        FLAGCXCHECK(flagcxNetIb.regMr(
-            resources->netRecvComm, resources->buffers[0],
-            resources->buffSizes[0], 2, &resources->mhandles[0]));
+        bool dmaBufferSupport = false;
+        deviceAdaptor->dmaSupport(&dmaBufferSupport);
+        if (dmaBufferSupport && dmaEnabled) {
+          INFO(FLAGCX_PROXY, "DMA_BUFFER Enable");
+          int dmabuf_fd;
+          FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
+              (void *)&dmabuf_fd, resources->buffers[0],
+              resources->buffSizes[0], 0));
+          FLAGCXCHECK(flagcxNetIb.regMrDmaBuf(
+              resources->netRecvComm, resources->buffers[0],
+              resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
+              &resources->mhandles[0]));
+        } else {
+          FLAGCXCHECK(flagcxNetIb.regMr(
+              resources->netRecvComm, resources->buffers[0],
+              resources->buffSizes[0], 2, &resources->mhandles[0]));
+        }
         done = 1;
       }
     }
@@ -681,7 +724,8 @@ void *flagcxProxyService(void *args) {
       res = flagcxSocketTryRecv(&sock, &type, sizeof(int), &closed,
                                 false /*blocking*/);
       if (res != flagcxSuccess && res != flagcxInProgress) {
-        WARN("[Service thread] Could not receive type from localRank %d, res=%u, "
+        WARN("[Service thread] Could not receive type from localRank %d, "
+             "res=%u, "
              "closed=%d",
              comm->rank, res, closed);
       } else if (closed) {
@@ -699,7 +743,8 @@ void *flagcxProxyService(void *args) {
     list = opHead;
     while (list) {
       struct flagcxProxyAsyncOp *opNext = list->next;
-      FLAGCXCHECKGOTO(proxyProgressAsync(&opHead, list, &asyncOpCount), res, out);
+      FLAGCXCHECKGOTO(proxyProgressAsync(&opHead, list, &asyncOpCount), res,
+                      out);
       list = opNext;
     }
   }
@@ -743,4 +788,3 @@ flagcxResult_t flagcxProxyDestroy(struct flagcxHeteroComm *comm) {
   }
   return flagcxSuccess;
 }
-

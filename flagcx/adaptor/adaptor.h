@@ -9,8 +9,8 @@
 #include "bootstrap.h"
 #include "flagcx.h"
 #include "global_comm.h"
-#include "topo.h"
 #include "launch_kernel.h"
+#include "topo.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -186,6 +186,11 @@ struct flagcxDeviceAdaptor {
   // HostFunc launch
   flagcxResult_t (*launchHostFunc)(flagcxStream_t stream, void (*fn)(void *),
                                    void *args);
+  // DMA buffer
+  flagcxResult_t (*dmaSupport)(bool *dmaBufferSupport);
+  flagcxResult_t (*getHandleForAddressRange)(void *handleOut, void *buffer,
+                                             size_t size,
+                                             unsigned long long flags);
 };
 
 #ifdef __cplusplus
