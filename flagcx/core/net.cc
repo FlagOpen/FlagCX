@@ -433,7 +433,6 @@ flagcxResult_t flagcxNetPluginInit() {
     return flagcxSuccess;
   }
   flagcxNets[0] = (flagcxNet_v8_t*)dlsym(netPluginLib, "flagcxNetPlugin_v8");
-    printf("flagcxNets:%p\n", flagcxNets[0]);
   if (flagcxNets[0] == nullptr) {
     INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Failed to find flagcxNetPlugin_v8 symbol.");
     // Try v7 plugin
