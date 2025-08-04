@@ -3,7 +3,7 @@
 
 #include "bootstrap.h"
 #include "flagcx.h"
-#include "flagcx_net.h"
+
 #include <vector>
 
 /* Opaque handle to flagcxInnerComm */
