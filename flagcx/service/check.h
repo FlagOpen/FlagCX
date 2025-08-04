@@ -11,7 +11,6 @@
 #include "type.h"
 #include <errno.h>
 
-
 // Check system calls
 #define SYSCHECK(call, name) do { \
   int retval; \

@@ -648,4 +648,7 @@ void max(void* res, const void* op1, const void* op2, size_t n) {
     c[i] = std::max(a[i], b[i]);
   }
 }
+
+void* openLib(const char* path, int flags, 
+                      void (*error_handler)(const char*, int, const char*));
 #endif

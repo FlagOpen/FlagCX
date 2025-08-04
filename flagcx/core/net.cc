@@ -346,20 +346,14 @@ enum flagcxNetState flagcxCollNetStates[3] = { flagcxNetStateInit, flagcxNetStat
 
 
 static void* tryOpenDynamicLib(char* name) {
-  if (nullptr == name || strlen(name) == 0) {
-    return nullptr;
-  }
-  void *handle = dlopen(name, RTLD_NOW | RTLD_LOCAL);
-  if (nullptr == handle) {
-    if (ENOENT == errno) {
-      INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: No plugin found (%s)", name);
-    } else {
-      INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Plugin load returned %d : %s when loading %s", errno, dlerror(), name);
-    }
-  }
-  return handle;
+    return openLib(name, RTLD_NOW | RTLD_LOCAL, [](const char* p, int err, const char* msg) {
+        if (err == ENOENT) {
+            INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: No plugin found (%s)", p);
+        } else {
+            INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Plugin load error %d: %s", err, dlerror());
+        }
+    });
 }
-
 
 static void summarizeOpenNetPluginErrors(char* pluginNames) {
   const char *separator = " ";
