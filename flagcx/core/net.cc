@@ -333,8 +333,6 @@ static flagcxResult_t flagcxCollNet_v7_as_v8_init(flagcxDebugLogger_t logfn) {
   return flagcxSuccess;
 }
 
-
-static pthread_mutex_t netLock = PTHREAD_MUTEX_INITIALIZER;
 // flagcxNet_t* flagcxNets[3] = { nullptr, &flagcxNetIb, &flagcxNetSocket };
 flagcxNet_t* flagcxNets[3] = { nullptr, &flagcxNetIb, nullptr };
 flagcxCollNet_t* flagcxCollNets[3] = { nullptr, nullptr, nullptr };
@@ -345,6 +343,7 @@ enum flagcxNetState {
 };
 enum flagcxNetState flagcxNetStates[3] = { flagcxNetStateInit, flagcxNetStateInit, flagcxNetStateInit };
 enum flagcxNetState flagcxCollNetStates[3] = { flagcxNetStateInit, flagcxNetStateInit, flagcxNetStateInit };
+
 
 static void* tryOpenDynamicLib(char* name) {
   if (nullptr == name || strlen(name) == 0) {
@@ -433,7 +432,6 @@ flagcxResult_t flagcxNetPluginInit() {
     return flagcxSuccess;
   }
   flagcxNets[0] = (flagcxNet_v8_t*)dlsym(netPluginLib, "flagcxNetPlugin_v8");
-    printf("flagcxNets:%p\n", flagcxNets[0]);
   if (flagcxNets[0] == nullptr) {
     INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Failed to find flagcxNetPlugin_v8 symbol.");
     // Try v7 plugin
@@ -502,96 +500,6 @@ flagcxResult_t flagcxNetPluginInit() {
       flagcxCollNet_v7_as_v8.name = flagcxCollNet_v7->name;
       INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: Loaded coll plugin %s (v7)", flagcxCollNets[0]->name);
     }
-  }
-  return flagcxSuccess;
-}
-
-
-flagcxResult_t flagcxNetCheckDeviceVersion(struct flagcxComm* comm, flagcxNet_t* net, int dev) {
-  flagcxNetProperties_t props;
-
-  FLAGCXCHECK(net->getProperties(dev, &props));
-  flagcxNetDeviceType type = props.netDeviceType;
-  if (type) switch (type) {
-    case FLAGCX_NET_DEVICE_UNPACK:
-      if (props.netDeviceVersion == FLAGCX_NET_DEVICE_UNPACK_VERSION) {
-        INFO(FLAGCX_INIT, "Using FLAGCX_NET_DEVICE_UNPACK net plugin version %d",
-          props.netDeviceVersion);
-        return flagcxSuccess;
-      } else {
-        WARN("FLAGCX_DEVICE_UNPACK plugin has incompatible version %d, this flagcx build is compatible with %d, not using it",
-          props.netDeviceVersion, FLAGCX_NET_DEVICE_UNPACK_VERSION);
-        return flagcxInternalError;
-      }
-    default:
-      WARN("Unknown device code index");
-      return flagcxInternalError;
-  }
-
-  INFO(FLAGCX_INIT, "Using non-device net plugin version %d",
-    props.netDeviceVersion);
-  return flagcxSuccess;
-}
-
-static flagcxResult_t netGetState(int i, enum flagcxNetState* state) {
-  pthread_mutex_lock(&netLock);
-  if (flagcxNetStates[i] == flagcxNetStateInit) {
-    int ndev;
-    if (flagcxNets[i]->init(flagcxDebugLog) != flagcxSuccess) flagcxNetStates[i] = flagcxNetStateDisabled;
-    else if (flagcxNets[i]->devices(&ndev) != flagcxSuccess || ndev <= 0) flagcxNetStates[i] = flagcxNetStateDisabled;
-    else flagcxNetStates[i] = flagcxNetStateEnabled;
-  }
-  *state = flagcxNetStates[i];
-  pthread_mutex_unlock(&netLock);
-  return flagcxSuccess;
-}
-
-static flagcxResult_t collNetGetState(int i, enum flagcxNetState* state) {
-  pthread_mutex_lock(&netLock);
-  if (flagcxCollNetStates[i] == flagcxNetStateInit) {
-    int ndev;
-    if (flagcxCollNets[i]->init(flagcxDebugLog) != flagcxSuccess) flagcxCollNetStates[i] = flagcxNetStateDisabled;
-    else if (flagcxCollNets[i]->devices(&ndev) != flagcxSuccess || ndev <= 0) flagcxCollNetStates[i] = flagcxNetStateDisabled;
-    else flagcxCollNetStates[i] = flagcxNetStateEnabled;
-  }
-  *state = flagcxCollNetStates[i];
-  pthread_mutex_unlock(&netLock);
-  return flagcxSuccess;
-}
-
-
-flagcxResult_t flagcxNetInit(struct flagcxComm* comm) {
-  // Initialize main communication network
-  const char* netName;
-  bool ok = false;
-
-  netName = comm->config.netName;
-  for (int i=0; i<3; i++) {
-    if (flagcxNets[i] == nullptr) continue;
-    enum flagcxNetState state;
-    FLAGCXCHECK(netGetState(i, &state));
-    if (state != flagcxNetStateEnabled) continue;
-    if (netName && strcasecmp(netName, flagcxNets[i]->name) != 0) continue;
-    if (flagcxSuccess != flagcxNetCheckDeviceVersion(comm, flagcxNets[i], 0)) {
-      // Mismatched device plugin version
-      continue;
-    }
-
-    comm->flagcxNet = flagcxNets[i];
-    ok = true;
-
-    if (flagcxCollNets[i]) {
-      FLAGCXCHECK(collNetGetState(i, &state));
-      if (state == flagcxNetStateEnabled) {
-        comm->flagcxCollNet = flagcxCollNets[i];
-      }
-    }
-    break;
-  }
-
-  if (!ok) {
-    WARN("Error: network %s not found.", netName ? netName : "");
-    return flagcxInvalidUsage;
   }
   return flagcxSuccess;
 }

@@ -46,7 +46,7 @@ static flagcxResult_t flagcxInit() {
   if (!initialized) {
     // FLAGCXCHECK(loadDeviceSymbol());
     FLAGCXCHECK(bootstrapNetInit());
-    FLAGCXCHECK(flagcxNetPluginInit());
+    // FLAGCXCHECK(flagcxNetPluginInit());
     __atomic_store_n(&initialized, true, __ATOMIC_RELEASE);
   }
   pthread_mutex_unlock(&initLock);
@@ -297,6 +297,7 @@ fail:
 flagcxResult_t flagcxHeteroCommInitRank(flagcxHeteroComm_t *newcomm, int nranks,
                                         flagcxUniqueId commId, int myrank) {
   FLAGCXCHECK(flagcxInit());
+  FLAGCXCHECK(flagcxNetPluginInit());
   int cudaDev = 0;
   flagcxConfig_t config;
   // flagcxGetDevice(&cudaDev);
