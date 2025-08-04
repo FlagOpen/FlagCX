@@ -6,20 +6,20 @@
 flagcxLaunchFunc_t deviceKernel = NULL;
 
 flagcxResult_t loadAsyncKernelSymbol(const char *path, flagcxLaunchFunc_t *fn) {
-    void* handle = openLib(path, RTLD_LAZY, [](const char* p, int err, const char* msg) {
-        fprintf(stderr, "dlopen failed: %s\n", dlerror());
-    });
+  void* handle = openLib(path, RTLD_LAZY, [](const char* p, int err, const char* msg) {
+      fprintf(stderr, "dlopen failed: %s\n", dlerror());
+  });
     
-    if (!handle) return flagcxSystemError;
+  if (!handle) return flagcxSystemError;
     
-    void* sym = dlsym(handle, "launchAsyncKernel");
-    if (!sym) {
-        fprintf(stderr, "dlsym failed: %s\n", dlerror());
-        return flagcxSystemError;
-    }
+  void* sym = dlsym(handle, "launchAsyncKernel");
+  if (!sym) {
+      fprintf(stderr, "dlsym failed: %s\n", dlerror());
+      return flagcxSystemError;
+  }
     
-    *fn = (flagcxLaunchFunc_t)sym;
-    return flagcxSuccess;
+  *fn = (flagcxLaunchFunc_t)sym;
+  return flagcxSuccess;
 }
 
 void cpuStreamWait(void *_args) {
