@@ -6,7 +6,6 @@
 
 #include <string.h>
 #include <errno.h>
-#include <dlfcn.h>
 
 static flagcxNet_v8_t flagcxNet_v5_as_v8;
 static flagcxNet_v8_t flagcxNet_v6_as_v8;
@@ -346,7 +345,7 @@ enum flagcxNetState flagcxCollNetStates[3] = { flagcxNetStateInit, flagcxNetStat
 
 
 static void* tryOpenDynamicLib(char* name) {
-    return openLib(name, RTLD_NOW | RTLD_LOCAL, [](const char* p, int err, const char* msg) {
+    return flagcxOpenLib(name, RTLD_NOW | RTLD_LOCAL, [](const char* p, int err, const char* msg) {
         if (err == ENOENT) {
             INFO(FLAGCX_INIT|FLAGCX_NET, "NET/Plugin: No plugin found (%s)", p);
         } else {
