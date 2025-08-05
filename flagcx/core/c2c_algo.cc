@@ -2036,16 +2036,16 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
     rDispls_ = rDispls;
   }
 
-  flagcxResult_t res = flagcxSuccess;
-  if (getenv("FLAGCX_C2C_ALGO")) {
-    if (strcmp(getenv("FLAGCX_C2C_ALGO"), "XML_INPUT") == 0) {
-      const char *algo_path = getenv("FLAGCX_ALGO_IMPORT_PATH");
-      res = importXml(algo_path);
-    } else {
-      res = flagcxNotSupported;
+  int importAlgoFromXmlFile = 0;
+  const char *algorithm = getenv("FLAGCX_C2C_ALGO");
+  if (algorithm != NULL && strcmp(algorithm, "XML_INPUT") == 0) {
+    const char *algoPath = getenv("FLAGCX_ALGO_IMPORT_PATH");
+    if (algoPath != NULL) {
+      FLAGCXCHECK(importXml(algoPath));
+      importAlgoFromXmlFile = 1;
     }
   }
-  if (!strategyFound_ && res != flagcxSuccess) {
+  if (!strategyFound_ && !importAlgoFromXmlFile) {
     TRACE_CALL("Unable to load existing algorithm. Calling `findStrategy`...");
     FLAGCXCHECK(findStrategy());
     strategyFound_ = 1;
