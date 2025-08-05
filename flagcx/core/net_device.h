@@ -27,8 +27,8 @@ typedef struct {
 } flagcxNetDeviceHandle_v7_t;
 
 typedef flagcxNetDeviceHandle_v7_t flagcxNetDeviceHandle_v8_t;
-typedef flagcxNetDeviceHandle_v8_t flagcxNetDeviceHandle_t;
 typedef flagcxNetDeviceHandle_v8_t flagcxNetDeviceHandle_v9_t;
 typedef flagcxNetDeviceHandle_v9_t flagcxNetDeviceHandle_v10_t;
+typedef flagcxNetDeviceHandle_v10_t flagcxNetDeviceHandle_t;
 
 #endif
