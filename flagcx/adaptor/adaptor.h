@@ -186,6 +186,8 @@ struct flagcxDeviceAdaptor {
   // HostFunc launch
   flagcxResult_t (*launchHostFunc)(flagcxStream_t stream, void (*fn)(void *),
                                    void *args);
+  flagcxResult_t (*gdrPtrMmap)(void **pcpuptr, void *devptr, size_t sz);
+  flagcxResult_t (*gdrPtrMummap)(void *cpuptr, size_t sz);
 };
 
 #ifdef __cplusplus
