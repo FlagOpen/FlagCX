@@ -46,11 +46,7 @@ flagcxResult_t musaAdaptorDeviceMalloc(void **ptr, size_t size,
   if (type == flagcxMemHost) {
     DEVCHECK(musaMallocHost(ptr, size));
   } else if (type == flagcxMemDevice) {
-    if (stream == NULL) {
-      DEVCHECK(musaMalloc(ptr, size));
-    } else {
-      DEVCHECK(musaMallocAsync(ptr, size, stream->base));
-    }
+    DEVCHECK(musaMalloc(ptr, size));
   } else if (type == flagcxMemManaged) {
     DEVCHECK(musaMallocManaged(ptr, size, musaMemAttachGlobal));
   }
