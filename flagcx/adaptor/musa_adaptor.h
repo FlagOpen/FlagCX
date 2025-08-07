@@ -5,15 +5,15 @@
 #include "comm.h"
 #include "flagcx.h"
 #include "mccl.h"
+#include <map>
 #include <musa.h>
 #include <musa_runtime.h>
-#include <map>
 struct flagcxInnerComm {
-    mcclComm_t base;
+  mcclComm_t base;
 };
 
 struct flagcxStream {
-    musaStream_t base;
+  musaStream_t base;
 };
 
 struct flagcxEvent {
@@ -23,7 +23,7 @@ struct flagcxEvent {
 #define DEVCHECK(func)                                                         \
   {                                                                            \
     int ret = func;                                                            \
-    if (ret != musaSuccess)                                                      \
+    if (ret != musaSuccess)                                                    \
       return flagcxUnhandledDeviceError;                                       \
   }
 

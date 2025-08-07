@@ -7,41 +7,37 @@
 #ifndef FLAGCX_ALIGN_H_
 #define FLAGCX_ALIGN_H_
 
-#define DIVUP(x, y) \
-    (((x)+(y)-1)/(y))
+#define DIVUP(x, y) (((x) + (y)-1) / (y))
 
-#define ROUNDUP(x, y) \
-    (DIVUP((x), (y))*(y))
+#define ROUNDUP(x, y) (DIVUP((x), (y)) * (y))
 
-#define ALIGN_POWER(x, y) \
-    ((x) > (y) ? ROUNDUP(x, y) : ((y)/((y)/(x))))
+#define ALIGN_POWER(x, y) ((x) > (y) ? ROUNDUP(x, y) : ((y) / ((y) / (x))))
 
-#define ALIGN_SIZE(size, align) \
-  size = ((size + (align) - 1) / (align)) * (align);
+#define ALIGN_SIZE(size, align) size = ((size + (align)-1) / (align)) * (align);
 
 #if !__CUDA_ARCH__
-  #ifndef __host__
-    #define __host__
-  #endif
-  #ifndef __device__
-    #define __device__
-  #endif
+#ifndef __host__
+#define __host__
+#endif
+#ifndef __device__
+#define __device__
+#endif
 #endif
 
-template<typename X, typename Y, typename Z = decltype(X()+Y())>
+template <typename X, typename Y, typename Z = decltype(X() + Y())>
 __host__ __device__ constexpr Z divUp(X x, Y y) {
-  return (x+y-1)/y;
+  return (x + y - 1) / y;
 }
 
-template<typename X, typename Y, typename Z = decltype(X()+Y())>
+template <typename X, typename Y, typename Z = decltype(X() + Y())>
 __host__ __device__ constexpr Z roundUp(X x, Y y) {
-  return (x+y-1) - (x+y-1)%y;
+  return (x + y - 1) - (x + y - 1) % y;
 }
 
 // assumes second argument is a power of 2
-template<typename X, typename Z = decltype(X()+int())>
+template <typename X, typename Z = decltype(X() + int())>
 __host__ __device__ constexpr Z alignUp(X x, int a) {
-  return (x+a-1) & Z(-a);
+  return (x + a - 1) & Z(-a);
 }
 
 #endif

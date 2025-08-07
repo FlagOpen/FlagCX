@@ -156,11 +156,12 @@ flagcxResult_t glooAdaptorScatter(const void *sendbuff, void *recvbuff,
   // one pointer per rank
   std::vector<void *> send_ptrs(comm->base->size);
   for (int i = 0; i < comm->base->size; ++i) {
-    send_ptrs[i] = static_cast<void *>((char *)sendbuff + i * count * getFlagcxDataTypeSize(datatype));
+    send_ptrs[i] = static_cast<void *>(
+        (char *)sendbuff + i * count * getFlagcxDataTypeSize(datatype));
   }
   GENERATE_GLOO_TYPES(datatype, setInputs, opts,
-                      const_cast<void **>(send_ptrs.data()),
-                      comm->base->size, count);
+                      const_cast<void **>(send_ptrs.data()), comm->base->size,
+                      count);
   GENERATE_GLOO_TYPES(datatype, setOutput, opts, recvbuff, count);
   opts.setRoot(root);
   ::gloo::scatter(opts);

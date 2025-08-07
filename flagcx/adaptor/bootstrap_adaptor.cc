@@ -36,7 +36,8 @@ flagcxResult_t bootstrapAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
 }
 
 flagcxResult_t bootstrapAdaptorCommFinalize(flagcxInnerComm_t comm) {
-  // Note that the bootstrap member is destroyed in the flagcxCommDestroy function
+  // Note that the bootstrap member is destroyed in the flagcxCommDestroy
+  // function
   return flagcxSuccess;
 }
 
@@ -83,12 +84,12 @@ flagcxResult_t bootstrapAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
   return flagcxNotSupported;
 }
 
-
 flagcxResult_t bootstrapAdaptorGather(const void *sendbuff, void *recvbuff,
                                       size_t count, flagcxDataType_t datatype,
                                       int root, flagcxInnerComm_t comm,
                                       flagcxStream_t /*stream*/) {
-  FLAGCXCHECK(GatherBootstrap(comm->base, sendbuff, recvbuff, count, datatype, root));
+  FLAGCXCHECK(
+      GatherBootstrap(comm->base, sendbuff, recvbuff, count, datatype, root));
   return flagcxSuccess;
 }
 
@@ -96,7 +97,8 @@ flagcxResult_t bootstrapAdaptorScatter(const void *sendbuff, void *recvbuff,
                                        size_t count, flagcxDataType_t datatype,
                                        int root, flagcxInnerComm_t comm,
                                        flagcxStream_t /*stream*/) {
-  FLAGCXCHECK(ScatterBootstrap(comm->base, sendbuff, recvbuff, count, datatype, root));
+  FLAGCXCHECK(
+      ScatterBootstrap(comm->base, sendbuff, recvbuff, count, datatype, root));
   return flagcxSuccess;
 }
 
@@ -105,21 +107,27 @@ flagcxResult_t bootstrapAdaptorBroadcast(const void *sendbuff, void *recvbuff,
                                          flagcxDataType_t datatype, int root,
                                          flagcxInnerComm_t comm,
                                          flagcxStream_t /*stream*/) {
-  FLAGCXCHECK(BroadcastBootstrap(comm->base, sendbuff, recvbuff, count, datatype, root));
+  FLAGCXCHECK(BroadcastBootstrap(comm->base, sendbuff, recvbuff, count,
+                                 datatype, root));
   return flagcxSuccess;
 }
 
-flagcxResult_t bootstrapAdaptorAllReduce(const void *sendbuff, void *recvbuff, size_t count,
-                                        flagcxDataType_t datatype, flagcxRedOp_t op,
-                                        flagcxInnerComm_t comm, flagcxStream_t /*stream*/) {
-  FLAGCXCHECK(AllReduceBootstrap(comm->base, sendbuff, recvbuff, count, datatype, op));
+flagcxResult_t
+bootstrapAdaptorAllReduce(const void *sendbuff, void *recvbuff, size_t count,
+                          flagcxDataType_t datatype, flagcxRedOp_t op,
+                          flagcxInnerComm_t comm, flagcxStream_t /*stream*/) {
+  FLAGCXCHECK(
+      AllReduceBootstrap(comm->base, sendbuff, recvbuff, count, datatype, op));
   return flagcxSuccess;
 }
 
-flagcxResult_t bootstrapAdaptorReduce(const void *sendbuff, void *recvbuff, size_t count,
-                                        flagcxDataType_t datatype, flagcxRedOp_t op, int root,
-                                        flagcxInnerComm_t comm, flagcxStream_t /*stream*/) {
-  FLAGCXCHECK(ReduceBootstrap(comm->base, sendbuff, recvbuff, count, datatype, op, root));
+flagcxResult_t bootstrapAdaptorReduce(const void *sendbuff, void *recvbuff,
+                                      size_t count, flagcxDataType_t datatype,
+                                      flagcxRedOp_t op, int root,
+                                      flagcxInnerComm_t comm,
+                                      flagcxStream_t /*stream*/) {
+  FLAGCXCHECK(ReduceBootstrap(comm->base, sendbuff, recvbuff, count, datatype,
+                              op, root));
   return flagcxSuccess;
 }
 
@@ -129,9 +137,9 @@ flagcxResult_t bootstrapAdaptorReduceScatter(const void *sendbuff,
                                              flagcxRedOp_t op,
                                              flagcxInnerComm_t comm,
                                              flagcxStream_t /*stream*/) {
-  FLAGCXCHECK(ReduceScatterBootstrap(comm->base, sendbuff, recvbuff, recvcount, datatype, op));
+  FLAGCXCHECK(ReduceScatterBootstrap(comm->base, sendbuff, recvbuff, recvcount,
+                                     datatype, op));
   return flagcxSuccess;
-
 }
 
 flagcxResult_t bootstrapAdaptorAllGather(const void *sendbuff, void *recvbuff,
@@ -139,7 +147,8 @@ flagcxResult_t bootstrapAdaptorAllGather(const void *sendbuff, void *recvbuff,
                                          flagcxDataType_t datatype,
                                          flagcxInnerComm_t comm,
                                          flagcxStream_t /*stream*/) {
-  FLAGCXCHECK(AllGatherBootstrap(comm->base, sendbuff, recvbuff, sendcount, datatype));
+  FLAGCXCHECK(
+      AllGatherBootstrap(comm->base, sendbuff, recvbuff, sendcount, datatype));
   return flagcxSuccess;
 }
 
@@ -147,7 +156,8 @@ flagcxResult_t bootstrapAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
                                         size_t count, flagcxDataType_t datatype,
                                         flagcxInnerComm_t comm,
                                         flagcxStream_t /*stream*/) {
-  FLAGCXCHECK(AlltoAllBootstrap(comm->base, sendbuff, recvbuff, count, datatype));
+  FLAGCXCHECK(
+      AlltoAllBootstrap(comm->base, sendbuff, recvbuff, count, datatype));
   return flagcxSuccess;
 }
 
@@ -157,7 +167,7 @@ bootstrapAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
                           size_t *rdispls, flagcxDataType_t datatype,
                           flagcxInnerComm_t comm, flagcxStream_t /*stream*/) {
   FLAGCXCHECK(AlltoAllvBootstrap(comm->base, sendbuff, sendcounts, sdispls,
-                                recvbuff, recvcounts, rdispls, datatype));
+                                 recvbuff, recvcounts, rdispls, datatype));
   return flagcxSuccess;
 }
 
@@ -166,7 +176,9 @@ flagcxResult_t bootstrapAdaptorSend(const void *sendbuff, size_t count,
                                     flagcxDataType_t datatype, int peer,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t /*stream*/) {
-  FLAGCXCHECK(bootstrapSend(comm->base, peer, BOOTSTRAP_SEND_RECV_TAG, (void *)sendbuff, count * getFlagcxDataTypeSize(datatype)));
+  FLAGCXCHECK(bootstrapSend(comm->base, peer, BOOTSTRAP_SEND_RECV_TAG,
+                            (void *)sendbuff,
+                            count * getFlagcxDataTypeSize(datatype)));
   return flagcxSuccess;
 }
 
@@ -174,7 +186,8 @@ flagcxResult_t bootstrapAdaptorRecv(void *recvbuff, size_t count,
                                     flagcxDataType_t datatype, int peer,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t /*stream*/) {
-  FLAGCXCHECK(bootstrapRecv(comm->base, peer, BOOTSTRAP_SEND_RECV_TAG, recvbuff, count * getFlagcxDataTypeSize(datatype)));
+  FLAGCXCHECK(bootstrapRecv(comm->base, peer, BOOTSTRAP_SEND_RECV_TAG, recvbuff,
+                            count * getFlagcxDataTypeSize(datatype)));
   return flagcxSuccess;
 }
 

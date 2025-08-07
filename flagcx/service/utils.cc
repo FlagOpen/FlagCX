@@ -389,14 +389,15 @@ const char *flagcxProtoToString(int proto) {
   }
 }
 
-void* flagcxOpenLib(const char* path, int flags, 
-                              void (*error_handler)(const char*, int, const char*)) {
-    if (!path || *path == '\0') return nullptr;
-    
-    void* handle = dlopen(path, flags);
-    if (!handle) {
-        error_handler(path, errno, dlerror());
-        return nullptr;
-    }
-    return handle;
+void *flagcxOpenLib(const char *path, int flags,
+                    void (*error_handler)(const char *, int, const char *)) {
+  if (!path || *path == '\0')
+    return nullptr;
+
+  void *handle = dlopen(path, flags);
+  if (!handle) {
+    error_handler(path, errno, dlerror());
+    return nullptr;
+  }
+  return handle;
 }

@@ -40,7 +40,8 @@ void cpuAsyncLaunch(void *_args);
 void cpuStreamWait(void *_args);
 
 /*
-Reference CUDA implementation for async kernel launch (for future adaptor implementations)
+Reference CUDA implementation for async kernel launch (for future adaptor
+implementations)
 1. 核函数：写 dEvent = true，等待 flag == true
 __global__ void asyncLaunchKernel(const volatile bool* __restrict__ flag,
                                   bool* __restrict__ dEvent)
