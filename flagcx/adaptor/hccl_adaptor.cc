@@ -4,11 +4,16 @@
 #include <map>
 #include <vector>
 std::map<flagcxDataType_t, HcclDataType> f2h_datatype_map = {
-    {flagcxInt8, HCCL_DATA_TYPE_INT8},    {flagcxUint8, HCCL_DATA_TYPE_UINT8},
-    {flagcxInt, HCCL_DATA_TYPE_INT32},    {flagcxInt32, HCCL_DATA_TYPE_INT32},
-    {flagcxInt64, HCCL_DATA_TYPE_INT64},  {flagcxHalf, HCCL_DATA_TYPE_FP16},
-    {flagcxFloat16, HCCL_DATA_TYPE_FP16}, {flagcxBfloat16, HCCL_DATA_TYPE_BFP16},
-    {flagcxFloat32, HCCL_DATA_TYPE_FP32}, {flagcxFloat, HCCL_DATA_TYPE_FP32},
+    {flagcxInt8, HCCL_DATA_TYPE_INT8},
+    {flagcxUint8, HCCL_DATA_TYPE_UINT8},
+    {flagcxInt, HCCL_DATA_TYPE_INT32},
+    {flagcxInt32, HCCL_DATA_TYPE_INT32},
+    {flagcxInt64, HCCL_DATA_TYPE_INT64},
+    {flagcxHalf, HCCL_DATA_TYPE_FP16},
+    {flagcxFloat16, HCCL_DATA_TYPE_FP16},
+    {flagcxBfloat16, HCCL_DATA_TYPE_BFP16},
+    {flagcxFloat32, HCCL_DATA_TYPE_FP32},
+    {flagcxFloat, HCCL_DATA_TYPE_FP32},
     {flagcxDouble, HCCL_DATA_TYPE_FP64},
 };
 
@@ -49,13 +54,13 @@ std::map<flagcxResult_t, HcclResult> f2h_ret_map = {
     {flagcxSuccess, HCCL_SUCCESS},
     {flagcxInternalError, HCCL_E_INTERNAL},
     {flagcxNotSupported, HCCL_E_NOT_SUPPORT},
-    {flagcxInvalidArgument, HCCL_E_PARA },
+    {flagcxInvalidArgument, HCCL_E_PARA},
     {flagcxRemoteError, HCCL_E_REMOTE},
     {flagcxUnhandledDeviceError, HCCL_E_RESERVED}};
 
 struct HcclSendRecvItemEx {
-    flagcxInnerComm_t comm;
-    flagcxStream_t stream;
+  flagcxInnerComm_t comm;
+  flagcxStream_t stream;
 };
 HcclSendRecvItemEx item;
 std::vector<HcclSendRecvItem> sendRecvInfo;
@@ -66,16 +71,17 @@ flagcxResult_t hcclAdaptorGetVersion(int *version) {
 }
 
 flagcxResult_t hcclAdaptorGetUniqueId(flagcxUniqueId_t *uniqueId) {
-  return (flagcxResult_t)h2f_ret_map[HcclGetRootInfo((HcclRootInfo *)(*uniqueId))];
+  return (
+      flagcxResult_t)h2f_ret_map[HcclGetRootInfo((HcclRootInfo *)(*uniqueId))];
 }
 
 const char *hcclAdaptorGetErrorString(flagcxResult_t result) {
-    return HcclGetErrorString((HcclResult)f2h_ret_map[result]);
+  return HcclGetErrorString((HcclResult)f2h_ret_map[result]);
 }
 
 // TODO: unsupported
 const char *hcclAdaptorGetLastError(flagcxInnerComm_t comm) {
-    return "Not Implemented";
+  return "Not Implemented";
 }
 
 flagcxResult_t hcclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
@@ -84,7 +90,8 @@ flagcxResult_t hcclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
   if (*comm == NULL) {
     flagcxCalloc(comm, 1);
   }
-  return (flagcxResult_t)h2f_ret_map[HcclCommInitRootInfo(nranks, (HcclRootInfo *)commId, rank, &(*comm)->base)];
+  return (flagcxResult_t)h2f_ret_map[HcclCommInitRootInfo(
+      nranks, (HcclRootInfo *)commId, rank, &(*comm)->base)];
 }
 
 // TODO: unsupported
@@ -112,7 +119,8 @@ flagcxResult_t hcclAdaptorCommSuspend(flagcxInnerComm_t comm) {
 }
 
 flagcxResult_t hcclAdaptorCommCount(const flagcxInnerComm_t comm, int *count) {
-  return (flagcxResult_t)h2f_ret_map[HcclGetRankSize(comm->base, (uint32_t*)count)];
+  return (flagcxResult_t)
+      h2f_ret_map[HcclGetRankSize(comm->base, (uint32_t *)count)];
 }
 
 // TODO: unsupported
@@ -123,7 +131,8 @@ flagcxResult_t hcclAdaptorCommCuDevice(const flagcxInnerComm_t comm,
 
 flagcxResult_t hcclAdaptorCommUserRank(const flagcxInnerComm_t comm,
                                        int *rank) {
-  return (flagcxResult_t)h2f_ret_map[HcclGetRankId(comm->base, (uint32_t*)rank)];
+  return (
+      flagcxResult_t)h2f_ret_map[HcclGetRankId(comm->base, (uint32_t *)rank)];
 }
 
 // TODO: unsupported
@@ -138,10 +147,9 @@ flagcxResult_t hcclAdaptorReduce(const void *sendbuff, void *recvbuff,
                                  flagcxInnerComm_t comm,
                                  flagcxStream_t stream) {
   void *sendbuffptr = (void *)sendbuff;
-  return (flagcxResult_t)h2f_ret_map[HcclReduce(sendbuffptr, recvbuff, count,
-                                       (HcclDataType)f2h_datatype_map[datatype],
-                                       (HcclReduceOp)f2h_reduceop_map[op],
-                                       root, comm->base, stream->base)];
+  return (flagcxResult_t)h2f_ret_map[HcclReduce(
+      sendbuffptr, recvbuff, count, (HcclDataType)f2h_datatype_map[datatype],
+      (HcclReduceOp)f2h_reduceop_map[op], root, comm->base, stream->base)];
 }
 
 // TODO: unsupported
@@ -150,7 +158,7 @@ flagcxResult_t hcclAdaptorGather(const void *sendbuff, void *recvbuff,
                                  int root, flagcxInnerComm_t comm,
                                  flagcxStream_t stream) {
   uint32_t rank, nranks;
-  HcclResult res = HCCL_SUCCESS;  
+  HcclResult res = HCCL_SUCCESS;
   res = HcclGetRankSize(comm->base, &nranks);
   res = HcclGetRankId(comm->base, &rank);
   size_t size = count * getFlagcxDataTypeSize(datatype);
@@ -158,18 +166,18 @@ flagcxResult_t hcclAdaptorGather(const void *sendbuff, void *recvbuff,
   std::vector<HcclSendRecvItem> sendRecvInfo;
   if (rank == root) {
     for (uint32_t r = 0; r < nranks; r++) {
-      sendRecvInfo.emplace_back(HcclSendRecvItem{HcclSendRecvType::HCCL_RECV,
-                                static_cast<void *>(buffer + r * size),
-                                size, HcclDataType::HCCL_DATA_TYPE_INT8, r});
+      sendRecvInfo.emplace_back(HcclSendRecvItem{
+          HcclSendRecvType::HCCL_RECV, static_cast<void *>(buffer + r * size),
+          size, HcclDataType::HCCL_DATA_TYPE_INT8, r});
     }
   }
   void *sendbuffptr = (void *)sendbuff;
-  sendRecvInfo.emplace_back(HcclSendRecvItem{HcclSendRecvType::HCCL_SEND,
-                            sendbuffptr,
-                            size, HcclDataType::HCCL_DATA_TYPE_INT8, (uint32_t)root});
+  sendRecvInfo.emplace_back(
+      HcclSendRecvItem{HcclSendRecvType::HCCL_SEND, sendbuffptr, size,
+                       HcclDataType::HCCL_DATA_TYPE_INT8, (uint32_t)root});
   uint32_t itemNum = sendRecvInfo.size();
   HcclBatchSendRecv(sendRecvInfo.data(), itemNum, comm->base, stream->base);
-   
+
   return (flagcxResult_t)h2f_ret_map[res];
 }
 
@@ -178,25 +186,25 @@ flagcxResult_t hcclAdaptorScatter(const void *sendbuff, void *recvbuff,
                                   int root, flagcxInnerComm_t comm,
                                   flagcxStream_t stream) {
   void *sendbuffptr = (void *)sendbuff;
-  return (flagcxResult_t)h2f_ret_map[HcclScatter(sendbuffptr, recvbuff, count,
-                                    (HcclDataType)f2h_datatype_map[datatype],
-                                    root, comm->base, stream->base)];
+  return (flagcxResult_t)h2f_ret_map[HcclScatter(
+      sendbuffptr, recvbuff, count, (HcclDataType)f2h_datatype_map[datatype],
+      root, comm->base, stream->base)];
 }
 
 flagcxResult_t hcclAdaptorBroadcast(const void *sendbuff, void *recvbuff,
                                     size_t count, flagcxDataType_t datatype,
                                     int root, flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
-  
+
   uint32_t rank;
   HcclGetRankId(comm->base, &rank);
   if (rank == root) {
     aclrtMemcpy(recvbuff, count, sendbuff, count, ACL_MEMCPY_DEVICE_TO_DEVICE);
   }
-  void *buffer = (rank == root) ? const_cast<void*>(sendbuff) : recvbuff;
-  return (flagcxResult_t)h2f_ret_map[HcclBroadcast(buffer, count,
-                                       (HcclDataType)f2h_datatype_map[datatype],
-                                       root, comm->base, stream->base)];
+  void *buffer = (rank == root) ? const_cast<void *>(sendbuff) : recvbuff;
+  return (flagcxResult_t)h2f_ret_map[HcclBroadcast(
+      buffer, count, (HcclDataType)f2h_datatype_map[datatype], root, comm->base,
+      stream->base)];
 }
 
 flagcxResult_t hcclAdaptorAllReduce(const void *sendbuff, void *recvbuff,
@@ -204,19 +212,19 @@ flagcxResult_t hcclAdaptorAllReduce(const void *sendbuff, void *recvbuff,
                                     flagcxRedOp_t op, flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
   void *sendbuffptr = (void *)sendbuff;
-  return (flagcxResult_t)h2f_ret_map[HcclAllReduce(sendbuffptr, recvbuff, count,
-                                       (HcclDataType)f2h_datatype_map[datatype],
-                                       (HcclReduceOp)f2h_reduceop_map[op],
-                                       comm->base, stream->base)];
+  return (flagcxResult_t)h2f_ret_map[HcclAllReduce(
+      sendbuffptr, recvbuff, count, (HcclDataType)f2h_datatype_map[datatype],
+      (HcclReduceOp)f2h_reduceop_map[op], comm->base, stream->base)];
 }
 
-flagcxResult_t 
+flagcxResult_t
 hcclAdaptorReduceScatter(const void *sendbuff, void *recvbuff, size_t recvcount,
                          flagcxDataType_t datatype, flagcxRedOp_t op,
                          flagcxInnerComm_t comm, flagcxStream_t stream) {
   void *sendbuffptr = (void *)sendbuff;
   return (flagcxResult_t)h2f_ret_map[HcclReduceScatter(
-      sendbuffptr, recvbuff, recvcount, (HcclDataType)f2h_datatype_map[datatype], 
+      sendbuffptr, recvbuff, recvcount,
+      (HcclDataType)f2h_datatype_map[datatype],
       (HcclReduceOp)f2h_reduceop_map[op], comm->base, stream->base)];
 }
 
@@ -225,9 +233,9 @@ flagcxResult_t hcclAdaptorAllGather(const void *sendbuff, void *recvbuff,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
   void *sendbuffptr = (void *)sendbuff;
-  return (flagcxResult_t)h2f_ret_map[HcclAllGather(sendbuffptr, recvbuff, sendcount,
-                                       (HcclDataType)f2h_datatype_map[datatype], 
-                                       comm->base, stream->base)];
+  return (flagcxResult_t)h2f_ret_map[HcclAllGather(
+      sendbuffptr, recvbuff, sendcount,
+      (HcclDataType)f2h_datatype_map[datatype], comm->base, stream->base)];
 }
 
 flagcxResult_t hcclAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
@@ -235,9 +243,10 @@ flagcxResult_t hcclAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
                                    flagcxInnerComm_t comm,
                                    flagcxStream_t stream) {
   void *sendbuffptr = (void *)sendbuff;
-  return (flagcxResult_t)h2f_ret_map[HcclAlltoAll(sendbuffptr, count, (HcclDataType)f2h_datatype_map[datatype],
-                                      recvbuff, count, (HcclDataType)f2h_datatype_map[datatype],
-                                      comm->base, stream->base)];
+  return (flagcxResult_t)h2f_ret_map[HcclAlltoAll(
+      sendbuffptr, count, (HcclDataType)f2h_datatype_map[datatype], recvbuff,
+      count, (HcclDataType)f2h_datatype_map[datatype], comm->base,
+      stream->base)];
 }
 
 flagcxResult_t hcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
@@ -247,11 +256,10 @@ flagcxResult_t hcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
   void *sendbuffptr = (void *)sendbuff;
-  return (flagcxResult_t)h2f_ret_map[HcclAlltoAllV(sendbuffptr, sendcounts, sdispls,
-                                      (HcclDataType)f2h_datatype_map[datatype],
-                                      recvbuff, recvcounts, rdispls,
-                                      (HcclDataType)f2h_datatype_map[datatype],
-                                      comm->base, stream->base)];
+  return (flagcxResult_t)h2f_ret_map[HcclAlltoAllV(
+      sendbuffptr, sendcounts, sdispls,
+      (HcclDataType)f2h_datatype_map[datatype], recvbuff, recvcounts, rdispls,
+      (HcclDataType)f2h_datatype_map[datatype], comm->base, stream->base)];
 }
 
 flagcxResult_t hcclAdaptorSend(const void *sendbuff, size_t count,
@@ -260,20 +268,18 @@ flagcxResult_t hcclAdaptorSend(const void *sendbuff, size_t count,
   void *sendbuffptr = (void *)sendbuff;
   item.comm = comm;
   item.stream = stream;
-  sendRecvInfo.emplace_back(HcclSendRecvItem{HcclSendRecvType::HCCL_SEND,
-		  	    sendbuffptr, count,
-			    (HcclDataType)f2h_datatype_map[datatype],
-			    (uint32_t)peer});
-  return flagcxSuccess; 
+  sendRecvInfo.emplace_back(HcclSendRecvItem{
+      HcclSendRecvType::HCCL_SEND, sendbuffptr, count,
+      (HcclDataType)f2h_datatype_map[datatype], (uint32_t)peer});
+  return flagcxSuccess;
 }
 
 flagcxResult_t hcclAdaptorRecv(void *recvbuff, size_t count,
                                flagcxDataType_t datatype, int peer,
                                flagcxInnerComm_t comm, flagcxStream_t stream) {
-  sendRecvInfo.emplace_back(HcclSendRecvItem{HcclSendRecvType::HCCL_RECV,
-		  	    recvbuff, count,
-			    (HcclDataType)f2h_datatype_map[datatype],
-			    (uint32_t)peer});
+  sendRecvInfo.emplace_back(HcclSendRecvItem{
+      HcclSendRecvType::HCCL_RECV, recvbuff, count,
+      (HcclDataType)f2h_datatype_map[datatype], (uint32_t)peer});
   return flagcxSuccess;
 }
 
@@ -282,14 +288,14 @@ flagcxResult_t hcclAdaptorGroupStart() {
   return flagcxSuccess;
 }
 
-flagcxResult_t hcclAdaptorGroupEnd() { 
+flagcxResult_t hcclAdaptorGroupEnd() {
   uint32_t itemNum = 0;
   itemNum = sendRecvInfo.size();
   if (itemNum > 0) {
-    return (flagcxResult_t)h2f_ret_map[HcclBatchSendRecv(sendRecvInfo.data(), itemNum,
-		    				       item.comm->base, item.stream->base)];
-  } 
-  return flagcxSuccess;  
+    return (flagcxResult_t)h2f_ret_map[HcclBatchSendRecv(
+        sendRecvInfo.data(), itemNum, item.comm->base, item.stream->base)];
+  }
+  return flagcxSuccess;
 }
 
 struct flagcxCCLAdaptor hcclAdaptor = {

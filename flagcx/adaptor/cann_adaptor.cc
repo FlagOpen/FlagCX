@@ -19,8 +19,8 @@ flagcxResult_t cannAdaptorDeviceMemcpy(void *dst, void *src, size_t size,
   if (stream == NULL) {
     DEVCHECK(aclrtMemcpy(dst, size, src, size, memcpy_type_map[type]));
   } else {
-    DEVCHECK(
-        aclrtMemcpyAsync(dst, size, src, size, memcpy_type_map[type], stream->base));
+    DEVCHECK(aclrtMemcpyAsync(dst, size, src, size, memcpy_type_map[type],
+                              stream->base));
   }
   return flagcxSuccess;
 }
@@ -158,8 +158,7 @@ flagcxResult_t cannAdaptorStreamQuery(flagcxStream_t stream) {
 flagcxResult_t cannAdaptorStreamWaitEvent(flagcxStream_t stream,
                                           flagcxEvent_t event) {
   if (stream != NULL && event != NULL) {
-    DEVCHECK(
-        aclrtStreamWaitEvent(stream->base, event->base));
+    DEVCHECK(aclrtStreamWaitEvent(stream->base, event->base));
   }
   return flagcxSuccess;
 }
@@ -167,8 +166,7 @@ flagcxResult_t cannAdaptorStreamWaitEvent(flagcxStream_t stream,
 flagcxResult_t cannAdaptorEventCreate(flagcxEvent_t *event) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(aclrtCreateEventWithFlag((aclrtEvent *)(*event),
-                                    ACL_EVENT_SYNC));
+  DEVCHECK(aclrtCreateEventWithFlag((aclrtEvent *)(*event), ACL_EVENT_SYNC));
   return flagcxSuccess;
 }
 
@@ -219,7 +217,8 @@ flagcxResult_t cannAdaptorEventQuery(flagcxEvent_t event) {
 flagcxResult_t cannAdaptorLaunchHostFunc(flagcxStream_t stream,
                                          void (*fn)(void *), void *args) {
   if (stream != NULL) {
-    DEVCHECK(aclrtLaunchCallback(fn, args, ACL_CALLBACK_NO_BLOCK, stream->base));
+    DEVCHECK(
+        aclrtLaunchCallback(fn, args, ACL_CALLBACK_NO_BLOCK, stream->base));
   }
   return flagcxSuccess;
 }
@@ -255,12 +254,13 @@ struct flagcxDeviceAdaptor cannAdaptor {
       NULL, // flagcxResult_t (*launchDeviceFunc)(flagcxStream_t stream, void
             // *args);
       // Others
-      NULL, // flagcxResult_t (*getDeviceProperties)(struct flagcxDevProps *props, int dev);
+      NULL, // flagcxResult_t (*getDeviceProperties)(struct flagcxDevProps
+            // *props, int dev);
       NULL, // flagcxResult_t (*getDevicePciBusId)(char
-                                    // *pciBusId, int len, int dev);
+            // *pciBusId, int len, int dev);
       NULL, // flagcxResult_t
-                                      // (*getDeviceByPciBusId)(int
-                                      // *dev, const char *pciBusId);
+            // (*getDeviceByPciBusId)(int
+            // *dev, const char *pciBusId);
       cannAdaptorLaunchHostFunc,
       // DMA buffer
       NULL, // flagcxResult_t (*dmaSupport)(bool *dmaBufferSupport);

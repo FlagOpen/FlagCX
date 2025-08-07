@@ -1,5 +1,6 @@
 /*************************************************************************
- * Copyright (c) 2025 by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
+ * Copyright (c) 2025 by MetaX Integrated Circuits (Shanghai) Co., Ltd. All
+ *Rights Reserved.
  ************************************************************************/
 
 #ifdef USE_KUNLUNXIN_ADAPTOR
@@ -16,21 +17,21 @@
 #include "flagcx.h"
 
 struct flagcxInnerComm {
-    BKCLContext_t base;
+  BKCLContext_t base;
 };
 
 struct flagcxStream {
-    cudaStream_t base;
+  cudaStream_t base;
 };
 
 struct flagcxEvent {
-    cudaEvent_t base;
+  cudaEvent_t base;
 };
 
 #define DEVCHECK(func)                                                         \
   {                                                                            \
     int ret = func;                                                            \
-    if (ret != cudaSuccess)                                                      \
+    if (ret != cudaSuccess)                                                    \
       return flagcxUnhandledDeviceError;                                       \
   }
 
