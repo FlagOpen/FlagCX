@@ -16,7 +16,7 @@ with FlagcxBlock("test", Collective.AllReduce, [], [], 8):
     # init pipeline schedule
     set_pipeline(1, 0, 1, 1, 1)
     # init refresh func info
-    set_refresh(2, 0, 0, chunk_size, chunk_size * 4, RedOp.sum)
+    set_refresh(1, 0, 0, chunk_size, chunk_size * 4, RedOp.sum)
 
     # pre homo funcs
     for rank in range(4):
