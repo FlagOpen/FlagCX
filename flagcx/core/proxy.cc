@@ -484,12 +484,11 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
                                          flagcxProxyAsyncOp *op,
                                          int *asyncOpCount) {
   int done = 0;
-  // flagcxResult_t res = flagcxInternalError;
   const char *dmaBufEnable = flagcxGetEnv("FLAGCX_DMABUF_ENABLE");
-  int dmaEnabled = 0; // 默认为关闭
+  bool dmaEnabled = false; // disabled by default
   if (dmaBufEnable != NULL) {
     if (strcmp(dmaBufEnable, "1") == 0) {
-      dmaEnabled = 1;
+      dmaEnabled = true;
     }
   }
   if (op->type == flagcxProxyMsgConnect) {
@@ -503,7 +502,7 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
         bool dmaBufferSupport = false;
         deviceAdaptor->dmaSupport(&dmaBufferSupport);
         if (dmaBufferSupport && dmaEnabled) {
-          INFO(FLAGCX_PROXY, "DMA_BUFFER Enable");
+          INFO(FLAGCX_PROXY, "Registering memory region with DMA-BUF support");
           int dmabuf_fd;
           FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
               (void *)&dmabuf_fd, resources->buffers[0],
@@ -529,7 +528,7 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
         bool dmaBufferSupport = false;
         deviceAdaptor->dmaSupport(&dmaBufferSupport);
         if (dmaBufferSupport && dmaEnabled) {
-          INFO(FLAGCX_PROXY, "DMA_BUFFER Enable");
+          INFO(FLAGCX_PROXY, "Registering memory region with DMA-BUF support");
           int dmabuf_fd;
           FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
               (void *)&dmabuf_fd, resources->buffers[0],
