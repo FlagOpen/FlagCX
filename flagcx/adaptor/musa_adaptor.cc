@@ -49,7 +49,9 @@ flagcxResult_t musaAdaptorDeviceMalloc(void **ptr, size_t size,
     if (stream == NULL) {
       DEVCHECK(musaMalloc(ptr, size));
     } else {
-      DEVCHECK(musaMallocAsync(ptr, size, stream->base));
+      DEVCHECK(musaMalloc(ptr, size));
+      // MUSA currently does not support async malloc
+      // DEVCHECK(musaMallocAsync(ptr, size, stream->base));
     }
   } else if (type == flagcxMemManaged) {
     DEVCHECK(musaMallocManaged(ptr, size, musaMemAttachGlobal));
