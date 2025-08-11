@@ -359,8 +359,7 @@ static flagcxResult_t flagcxCollNet_v7_as_v8_init(flagcxDebugLogger_t logfn) {
   return flagcxSuccess;
 }
 
-// flagcxNet_t* flagcxNets[3] = { nullptr, &flagcxNetIb, &flagcxNetSocket };
-flagcxNet_t *flagcxNets[3] = {nullptr, &flagcxNetIb, nullptr};
+flagcxNet_t* flagcxNets[3] = { nullptr, &flagcxNetIb, &flagcxNetSocket };
 flagcxCollNet_t *flagcxCollNets[3] = {nullptr, nullptr, nullptr};
 enum flagcxNetState {
   flagcxNetStateInit = 0,
