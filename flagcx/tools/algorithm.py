@@ -228,7 +228,7 @@ class BuffRef:
         return 0 <= self.bid < len(_buff()) and self.offset >= 0 and self.count >= 0
 
 
-class FlagcxBlock:
+class FlagcxWorkflow:
     def __init__(self, name: str, coll: Collective, pre_data: DataCond, post_data: DataCond, world_size: int):
         self.name = name
         self.coll = coll
@@ -278,7 +278,7 @@ class FlagcxBlock:
             return False
 
 
-_block: Optional[FlagcxBlock] = None
+_block: Optional[FlagcxWorkflow] = None
 
 
 # DSL primitives
@@ -292,7 +292,7 @@ def set_refresh(buff_type_: int, start_: int, offset_: int, count_: int, total_c
         _curr().planner[r].set_refresh(buff_type_, start_, offset_, count_, total_count_, red_op_)
 
 
-def add_instr(rank_: int, stage_: Stage, step_: int, params_: Optional[Dict]):
+def add_opr(rank_: int, stage_: Stage, step_: int, params_: Optional[Dict]):
     if stage_ == Stage.PreHomoFunc:
         while len(_curr().planner[rank_].pre_homo_steps) <= step_:
             _curr().planner[rank_].pre_homo_steps.append([])
