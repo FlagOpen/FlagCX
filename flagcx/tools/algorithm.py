@@ -51,7 +51,7 @@ class FlagcxC2cPlanner:
                      recv_offset_: int = 0,
                      count_: int = 0,
                      homo_type_: int = 0,
-                     comm_op_: Instr = Instr.Nop,
+                     comm_op_: Primitive = Primitive.Nop,
                      params_: Optional[Dict] = None):
             self.rootRank: int = root_rank_
             self.sendType: int = send_type_
@@ -60,7 +60,7 @@ class FlagcxC2cPlanner:
             self.recvOffset: int = recv_offset_
             self.count: int = count_
             self.homoType: int = homo_type_
-            self.commOp: Instr = comm_op_.value
+            self.commOp: Primitive = comm_op_.value
             if params_ is not None:
                 self.rootRank = params_.get(Param.peer_or_root_rank, -1)
                 if Param.send_buff in params_.keys():
@@ -75,7 +75,7 @@ class FlagcxC2cPlanner:
                 self.recvOffset = params_.get(Param.recv_offset, recv_offset_)
                 self.count = params_.get(Param.count, 0)
                 self.homoType = params_.get(Param.homo_type, 0)
-                self.commOp = params_.get(Param.comm_op, Instr.Nop).value
+                self.commOp = params_.get(Param.comm_op, Primitive.Nop).value
 
         def to_xml(self):
             elem = ET.Element("HomoFunc")
@@ -192,9 +192,9 @@ def _buff():
 
 
 class IrStep:
-    def __init__(self, step: int, instr: Instr, params: Dict):
+    def __init__(self, step: int, prim: Primitive, params: Dict):
         self.step = step
-        self.instr: Instr = instr
+        self.prim: Primitive = prim
         self.params: Dict = params
 
 

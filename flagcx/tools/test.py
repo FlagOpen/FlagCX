@@ -27,7 +27,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                          Param.recv_buff: BuffRef(rank_data[rank][1], chunk_size * rank, chunk_size * 2),
                          Param.count: chunk_size,
                          Param.homo_type: 0,
-                         Param.comm_op: Instr.ReduceScatter})
+                         Param.comm_op: Primitive.ReduceScatter})
         add_opr(rank_=rank,
                 stage_=Stage.PreHomoFunc,
                 step_=0,
@@ -35,7 +35,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                          Param.recv_buff: BuffRef(rank_data[rank][1], chunk_size * (rank + 4), chunk_size),
                          Param.count: chunk_size,
                            Param.homo_type: 0,
-                           Param.comm_op: Instr.ReduceScatter})
+                           Param.comm_op: Primitive.ReduceScatter})
 
     # hetero funcs for rank 0
     # step 0
@@ -77,7 +77,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                      Param.recv_buff: BuffRef(rank_data[rank][1], 0, chunk_size),
                      Param.count: chunk_size,
                      Param.homo_type: 2,
-                     Param.comm_op: Instr.ReduceScatter})
+                     Param.comm_op: Primitive.ReduceScatter})
     add_opr(rank_=0, stage_=Stage.HomoInterFunc, step_=1, params_=None)
 
     # post homo funcs
@@ -90,7 +90,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                          Param.recv_buff: BuffRef(rank_data[0][1], chunk_size * root, chunk_size),
                          Param.count: chunk_size,
                          Param.homo_type: 2,
-                         Param.comm_op: Instr.Broadcast})
+                         Param.comm_op: Primitive.Broadcast})
     for root in range(4):
         add_opr(rank_=0,
                 stage_=Stage.PostHomoFunc,
@@ -100,7 +100,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                          Param.recv_buff: BuffRef(rank_data[0][1], chunk_size * (root + 4), chunk_size),
                          Param.count: chunk_size,
                          Param.homo_type: 2,
-                         Param.comm_op: Instr.Broadcast})
+                         Param.comm_op: Primitive.Broadcast})
 
     # export as xml
     to_xml(rank_=0, path_="output")

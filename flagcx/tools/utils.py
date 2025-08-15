@@ -27,7 +27,7 @@ class RedOp(Enum):
     nop = 5
 
 
-class Instr(Enum):
+class Primitive(Enum):
     P2P = 0
     Custom = 1
     Broadcast = 2
