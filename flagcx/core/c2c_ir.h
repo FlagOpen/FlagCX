@@ -59,55 +59,66 @@ inline size_t readSizeTag(char *line, const char *tag) {
   return strtoull(buf, nullptr, 10);
 }
 
-inline void serializRefreshFunc(FILE *file, const flagcxC2cRefreshFunc &func,
+inline void serializRefreshFunc(FILE *file, size_t chunksize,
+                                const flagcxC2cRefreshFunc &func,
                                 int indent = 2) {
   fprintf(file, "%*s<RefreshFunc>\n", indent, "");
-  fprintf(file, "%*s<offset>%zu</offset>\n", indent + 2, "", func.offset_);
-  fprintf(file, "%*s<count>%zu</count>\n", indent + 2, "", func.count_);
+  fprintf(file, "%*s<buffType>%d</buffType>\n", indent + 2, "", func.bufftype_);
+  fprintf(file, "%*s<start>%zu</start>\n", indent + 2, "",
+          func.start_ / chunksize);
+  fprintf(file, "%*s<offset>%zu</offset>\n", indent + 2, "",
+          func.offset_ / chunksize);
+  fprintf(file, "%*s<count>%zu</count>\n", indent + 2, "",
+          func.count_ / chunksize);
   fprintf(file, "%*s<totalCount>%zu</totalCount>\n", indent + 2, "",
-          func.totalCount_);
+          func.totalCount_ / chunksize);
   fprintf(file, "%*s<redOp>%d</redOp>\n", indent + 2, "", func.redOp_);
   fprintf(file, "%*s</RefreshFunc>\n", indent, "");
 }
 
-inline void serializeHomoFunc(FILE *file, const flagcxC2cHomoFunc &func,
-                              int indent = 4) {
+inline void serializeHomoFunc(FILE *file, size_t chunksize,
+                              const flagcxC2cHomoFunc &func, int indent = 4) {
   fprintf(file, "%*s<HomoFunc>\n", indent, "");
   fprintf(file, "%*s<rootRank>%d</rootRank>\n", indent + 2, "", func.rootRank_);
   fprintf(file, "%*s<sendType>%d</sendType>\n", indent + 2, "", func.sendType_);
   fprintf(file, "%*s<recvType>%d</recvType>\n", indent + 2, "", func.recvType_);
   fprintf(file, "%*s<sendOffset>%zu</sendOffset>\n", indent + 2, "",
-          func.sendOffset_);
+          func.sendOffset_ / chunksize);
   fprintf(file, "%*s<recvOffset>%zu</recvOffset>\n", indent + 2, "",
-          func.recvOffset_);
-  fprintf(file, "%*s<count>%zu</count>\n", indent + 2, "", func.count_);
+          func.recvOffset_ / chunksize);
+  fprintf(file, "%*s<count>%zu</count>\n", indent + 2, "",
+          func.count_ / chunksize);
   fprintf(file, "%*s<homoType>%d</homoType>\n", indent + 2, "", func.homoType_);
   fprintf(file, "%*s<commOp>%d</commOp>\n", indent + 2, "", func.commOp_);
   fprintf(file, "%*s</HomoFunc>\n", indent, "");
 }
 
-inline void serializeP2pOp(FILE *file, const flagcxC2cP2pOp &op,
-                           int indent = 6) {
+inline void serializeP2pOp(FILE *file, size_t chunksize,
+                           const flagcxC2cP2pOp &op, int indent = 6) {
   fprintf(file, "%*s<P2pOp>\n", indent, "");
   fprintf(file, "%*s<rank>%d</rank>\n", indent + 2, "", op.rank_);
   fprintf(file, "%*s<peerRank>%d</peerRank>\n", indent + 2, "", op.peerRank_);
-  fprintf(file, "%*s<offset>%zu</offset>\n", indent + 2, "", op.offset_);
-  fprintf(file, "%*s<count>%zu</count>\n", indent + 2, "", op.count_);
+  fprintf(file, "%*s<offset>%zu</offset>\n", indent + 2, "",
+          op.offset_ / chunksize);
+  fprintf(file, "%*s<count>%zu</count>\n", indent + 2, "",
+          op.count_ / chunksize);
   fprintf(file, "%*s<isRecv>%d</isRecv>\n", indent + 2, "", op.isRecv_);
   fprintf(file, "%*s</P2pOp>\n", indent, "");
 }
 
-inline void serializeHeteroFunc(FILE *file, const flagcxC2cHeteroFunc &func,
+inline void serializeHeteroFunc(FILE *file, size_t chunksize,
+                                const flagcxC2cHeteroFunc &func,
                                 int indent = 4) {
   fprintf(file, "%*s<HeteroFunc>\n", indent, "");
   for (const auto &op : func.p2pOps_) {
-    serializeP2pOp(file, op, indent + 2);
+    serializeP2pOp(file, chunksize, op, indent + 2);
   }
   fprintf(file, "%*s</HeteroFunc>\n", indent, "");
 }
 
 template <typename T>
-void serializeFunc2DVector(FILE *file, const std::vector<std::vector<T>> &steps,
+void serializeFunc2DVector(FILE *file, size_t chunksize,
+                           const std::vector<std::vector<T>> &steps,
                            const char *tagName, int indent = 2) {
   fprintf(file, "%*s<%s>\n", indent, "", tagName);
   for (const auto &stepVec : steps) {
@@ -118,9 +129,9 @@ void serializeFunc2DVector(FILE *file, const std::vector<std::vector<T>> &steps,
     fprintf(file, "%*s<Step>\n", indent + 2, "");
     for (const auto &func : stepVec) {
       if constexpr (std::is_same<T, flagcxC2cHomoFunc>::value) {
-        serializeHomoFunc(file, func, indent + 4);
+        serializeHomoFunc(file, chunksize, func, indent + 4);
       } else if constexpr (std::is_same<T, flagcxC2cHeteroFunc>::value) {
-        serializeHeteroFunc(file, func, indent + 4);
+        serializeHeteroFunc(file, chunksize, func, indent + 4);
       }
     }
     fprintf(file, "%*s</Step>\n", indent + 2, "");
@@ -129,7 +140,8 @@ void serializeFunc2DVector(FILE *file, const std::vector<std::vector<T>> &steps,
 }
 
 template <typename T>
-std::vector<std::vector<T>> readFunc2DVector(FILE *file, const char *tagName) {
+std::vector<std::vector<T>> readFunc2DVector(FILE *file, size_t chunksize,
+                                             const char *tagName) {
   std::vector<std::vector<T>> result;
   char line[LINE_LEN];
 
@@ -151,10 +163,10 @@ std::vector<std::vector<T>> readFunc2DVector(FILE *file, const char *tagName) {
           break;
         if constexpr (std::is_same<T, flagcxC2cHomoFunc>::value) {
           if (strstr(line, "<HomoFunc>"))
-            step.emplace_back(file);
+            step.emplace_back(file, chunksize);
         } else if constexpr (std::is_same<T, flagcxC2cHeteroFunc>::value) {
           if (strstr(line, "<HeteroFunc>"))
-            step.emplace_back(file);
+            step.emplace_back(file, chunksize);
         }
       }
       result.push_back(step);

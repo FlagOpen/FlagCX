@@ -287,9 +287,8 @@ def set_pipeline(n_seq_pre_: int, n_pipe_pre_: int, n_seq_inter_: int, n_pipe_po
         _curr().planner.append(FlagcxC2cPlanner(r, n_seq_pre_, n_pipe_pre_, n_seq_inter_, n_pipe_post_, n_seq_post_))
 
 
-def set_refresh(buff_type_: int, start_: int, offset_: int, count_: int, total_count_: int, red_op_: RedOp):
-    for r in range(_curr().world_size):
-        _curr().planner[r].set_refresh(buff_type_, start_, offset_, count_, total_count_, red_op_)
+def set_refresh(rank_: int, buff_type_: int, start_: int, offset_: int, count_: int, total_count_: int, red_op_: RedOp):
+    _curr().planner[rank_].set_refresh(buff_type_, start_, offset_, count_, total_count_, red_op_)
 
 
 def add_opr(rank_: int, stage_: Stage, step_: int, params_: Optional[Dict]):
