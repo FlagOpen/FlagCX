@@ -723,10 +723,7 @@ void *flagcxProxyService(void *args) {
   while (!stop || (stop && opHead)) {
     int ret;
     do {
-      // INFO(FLAGCX_INIT|FLAGCX_NET, "[Proxy Service] Polling with asyncOpCount=%d, timeout=%d", 
-          // asyncOpCount, asyncOpCount ? 0 : 500);
       ret = poll(pollfds, 1, asyncOpCount ? 0 : 500);
-      // INFO(FLAGCX_INIT|FLAGCX_NET, "[Proxy Service] Poll returned: %d", ret);
     } while (ret < 0 && errno == EINTR);
     if (ret < 0) {
       WARN("[Proxy Service] Poll failed: %s", strerror(errno));

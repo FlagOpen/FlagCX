@@ -328,7 +328,6 @@ struct flagcxHeteroComm {
 
   flagcxConfig_t config;
   // initState is to more conveniently reclaim resources when errors happen.
-
   flagcxResult_t initState;
   // flag to indicate if flagcxCommFinalize() is called
   bool finalizeCalled;
@@ -336,8 +335,6 @@ struct flagcxHeteroComm {
   int finalizeRankCnt;
   // group job to support multi-thread FT
   struct flagcxGroupJob *groupJob;
-
-
 
   // Tuning plugin
   flagcxTuner_t *tuner;

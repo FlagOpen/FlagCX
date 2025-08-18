@@ -630,7 +630,3 @@ flagcxNet_t flagcxNetSocket = {
   NULL /* getDeviceMr */,
   NULL /* irecvConsumed */
 };
-
-
-
-

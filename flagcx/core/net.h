@@ -37,7 +37,6 @@ struct sendNetResources {
 
   flagcxNet_t *flagcxNet;
   flagcxCollNet_t *flagcxCollNet;
-
   int tpRank;
   int tpLocalRank;
   int tpRemoteRank;
@@ -70,7 +69,6 @@ struct recvNetResources {
 
   flagcxNet_t *flagcxNet;
   flagcxCollNet_t *flagcxCollNet;
-
   int tpRank;
   int tpLocalRank;
   int tpRemoteRank;
@@ -126,7 +124,6 @@ struct flagcxIbHandle {
   uint64_t magic;                        // random number to help debugging
   struct flagcxIbCommStage stage; // Used by the other side when connecting
 };
-
 
 flagcxResult_t flagcxSendRegMr(flagcxHeteroComm_t comm, void *data, size_t size,
                                int peer, int channel);
