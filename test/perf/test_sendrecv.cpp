@@ -56,10 +56,11 @@ int main(int argc, char *argv[]) {
   // Warm-up for large size
   for (int i = 0; i < num_warmup_iters; i++) {
     flagcxGroupStart(comm);
+    
     flagcxSend(sendbuff, max_bytes / sizeof(float), DATATYPE, sendPeer, comm,
-               stream);
+                stream);
     flagcxRecv(recvbuff, max_bytes / sizeof(float), DATATYPE, recvPeer, comm,
-               stream);
+                stream);
     flagcxGroupEnd(comm);
   }
   devHandle->streamSynchronize(stream);

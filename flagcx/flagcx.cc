@@ -1527,7 +1527,7 @@ flagcxResult_t flagcxSend(const void *sendbuff, size_t count,
 
 flagcxResult_t flagcxRecv(void *recvbuff, size_t count,
                           flagcxDataType_t datatype, int peer,
-                          flagcxComm_t comm, flagcxStream_t stream) {
+                          flagcxComm_t comm, flagcxStream_t stream) {               
   FLAGCXCHECK(flagcxEnsureCommReady(comm));
   if (is_homo_comm(comm)) {
     return cclAdaptors[flagcxCCLAdaptorDevice]->recv(

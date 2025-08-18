@@ -8,6 +8,7 @@
 #define ENABLE_TIMER 0
 #include "timer.h"
 
+
 flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
                                        struct flagcxTopoGraph *graph,
                                        int connIndex,
@@ -26,7 +27,8 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
         conn->proxyConn.connection->send = 0;
         conn->proxyConn.connection->transportResources = (void *)resources;
         resources->netDev = comm->netDev;
-        flagcxNetIb.listen(resources->netDev, (void *)handle,
+        resources->flagcxNet = comm->flagcxNet;
+        comm->flagcxNet->listen(resources->netDev, (void *)handle,
                            &resources->netListenComm);
         bootstrapSend(comm->bootstrap, peer, 1001 + c, handle,
                       sizeof(flagcxIbHandle));
@@ -35,8 +37,15 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           deviceAdaptor->eventCreate(&resources->cpEvents[s]);
         }
         resources->buffSizes[0] = REGMRBUFFERSIZE;
-        deviceAdaptor->gdrMemAlloc((void **)&resources->buffers[0],
-                                   resources->buffSizes[0], NULL);
+        if (comm->flagcxNet == &flagcxNetSocket) {
+          resources->buffers[0] = (char*)malloc(resources->buffSizes[0]);
+          if (!resources->buffers[0]) {
+            return flagcxSystemError;
+          }
+        } else if (comm->flagcxNet == &flagcxNetIb){
+          deviceAdaptor->gdrMemAlloc((void **)&resources->buffers[0],
+                                     resources->buffSizes[0], NULL);
+        }
         FLAGCXCHECK(flagcxProxyCallAsync(comm, &conn->proxyConn,
                                          flagcxProxyMsgConnect, handle,
                                          sizeof(flagcxIbHandle), 0, conn));
@@ -54,6 +63,7 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
         conn->proxyConn.connection->send = 1;
         conn->proxyConn.connection->transportResources = (void *)resources;
         resources->netDev = comm->netDev;
+        resources->flagcxNet = comm->flagcxNet;
         bootstrapRecv(comm->bootstrap, peer, 1001 + c, handle,
                       sizeof(flagcxIbHandle));
         handle->stage.comm = comm;
@@ -62,12 +72,18 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           deviceAdaptor->eventCreate(&resources->cpEvents[s]);
         }
         resources->buffSizes[0] = REGMRBUFFERSIZE;
-        deviceAdaptor->gdrMemAlloc((void **)&resources->buffers[0],
-                                   resources->buffSizes[0], NULL);
+        if (comm->flagcxNet == &flagcxNetSocket) {
+          resources->buffers[0] = (char*)malloc(resources->buffSizes[0]);
+          if (!resources->buffers[0]) {
+            return flagcxSystemError;
+          }
+        } else if (comm->flagcxNet == &flagcxNetIb){
+          deviceAdaptor->gdrMemAlloc((void **)&resources->buffers[0],
+                                     resources->buffSizes[0], NULL);
+        }
         FLAGCXCHECK(flagcxProxyCallAsync(comm, &conn->proxyConn,
                                          flagcxProxyMsgConnect, handle,
                                          sizeof(flagcxIbHandle), 0, conn));
-
         free(handle);
       }
     }
@@ -96,6 +112,5 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
       }
     }
   }
-
   return flagcxSuccess;
 }

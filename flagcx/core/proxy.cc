@@ -475,8 +475,7 @@ flagcxResult_t flagcxPollProxyResponse(struct flagcxHeteroComm *comm,
     }
   } else {
     INFO(FLAGCX_PROXY, "flagcxPollProxyResponse Dequeued cached opId=%p", opId);
-  }
-
+  }    
   return res;
 }
 
@@ -496,7 +495,7 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
       struct sendNetResources *resources =
           (struct sendNetResources *)op->connection->transportResources;
       if (!resources->netSendComm) {
-        FLAGCXCHECK(flagcxNetIb.connect(resources->netDev, (void *)op->reqBuff,
+        FLAGCXCHECK(resources->flagcxNet->connect(resources->netDev, (void *)op->reqBuff,
                                         &resources->netSendComm, NULL));
       } else {
         bool dmaBufferSupport = false;
@@ -509,14 +508,20 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
           FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
               (void *)&dmabuf_fd, resources->buffers[0],
               resources->buffSizes[0], 0));
-          FLAGCXCHECK(flagcxNetIb.regMrDmaBuf(
+          FLAGCXCHECK(resources->flagcxNet->regMrDmaBuf(
               resources->netSendComm, resources->buffers[0],
               resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
               &resources->mhandles[0]));
         } else {
-          FLAGCXCHECK(flagcxNetIb.regMr(
-              resources->netSendComm, resources->buffers[0],
-              resources->buffSizes[0], 2, &resources->mhandles[0]));
+              if (resources->flagcxNet==&flagcxNetIb){
+                  FLAGCXCHECK(resources->flagcxNet->regMr(
+                  resources->netSendComm, resources->buffers[0],
+                  resources->buffSizes[0], 2, &resources->mhandles[0]));
+              }else if (resources->flagcxNet==&flagcxNetSocket){
+                  FLAGCXCHECK(resources->flagcxNet->regMr(
+                  resources->netSendComm, resources->buffers[0],
+                  resources->buffSizes[0], 1, &resources->mhandles[0]));
+              }
         }
         done = 1;
       }
@@ -524,7 +529,7 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
       struct recvNetResources *resources =
           (struct recvNetResources *)op->connection->transportResources;
       if (!resources->netRecvComm) {
-        FLAGCXCHECK(flagcxNetIb.accept(resources->netListenComm,
+        FLAGCXCHECK(resources->flagcxNet->accept(resources->netListenComm,
                                        &resources->netRecvComm, NULL));
       } else {
         bool dmaBufferSupport = false;
@@ -537,14 +542,20 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
           FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
               (void *)&dmabuf_fd, resources->buffers[0],
               resources->buffSizes[0], 0));
-          FLAGCXCHECK(flagcxNetIb.regMrDmaBuf(
+          FLAGCXCHECK(resources->flagcxNet->regMrDmaBuf(
               resources->netRecvComm, resources->buffers[0],
               resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
               &resources->mhandles[0]));
         } else {
-          FLAGCXCHECK(flagcxNetIb.regMr(
-              resources->netRecvComm, resources->buffers[0],
-              resources->buffSizes[0], 2, &resources->mhandles[0]));
+              if (resources->flagcxNet==&flagcxNetIb){
+                  FLAGCXCHECK(resources->flagcxNet->regMr(
+                  resources->netRecvComm, resources->buffers[0],
+                  resources->buffSizes[0], 2, &resources->mhandles[0]));
+              }else if (resources->flagcxNet==&flagcxNetSocket){
+                  FLAGCXCHECK(resources->flagcxNet->regMr(
+                  resources->netRecvComm, resources->buffers[0],
+                  resources->buffSizes[0], 1, &resources->mhandles[0]));
+              }
         }
         done = 1;
       }
@@ -608,7 +619,6 @@ flagcxResult_t flagcxProxyCallAsync(struct flagcxHeteroComm *comm,
   FLAGCXCHECKGOTO(flagcxSocketSend(sock, &opId, sizeof(opId)), ret, error);
 
   FLAGCXCHECK(expectedProxyResponseEnqueue(sharedProxyState, opId, respSize));
-
   return flagcxSuccess;
 error:
   return ret;
@@ -681,7 +691,6 @@ flagcxResult_t flagcxProxyInit(struct flagcxHeteroComm *comm) {
   char proxyMsg[10];
   memcpy(proxyMsg, (string("Proxy: ") + to_string(comm->rank)).c_str(), 10);
   flagcxSocketSend(proxySock, proxyMsg, 10);
-
   comm->proxyState->cudaDev = comm->cudaDev;
   pthread_create(&comm->proxyState->thread, NULL, flagcxProxyService,
                  (void *)comm);
@@ -698,12 +707,10 @@ void *flagcxProxyService(void *args) {
   struct flagcxProxyAsyncOp *opHead = NULL;
   int stop = 0;
   int asyncOpCount = 0;
-
   deviceAdaptor->setDevice(comm->cudaDev);
   FLAGCXCHECKGOTO(flagcxSocketInit(&sock), res, out);
   FLAGCXCHECKGOTO(flagcxSocketAccept(&sock, &comm->proxyState->ipcSock), res,
                   out);
-
   char proxyMsg[10];
   flagcxSocketRecv(&sock, proxyMsg, 10);
   INFO(FLAGCX_INIT, "proxy msg : \033[31m%s\033[0m", proxyMsg);
@@ -716,7 +723,10 @@ void *flagcxProxyService(void *args) {
   while (!stop || (stop && opHead)) {
     int ret;
     do {
+      // INFO(FLAGCX_INIT|FLAGCX_NET, "[Proxy Service] Polling with asyncOpCount=%d, timeout=%d", 
+          // asyncOpCount, asyncOpCount ? 0 : 500);
       ret = poll(pollfds, 1, asyncOpCount ? 0 : 500);
+      // INFO(FLAGCX_INIT|FLAGCX_NET, "[Proxy Service] Poll returned: %d", ret);
     } while (ret < 0 && errno == EINTR);
     if (ret < 0) {
       WARN("[Proxy Service] Poll failed: %s", strerror(errno));

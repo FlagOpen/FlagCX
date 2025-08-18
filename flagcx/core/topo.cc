@@ -533,7 +533,7 @@ flagcxResult_t flagcxGetLocalNetFromGpu(int apu, int *dev,
     }
   }
   if (strlen(name) != 0) {
-    flagcxNetIb.getDevFromName(name, dev);
+    comm->flagcxNet->getDevFromName(name, dev);
   }
 
   if (strlen(name) == 0 && enable_topo_detect &&
@@ -698,10 +698,10 @@ flagcxResult_t flagcxTopoGetXmlTopo(struct flagcxHeteroComm *comm,
   }
 
   int netDevCount = 0;
-  FLAGCXCHECK(flagcxNetIb.devices(&netDevCount));
+  FLAGCXCHECK(comm->flagcxNet->devices(&netDevCount));
   for (int n = 0; n < netDevCount; n++) {
     flagcxNetProperties_t props;
-    FLAGCXCHECK(flagcxNetIb.getProperties(n, &props));
+    FLAGCXCHECK(comm->flagcxNet->getProperties(n, &props));
     struct flagcxXmlNode *netNode;
     FLAGCXCHECK(flagcxTopoFillNet(xml, props.pciPath, props.name, &netNode));
     FLAGCXCHECK(xmlSetAttrInt(netNode, "dev", n));

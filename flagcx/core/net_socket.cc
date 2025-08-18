@@ -547,10 +547,10 @@ flagcxResult_t flagcxNetSocketTest(void* request, int* done, int* size) {
   return flagcxSuccess;
 }
 
-
 flagcxResult_t flagcxNetSocketRegMr(void* comm, void* data, size_t size, int type, void** mhandle) {
   return (type != FLAGCX_PTR_HOST) ? flagcxInternalError : flagcxSuccess;
 }
+
 flagcxResult_t flagcxNetSocketDeregMr(void* comm, void* mhandle) { return flagcxSuccess; }
 
 flagcxResult_t flagcxNetSocketIsend(void* sendComm, void* data, int size, int tag, void* mhandle, void** request) {
@@ -581,7 +581,6 @@ flagcxResult_t flagcxNetSocketCloseListen(void* opaqueComm) {
   }
   return flagcxSuccess;
 }
-
 
 flagcxResult_t flagcxNetSocketClose(void* opaqueComm) {
   struct flagcxNetSocketComm* comm = (struct flagcxNetSocketComm*)opaqueComm;
@@ -631,6 +630,7 @@ flagcxNet_t flagcxNetSocket = {
   NULL /* getDeviceMr */,
   NULL /* irecvConsumed */
 };
+
 
 
 
