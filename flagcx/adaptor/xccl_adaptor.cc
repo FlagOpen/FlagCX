@@ -9,13 +9,14 @@ BKCLDataType flagcxToXcclDataType(flagcxDataType_t type) {
     flagcxDataType_t flagcxType;
     BKCLDataType bkclType;
   } typeMap[] = {
-      {flagcxInt8, BKCL_UINT8},     {flagcxChar, BKCL_UINT8},
-      {flagcxUint8, BKCL_UINT8},    {flagcxInt32, BKCL_INT32},
-      {flagcxInt, BKCL_INT32},      {flagcxUint32, BKCL_INT32},
-      {flagcxUint64, BKCL_INT64},   {flagcxFloat16, BKCL_FLOAT16},
-      {flagcxHalf, BKCL_FLOAT16},   {flagcxFloat32, BKCL_FLOAT},
-      {flagcxFloat, BKCL_FLOAT},    {flagcxFloat64, BKCL_FLOAT64},
-      {flagcxDouble, BKCL_FLOAT64}, {flagcxBfloat16, BKCL_BFLOAT16},
+      {flagcxInt8, BKCL_UINT8},        {flagcxChar, BKCL_UINT8},
+      {flagcxUint8, BKCL_UINT8},       {flagcxInt32, BKCL_INT32},
+      {flagcxInt, BKCL_INT32},         {flagcxUint32, BKCL_INT32},
+      {flagcxUint64, BKCL_INT64},      {flagcxInt64, BKCL_INT64},
+      {flagcxFloat16, BKCL_FLOAT16},   {flagcxHalf, BKCL_FLOAT16},
+      {flagcxFloat32, BKCL_FLOAT},     {flagcxFloat, BKCL_FLOAT},
+      {flagcxFloat64, BKCL_FLOAT64},   {flagcxDouble, BKCL_FLOAT64},
+      {flagcxBfloat16, BKCL_BFLOAT16},
   };
 
   const size_t mapSize = sizeof(typeMap) / sizeof(typeMap[0]);

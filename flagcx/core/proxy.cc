@@ -500,7 +500,9 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
                                         &resources->netSendComm, NULL));
       } else {
         bool dmaBufferSupport = false;
-        deviceAdaptor->dmaSupport(&dmaBufferSupport);
+        if (deviceAdaptor->dmaSupport != NULL) {
+          deviceAdaptor->dmaSupport(&dmaBufferSupport);
+        }
         if (dmaBufferSupport && dmaEnabled) {
           INFO(FLAGCX_PROXY, "Registering memory region with DMA-BUF support");
           int dmabuf_fd;
@@ -526,7 +528,9 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
                                        &resources->netRecvComm, NULL));
       } else {
         bool dmaBufferSupport = false;
-        deviceAdaptor->dmaSupport(&dmaBufferSupport);
+        if (deviceAdaptor->dmaSupport != NULL) {
+          deviceAdaptor->dmaSupport(&dmaBufferSupport);
+        }
         if (dmaBufferSupport && dmaEnabled) {
           INFO(FLAGCX_PROXY, "Registering memory region with DMA-BUF support");
           int dmabuf_fd;
