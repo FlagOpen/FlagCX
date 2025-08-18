@@ -58,9 +58,9 @@ int main(int argc, char *argv[]) {
     flagcxGroupStart(comm);
     
     flagcxSend(sendbuff, max_bytes / sizeof(float), DATATYPE, sendPeer, comm,
-                stream);
+              stream);
     flagcxRecv(recvbuff, max_bytes / sizeof(float), DATATYPE, recvPeer, comm,
-                stream);
+              stream);
     flagcxGroupEnd(comm);
   }
   devHandle->streamSynchronize(stream);
