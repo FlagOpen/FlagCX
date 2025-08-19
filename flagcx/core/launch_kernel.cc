@@ -36,7 +36,7 @@ void cpuAsyncLaunch(void *_args) {
   bool *volatile hargs = (bool *)args->hargs;
   while (!__atomic_load_n(hargs, __ATOMIC_RELAXED))
     ;
-  
+
   free(hargs);
   free(event);
   free(args);

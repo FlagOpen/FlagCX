@@ -608,34 +608,63 @@ static flagcxResult_t collNetGetState(int i, enum flagcxNetState* state) {
   return flagcxSuccess;
 }
 
-
 flagcxResult_t flagcxNetInit(struct flagcxHeteroComm* comm) {
   // Initialize main communication network
   const char* netName;
   bool ok = false;
 
+  const char* forceSocketEnv = getenv("FLAGCX_FORCE_NET_SOCKET");
+  bool forceSocket = (forceSocketEnv && atoi(forceSocketEnv) == 1);
+
   netName = comm->config.netName;
-  for (int i=0; i<3; i++) {
-    if (flagcxNets[i] == nullptr) continue;
-    enum flagcxNetState state;
-    FLAGCXCHECK(netGetState(i, &state));
-    if (state != flagcxNetStateEnabled) continue;
-    if (netName && strcasecmp(netName, flagcxNets[i]->name) != 0) continue;
-    if (flagcxSuccess != flagcxNetCheckDeviceVersion(comm, flagcxNets[i], 0)) {
-      // Mismatched device plugin version
-      continue;
-    }
 
-    comm->flagcxNet = flagcxNets[i];
-    ok = true;
-
-    if (flagcxCollNets[i]) {
-      FLAGCXCHECK(collNetGetState(i, &state));
-      if (state == flagcxNetStateEnabled) {
-        comm->flagcxCollNet = flagcxCollNets[i];
+  if (forceSocket) {
+    // Force socket network usage
+    for (int i = 2; i >= 0; i--) {
+      if (flagcxNets[i] == nullptr) continue;
+      if (flagcxNets[i] != &flagcxNetSocket) continue;
+      enum flagcxNetState state;
+      FLAGCXCHECK(netGetState(i, &state));
+      if (state != flagcxNetStateEnabled) continue;
+      if (netName && strcasecmp(netName, flagcxNets[i]->name) != 0) continue;
+      if (flagcxSuccess != flagcxNetCheckDeviceVersion(comm, flagcxNets[i], 0)) {
+        continue;
       }
+
+      comm->flagcxNet = flagcxNets[i];
+      ok = true;
+
+      if (flagcxCollNets[i]) {
+        FLAGCXCHECK(collNetGetState(i, &state));
+        if (state == flagcxNetStateEnabled) {
+          comm->flagcxCollNet = flagcxCollNets[i];
+        }
+      }
+      break;
     }
-    break;
+  } else {
+    // Normal network selection order (IB first, then socket)
+    for (int i=0; i<3; i++) {
+      if (flagcxNets[i] == nullptr) continue;
+      enum flagcxNetState state;
+      FLAGCXCHECK(netGetState(i, &state));
+      if (state != flagcxNetStateEnabled) continue;
+      if (netName && strcasecmp(netName, flagcxNets[i]->name) != 0) continue;
+      if (flagcxSuccess != flagcxNetCheckDeviceVersion(comm, flagcxNets[i], 0)) {
+        continue;
+      }
+
+      comm->flagcxNet = flagcxNets[i];
+      ok = true;
+
+      if (flagcxCollNets[i]) {
+        FLAGCXCHECK(collNetGetState(i, &state));
+        if (state == flagcxNetStateEnabled) {
+          comm->flagcxCollNet = flagcxCollNets[i];
+        }
+      }
+      break;
+    }
   }
 
   if (!ok) {
