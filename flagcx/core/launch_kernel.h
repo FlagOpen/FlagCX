@@ -23,21 +23,23 @@ typedef void (*flagcxLaunchFunc_t)(flagcxStream_t, void *);
 extern "C" {
 #endif
 
-flagcxResult_t loadAsyncKernelSymbol(const char *path, flagcxLaunchFunc_t *fn);
+flagcxResult_t loadKernelSymbol(const char *path, const char *name,
+                                flagcxLaunchFunc_t *fn);
 
 #ifdef __cplusplus
 }
 #endif
 
-struct hostLaunchArgs {
-  volatile bool stopLaunch;
-  volatile bool retLaunch;
+struct flagcxFuncArgs {
+  flagcxStream_t stream;
+  void *value; // hPtr or dPtr
 };
 
-extern flagcxLaunchFunc_t deviceKernel;
+extern flagcxLaunchFunc_t deviceAsyncStore;
+extern flagcxLaunchFunc_t deviceAsyncLoad;
 
-void cpuAsyncLaunch(void *_args);
-void cpuStreamWait(void *_args);
+void cpuAsyncStore(void *_args);
+void cpuAsyncLoad(void *_args);
 
 /*
 Reference CUDA implementation for async kernel launch (for future adaptor

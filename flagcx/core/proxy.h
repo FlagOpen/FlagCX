@@ -115,9 +115,9 @@ struct flagcxProxyArgs {
   struct flagcxProxyArgs **proxyAppendPtr;
 
   /*for launch*/
-  bool *volatile hlArgs;
+  volatile bool hlArgs = false;
+  volatile bool hEventReady = false;
   bool *volatile dlArgs;
-  bool *volatile hEventReady;
   bool *volatile dEventReady;
 
   union flagcxProxyOpSpecifics specifics;
