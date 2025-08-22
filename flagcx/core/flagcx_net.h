@@ -32,6 +32,8 @@ typedef struct {
   // Plugin-specific TC value
   int trafficClass;
 } flagcxNetCommConfig_v10_t;
+typedef flagcxNetCommConfig_v10_t flagcxNetCommConfig_t;
+
 
 typedef struct {
   char *name;      // Used mostly for logging.
@@ -195,6 +197,11 @@ typedef struct {
   // at device index d
   flagcxResult_t (*makeVDevice)(int *d, flagcxNetVDeviceProps_v10_t *props);
 } flagcxCollNet_v10_t;
+
+typedef flagcxNetVDeviceProps_v10_t flagcxNetVDeviceProps_t;
+
+
+typedef flagcxNetProperties_v10_t flagcxUcxProperties_t;
 
 #define FLAGCX_NET_MAX_DEVS_PER_NIC_V9 4
 
@@ -382,6 +389,7 @@ typedef struct {
 } flagcxNetProperties_v8_t;
 
 typedef flagcxNetProperties_v8_t flagcxNetProperties_t;
+
 
 typedef struct {
   // Name of the network (mainly for logs)

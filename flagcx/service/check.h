@@ -50,6 +50,15 @@
     }                                                                          \
   } while (0);
 
+#define PTHREADCHECKGOTO(statement, name, RES, label) do { \
+  int retval = (statement); \
+  if (retval != 0) { \
+    WARN("Call to " name " failed: %s", strerror(retval)); \
+    RES = flagcxSystemError; \
+    goto label; \
+  } \
+} while (0)
+
 #define NEQCHECK(statement, value)                                             \
   do {                                                                         \
     if ((statement) != value) {                                                \

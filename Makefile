@@ -14,12 +14,14 @@ USE_MUSA ?= 0
 USE_KUNLUNXIN ?=0
 USE_DU ?= 0
 USE_MPI ?= 0
+USE_UCX ?= 0
 
 # set to empty if not provided
 DEVICE_HOME ?=
 CCL_HOME ?=
 HOST_CCL_HOME ?=
 MPI_HOME ?=
+UCX_HOME ?=
 
 ifeq ($(strip $(DEVICE_HOME)),)
 	ifeq ($(USE_NVIDIA), 1)
@@ -78,6 +80,12 @@ endif
 ifeq ($(strip $(MPI_HOME)),)
 	ifeq ($(USE_MPI), 1)
 		MPI_HOME = /usr/local
+	endif
+endif
+
+ifeq ($(strip $(UCX_HOME)),)
+	ifeq ($(USE_UCX), 1)
+		UCX_HOME = /usr/local/ucx
 	endif
 endif
 
@@ -195,11 +203,30 @@ INCLUDEDIR := \
 	$(abspath flagcx/adaptor) \
 	$(abspath flagcx/service)
 
+# Add UCX include directory if UCX is enabled
+ifeq ($(USE_UCX), 1)
+	INCLUDEDIR += $(UCX_HOME)/include
+	UCX_FLAG = -DHAVE_UCX_PLUGIN=1 -DUSE_UCX -DHAVE_IB_PLUGIN=0
+	UCX_LINK = -L$(UCX_HOME)/lib -lucp -lucs -luct
+else
+	UCX_FLAG = -DHAVE_UCX_PLUGIN=0 -DHAVE_IB_PLUGIN=0
+	UCX_LINK =
+endif
+
 LIBSRCFILES:= \
 	$(wildcard flagcx/*.cc) \
-	$(wildcard flagcx/core/*.cc) \
 	$(wildcard flagcx/adaptor/*.cc) \
-	$(wildcard flagcx/service/*.cc)
+	$(wildcard flagcx/service/*.cc) \
+	$(wildcard flagcx/core/*.cc) \
+	$(wildcard flagcx/core/net_plugin/*.cc)
+
+# Conditionally exclude UCX plugin source files when UCX is disabled
+ifeq ($(USE_UCX), 0)
+	LIBSRCFILES := $(filter-out flagcx/core/net_plugin/net_ucx_uct.cc flagcx/core/net_plugin/p2p_plugin.cc  flagcx/core/net_plugin/ucx_uct_lib.cc, $(LIBSRCFILES))
+else
+	# When UCX is enabled, exclude p2p_plugin.cc as it depends on IB plugin
+	LIBSRCFILES := $(filter-out flagcx/core/net_plugin/p2p_plugin.cc, $(LIBSRCFILES))
+endif
 
 LIBOBJ     := $(LIBSRCFILES:%.cc=$(OBJDIR)/%.o)
 
@@ -220,6 +247,9 @@ print_var:
 	@echo "USE_MPI: $(USE_MPI)"
 	@echo "USE_MUSA: $(USE_MUSA)"
 	@echo "USE_DU: $(USE_DU)"
+	@echo "USE_UCX: $(USE_UCX)"
+	@echo "UCX_HOME: $(UCX_HOME)"
+	@echo "UCX_FLAG: $(UCX_FLAG)"
 	@echo "DEVICE_LIB: $(DEVICE_LIB)"
 	@echo "DEVICE_INCLUDE: $(DEVICE_INCLUDE)"
 	@echo "CCL_LIB: $(CCL_LIB)"
@@ -228,16 +258,17 @@ print_var:
 	@echo "HOST_CCL_INCLUDE: $(HOST_CCL_INCLUDE)"
 	@echo "ADAPTOR_FLAG: $(ADAPTOR_FLAG)"
 	@echo "HOST_CCL_ADAPTOR_FLAG: $(HOST_CCL_ADAPTOR_FLAG)"
+	@echo "UCX_FLAG: $(UCX_FLAG)"
 
 $(LIBDIR)/$(TARGET): $(LIBOBJ)
 	@mkdir -p `dirname $@`
 	@echo "Linking   $@"
-	@g++ $(LIBOBJ) -o $@ -L$(CCL_LIB) -L$(DEVICE_LIB) -L$(HOST_CCL_LIB) -shared -fvisibility=default -Wl,--no-as-needed -Wl,-rpath,$(LIBDIR) -Wl,-rpath,$(CCL_LIB) -Wl,-rpath,$(HOST_CCL_LIB) -lpthread -lrt -ldl $(CCL_LINK) $(DEVICE_LINK) $(HOST_CCL_LINK) -g
+	@g++ $(LIBOBJ) -o $@ -L$(CCL_LIB) -L$(DEVICE_LIB) -L$(HOST_CCL_LIB) -shared -fvisibility=default -Wl,--no-as-needed -Wl,-rpath,$(LIBDIR) -Wl,-rpath,$(CCL_LIB) -Wl,-rpath,$(HOST_CCL_LIB) -lpthread -lrt -ldl $(CCL_LINK) $(DEVICE_LINK) $(HOST_CCL_LINK) $(UCX_LINK) -g
 
 $(OBJDIR)/%.o: %.cc
 	@mkdir -p `dirname $@`
 	@echo "Compiling $@"
-	@g++ $< -o $@ $(foreach dir,$(INCLUDEDIR),-I$(dir)) -I$(CCL_INCLUDE) -I$(DEVICE_INCLUDE) -I$(HOST_CCL_INCLUDE) $(ADAPTOR_FLAG) $(HOST_CCL_ADAPTOR_FLAG) -c -fPIC -fvisibility=default -Wvla -Wno-unused-function -Wno-sign-compare -Wall -MMD -MP -g
+	@g++ $< -o $@ $(foreach dir,$(INCLUDEDIR),-I$(dir)) -I$(CCL_INCLUDE) -I$(DEVICE_INCLUDE) -I$(HOST_CCL_INCLUDE) $(ADAPTOR_FLAG) $(HOST_CCL_ADAPTOR_FLAG) $(UCX_FLAG) -c -fPIC -fvisibility=default -Wvla -Wno-unused-function -Wno-sign-compare -Wall -MMD -MP -g
 
 -include $(LIBOBJ:.o=.d)
 
