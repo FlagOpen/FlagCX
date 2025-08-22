@@ -682,7 +682,7 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
                                 flagcxMemcpyDeviceToHost, resources->cpStream,
                                 NULL);
   }
-  if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
+  if (!__atomic_load_n(args->hEventReady, __ATOMIC_RELAXED))
     return flagcxSuccess;
   if (args->transmitted < args->chunkSteps) {
     int stepMask = args->sendStepMask;
@@ -757,7 +757,7 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
                                 flagcxMemcpyDeviceToHost, resources->cpStream,
                                 NULL);
   }
-  if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
+  if (!__atomic_load_n(args->hEventReady, __ATOMIC_RELAXED))
     return flagcxSuccess;
   if (args->copied < args->chunkSteps) {
     int stepMask = args->sendStepMask;

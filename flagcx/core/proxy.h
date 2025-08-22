@@ -92,8 +92,6 @@ struct flagcxProxyArgs {
   int flushed;
   int transmitted;
   int sendStepMask;
-  bool *volatile hEventReady;
-  bool *volatile dEventReady;
   size_t totalCopySize;
   size_t totalPostSize;
   size_t totalSendSize;
@@ -119,6 +117,8 @@ struct flagcxProxyArgs {
   /*for launch*/
   bool *volatile hlArgs;
   bool *volatile dlArgs;
+  bool *volatile hEventReady;
+  bool *volatile dEventReady;
 
   union flagcxProxyOpSpecifics specifics;
 };

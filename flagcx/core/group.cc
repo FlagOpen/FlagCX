@@ -153,7 +153,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.sendStepMask = MAXSTEPS - 1;
           op->stream = p2p->stream;
           flagcxCalloc((bool **)&op->args.hlArgs, 1);
-          flagcxCalloc((bool **)&op->args.hEventReady, 0);
+          flagcxCalloc((bool **)&op->args.hEventReady, 1);
           if (deviceKernel) {
             deviceAdaptor->deviceMalloc((void **)&op->args.dlArgs, sizeof(bool),
                                         flagcxMemDevice, op->stream);
@@ -190,7 +190,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.sendStepMask = MAXSTEPS - 1;
           op->stream = p2p->stream;
           flagcxCalloc((bool **)&op->args.hlArgs, 1);
-          flagcxCalloc((bool **)&op->args.hEventReady, 0);
+          flagcxCalloc((bool **)&op->args.hEventReady, 1);
           if (deviceKernel) {
             deviceAdaptor->deviceMalloc((void **)&op->args.dlArgs, sizeof(bool),
                                         flagcxMemDevice, op->stream);
