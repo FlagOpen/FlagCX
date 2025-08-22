@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #define ENABLE_TIMER 0
+#include "mlx5/mlx5dvwrap.h"
 #include "net.h"
 #include "timer.h"
 
@@ -52,6 +53,16 @@ struct alignas(64) flagcxIbMergedDev {
                                      // size, and a character for each '+'
 };
 
+enum flagcxIbProvider {
+  IB_PROVIDER_NONE = 0,
+  IB_PROVIDER_MLX5 = 1,
+  IB_PROVIDER_MAX = 2,
+};
+
+const char *ibProviderName[] = {
+    "None",
+    "Mlx5",
+};
 static int flagcxNIbDevs = -1;
 struct alignas(64) flagcxIbDev {
   pthread_mutex_t lock;
@@ -70,6 +81,13 @@ struct alignas(64) flagcxIbDev {
   struct flagcxIbMrCache mrCache;
   int ar; // ADAPTIVE_ROUTING
   struct ibv_port_attr portAttr;
+  enum flagcxIbProvider ibProvider;
+
+  union {
+    struct {
+      int dataDirect;
+    } mlx5;
+  } capsProvider;
 };
 
 #define MAX_IB_DEVS 32
@@ -89,6 +107,7 @@ FLAGCX_PARAM(IbTc, "IB_TC", 0);
 FLAGCX_PARAM(IbArThreshold, "IB_AR_THRESHOLD", 8192);
 FLAGCX_PARAM(IbPciRelaxedOrdering, "IB_PCI_RELAXED_ORDERING", 2);
 FLAGCX_PARAM(IbAdaptiveRouting, "IB_ADAPTIVE_ROUTING", -2);
+FLAGCX_PARAM(IbDataDirect, "IB_DATA_DIRECT", 1);
 
 pthread_t flagcxIbAsyncThread;
 static void *flagcxIbAsyncThreadMain(void *args) {
@@ -431,6 +450,32 @@ int flagcxIbFindMatchingDev(int dev) {
   return flagcxNMergedIbDevs;
 }
 
+static bool flagcxMlx5dvDmaBufCapable(ibv_context *context) {
+  flagcxResult_t res;
+  int dev_fail = 0;
+
+  struct ibv_pd *pd;
+  FLAGCXCHECKGOTO(wrap_ibv_alloc_pd(&pd, context), res, failure);
+  // Test kernel DMA-BUF support with a dummy call (fd=-1)
+  (void)wrap_direct_ibv_reg_dmabuf_mr(pd, 0ULL /*offset*/, 0ULL /*len*/,
+                                      0ULL /*iova*/, -1 /*fd*/, 0 /*flags*/);
+  // ibv_reg_dmabuf_mr() will fail with EOPNOTSUPP/EPROTONOSUPPORT if not
+  // supported (EBADF otherwise)
+  (void)wrap_direct_mlx5dv_reg_dmabuf_mr(pd, 0ULL /*offset*/, 0ULL /*len*/,
+                                         0ULL /*iova*/, -1 /*fd*/, 0 /*flags*/,
+                                         0 /* mlx5 flags*/);
+  // mlx5dv_reg_dmabuf_mr() will fail with EOPNOTSUPP/EPROTONOSUPPORT if not
+  // supported (EBADF otherwise)
+  dev_fail |= (errno == EOPNOTSUPP) || (errno == EPROTONOSUPPORT);
+  FLAGCXCHECKGOTO(wrap_ibv_dealloc_pd(pd), res, failure);
+  // stop the search and goto failure
+  if (dev_fail)
+    goto failure;
+  return true;
+failure:
+  return false;
+}
+
 flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
   flagcxResult_t ret;
   if (flagcxParamIbDisable())
@@ -438,6 +483,10 @@ flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
   static int shownIbHcaEnv = 0;
   if (wrap_ibv_symbols() != flagcxSuccess) {
     return flagcxInternalError;
+  }
+  if (wrap_mlx5dv_symbols() != flagcxSuccess) {
+    INFO(FLAGCX_NET, "NET/IB : Failed to open mlx5dv symbols. Advance features "
+                     "like CX-8 Direct-NIC will be disabled.");
   }
 
   if (flagcxNIbDevs == -1) {
@@ -482,6 +531,23 @@ flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
           WARN("NET/IB : Unable to open device %s", devices[d]->name);
           continue;
         }
+        enum flagcxIbProvider ibProvider = IB_PROVIDER_NONE;
+        char dataDirectDevicePath[PATH_MAX];
+        int dataDirectSupported = 0;
+        if (wrap_mlx5dv_is_supported(devices[d])) {
+          ibProvider = IB_PROVIDER_MLX5;
+          snprintf(dataDirectDevicePath, PATH_MAX, "/sys");
+          if ((flagcxMlx5dvDmaBufCapable(context)) &&
+              (wrap_mlx5dv_get_data_direct_sysfs_path(
+                   context, dataDirectDevicePath + 4, PATH_MAX - 4) ==
+               flagcxSuccess)) {
+            INFO(FLAGCX_NET,
+                 "Data Direct DMA Interface is detected for device:%s",
+                 devices[d]->name);
+            if (flagcxParamIbDataDirect())
+              dataDirectSupported = 1;
+          }
+        }
         int nPorts = 0;
         struct ibv_device_attr devAttr;
         memset(&devAttr, 0, sizeof(devAttr));
@@ -494,55 +560,75 @@ flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
           continue;
         }
         for (int port_num = 1; port_num <= devAttr.phys_port_cnt; port_num++) {
-          struct ibv_port_attr portAttr;
-          if (flagcxSuccess !=
-              wrap_ibv_query_port(context, port_num, &portAttr)) {
-            WARN("NET/IB : Unable to query port_num %d", port_num);
-            continue;
-          }
-          if (portAttr.state != IBV_PORT_ACTIVE)
-            continue;
-          if (portAttr.link_layer != IBV_LINK_LAYER_INFINIBAND &&
-              portAttr.link_layer != IBV_LINK_LAYER_ETHERNET)
-            continue;
+          for (int dataDirect = 0; dataDirect < 1 + dataDirectSupported;
+               ++dataDirect) {
+            struct ibv_port_attr portAttr;
+            if (flagcxSuccess !=
+                wrap_ibv_query_port(context, port_num, &portAttr)) {
+              WARN("NET/IB : Unable to query port_num %d", port_num);
+              continue;
+            }
+            if (portAttr.state != IBV_PORT_ACTIVE)
+              continue;
+            if (portAttr.link_layer != IBV_LINK_LAYER_INFINIBAND &&
+                portAttr.link_layer != IBV_LINK_LAYER_ETHERNET)
+              continue;
 
-          // check against user specified HCAs/ports
-          if (!(matchIfList(devices[d]->name, port_num, userIfs, nUserIfs,
-                            searchExact) ^
-                searchNot)) {
-            continue;
-          }
-          pthread_mutex_init(&flagcxIbDevs[flagcxNIbDevs].lock, NULL);
-          flagcxIbDevs[flagcxNIbDevs].device = d;
-          flagcxIbDevs[flagcxNIbDevs].guid = devAttr.sys_image_guid;
-          flagcxIbDevs[flagcxNIbDevs].portAttr = portAttr;
-          flagcxIbDevs[flagcxNIbDevs].portNum = port_num;
-          flagcxIbDevs[flagcxNIbDevs].link = portAttr.link_layer;
-          flagcxIbDevs[flagcxNIbDevs].speed =
-              flagcxIbSpeed(portAttr.active_speed) *
-              flagcxIbWidth(portAttr.active_width);
-          flagcxIbDevs[flagcxNIbDevs].context = context;
-          flagcxIbDevs[flagcxNIbDevs].pdRefs = 0;
-          flagcxIbDevs[flagcxNIbDevs].pd = NULL;
-          strncpy(flagcxIbDevs[flagcxNIbDevs].devName, devices[d]->name,
-                  MAXNAMESIZE);
-          FLAGCXCHECK(
-              flagcxIbGetPciPath(flagcxIbDevs[flagcxNIbDevs].devName,
-                                 &flagcxIbDevs[flagcxNIbDevs].pciPath,
-                                 &flagcxIbDevs[flagcxNIbDevs].realPort));
-          flagcxIbDevs[flagcxNIbDevs].maxQp = devAttr.max_qp;
-          flagcxIbDevs[flagcxNIbDevs].mrCache.capacity = 0;
-          flagcxIbDevs[flagcxNIbDevs].mrCache.population = 0;
-          flagcxIbDevs[flagcxNIbDevs].mrCache.slots = NULL;
+            // check against user specified HCAs/ports
+            if (!(matchIfList(devices[d]->name, port_num, userIfs, nUserIfs,
+                              searchExact) ^
+                  searchNot)) {
+              continue;
+            }
+            pthread_mutex_init(&flagcxIbDevs[flagcxNIbDevs].lock, NULL);
+            flagcxIbDevs[flagcxNIbDevs].device = d;
+            flagcxIbDevs[flagcxNIbDevs].ibProvider = ibProvider;
+            flagcxIbDevs[flagcxNIbDevs].guid = devAttr.sys_image_guid;
+            flagcxIbDevs[flagcxNIbDevs].portAttr = portAttr;
+            flagcxIbDevs[flagcxNIbDevs].portNum = port_num;
+            flagcxIbDevs[flagcxNIbDevs].link = portAttr.link_layer;
+            flagcxIbDevs[flagcxNIbDevs].speed =
+                flagcxIbSpeed(portAttr.active_speed) *
+                flagcxIbWidth(portAttr.active_width);
+            flagcxIbDevs[flagcxNIbDevs].context = context;
+            flagcxIbDevs[flagcxNIbDevs].pdRefs = 0;
+            flagcxIbDevs[flagcxNIbDevs].pd = NULL;
+            strncpy(flagcxIbDevs[flagcxNIbDevs].devName, devices[d]->name,
+                    MAXNAMESIZE);
+            FLAGCXCHECK(
+                flagcxIbGetPciPath(flagcxIbDevs[flagcxNIbDevs].devName,
+                                   &flagcxIbDevs[flagcxNIbDevs].pciPath,
+                                   &flagcxIbDevs[flagcxNIbDevs].realPort));
+            flagcxIbDevs[flagcxNIbDevs].maxQp = devAttr.max_qp;
+            flagcxIbDevs[flagcxNIbDevs].mrCache.capacity = 0;
+            flagcxIbDevs[flagcxNIbDevs].mrCache.population = 0;
+            flagcxIbDevs[flagcxNIbDevs].mrCache.slots = NULL;
+            if (!dataDirect) {
+              strncpy(flagcxIbDevs[flagcxNIbDevs].devName, devices[d]->name,
+                      MAXNAMESIZE);
+              FLAGCXCHECKGOTO(
+                  flagcxIbGetPciPath(flagcxIbDevs[flagcxNIbDevs].devName,
+                                     &flagcxIbDevs[flagcxNIbDevs].pciPath,
+                                     &flagcxIbDevs[flagcxNIbDevs].realPort),
+                  ret, fail);
+            } else {
+              snprintf(flagcxIbDevs[flagcxNIbDevs].devName, MAXNAMESIZE,
+                       "%s_dma", devices[d]->name);
+              FLAGCXCHECK(
+                  flagcxCalloc(&flagcxIbDevs[flagcxNIbDevs].pciPath, PATH_MAX));
+              strncpy(flagcxIbDevs[flagcxNIbDevs].pciPath, dataDirectDevicePath,
+                      PATH_MAX);
+              flagcxIbDevs[flagcxNIbDevs].capsProvider.mlx5.dataDirect = 1;
+            }
+            // Enable ADAPTIVE_ROUTING by default on IB networks
+            // But allow it to be overloaded by an env parameter
+            flagcxIbDevs[flagcxNIbDevs].ar =
+                (portAttr.link_layer == IBV_LINK_LAYER_INFINIBAND) ? 1 : 0;
+            if (flagcxParamIbAdaptiveRouting() != -2)
+              flagcxIbDevs[flagcxNIbDevs].ar = flagcxParamIbAdaptiveRouting();
 
-          // Enable ADAPTIVE_ROUTING by default on IB networks
-          // But allow it to be overloaded by an env parameter
-          flagcxIbDevs[flagcxNIbDevs].ar =
-              (portAttr.link_layer == IBV_LINK_LAYER_INFINIBAND) ? 1 : 0;
-          if (flagcxParamIbAdaptiveRouting() != -2)
-            flagcxIbDevs[flagcxNIbDevs].ar = flagcxParamIbAdaptiveRouting();
-
-          TRACE(FLAGCX_NET,
+            TRACE(
+                FLAGCX_NET,
                 "NET/IB: [%d] %s:%s:%d/%s speed=%d context=%p pciPath=%s ar=%d",
                 d, devices[d]->name, devices[d]->dev_name,
                 flagcxIbDevs[flagcxNIbDevs].portNum,
@@ -552,43 +638,44 @@ flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
                 flagcxIbDevs[flagcxNIbDevs].pciPath,
                 flagcxIbDevs[flagcxNIbDevs].ar);
 
-          pthread_create(&flagcxIbAsyncThread, NULL, flagcxIbAsyncThreadMain,
-                         flagcxIbDevs + flagcxNIbDevs);
-          flagcxSetThreadName(flagcxIbAsyncThread, "FLAGCX IbAsync %2d",
-                              flagcxNIbDevs);
-          pthread_detach(flagcxIbAsyncThread); // will not be pthread_join()'d
+            pthread_create(&flagcxIbAsyncThread, NULL, flagcxIbAsyncThreadMain,
+                           flagcxIbDevs + flagcxNIbDevs);
+            flagcxSetThreadName(flagcxIbAsyncThread, "FLAGCX IbAsync %2d",
+                                flagcxNIbDevs);
+            pthread_detach(flagcxIbAsyncThread); // will not be pthread_join()'d
 
-          int mergedDev = flagcxNMergedIbDevs;
-          if (flagcxParamIbMergeNics()) {
-            mergedDev = flagcxIbFindMatchingDev(flagcxNIbDevs);
+            int mergedDev = flagcxNMergedIbDevs;
+            if (flagcxParamIbMergeNics()) {
+              mergedDev = flagcxIbFindMatchingDev(flagcxNIbDevs);
+            }
+
+            // No matching dev found, create new mergedDev entry (it's okay if
+            // there's only one dev inside)
+            if (mergedDev == flagcxNMergedIbDevs) {
+              // Set ndevs to 1, assign first ibDevN to the current IB device
+              flagcxIbMergedDevs[mergedDev].ndevs = 1;
+              flagcxIbMergedDevs[mergedDev].devs[0] = flagcxNIbDevs;
+              flagcxNMergedIbDevs++;
+              strncpy(flagcxIbMergedDevs[mergedDev].devName,
+                      flagcxIbDevs[flagcxNIbDevs].devName, MAXNAMESIZE);
+              // Matching dev found, edit name
+            } else {
+              // Set next device in this array to the current IB device
+              int ndevs = flagcxIbMergedDevs[mergedDev].ndevs;
+              flagcxIbMergedDevs[mergedDev].devs[ndevs] = flagcxNIbDevs;
+              flagcxIbMergedDevs[mergedDev].ndevs++;
+              snprintf(flagcxIbMergedDevs[mergedDev].devName +
+                           strlen(flagcxIbMergedDevs[mergedDev].devName),
+                       MAXNAMESIZE + 1, "+%s",
+                       flagcxIbDevs[flagcxNIbDevs].devName);
+            }
+
+            // Aggregate speed
+            flagcxIbMergedDevs[mergedDev].speed +=
+                flagcxIbDevs[flagcxNIbDevs].speed;
+            flagcxNIbDevs++;
+            nPorts++;
           }
-
-          // No matching dev found, create new mergedDev entry (it's okay if
-          // there's only one dev inside)
-          if (mergedDev == flagcxNMergedIbDevs) {
-            // Set ndevs to 1, assign first ibDevN to the current IB device
-            flagcxIbMergedDevs[mergedDev].ndevs = 1;
-            flagcxIbMergedDevs[mergedDev].devs[0] = flagcxNIbDevs;
-            flagcxNMergedIbDevs++;
-            strncpy(flagcxIbMergedDevs[mergedDev].devName,
-                    flagcxIbDevs[flagcxNIbDevs].devName, MAXNAMESIZE);
-            // Matching dev found, edit name
-          } else {
-            // Set next device in this array to the current IB device
-            int ndevs = flagcxIbMergedDevs[mergedDev].ndevs;
-            flagcxIbMergedDevs[mergedDev].devs[ndevs] = flagcxNIbDevs;
-            flagcxIbMergedDevs[mergedDev].ndevs++;
-            snprintf(flagcxIbMergedDevs[mergedDev].devName +
-                         strlen(flagcxIbMergedDevs[mergedDev].devName),
-                     MAXNAMESIZE + 1, "+%s",
-                     flagcxIbDevs[flagcxNIbDevs].devName);
-          }
-
-          // Aggregate speed
-          flagcxIbMergedDevs[mergedDev].speed +=
-              flagcxIbDevs[flagcxNIbDevs].speed;
-          flagcxNIbDevs++;
-          nPorts++;
         }
         if (nPorts == 0 && flagcxSuccess != wrap_ibv_close_device(context)) {
           ret = flagcxInternalError;
@@ -1617,11 +1704,17 @@ flagcxResult_t flagcxIbRegMrDmaBufInternal(flagcxIbNetCommDevBase *base,
       if (flagcxIbRelaxedOrderingEnabled)
         flags |= IBV_ACCESS_RELAXED_ORDERING;
       if (fd != -1) {
-        /* DMA-BUF support */
-        FLAGCXCHECKGOTO(wrap_ibv_reg_dmabuf_mr(&mr, base->pd, offset,
-                                               pages * pageSize, addr, fd,
-                                               flags),
-                        res, returning);
+        if (!flagcxIbDevs[base->ibDevN].capsProvider.mlx5.dataDirect) {
+          FLAGCXCHECKGOTO(wrap_ibv_reg_dmabuf_mr(&mr, base->pd, offset,
+                                                 pages * pageSize, addr, fd,
+                                                 flags),
+                          res, returning);
+        } else {
+          FLAGCXCHECKGOTO(wrap_mlx5dv_reg_dmabuf_mr(
+                              &mr, base->pd, offset, pages * pageSize, addr, fd,
+                              flags, MLX5DV_REG_DMABUF_ACCESS_DATA_DIRECT),
+                          res, returning);
+        }
       } else {
         if (flagcxIbRelaxedOrderingEnabled) {
           // Use IBVERBS_1.8 API - needed for IBV_ACCESS_RELAXED_ORDERING
