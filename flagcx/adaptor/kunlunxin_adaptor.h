@@ -28,6 +28,18 @@ struct flagcxEvent {
   cudaEvent_t base;
 };
 
+namespace baidu {
+namespace xpu {
+namespace bkcl {
+
+// External declaration
+extern int xccl_mmap(void **pcpuptr, void *devptr, size_t sz);
+extern int xccl_munmap(void *cpuptr, size_t sz);
+
+} // namespace bkcl
+} // namespace xpu
+} // namespace baidu
+
 #define DEVCHECK(func)                                                         \
   {                                                                            \
     int ret = func;                                                            \
