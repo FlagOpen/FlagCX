@@ -456,13 +456,11 @@ flagcxResult_t flagcx_p2p_gdr_support() {
  }
  
  flagcxResult_t flagcx_uct_devices(int *ndev) {
-   INFO(FLAGCX_INIT | FLAGCX_NET, "Hello,UCX!!!!!!!!!!!!!!");
    *ndev = context.dev_count;
    return flagcxSuccess;
  }
  
  flagcxResult_t flagcx_uct_listen(int dev, void *listen_handle, void *  *listen_comm) {
-   printf("ucx ucx ucx ucx ucx\n");
    flagcx_uct_listen_handle_t *handle = (flagcx_uct_listen_handle_t*)listen_handle;
    flagcx_uct_listen_comm_t *l_comm   = (flagcx_uct_listen_comm_t*)calloc(1, sizeof(*l_comm));
    flagcx_uct_comm_t *accept_comm;

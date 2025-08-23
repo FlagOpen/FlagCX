@@ -236,7 +236,6 @@ static flagcxResult_t flagcx_uct_wr_comm_init(flagcx_uct_comm_t *base_comm,
 }
 
 static flagcxResult_t flagcx_uct_wr_init(flagcxDebugLogger_t logFunction, void* profFunction) {
-  printf("UCX Plugin: Initializing UCX-UCT plugin...\n");
   context.ops.comm_alloc = flagcx_uct_wr_comm_alloc;
   context.ops.comm_init  = flagcx_uct_wr_comm_init;
   context.ops.iface_set  = flagcx_uct_wr_iface_set;
@@ -467,7 +466,6 @@ static flagcxResult_t flagcx_uct_wr_close(void *close_comm) {
 }
 
 static flagcxResult_t flagcx_uct_wr_init_v8(flagcxDebugLogger_t logFunction) {
-  printf("UCX Plugin: v8 init called\n");
   return flagcx_uct_wr_init(logFunction, NULL);
 }
 
