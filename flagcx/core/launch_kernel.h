@@ -32,7 +32,7 @@ flagcxResult_t loadKernelSymbol(const char *path, const char *name,
 
 struct flagcxFuncArgs {
   flagcxStream_t stream;
-  void *value; // hPtr or dPtr
+  bool void *dValue; // hPtr or dPtr
 };
 
 extern flagcxLaunchFunc_t deviceAsyncStore;
@@ -44,28 +44,27 @@ void cpuAsyncLoad(void *_args);
 /*
 Reference CUDA implementation for async kernel launch (for future adaptor
 implementations)
-1. 核函数：写 dEvent = true，等待 flag == true
-__global__ void asyncLaunchKernel(const volatile bool* __restrict__ flag,
-                                  bool* __restrict__ dEvent)
-{
-    *dEvent = 1;   // 设置事件（host 可轮询）
-    printf("kernel enter\n");
-
-    while (!(*flag)) { // 可插入 __nanosleep(100); }
-
-    __threadfence_system();  // 保证写入对主机可见
-    printf("kernel done\n");
+1.1 deviceAsyncStore, set value to true
+__global__ void deviceAsyncStore(bool* __restrict__ value) {
+  *value = 1;
+  // __threadfence_system();  // Ensure that the write is visible to the CPU.
 }
 
-// 2. host launcher，暴露成 C 接口（唯一版本）
-flagcxResult_t launchAsyncKernel(flagcxStream_t stream, FuncArgs* args)
-{
+1.2 host launcher for deviceAsyncStore
+extern "C" flagcxResult_t launchDeviceAsyncStore(flagcxStream_t stream, void
+*args) { bool* value = static_cast<bool*>(args); deviceAsyncStore<<<1, 1, 0,
+*(cudaStream_t*)stream>>>(value); return flagcxSuccess;
+}
 
-    bool* d_flag  = static_cast<bool*>(args->dargs);
-    bool* d_event = static_cast<bool*>(args->dEvent);
+2.1 deviceAsyncLoad, wait until value becomes true
+__global__ void deviceAsyncLoad(const volatile bool* __restrict__ value) {
+  while (!(*value)) { // no-op; }
+}
 
-    asyncLaunchKernel<<<1, 1, 0, stream->base>>>(d_flag, d_event);
-    return flagcxSuccess;
+2.2 host launcher for deviceAsyncLoad
+extern "C" flagcxResult_t launchDeviceAsyncLoad(flagcxStream_t stream, void
+*args) { bool* value = static_cast<bool*>(args); deviceAsyncLoad<<<1, 1, 0,
+*(cudaStream_t*)stream>>>(value); return flagcxSuccess;
 }
 */
 
