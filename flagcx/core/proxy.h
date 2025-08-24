@@ -115,6 +115,7 @@ struct flagcxProxyArgs {
   struct flagcxProxyArgs **proxyAppendPtr;
 
   /*for launch*/
+  bool eventRecorded = false;
   volatile bool hlArgs = false;
   volatile bool hEventReady = false;
   bool *volatile dlArgs;
@@ -160,6 +161,7 @@ struct flagcxProxyOp {
   flagcxHeteroComm_t comm;
   flagcxProxyArgs args;
   flagcxStream_t stream;
+  flagcxEvent_t event; // used to record host/device func
 };
 
 #define FLAGCX_MAX_NETDEVS 128

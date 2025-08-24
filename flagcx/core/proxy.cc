@@ -185,9 +185,14 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
             struct sendNetResources *resources =
                 (sendNetResources *)op->connection->transportResources;
             flagcxProxySend(resources, op->recvbuff, op->nbytes, &op->args);
-            if (op->args.done) {
-              flagcxIntruQueueDelete(queue, op);
-              free(op);
+            if (op->args.done && op->args.eventRecorded) {
+              // The P2P object should not be destroyed until the associated
+              // event has completed
+              if (deviceAdaptor->eventQuery(op->event) == flagcxSuccess) {
+                flagcxIntruQueueDelete(queue, op);
+                FLAGCXCHECK(deviceAdaptor->eventDestroy(op->event));
+                free(op);
+              }
             }
           }
           queue = &peer->recvQueue;
@@ -197,9 +202,12 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
             struct recvNetResources *resources =
                 (recvNetResources *)op->connection->transportResources;
             flagcxProxyRecv(resources, op->recvbuff, op->nbytes, &op->args);
-            if (op->args.done) {
-              flagcxIntruQueueDelete(queue, op);
-              free(op);
+            if (op->args.done && op->args.eventRecorded) {
+              if (deviceAdaptor->eventQuery(op->event) == flagcxSuccess) {
+                flagcxIntruQueueDelete(queue, op);
+                FLAGCXCHECK(deviceAdaptor->eventDestroy(op->event));
+                free(op);
+              }
             }
           }
           if (flagcxIntruQueueEmpty(&peer->sendQueue) &&
@@ -475,7 +483,7 @@ flagcxResult_t flagcxPollProxyResponse(struct flagcxHeteroComm *comm,
     }
   } else {
     INFO(FLAGCX_PROXY, "flagcxPollProxyResponse Dequeued cached opId=%p", opId);
-  }    
+  }
   return res;
 }
 
@@ -495,8 +503,9 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
       struct sendNetResources *resources =
           (struct sendNetResources *)op->connection->transportResources;
       if (!resources->netSendComm) {
-        FLAGCXCHECK(resources->flagcxNet->connect(resources->netDev, (void *)op->reqBuff,
-                                        &resources->netSendComm, NULL));
+        FLAGCXCHECK(resources->flagcxNet->connect(
+            resources->netDev, (void *)op->reqBuff, &resources->netSendComm,
+            NULL));
       } else {
         bool dmaBufferSupport = false;
         if (deviceAdaptor->dmaSupport != NULL) {
@@ -513,15 +522,15 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
               resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
               &resources->mhandles[0]));
         } else {
-              if (resources->flagcxNet==&flagcxNetIb){
-                  FLAGCXCHECK(resources->flagcxNet->regMr(
-                  resources->netSendComm, resources->buffers[0],
-                  resources->buffSizes[0], 2, &resources->mhandles[0]));
-              }else if (resources->flagcxNet==&flagcxNetSocket){
-                  FLAGCXCHECK(resources->flagcxNet->regMr(
-                  resources->netSendComm, resources->buffers[0],
-                  resources->buffSizes[0], 1, &resources->mhandles[0]));
-              }
+          if (resources->flagcxNet == &flagcxNetIb) {
+            FLAGCXCHECK(resources->flagcxNet->regMr(
+                resources->netSendComm, resources->buffers[0],
+                resources->buffSizes[0], 2, &resources->mhandles[0]));
+          } else if (resources->flagcxNet == &flagcxNetSocket) {
+            FLAGCXCHECK(resources->flagcxNet->regMr(
+                resources->netSendComm, resources->buffers[0],
+                resources->buffSizes[0], 1, &resources->mhandles[0]));
+          }
         }
         done = 1;
       }
@@ -529,8 +538,8 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
       struct recvNetResources *resources =
           (struct recvNetResources *)op->connection->transportResources;
       if (!resources->netRecvComm) {
-        FLAGCXCHECK(resources->flagcxNet->accept(resources->netListenComm,
-                                       &resources->netRecvComm, NULL));
+        FLAGCXCHECK(resources->flagcxNet->accept(
+            resources->netListenComm, &resources->netRecvComm, NULL));
       } else {
         bool dmaBufferSupport = false;
         if (deviceAdaptor->dmaSupport != NULL) {
@@ -547,15 +556,15 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
               resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
               &resources->mhandles[0]));
         } else {
-              if (resources->flagcxNet==&flagcxNetIb){
-                  FLAGCXCHECK(resources->flagcxNet->regMr(
-                  resources->netRecvComm, resources->buffers[0],
-                  resources->buffSizes[0], 2, &resources->mhandles[0]));
-              }else if (resources->flagcxNet==&flagcxNetSocket){
-                  FLAGCXCHECK(resources->flagcxNet->regMr(
-                  resources->netRecvComm, resources->buffers[0],
-                  resources->buffSizes[0], 1, &resources->mhandles[0]));
-              }
+          if (resources->flagcxNet == &flagcxNetIb) {
+            FLAGCXCHECK(resources->flagcxNet->regMr(
+                resources->netRecvComm, resources->buffers[0],
+                resources->buffSizes[0], 2, &resources->mhandles[0]));
+          } else if (resources->flagcxNet == &flagcxNetSocket) {
+            FLAGCXCHECK(resources->flagcxNet->regMr(
+                resources->netRecvComm, resources->buffers[0],
+                resources->buffSizes[0], 1, &resources->mhandles[0]));
+          }
         }
         done = 1;
       }

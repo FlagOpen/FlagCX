@@ -152,6 +152,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.chunkSteps = (p2p->bytes + CHUNKSIZE - 1) / (CHUNKSIZE);
           op->args.sendStepMask = MAXSTEPS - 1;
           op->stream = p2p->stream;
+          FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
           if (deviceAsyncLoad && deviceAsyncStore) {
             FLAGCXCHECK(deviceAdaptor->deviceMalloc(
                 (void **)&op->args.dlArgs, sizeof(bool), flagcxMemDevice,
@@ -161,11 +162,13 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
                 op->stream));
             FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(
                 op->stream, deviceAsyncStore, op->args.dEventReady));
-            funcQueue.push({op->stream, op->args.dlArgs});
+            funcQueue.push({op->stream, op->event, &op->args.eventRecorded,
+                            op->args.dlArgs});
           } else {
             FLAGCXCHECK(deviceAdaptor->launchHostFunc(
                 op->stream, cpuAsyncStore, (void *)&op->args.hEventReady));
-            funcQueue.push({op->stream, (void *)&op->args.hlArgs});
+            funcQueue.push({op->stream, op->event, &op->args.eventRecorded,
+                            (void *)&op->args.hlArgs});
           }
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));
           free(p2p);
@@ -188,6 +191,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.chunkSteps = (p2p->bytes + CHUNKSIZE - 1) / (CHUNKSIZE);
           op->args.sendStepMask = MAXSTEPS - 1;
           op->stream = p2p->stream;
+          FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
           if (deviceAsyncLoad && deviceAsyncStore) {
             FLAGCXCHECK(deviceAdaptor->deviceMalloc(
                 (void **)&op->args.dlArgs, sizeof(bool), flagcxMemDevice,
@@ -197,11 +201,13 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
                 op->stream));
             FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(
                 op->stream, deviceAsyncStore, op->args.dEventReady));
-            funcQueue.push({op->stream, op->args.dlArgs});
+            funcQueue.push({op->stream, op->event, &op->args.eventRecorded,
+                            op->args.dlArgs});
           } else {
             FLAGCXCHECK(deviceAdaptor->launchHostFunc(
                 op->stream, cpuAsyncStore, (void *)&op->args.hEventReady));
-            funcQueue.push({op->stream, (void *)&op->args.hlArgs});
+            funcQueue.push({op->stream, op->event, &op->args.eventRecorded,
+                            (void *)&op->args.hlArgs});
           }
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));
           free(p2p);
@@ -213,9 +219,11 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
   }
 
   while (!funcQueue.empty()) {
+    // get corresponding func args
     struct flagcxFuncArgs args = funcQueue.front();
     funcQueue.pop();
 
+    // launch host or device func
     if (deviceAsyncLoad && deviceAsyncStore) {
       FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(args.stream, deviceAsyncLoad,
                                                   args.value));
@@ -223,6 +231,10 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
       FLAGCXCHECK(
           deviceAdaptor->launchHostFunc(args.stream, cpuAsyncLoad, args.value));
     }
+
+    // record func op
+    FLAGCXCHECK(deviceAdaptor->eventRecord(args.event, args.stream));
+    *args.recorded = true;
   }
 
   while (!flagcxIntruQueueEmpty(asyncJobsMain)) {
