@@ -12,25 +12,8 @@
 
 // Stub implementations for functions that were in p2p_plugin.cc
 // These are needed when p2p_plugin.cc is not compiled
-flagcxResult_t flagcx_p2p_ib_get_properties(flagcxIbDev *devs, int flagcxNMergedIbDevs, int dev, flagcxNetProperties_v8_t* props) {
-    // Return error since IB plugin is not available
-    return flagcxNotSupported;
-}
-
-flagcxResult_t flagcx_p2p_ib_init(int *nDevs, int *nmDevs, flagcxIbDev *flagcxIbDevs, char *flagcxIbIfName, union flagcxSocketAddress *flagcxIbIfAddr, pthread_t *flagcxIbAsyncThread, flagcxDebugLogger_t logFunction) {
-    // Return error since IB plugin is not available
-    return flagcxNotSupported;
-}
-
-flagcxResult_t flagcx_p2p_dmabuf_support(int dev) {
-    // Return error since IB plugin is not available
-    return flagcxNotSupported;
-}
-
-flagcxResult_t flagcx_p2p_gdr_support() {
-    // Return error since IB plugin is not available
-    return flagcxNotSupported;
-}
+// These functions are already defined in p2p_plugin.cc, so we don't redefine them here
+// to avoid multiple definition errors during linking
 
  static pthread_mutex_t flagcx_uct_lock = PTHREAD_MUTEX_INITIALIZER;
  
@@ -460,7 +443,7 @@ flagcxResult_t flagcx_p2p_gdr_support() {
    return flagcxSuccess;
  }
  
- flagcxResult_t flagcx_uct_listen(int dev, void *listen_handle, void *  *listen_comm) {
+ flagcxResult_t flagcx_uct_listen(int dev, void *listen_handle, void **listen_comm) {
    flagcx_uct_listen_handle_t *handle = (flagcx_uct_listen_handle_t*)listen_handle;
    flagcx_uct_listen_comm_t *l_comm   = (flagcx_uct_listen_comm_t*)calloc(1, sizeof(*l_comm));
    flagcx_uct_comm_t *accept_comm;
@@ -917,7 +900,6 @@ flagcxResult_t flagcx_uct_close_listen(void *listen_comm) {
 
 flagcxResult_t flagcx_uct_connect_v8(int dev, void *handle, void **send_comm,
                                     flagcxNetDeviceHandle_v8_t **sendDevComm) {
-                         
   flagcxNetDeviceHandle_t *dev_handle = NULL;
   flagcxResult_t ret = flagcx_uct_connect(dev, NULL, handle, send_comm, &dev_handle);
   if (ret == flagcxSuccess && sendDevComm != NULL) {

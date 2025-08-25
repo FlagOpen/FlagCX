@@ -235,17 +235,19 @@ static flagcxResult_t flagcx_uct_wr_comm_init(flagcx_uct_comm_t *base_comm,
   return flagcx_uct_comm_init(&comm->base, context, worker, dev, remote_comm);
 }
 
-static flagcxResult_t flagcx_uct_wr_init(flagcxDebugLogger_t logFunction, void* profFunction) {
+static flagcxResult_t flagcx_uct_wr_init(flagcxDebugLogger_t logFunction, void* profFunction) {  
   context.ops.comm_alloc = flagcx_uct_wr_comm_alloc;
   context.ops.comm_init  = flagcx_uct_wr_comm_init;
   context.ops.iface_set  = flagcx_uct_wr_iface_set;
   context.am_short_size  = flagcx_uct_rdesc_size(FLAGCX_UCX_UCT_MAX_RECVS);
   context.rkey_size      = sizeof(((flagcx_uct_chunk_t*)0)->rkey);
-
-  return flagcx_p2p_ib_init(&context.dev_count, &context.merge_dev_count, flagcxIbDevs, context.if_name,
-                          &context.if_addr, NULL, logFunction);
+  
+  flagcxResult_t result = flagcx_p2p_ib_init(&context.dev_count, &context.merge_dev_count, flagcxIbDevs, context.if_name,
+                          &context.if_addr, NULL, logFunction);  
+  return result;
 }
 
+/* Outcome is either send_atp equal to 1 or 0 */
 static void flagcx_uct_send_atp(flagcx_uct_wr_comm_t *comm,
                               flagcx_uct_rdesc_t *rdesc) {
   ucs_status_t status;
@@ -263,6 +265,7 @@ static void flagcx_uct_send_atp(flagcx_uct_wr_comm_t *comm,
   atp.rdesc = rdesc->desc.peer_rdesc;
   atp.count = rdesc->desc.count;
 
+  /* Sizes from isend() are lower or equal to their irecv() side */
   for (i = 0; i < rdesc->desc.count; i++) {
     atp.sizes[i] = rdesc->reqs[i].size;
   }
@@ -284,6 +287,7 @@ static flagcxResult_t flagcx_uct_send(flagcx_uct_wr_comm_t *comm, void *data,
 
   *request = NULL;
 
+  /* Details for local data */
   iov.buffer = data;
   iov.length = size;
   iov.memh   = uct_memh->memh;
@@ -292,7 +296,7 @@ static flagcxResult_t flagcx_uct_send(flagcx_uct_wr_comm_t *comm, void *data,
 
   assert(size <= rdesc->desc.chunk[i].size);
 
-  req = flagcx_uct_rdesc_get_req(rdesc, i, size); 
+  req = flagcx_uct_rdesc_get_req(rdesc, i, size); /* flagcx request */
 
   status = uct_ep_put_zcopy(comm->base.uct_ep->ep, &iov, 1,
                             (uint64_t)rdesc->desc.chunk[i].data,
@@ -308,7 +312,7 @@ static flagcxResult_t flagcx_uct_send(flagcx_uct_wr_comm_t *comm, void *data,
   --rdesc->send_atp;
 
   if (rdesc->send_atp == 1) {
-    ucs_list_del(&rdesc->list); 
+    ucs_list_del(&rdesc->list); /* all ->isend() were now matched */
     flagcx_uct_send_atp(comm, rdesc);
   }
 
@@ -363,6 +367,7 @@ static flagcxResult_t flagcx_uct_wr_irecv(void *recv_comm, int n, void **data,
     flagcx_uct_comm_rdesc_put(rdesc);
     *request = NULL;
   } else {
+    /* Wait for receiving ATP */
     *request = flagcx_uct_rdesc_get_req(rdesc, 0, FLAGCX_UCT_REQ_IRECV);
   }
 
@@ -389,7 +394,8 @@ static flagcxResult_t flagcx_uct_wr_iflush(void *recv_comm, int n, void **data,
   }
 
   flagcx_uct_rdesc_set(rdesc, ~0, 0, NULL, NULL, NULL, NULL);
-  req = flagcx_uct_rdesc_get_req(rdesc, 0, FLAGCX_UCT_REQ_IFLUSH);
+  /* Wait for local GET completion */
+  req      = flagcx_uct_rdesc_get_req(rdesc, 0, FLAGCX_UCT_REQ_IFLUSH);
   *request = req;
 
   result = flagcx_uct_flush(base_comm, data[last], sizes[last], uct_memh[last],
@@ -411,9 +417,11 @@ static flagcxResult_t flagcx_uct_wr_test(void *request, int *done, int *sizes) {
   *done = 0;
 
   if (rdesc->send_atp == 1) {
+    /* Slowpath */
     flagcx_uct_send_atp(comm, rdesc);
 
     if (rdesc->send_atp && rdesc->flagcx_usage == 1) {
+      /* Keep the last isend request until ATP is out */
       return flagcxSuccess;
     }
   }
@@ -494,9 +502,9 @@ static flagcxResult_t flagcx_uct_wr_irecv_v8(void *recv_comm, int n, void **data
   return flagcx_uct_wr_irecv(recv_comm, n, data, sizes_sizet, tags, mhandles, NULL, request);
 }
 
-flagcxNet_v8_t flagcxNetPlugin_v8 = FLAGCX_UCT_PLUGIN_V8("UCX-UCT", flagcx_uct_wr);
-flagcxNet_v7_t flagcxNetPlugin_v7 = FLAGCX_UCT_PLUGIN_V7("UCX-UCT", flagcx_uct_wr);
-flagcxNet_v6_t flagcxNetPlugin_v6 = FLAGCX_UCT_PLUGIN_V6("UCX-UCT", flagcx_uct_wr);
-flagcxNet_v5_t flagcxNetPlugin_v5 = FLAGCX_UCT_PLUGIN_V5("UCX-UCT", flagcx_uct_wr);
+flagcxNet_v8_t ucxUctPlugin_v8 = FLAGCX_UCT_PLUGIN_V8("UCX-UCT", flagcx_uct_wr);
+flagcxNet_v7_t ucxUctPlugin_v7 = FLAGCX_UCT_PLUGIN_V7("UCX-UCT", flagcx_uct_wr);
+flagcxNet_v6_t ucxUctPlugin_v6 = FLAGCX_UCT_PLUGIN_V6("UCX-UCT", flagcx_uct_wr);
+flagcxNet_v5_t ucxUctPlugin_v5 = FLAGCX_UCT_PLUGIN_V5("UCX-UCT", flagcx_uct_wr);
 
 #endif /* USE_UCX */

@@ -25,10 +25,32 @@ extern flagcxNet_v5_t ucxUctPlugin_v5;
 #endif
 
 #ifdef HAVE_IB_PLUGIN
-extern flagcxNet_v8_t ibPlugin_v8;
-extern flagcxNet_v7_t ibPlugin_v7;
-extern flagcxNet_v6_t ibPlugin_v6;
-extern flagcxNet_v5_t ibPlugin_v5;
+// Forward declarations for plugin init functions
+flagcxResult_t pluginInit_v8(flagcxDebugLogger_t logFunction);
+flagcxResult_t pluginInit_v7(flagcxDebugLogger_t logFunction);
+flagcxResult_t pluginInit_v6(flagcxDebugLogger_t logFunction);
+flagcxResult_t pluginInit_v5(flagcxDebugLogger_t logFunction);
+
+// Define IB plugins directly here since they're not defined elsewhere
+flagcxNet_v8_t ibPlugin_v8 = {
+  "FLAGCX IB Plugin v8",
+  pluginInit_v8,
+};
+
+flagcxNet_v7_t ibPlugin_v7 = {
+  "FLAGCX IB Plugin v7",
+  pluginInit_v7,
+};
+
+flagcxNet_v6_t ibPlugin_v6 = {
+  "FLAGCX IB Plugin v6",
+  pluginInit_v6,
+};
+
+flagcxNet_v5_t ibPlugin_v5 = {
+  "FLAGCX IB Plugin v5",
+  pluginInit_v5,
+};
 #endif
 pthread_mutex_t flagcx_p2p_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -92,21 +114,19 @@ static int flagcx_p2p_is_uct_plugin(flagcx_p2p_plugin_t plugin) {
 static void pluginSetup()
 {
   p2p_plugin = FLAGCX_P2P_IB;
-  const char *plugin_path = get_plugin_lib_path();
-  if (plugin_path != NULL) {
-    INFO(FLAGCX_INIT|FLAGCX_NET, "Plugin Path : %s", plugin_path);;
-  }
-
   const char *p2p_layer = getenv("FLAGCX_PLUGIN_P2P");
+  
   if (p2p_layer != NULL) {
-    if (!strcasecmp(p2p_layer, "ib")) p2p_plugin = FLAGCX_P2P_IB;
-#ifdef HAVE_UCX_PLUGIN
-    else if (!strcasecmp(p2p_layer, "ucx_uct")) p2p_plugin = FLAGCX_P2P_UCX_UCT;
-#endif
-    else {
-      WARN("Invalid value %s for FLAGCX_PLUGIN_P2P, using default", p2p_layer);
+    if (!strcasecmp(p2p_layer, "ib")) {
+      p2p_plugin = FLAGCX_P2P_IB;
     }
+#ifdef HAVE_UCX_PLUGIN
+    else if (!strcasecmp(p2p_layer, "ucx_uct")) {
+      p2p_plugin = FLAGCX_P2P_UCX_UCT;
+    }
+#endif
   }
+  
   switch (p2p_plugin) {
 #ifdef HAVE_UCX_PLUGIN
     case FLAGCX_P2P_UCX_UCT:
@@ -114,6 +134,7 @@ static void pluginSetup()
       flagcxNetPlugin_v7 = ucxUctPlugin_v7;
       flagcxNetPlugin_v6 = ucxUctPlugin_v6;
       flagcxNetPlugin_v5 = ucxUctPlugin_v5;
+      INFO(FLAGCX_INIT|FLAGCX_NET, "UCX UCT Plugin ACTIVATED : Using UCX for network communication");
       break;
 #endif
 #ifdef HAVE_IB_PLUGIN
@@ -122,10 +143,10 @@ static void pluginSetup()
       flagcxNetPlugin_v7 = ibPlugin_v7;
       flagcxNetPlugin_v6 = ibPlugin_v6;
       flagcxNetPlugin_v5 = ibPlugin_v5;
+      INFO(FLAGCX_INIT|FLAGCX_NET, "IB Plugin ACTIVATED : Using InfiniBand for network communication");
       break;
 #endif
   }
-
 }
 
 flagcxResult_t pluginInit_v8(flagcxDebugLogger_t logFunction) {
@@ -160,6 +181,7 @@ flagcxResult_t pluginInit_v5(flagcxDebugLogger_t logFunction) {
 #define KNL_MODULE_LOADED(a) ((access(a, F_OK) == -1) ? 0 : 1)
 static int flagcxIbGdrModuleLoaded = 0; // 1 = true, 0 = false
 static void ibGdrSupportInitOnce() {
+  // Check for the nv_peer_mem module being loaded
   flagcxIbGdrModuleLoaded = KNL_MODULE_LOADED("/sys/kernel/mm/memory_peers/nv_mem/version") ||
                           KNL_MODULE_LOADED("/sys/kernel/mm/memory_peers/nv_mem_nc/version") ||
                           KNL_MODULE_LOADED("/sys/module/nvidia_peermem/version");
@@ -682,3 +704,39 @@ flagcx_p2p_plugin_t flagcx_p2p_get_plugin_type()
 extern struct flagcxIbDev flagcxIbDevs[MAX_IB_DEVS];
 extern struct flagcxIbDev userIbDevs[MAX_IB_DEVS];
 extern struct flagcxIbMergedDev flagcxIbMergedDevs[MAX_IB_VDEVS];
+
+// Add missing function implementations
+flagcxResult_t flagcx_p2p_ib_get_properties(flagcxIbDev *devs, int flagcxNMergedIbDevs, int dev, flagcxNetProperties_v8_t* props) {
+  if (dev >= flagcxNMergedIbDevs) {
+    return flagcxInvalidUsage;
+  }
+  
+  struct flagcxIbMergedDev* mergedDev = flagcxIbMergedDevs + dev;
+  struct flagcxIbDev* ibDev = flagcxIbDevs + mergedDev->vProps.devs[0];
+  
+  props->name = mergedDev->devName;
+  props->speed = mergedDev->speed;
+  props->pciPath = ibDev->pciPath;
+  props->guid = ibDev->guid;
+  props->ptrSupport = FLAGCX_PTR_HOST;
+  props->regIsGlobal = 1;
+  props->latency = 0;
+  props->port = ibDev->portNum + ibDev->realPort;
+  props->maxComms = ibDev->maxQp;
+  props->maxRecvs = FLAGCX_NET_IB_MAX_RECVS;
+  props->netDeviceType = FLAGCX_NET_DEVICE_HOST;
+  props->netDeviceVersion = FLAGCX_NET_DEVICE_INVALID_VERSION;
+  
+  return flagcxSuccess;
+}
+
+// Add missing variable declaration
+int flagcxIbRelaxedOrderingEnabled = 0;
+
+// Constructor to automatically initialize the P2P plugin system
+__attribute__((constructor))
+static void p2p_plugin_constructor() {
+  pluginSetup();
+}
+
+
