@@ -396,7 +396,7 @@ static int flagcxIbSpeed(int speed) {
 }
 
 // Determine whether RELAXED_ORDERING is enabled and possible
-static int flagcxIbRelaxedOrderingCapable(void) {
+int flagcxIbRelaxedOrderingCapable(void) {
   int roMode = flagcxParamIbPciRelaxedOrdering();
   flagcxResult_t r = flagcxInternalError;
   if (roMode == 1 || roMode == 2) {

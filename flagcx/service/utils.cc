@@ -401,3 +401,15 @@ void *flagcxOpenLib(const char *path, int flags,
   }
   return handle;
 }
+
+
+const char *get_plugin_lib_path()
+{
+  Dl_info dl_info;
+  int ret;
+
+  ret = dladdr((void*)&get_plugin_lib_path, &dl_info);
+  if (ret == 0) return NULL;
+
+  return dl_info.dli_fname;
+}
