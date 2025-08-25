@@ -88,7 +88,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
       *asyncJobsMain = gjob->asyncJobsPtr;
   // volatile bool *groupAbortFlag = gjob->abortFlagPtr;
 
-  std::queue<FuncArgs *> FuncQueue;
+  std::queue<flagcxFuncArgs> funcQueue;
 
   if (groupCommPreconnectHeadMain != nullptr) {
     struct flagcxHeteroComm *comm = groupCommPreconnectHeadMain;
@@ -152,22 +152,22 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.chunkSteps = (p2p->bytes + CHUNKSIZE - 1) / (CHUNKSIZE);
           op->args.sendStepMask = MAXSTEPS - 1;
           op->stream = p2p->stream;
-          flagcxCalloc((bool **)&op->args.hlArgs, 1);
-          flagcxCalloc((bool **)&op->args.hEventReady, 0);
-          if (deviceKernel) {
-            deviceAdaptor->deviceMalloc((void **)&op->args.dlArgs, sizeof(bool),
-                                        flagcxMemDevice, op->stream);
-            deviceAdaptor->deviceMalloc((void **)&op->args.dEventReady,
-                                        sizeof(bool), flagcxMemDevice,
-                                        op->stream);
+          FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
+          if (deviceAsyncLoad && deviceAsyncStore) {
+            FLAGCXCHECK(deviceAdaptor->deviceMalloc(
+                (void **)&op->args.dlArgs, sizeof(bool), flagcxMemDevice,
+                op->stream));
+            FLAGCXCHECK(deviceAdaptor->deviceMalloc(
+                (void **)&op->args.dEventReady, sizeof(bool), flagcxMemDevice,
+                op->stream));
+            FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(
+                op->stream, deviceAsyncStore, op->args.dEventReady));
+            funcQueue.push({op->stream, op->event, op->args.dlArgs});
+          } else {
+            FLAGCXCHECK(deviceAdaptor->launchHostFunc(
+                op->stream, cpuAsyncStore, (void *)&op->args.hEventReady));
+            funcQueue.push({op->stream, op->event, (void *)&op->args.hlArgs});
           }
-          FuncArgs *args = (FuncArgs *)malloc(sizeof(FuncArgs));
-          args->stream = op->stream;
-          args->hargs = op->args.hlArgs;
-          args->hEvent = op->args.hEventReady;
-          args->dargs = op->args.dlArgs;
-          args->dEvent = op->args.dEventReady;
-          FuncQueue.push(args);
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));
           free(p2p);
         }
@@ -189,22 +189,22 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.chunkSteps = (p2p->bytes + CHUNKSIZE - 1) / (CHUNKSIZE);
           op->args.sendStepMask = MAXSTEPS - 1;
           op->stream = p2p->stream;
-          flagcxCalloc((bool **)&op->args.hlArgs, 1);
-          flagcxCalloc((bool **)&op->args.hEventReady, 0);
-          if (deviceKernel) {
-            deviceAdaptor->deviceMalloc((void **)&op->args.dlArgs, sizeof(bool),
-                                        flagcxMemDevice, op->stream);
-            deviceAdaptor->deviceMalloc((void **)&op->args.dEventReady,
-                                        sizeof(bool), flagcxMemDevice,
-                                        op->stream);
+          FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
+          if (deviceAsyncLoad && deviceAsyncStore) {
+            FLAGCXCHECK(deviceAdaptor->deviceMalloc(
+                (void **)&op->args.dlArgs, sizeof(bool), flagcxMemDevice,
+                op->stream));
+            FLAGCXCHECK(deviceAdaptor->deviceMalloc(
+                (void **)&op->args.dEventReady, sizeof(bool), flagcxMemDevice,
+                op->stream));
+            FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(
+                op->stream, deviceAsyncStore, op->args.dEventReady));
+            funcQueue.push({op->stream, op->event, op->args.dlArgs});
+          } else {
+            FLAGCXCHECK(deviceAdaptor->launchHostFunc(
+                op->stream, cpuAsyncStore, (void *)&op->args.hEventReady));
+            funcQueue.push({op->stream, op->event, (void *)&op->args.hlArgs});
           }
-          FuncArgs *args = (FuncArgs *)malloc(sizeof(FuncArgs));
-          args->stream = op->stream;
-          args->hargs = op->args.hlArgs;
-          args->hEvent = op->args.hEventReady;
-          args->dargs = op->args.dlArgs;
-          args->dEvent = op->args.dEventReady;
-          FuncQueue.push(args);
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));
           free(p2p);
         }
@@ -214,17 +214,22 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
     } while (comm != nullptr);
   }
 
-  while (!FuncQueue.empty()) {
-    FuncArgs *args = FuncQueue.front();
-    FuncQueue.pop();
+  while (!funcQueue.empty()) {
+    // get corresponding func args
+    struct flagcxFuncArgs args = funcQueue.front();
+    funcQueue.pop();
 
-    if (deviceKernel) {
-      FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(args->stream, deviceKernel,
-                                                  (void *)args));
+    // launch host or device func
+    if (deviceAsyncLoad && deviceAsyncStore) {
+      FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(args.stream, deviceAsyncLoad,
+                                                  args.value));
     } else {
-      FLAGCXCHECK(deviceAdaptor->launchHostFunc(args->stream, cpuAsyncLaunch,
-                                                (void *)args));
+      FLAGCXCHECK(
+          deviceAdaptor->launchHostFunc(args.stream, cpuAsyncLoad, args.value));
     }
+
+    // record func op
+    FLAGCXCHECK(deviceAdaptor->eventRecord(args.event, args.stream));
   }
 
   while (!flagcxIntruQueueEmpty(asyncJobsMain)) {
