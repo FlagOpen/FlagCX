@@ -1,4 +1,4 @@
-# FLAGCX_XXX环境变量
+# FLAGCX_XXX Environment Variables
 
 | Environment Variable Name             | Description                                                  |
 | ------------------------------------- | ------------------------------------------------------------ |
