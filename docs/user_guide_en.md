@@ -1,10 +1,10 @@
 # 一、Environment Configuration
 
-- Refer to the environment setup section in [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md)
+- Refer to the environment setup section in [getting_started_en.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_en.md)
 
 # 二、FlagCX — Installation and Compilation
 
-- Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md) for FlagCX compilation and installation
+- Refer to [getting_started_en.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_en.md) for FlagCX compilation and installation
 
 # 三、Homogeneous Tests Using FlagCX
 
@@ -12,7 +12,7 @@
 
 ### （1）Build and Installation
 
-- Refer to the Communication API test build and installation section in [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md).
+- Refer to the Communication API test build and installation section in [getting_started_en.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_en.md).
 
 ### （2）Communication API Test
 
@@ -82,7 +82,7 @@ mpirun --allow-run-as-root -np 2 ./test_allreduce -b 128K -e 4G -f 2 -p 1
 
 ### （1）Build and Installation
 
-- Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md) for instructions on building and installing the Torch API test.
+- Refer to [getting_started_en.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_en.md) for instructions on building and installing the Torch API test.
 
 ### （2）Torch API Test Execution
 
@@ -133,7 +133,7 @@ mpirun --allow-run-as-root -np 2 ./test_allreduce -b 128K -e 4G -f 2 -p 1
   - `--master_addr "``localhost``"`: Address of the master node. For homogeneous testing, `localhost` is sufficient; for heterogeneous testing, specify the reachable IP or hostname of the master node, accessible by all nodes.
   - `--master_port 8281`: Port used by the master node to establish the process group. All nodes must use the same port, which must be free.
   - `example.py`: Torch API test script.
-  - Refer to [enviroment_variables.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/enviroment_variables.md) for the meaning and usage of `FLAGCX_XXX` environment variables.
+  - Refer to [enviroment_variables_en.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/enviroment_variables_en.md) for the meaning and usage of `FLAGCX_XXX` environment variables.
 
 ### （5）Sample Screenshot of Correct Performance Test
 
@@ -152,7 +152,7 @@ mpirun --allow-run-as-root -np 2 ./test_allreduce -b 128K -e 4G -f 2 -p 1
 
 ### （1）Build and Installation
 
-- Refer to the Environment Setup and Build & Installation sections in [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md) under FlagScale with NVIDIA GPUs + FlagCX LLaMA3-8B Training.
+- Refer to the Environment Setup and Build & Installation sections in [getting_started_en.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_en.md) under FlagScale with NVIDIA GPUs + FlagCX LLaMA3-8B Training.
 
 ### （2）Data Preparation and Model Configuration
 
@@ -245,7 +245,7 @@ mpirun --allow-run-as-root -np 2 ./test_allreduce -b 128K -e 4G -f 2 -p 1
       Modify the following parameters:
 
        	**data_path**: Set this to the `cache` directory under the data prepared in the previous step.
-
+     	
        	**tokenizer_path**: Download the tokenizer from the official website corresponding to your model and set the path here.
 
 - **Tokenizer Download**
@@ -318,7 +318,7 @@ python run.py --config-path ./examples/llama3/conf --config-name train action=st
 
 ### （1）Build and Installation
 
-- Refer to the Environment Setup, Creating Symbolic Links, and Build & Installation sections in [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md) under Heterogeneous Communication API Test.
+- Refer to the Environment Setup, Creating Symbolic Links, and Build & Installation sections in [getting_started_en.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_en.md) under Heterogeneous Communication API Test.
 
 ### （2）Verify MPICH Installation
 
@@ -379,7 +379,7 @@ export LD_LIBRARY_PATH=/workspace/mpich-4.2.3/build/lib:$LD_LIBRARY_PATH
     /root/FlagCX-wuh/test/perf/test_allreduce -b 128K -e 4G -f 2 -w 5 -n 100 -p 1`
   ```
 
-  - Refer to [enviroment_variables.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/enviroment_variables.md) for the meaning and usage of `FLAGCX_XXX` environment variables.
+  - Refer to [enviroment_variables_en.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/enviroment_variables_en.md) for the meaning and usage of `FLAGCX_XXX` environment variables.
 
 - **Note:** When using two GPUs per node in the heterogeneous Communication API test, some warnings may indicate that each node only has 1 GPU active. In this case, FlagCX will skip GPU-to-GPU AllReduce and fall back to host-based communication.
 

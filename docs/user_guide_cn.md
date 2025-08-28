@@ -1,10 +1,10 @@
 # 一、环境配置
 
-- 参考[getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md)环境配置
+- 参考[getting_started_cn.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_cn.md)环境配置
 
 # 二、FlagCX安装编译
 
-- 参考[getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md)FlagCX编译安装
+- 参考[getting_started_cn.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_cn.md)FlagCX编译安装
 
 # 三、使用FlagCX进行同构测试
 
@@ -12,7 +12,7 @@
 
 ### （1）编译安装
 
-- 参考[getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md)中的通信API测试编译安装。
+- 参考[getting_started_cn.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_cn.md)中的通信API测试编译安装。
 
 ### （2）通信API测试
 
@@ -57,7 +57,7 @@ test_allreduce是一个基于 MPI 与 FlagCX 的 AllReduce 性能基准程序：
 
 ### （1）编译安装
 
-- 参考[getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md)中的Torch API测试编译安装。
+- 参考[getting_started_cn.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_cn.md)中的Torch API测试编译安装。
 
 ### （2）Torch API测试
 
@@ -108,7 +108,7 @@ test_allreduce是一个基于 MPI 与 FlagCX 的 AllReduce 性能基准程序：
 
     `example.py`：Torch API测试例。
   
-  - 参考[enviroment_variables.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/enviroment_variables.md)可以查看`FLAGCX_XXX`环境变量含义以及使用。
+  - 参考[enviroment_variables_cn.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/enviroment_variables_cn.md)可以查看`FLAGCX_XXX`环境变量含义以及使用。
 
 ### （5）正确的性能测试截图
 
@@ -127,7 +127,7 @@ test_allreduce是一个基于 MPI 与 FlagCX 的 AllReduce 性能基准程序：
 
 ### （1）编译安装
 
-- 参考[getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md)N卡FlagScale + FlagCX LLaMA3-8B训练中的环境准备和编译安装。
+- 参考[getting_started_cn.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_cn.md)N卡FlagScale + FlagCX LLaMA3-8B训练中的环境准备和编译安装。
 
 ### （2）数据准备和模型参数配置
 
@@ -197,7 +197,7 @@ python run.py --config-path ./examples/llama3/conf --config-name train action=st
 
 ### （1）编译安装
 
-- 参考[getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md)异构通信API测试中的环境准备、创建软链接和编译安装。
+- 参考[getting_started_cn.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started_cn.md)异构通信API测试中的环境准备、创建软链接和编译安装。
 
 ### （3）mpich安装确认
 
@@ -241,7 +241,7 @@ export LD_LIBRARY_PATH=/workspace/mpich-4.2.3/build/lib:$LD_LIBRARY_PATH #配置
     /root/FlagCX-wuh/test/perf/test_allreduce -b 128K -e 4G -f 2 -w 5 -n 100 -p 1
   ```
 
-- 参考[enviroment_variables.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/enviroment_variables.md)可以查看`FLAGCX_XXX`环境变量含义以及使用。
+- 参考[enviroment_variables_cn.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/enviroment_variables_cn.md)可以查看`FLAGCX_XXX`环境变量含义以及使用。
 
 - 注意：在异构通信API测试使用两张卡时，出现一些提示表示每个节点只开了 1 张卡，FlagCX 认为没必要走 GPU-C2C allreduce，就退回到 Host 通信了。监测GPU使用率确实为0，allruduce总体运行时间特别长，但是计算结果是正确的。属于正常现象，可以使用2+2的4卡使用GPU进行异构测试。
 
