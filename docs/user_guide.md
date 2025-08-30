@@ -34,7 +34,7 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
 
 3. Correct Performance Test Output
 
-   [Correct_Performance_Test_Output.PNG](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Correct_Performance_Test_Output.PNG)
+   ![Correct_Performance_Test_Output.PNG](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Correct_Performance_Test_Output.PNG)
 
 
 4. Issues Encountered During Execution
@@ -142,7 +142,7 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
 
 3. Sample Screenshot of Correct Performance Test
 
-   [Sample_Screenshot_of_Correct_Performance_Test.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Sample_Screenshot_of_Correct_Performance_Test.png)
+   ![Sample_Screenshot_of_Correct_Performance_Test.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Sample_Screenshot_of_Correct_Performance_Test.png)
 
 4. Test Results
 
@@ -318,7 +318,7 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
 
    - All logs and model checkpoints will be saved under the output directory.
 
-     [Distributed_Training.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Distributed_Training.png)
+     ![Distributed_Training.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Distributed_Training.png)
 
 ## Heterogeneous Tests Using FlagCX
 
@@ -401,8 +401,6 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
      - To fully utilize GPU acceleration for heterogeneous testing, use 2+2 GPUs (4 GPUs total) across the nodes.
      
        ![Heterogeneous_Communication_API_Test.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Heterogeneous_Communication_API_Test.png)
-     
-       ![Heterogeneous_Communication_API_Test.png](docs/images/Heterogeneous_Communication_API_Test.png)
      
 
 
