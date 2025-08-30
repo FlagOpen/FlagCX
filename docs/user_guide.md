@@ -34,14 +34,14 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
 
 3. Correct Performance Test Output
 
-   ![Correct Performance Test Output](./images/Correct Performance Test Output.PNG)
+   [Correct_Performance_Test_Output.PNG](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Correct_Performance_Test_Output.PNG)
 
 
 4. Issues Encountered During Execution
 
    - During execution, you may see an assertion warning when OpenMPI attempts to establish a connection via InfiniBand (openib BTL) but cannot find an available CPC (Connection Protocol). In this case, the IB port is disabled automatically.This warning does not affect the performance test results.
 
-     ![Issues Encountered During Execution](./images/Issues Encountered During Execution.PNG)
+     [Issues_Encountered_During_Execution.PNG](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Issues_Encountered_During_Execution.PNG)
 
      **Solution**
 
@@ -142,7 +142,7 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
 
 3. Sample Screenshot of Correct Performance Test
 
-   ![Sample Screenshot of Correct Performance Test](./images/Sample Screenshot of Correct Performance Test.PNG)
+   [Sample_Screenshot_of_Correct_Performance_Test.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Sample_Screenshot_of_Correct_Performance_Test.png)
 
 4. Test Results
 
@@ -318,7 +318,7 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
 
    - All logs and model checkpoints will be saved under the output directory.
 
-     ![Distributed Training](./images/Distributed Training.PNG)
+     [Distributed_Training.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Distributed_Training.png)
 
 ## Heterogeneous Tests Using FlagCX
 
@@ -398,7 +398,7 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
      - However, the computation results are correct, and this behavior is expected.
      - To fully utilize GPU acceleration for heterogeneous testing, use 2+2 GPUs (4 GPUs total) across the nodes.
 
-     ![Heterogeneous Communication API Test](./images/Heterogeneous Communication API Test.PNG)
+     [Heterogeneous_Communication_API_Test.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Heterogeneous_Communication_API_Test.png)
 
 
 5. Test Results
