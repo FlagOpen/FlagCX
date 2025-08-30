@@ -130,13 +130,13 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
 
       **Explanation**
 
-       `CMD='torchrun --nproc_per_node 2 --nnodes=1 --node_rank=0 --master_addr="``localhost``" --master_port=8281 example.py'`
+       `CMD='torchrun --nproc_per_node=2 --nnodes=1 --node_rank=0 --master_addr="localhost" --master_port=8281 example.py'`
 
-     - `--nproc_per_node 2`: Launch 2 processes on the current machine.
-     - `--nnodes 1`: Total number of nodes participating in the training. For homogeneous testing, set to 1.
-     - `--node_rank 0`: Rank of the current node among all nodes, starting from 0. For homogeneous testing, fixed at 0.
-     - `--master_addr "``localhost``"`: Address of the master node. For homogeneous testing, `localhost` is sufficient; for heterogeneous testing, specify the reachable IP or hostname of the master node, accessible by all nodes.
-     - `--master_port 8281`: Port used by the master node to establish the process group. All nodes must use the same port, which must be free.
+     - `--nproc_per_node=2`: Launch 2 processes on the current machine.
+     - `--nnodes=1`: Total number of nodes participating in the training. For homogeneous testing, set to 1.
+     - `--node_rank=0`: Rank of the current node among all nodes, starting from 0. For homogeneous testing, fixed at 0.
+     - `--master_addr="localhost"`: Address of the master node. For homogeneous testing, `localhost` is sufficient; for heterogeneous testing, specify the reachable IP or hostname of the master node, accessible by all nodes.
+     - `--master_port=8281`: Port used by the master node to establish the process group. All nodes must use the same port, which must be free.
      - `example.py`: Torch API test script.
      - Refer to [enviroment_variables.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/enviroment_variables.md) for the meaning and usage of `FLAGCX_XXX` environment variables.
 
@@ -188,7 +188,7 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
        - Modify `defaults`
 
          ```
-         train: XXXX`
+         train: XXXX
          ```
 
           Replace `XXXX` with `8b`.
@@ -303,13 +303,13 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
    After starting distributed training, the configuration information will be printed, and a run script will be generated at:
 
    ```Plain
-   /flagscale/outputs_llama3_8b/logs/scripts/host_0_localhost_run.sh`
+   flagscale/outputs_llama3_8b/logs/scripts/host_0_localhost_run.sh
    ```
 
    The training output files can be found in:
 
    ```Plain
-   /flagscale/outputs_llama3_8b
+   flagscale/outputs_llama3_8b
    ```
 
    **Notes:**

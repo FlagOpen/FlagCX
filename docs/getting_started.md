@@ -1,6 +1,6 @@
 ## Environment Setup
 
-**Reference Command for Container Creation:** Modify the `<Docker name><mount directory><mount point>` and choose the `<Docker Image>` as needed.
+**Reference Command for Container Creation:** Modify the `<Docker name> <mount directory> <mount point>` and choose the `<Docker Image>` as needed.
 
 ```Plain
 -------------Reference Command for Container Creation on NVIDIA A800 Platform------------
