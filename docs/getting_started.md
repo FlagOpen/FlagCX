@@ -249,13 +249,13 @@ sudo docker run -itd \
        - Restart SSH service:
 
           ```
-          `service ssh restart`
+          service ssh restart
           ```
 
        - Test passwordless SSH from host1 to host2:
 
           ```
-          ssh -p <port> root@<ip2>`
+          ssh -p <port> root@<ip2>
           ```
 
            If login succeeds without a password, the configuration is effective.

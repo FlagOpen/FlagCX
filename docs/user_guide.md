@@ -41,7 +41,7 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
 
    - During execution, you may see an assertion warning when OpenMPI attempts to establish a connection via InfiniBand (openib BTL) but cannot find an available CPC (Connection Protocol). In this case, the IB port is disabled automatically.This warning does not affect the performance test results.
 
-     [Issues_Encountered_During_Execution.PNG](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Issues_Encountered_During_Execution.PNG)
+     ![Issues_Encountered_During_Execution.PNG](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Issues_Encountered_During_Execution.PNG)
 
      **Solution**
 
@@ -343,7 +343,7 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
    
    # Open the Makefile
    vi Makefile
-       # Modify the MPI path to match the one used in step (3)
+       # Modify the MPI path to match the one used in step 2
        MPI_HOME ?= /workspace/mpich-4.2.3/build/ 
    :q # Save and exit
    
