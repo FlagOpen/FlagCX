@@ -54,7 +54,7 @@ sudo docker run -itd \
 
 2. Successful Build Result
 
-   [FlagCX Build and Installation Successful Build Result.PNG](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/FlagCX Build and Installation Successful Build Result.PNG)
+   [FlagCX_Build_and_Installation_Successful_Build_Result.PNG](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/FlagCX_Build_and_Installation_Successful_Build_Result.PNG)
 
 3. Potential Issues During Compilation
 
@@ -107,7 +107,7 @@ sudo docker run -itd \
 
 3. Successful Build Result
 
-   [Homogeneous Communication API Test Successful Build Result.p](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Homogeneous Communication API Test Successful Build Result.png)
+   [Homogeneous_Communication_API_Test_Successful_Build_Result.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Homogeneous_Communication_API_Test_Successful_Build_Result.png)
 
 ### Torch API Test
 
@@ -153,7 +153,7 @@ sudo docker run -itd \
 
    - You should see the `flagcx` version and path matching the current build directory, indicating that the compilation and installation were successful.
 
-     [Homogeneous Torch API Successful Build Result.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Homogeneous  Torch API Successful Build Result.png)
+     [Homogeneous Torch API Successful Build Result.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Homogeneous_Torch_API_Successful_Build_Result.png)
 
 
 ### FlagCX LLaMA3-8B Training on NVIDIA GPUs using FlagScale
@@ -195,7 +195,7 @@ sudo docker run -itd \
    
       - Screenshot of Successful Compilation and Installation
    
-        [FlagCX LLaMA3-8B Screenshot of Successful Compilation and Installation.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/FlagCX LLaMA3-8B Screenshot of Successful Compilation and Installation.png)
+        [FlagCX LLaMA3-8B Screenshot of Successful Compilation and Installation.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/FlagCX_LLaMA3-8B_Screenshot_of_Successful_Compilation_and_Installation.png)
    
 
 
