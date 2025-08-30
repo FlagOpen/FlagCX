@@ -1,9 +1,9 @@
-# FLAGCX_XXX Environment Variables
+# Environment Variables
 
-| Environment Variable Name             | Description                                                  |
-| ------------------------------------- | ------------------------------------------------------------ |
-| export FLAGCX_IB_HCA=mlx5             | FLAGCX_IB_HCA specifies the type of InfiniBand HCA (Host Channel Adapter) device to use. mlx5 indicates using a Mellanox ConnectX-5 network adapter (mlx5 driver) for RDMA communication. |
-| export FLAGCX_ENABLE_TOPO_DETECT=TRUE | FLAGCX_ENABLE_TOPO_DETECT specifies whether topology detection is enabled. FlagCX will probe the network topology, bandwidth, and latency between nodes during initialization in order to optimize communication scheduling. TRUE — enable; FALSE — disable. |
-| export FLAGCX_DEBUG=TRUE              | FLAGCX_DEBUG specifies whether debug mode is enabled. TRUE — enable debugging; FALSE—disable debugging. |
-| export FLAGCX_DEBUG_SUBSYS=ALL        | FLAGCX_DEBUG_SUBSYS specifies which subsystem(s) to enable debug output for. ALL means debug information for all subsystems will be printed (for example: network initialization, communication module, memory management, scheduler, etc.). You can also specify a single subsystem, for example COMM (communication layer), MEMORY (memory management), or TOPO (topology detection). |
-| export FLAGCX_SOCKET_IFNAME=ens102    | FLAGCX_SOCKET_IFNAME specifies which network interface FlagCX should bind to and prefer when using socket/TCP-based communication paths. Setting it to ens102 means that ordinary TCP/UDP socket traffic (non-RDMA/verbs) will attempt to use the ens102 interface. |
+| Environment Variable Name | Description                                                  | Values                                                       |
+| ------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| FLAGCX_IB_HCA             | Specifies the type of InfiniBand HCA (Host Channel Adapter) device to use. Used for selecting which RDMA-capable network card/driver FlagCX should bind to. | **mlx5** — use Mellanox ConnectX-5 adapter (mlx5 driver)<br/>**mlx5_0** — use the first mlx5 device (device ID 0)<br/>**mlx5_1** — use the second mlx5 device (device ID 1)<br/>… |
+| FLAGCX_ENABLE_TOPO_DETECT | specifies whether topology detection is enabled. FlagCX will probe the network topology, bandwidth, and latency between nodes during initialization in order to optimize communication scheduling. | **TRUE** — enable<br />**FALSE** — disable                   |
+| FLAGCX_DEBUG              | specifies whether debug mode is enabled.                     | **TRUE** — enable debugging<br />**FALSE**—disable debugging. |
+| FLAGCX_DEBUG_SUBSYS       | specifies which subsystem(s) to enable debug output for.     | **ALL** — print debug info for all subsystems (network init, communication, memory, scheduler, etc.)<br/>**COMM** — only print debug info for the communication layer<br/>**MEMORY** — only print debug info for memory management<br/>**TOPO** — only print debug info for topology detection<br />... |
+| FLAGCX_SOCKET_IFNAME      | specifies which network interface FlagCX should bind to and prefer when using socket/TCP-based communication paths. | **ens102** — bind to interface named ens102<br/>**eth0** — bind to default Ethernet interface<br/>**eno1/eno2** — bind to specific onboard NIC ports<br/>… |

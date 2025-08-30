@@ -395,10 +395,14 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
    - **Note:** When using two GPUs per node in the heterogeneous Communication API test, some warnings may indicate that each node only has 1 GPU active. In this case, FlagCX will skip GPU-to-GPU AllReduce and fall back to host-based communication.
 
      - As a result, GPU utilization may show 0%, and the overall AllReduce runtime may be much longer.
+     
      - However, the computation results are correct, and this behavior is expected.
-     - To fully utilize GPU acceleration for heterogeneous testing, use 2+2 GPUs (4 GPUs total) across the nodes.
 
-       [Heterogeneous_Communication_API_Test.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Heterogeneous_Communication_API_Test.png)
+     - To fully utilize GPU acceleration for heterogeneous testing, use 2+2 GPUs (4 GPUs total) across the nodes.
+     
+       ![Heterogeneous_Communication_API_Test.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Heterogeneous_Communication_API_Test.png)
+     
+       ![Heterogeneous_Communication_API_Test.png](docs/images/Heterogeneous_Communication_API_Test.png)
      
 
 
