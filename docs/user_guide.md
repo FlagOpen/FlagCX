@@ -12,7 +12,7 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
 
 1. Build and Installation
 
-​		Refer to the Communication API test build and installation section in [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md).
+   Refer to the Communication API test build and installation section in [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/getting_started.md).
 
 2. Communication API Test
 
@@ -398,7 +398,8 @@ Refer to [getting_started.md](https://github.com/whollo/FlagCX/blob/add-flagcx-w
      - However, the computation results are correct, and this behavior is expected.
      - To fully utilize GPU acceleration for heterogeneous testing, use 2+2 GPUs (4 GPUs total) across the nodes.
 
-     [Heterogeneous_Communication_API_Test.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Heterogeneous_Communication_API_Test.png)
+       [Heterogeneous_Communication_API_Test.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Heterogeneous_Communication_API_Test.png)
+     
 
 
 5. Test Results
