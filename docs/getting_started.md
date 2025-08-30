@@ -54,7 +54,7 @@ sudo docker run -itd \
 
 2. Successful Build Result
 
-   ![FlagCX Build and Installation Successful Build Result](./images/FlagCX Build and Installation Successful Build Result.PNG)
+   [FlagCX Build and Installation Successful Build Result.PNG](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/FlagCX Build and Installation Successful Build Result.PNG)
 
 3. Potential Issues During Compilation
 
@@ -107,7 +107,7 @@ sudo docker run -itd \
 
 3. Successful Build Result
 
-   ![Homogeneous Communication API Test Successful Build Result](./images/Homogeneous Communication API Test Successful Build Result.PNG)
+   [Homogeneous Communication API Test Successful Build Result.p](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Homogeneous Communication API Test Successful Build Result.png)
 
 ### Torch API Test
 
@@ -153,7 +153,7 @@ sudo docker run -itd \
 
    - You should see the `flagcx` version and path matching the current build directory, indicating that the compilation and installation were successful.
 
-     ![Homogeneous  Torch API Successful Build Result](./images/Homogeneous  Torch API Successful Build Result.PNG)
+     [Homogeneous Torch API Successful Build Result.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Homogeneous  Torch API Successful Build Result.png)
 
 
 ### FlagCX LLaMA3-8B Training on NVIDIA GPUs using FlagScale
@@ -195,7 +195,7 @@ sudo docker run -itd \
    
       - Screenshot of Successful Compilation and Installation
    
-        ![FlagCX LLaMA3-8B Screenshot of Successful Compilation and Installation](./images/FlagCX LLaMA3-8B Screenshot of Successful Compilation and Installation.PNG)
+        [FlagCX LLaMA3-8B Screenshot of Successful Compilation and Installation.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/FlagCX LLaMA3-8B Screenshot of Successful Compilation and Installation.png)
    
 
 
