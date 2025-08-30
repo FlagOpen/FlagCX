@@ -119,6 +119,9 @@ All tests support the same set of arguments:
   * `-p, <0/1>` print buffer info. Default: 0.
   * `-h` print help message. Default: disabled.
 
+### Training Models
+After building and testing FlagCX, you can start training models using upper-layer deep learning frameworks such as PyTorch or PaddlePaddle with FlagCX as communication backend. We provide detailed user guides for both **homogeneous** and **heterogeneous** training across different hardware platforms. Please refer to the docs below:  
+📖 [Training Models with Paddle and FlagCX](docs/paddle/README.md)
 ## License
 
 This project is licensed under the [Apache License (Version 2.0)](https://github.com/FlagOpen/FlagCX/blob/main/LICENSE).
