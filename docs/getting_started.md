@@ -36,7 +36,7 @@ sudo docker run -itd \
 
 ​            
 
-## FlagCX Build and Installation
+## Build and Installation
 
 1. Obtain FlagCX Source Code and Build Installation
 
@@ -49,9 +49,8 @@ sudo docker run -itd \
    make USE_NVIDIA=1 -j$(nproc) # NVIDIA GPU Platform
    make USE_CAMBRICON=1 -j$(nproc)  # Cambricon Platform
    make USE_KUNLUNXIN=1 -j$(nproc) # Kunlunxin Platform
-   make USE_NVIDIA=1 USE_CAMBRICON=1 ... -j$(nproc) # Multi-Platform Hybrid Build (e.g., supporting NVIDIA and Cambricon)
    ```
-
+   
 2. Successful Build Result
 
    ![FlagCX_Build_and_Installation_Successful_Build_Result.PNG](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/FlagCX_Build_and_Installation_Successful_Build_Result.PNG)
@@ -62,7 +61,7 @@ sudo docker run -itd \
 
       - You can first use `locate xxx.h` to find the local path of the header file.
 
-      - Once found, update the corresponding library/include paths in the `Makefile`.
+      - Once found, you can directly set `CCL_HOME=XXX` to specify the installation path. The build system will automatically use `$CCL_HOME/include` and `$CCL_HOME/lib` for header and library paths.
 
       - If the file is not present locally, install the corresponding header/library. There are multiple installation methods; one example is provided below.
 
@@ -153,10 +152,12 @@ sudo docker run -itd \
 
    - You should see the `flagcx` version and path matching the current build directory, indicating that the compilation and installation were successful.
 
-     ![Homogeneous Torch API Successful Build Result.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Homogeneous_Torch_API_Successful_Build_Result.png)
+     ```
+     python -c "import flagcx; print(flagcx)"
+     ```
 
 
-### FlagCX LLaMA3-8B Training on NVIDIA GPUs using FlagScale
+### FlagCX+FlagScale Homogeneous Training
 
 1. Environment Setup
 
@@ -205,64 +206,7 @@ sudo docker run -itd \
 
 1. Environment Setup
 
-   - Setting up Passwordless SSH Between Two Hosts
-
-     -  Assume there are two hosts: `root@<ip1>` and `root@<ip2>`. The following steps configure mutual passwordless SSH login.
-
-     - Generate SSH key on each host
-
-       ```Bash
-       ssh-keygen -t rsa   # Press Enter for all prompts
-       cd /root/.ssh       # Enter the .ssh directory
-       cat id_rsa.pub >> authorized_keys   # Add public key to authorized_keys
-       chmod 700 ~/.ssh    # Set correct permissions for .ssh
-       chmod 600 authorized_keys   # Set correct permissions for authorized_keys`
-       ```
-
-     - Configure host1 to login to host2 without password
-
-       - On host1, view the public key:
-
-          ```
-          cat /root/.ssh/id_rsa.pu
-          ```
-
-       - Copy the public key and append it to host2’s `authorized_keys`:
-
-          ```
-          vi /root/.ssh/authorized_keys   # Paste host1 public key here
-          ```
-
-       - Edit SSH server configuration on host2 (and host1 similarly):
-
-          ```Plain
-          vi /etc/ssh/sshd_config
-              # Set the following:
-              Port 8010
-              PermitRootLogin yes
-              PubkeyAuthentication yes
-              AuthorizedKeysFile /root/.ssh/authorized_keys
-              PasswordAuthentication no
-          :wq   # Save and exit
-          ```
-
-       - Restart SSH service:
-
-          ```
-          service ssh restart
-          ```
-
-       - Test passwordless SSH from host1 to host2:
-
-          ```
-          ssh -p <port> root@<ip2>
-          ```
-
-           If login succeeds without a password, the configuration is effective.
-
-     -  Configure host2 to login to host1
-
-       Repeat the same steps, but append host2’s public key to host1’s `authorized_keys`.
+   Select the Docker image `<Docker Image>` to create a container and enter it.
 
 
 2. Create a symbolic link
