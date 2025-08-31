@@ -196,7 +196,9 @@ sudo docker run -itd \
    
       - Screenshot of Successful Compilation and Installation
    
-        ![FlagCX LLaMA3-8B Screenshot of Successful Compilation and Installation.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/FlagCX_LLaMA3-8B_Screenshot_of_Successful_Compilation_and_Installation.png)
+        ```
+        python -c "import flagcx; print(flagcx)"
+        ```
    
 
 
