@@ -118,7 +118,7 @@ sudo docker run -itd \
       - Check whether PyTorch is installed in the container. If not, install it using the procedure below.
    
         ```Plain
-        pip list         # Check if PyTorch is installed in the container
+        pip list | grep torch         # Check if PyTorch is installed in the container
         ------------------# Install PyTorch----------------------------------
         python -m pip install --pre torch \
           --index-url https://download.pytorch.org/whl/nightly/<cuXXX> \
@@ -170,6 +170,20 @@ sudo docker run -itd \
      conda activate flagscale-train 
      pip install modelscope 
      pip install pandas
+     ```
+     
+     **Note:** if there is no conda env called "flagscale-train", we may need to set up the conda env by running
+     
+     ```Plain
+     ./install/install-requirements.sh --env train
+     ```
+     
+   
+   - Training Backend Code Adaptation for Unpatched Mode
+   
+     ```Plain
+     cd FlagScale
+     python tools/patch/unpatch.py --backend Megatron-LM
      ```
 
 

@@ -283,13 +283,6 @@ We conduct our experiments by running the LLaMA3-8B model on Nvidia A800 GPUs.
 
      These files should be placed in the directory specified by `tokenizer_path` in your configuration (`8b.yaml`).
 
-3. Training Backend Code Adaptation for Unpatched Mode
-
-   ```Plain
-   cd FlagScale
-   python tools/patch/unpatch.py --backend Megatron-LM
-   ```
-
 4. Distributed Training
 
    ```Plain
