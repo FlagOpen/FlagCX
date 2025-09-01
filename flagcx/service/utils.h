@@ -700,4 +700,6 @@ void max(void *res, const void *op1, const void *op2, size_t n) {
 
 void *flagcxOpenLib(const char *path, int flags,
                     void (*error_handler)(const char *, int, const char *));
+
+const char *get_plugin_lib_path();
 #endif
