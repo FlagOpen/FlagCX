@@ -279,6 +279,8 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  flagcxCommDestroy(comm);
+  devHandle->streamDestroy(stream);
   devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
   devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
   devHandle->deviceFree(hello, flagcxMemHost, NULL);
@@ -286,8 +288,6 @@ int main(int argc, char *argv[]) {
   devHandle->deviceFree((void *)h_recvcounts, flagcxMemHost, NULL);
   devHandle->deviceFree((void *)h_sdispls, flagcxMemHost, NULL);
   devHandle->deviceFree((void *)h_rdispls, flagcxMemHost, NULL);
-  devHandle->streamDestroy(stream);
-  flagcxCommDestroy(comm);
   flagcxHandleFree(handler);
 
   MPI_Finalize();

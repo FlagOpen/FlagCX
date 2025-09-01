@@ -5,6 +5,7 @@
  ************************************************************************/
 
 #include "ibvwrap.h"
+#include "adaptor.h"
 #include <sys/types.h>
 #include <unistd.h>
 

@@ -4,6 +4,7 @@
  * See LICENSE.txt for license information
  ************************************************************************/
 
+#include "adaptor.h"
 #include "core.h"
 #include "flagcx_common.h"
 #include "flagcx_net.h"
@@ -1623,16 +1624,27 @@ flagcxResult_t flagcxIbRegMrDmaBufInternal(flagcxIbNetCommDevBase *base,
                                                flags),
                         res, returning);
       } else {
+        void *cpuptr = NULL;
+        if (deviceAdaptor->gdrPtrMmap && deviceAdaptor->gdrPtrMunmap) {
+          deviceAdaptor->gdrPtrMmap(&cpuptr, (void *)addr, pages * pageSize);
+        }
         if (flagcxIbRelaxedOrderingEnabled) {
           // Use IBVERBS_1.8 API - needed for IBV_ACCESS_RELAXED_ORDERING
           // support
-          FLAGCXCHECKGOTO(wrap_ibv_reg_mr_iova2(&mr, base->pd, (void *)addr,
-                                                pages * pageSize, addr, flags),
-                          res, returning);
+          FLAGCXCHECKGOTO(
+              wrap_ibv_reg_mr_iova2(&mr, base->pd,
+                                    cpuptr == NULL ? (void *)addr : cpuptr,
+                                    pages * pageSize, addr, flags),
+              res, returning);
         } else {
-          FLAGCXCHECKGOTO(wrap_ibv_reg_mr(&mr, base->pd, (void *)addr,
-                                          pages * pageSize, flags),
-                          res, returning);
+          FLAGCXCHECKGOTO(
+              wrap_ibv_reg_mr(&mr, base->pd,
+                              cpuptr == NULL ? (void *)addr : cpuptr,
+                              pages * pageSize, flags),
+              res, returning);
+        }
+        if (deviceAdaptor->gdrPtrMmap && deviceAdaptor->gdrPtrMunmap) {
+          deviceAdaptor->gdrPtrMunmap(cpuptr, pages * pageSize);
         }
       }
       TRACE(FLAGCX_INIT | FLAGCX_NET,

@@ -361,7 +361,7 @@ static flagcxResult_t flagcxCollNet_v7_as_v8_init(flagcxDebugLogger_t logfn) {
 
 static pthread_mutex_t netLock = PTHREAD_MUTEX_INITIALIZER;
 // flagcxNets[0] will be used for net plugin (e.g., UCX)
-flagcxNet_t* flagcxNets[3] = { nullptr, &flagcxNetIb, &flagcxNetSocket };
+flagcxNet_t *flagcxNets[3] = {nullptr, &flagcxNetIb, &flagcxNetSocket};
 flagcxCollNet_t *flagcxCollNets[3] = {nullptr, nullptr, nullptr};
 enum flagcxNetState {
   flagcxNetStateInit = 0,
@@ -557,64 +557,74 @@ flagcxResult_t flagcxNetPluginInit() {
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxNetCheckDeviceVersion(struct flagcxHeteroComm* comm, flagcxNet_t* net, int dev) {
+flagcxResult_t flagcxNetCheckDeviceVersion(struct flagcxHeteroComm *comm,
+                                           flagcxNet_t *net, int dev) {
   flagcxNetProperties_v8_t props;
 
   FLAGCXCHECK(net->getProperties(dev, &props));
   flagcxNetDeviceType type = props.netDeviceType;
-  if (type) switch (type) {
-    case FLAGCX_NET_DEVICE_UNPACK:
-      if (props.netDeviceVersion == FLAGCX_NET_DEVICE_UNPACK_VERSION) {
-        INFO(FLAGCX_INIT, "Using FLAGCX_NET_DEVICE_UNPACK net plugin version %d",
-          props.netDeviceVersion);
-        return flagcxSuccess;
-      } else {
-        WARN("FLAGCX_DEVICE_UNPACK plugin has incompatible version %d, this flagcx build is compatible with %d, not using it",
-          props.netDeviceVersion, FLAGCX_NET_DEVICE_UNPACK_VERSION);
+  if (type)
+    switch (type) {
+      case FLAGCX_NET_DEVICE_UNPACK:
+        if (props.netDeviceVersion == FLAGCX_NET_DEVICE_UNPACK_VERSION) {
+          INFO(FLAGCX_INIT,
+               "Using FLAGCX_NET_DEVICE_UNPACK net plugin version %d",
+               props.netDeviceVersion);
+          return flagcxSuccess;
+        } else {
+          WARN("FLAGCX_DEVICE_UNPACK plugin has incompatible version %d, this "
+               "flagcx build is compatible with %d, not using it",
+               props.netDeviceVersion, FLAGCX_NET_DEVICE_UNPACK_VERSION);
+          return flagcxInternalError;
+        }
+      default:
+        WARN("Unknown device code index");
         return flagcxInternalError;
-      }
-    default:
-      WARN("Unknown device code index");
-      return flagcxInternalError;
-  }
+    }
 
   INFO(FLAGCX_INIT, "Using non-device net plugin version %d",
-    props.netDeviceVersion);
+       props.netDeviceVersion);
   return flagcxSuccess;
 }
 
-static flagcxResult_t netGetState(int i, enum flagcxNetState* state) {
+static flagcxResult_t netGetState(int i, enum flagcxNetState *state) {
   pthread_mutex_lock(&netLock);
   if (flagcxNetStates[i] == flagcxNetStateInit) {
     int ndev;
-    if (flagcxNets[i]->init(flagcxDebugLog) != flagcxSuccess) flagcxNetStates[i] = flagcxNetStateDisabled;
-    else if (flagcxNets[i]->devices(&ndev) != flagcxSuccess || ndev <= 0) flagcxNetStates[i] = flagcxNetStateDisabled;
-    else flagcxNetStates[i] = flagcxNetStateEnabled;
+    if (flagcxNets[i]->init(flagcxDebugLog) != flagcxSuccess)
+      flagcxNetStates[i] = flagcxNetStateDisabled;
+    else if (flagcxNets[i]->devices(&ndev) != flagcxSuccess || ndev <= 0)
+      flagcxNetStates[i] = flagcxNetStateDisabled;
+    else
+      flagcxNetStates[i] = flagcxNetStateEnabled;
   }
   *state = flagcxNetStates[i];
   pthread_mutex_unlock(&netLock);
   return flagcxSuccess;
 }
 
-static flagcxResult_t collNetGetState(int i, enum flagcxNetState* state) {
+static flagcxResult_t collNetGetState(int i, enum flagcxNetState *state) {
   pthread_mutex_lock(&netLock);
   if (flagcxCollNetStates[i] == flagcxNetStateInit) {
     int ndev;
-    if (flagcxCollNets[i]->init(flagcxDebugLog) != flagcxSuccess) flagcxCollNetStates[i] = flagcxNetStateDisabled;
-    else if (flagcxCollNets[i]->devices(&ndev) != flagcxSuccess || ndev <= 0) flagcxCollNetStates[i] = flagcxNetStateDisabled;
-    else flagcxCollNetStates[i] = flagcxNetStateEnabled;
+    if (flagcxCollNets[i]->init(flagcxDebugLog) != flagcxSuccess)
+      flagcxCollNetStates[i] = flagcxNetStateDisabled;
+    else if (flagcxCollNets[i]->devices(&ndev) != flagcxSuccess || ndev <= 0)
+      flagcxCollNetStates[i] = flagcxNetStateDisabled;
+    else
+      flagcxCollNetStates[i] = flagcxNetStateEnabled;
   }
   *state = flagcxCollNetStates[i];
   pthread_mutex_unlock(&netLock);
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxNetInit(struct flagcxHeteroComm* comm) {
+flagcxResult_t flagcxNetInit(struct flagcxHeteroComm *comm) {
   // Initialize main communication network
-  const char* netName;
+  const char *netName;
   bool ok = false;
 
-  const char* forceSocketEnv = getenv("FLAGCX_FORCE_NET_SOCKET");
+  const char *forceSocketEnv = getenv("FLAGCX_FORCE_NET_SOCKET");
   bool forceSocket = (forceSocketEnv && atoi(forceSocketEnv) == 1);
 
   netName = comm->config.netName;
@@ -622,13 +632,18 @@ flagcxResult_t flagcxNetInit(struct flagcxHeteroComm* comm) {
   if (forceSocket) {
     // Force socket network usage
     for (int i = 2; i >= 0; i--) {
-      if (flagcxNets[i] == nullptr) continue;
-      if (flagcxNets[i] != &flagcxNetSocket) continue;
+      if (flagcxNets[i] == nullptr)
+        continue;
+      if (flagcxNets[i] != &flagcxNetSocket)
+        continue;
       enum flagcxNetState state;
       FLAGCXCHECK(netGetState(i, &state));
-      if (state != flagcxNetStateEnabled) continue;
-      if (netName && strcasecmp(netName, flagcxNets[i]->name) != 0) continue;
-      if (flagcxSuccess != flagcxNetCheckDeviceVersion(comm, flagcxNets[i], 0)) {
+      if (state != flagcxNetStateEnabled)
+        continue;
+      if (netName && strcasecmp(netName, flagcxNets[i]->name) != 0)
+        continue;
+      if (flagcxSuccess !=
+          flagcxNetCheckDeviceVersion(comm, flagcxNets[i], 0)) {
         continue;
       }
 
@@ -645,13 +660,17 @@ flagcxResult_t flagcxNetInit(struct flagcxHeteroComm* comm) {
     }
   } else {
     // Normal network selection order (IB first, then socket)
-    for (int i=0; i<3; i++) {
-      if (flagcxNets[i] == nullptr) continue;
+    for (int i = 0; i < 3; i++) {
+      if (flagcxNets[i] == nullptr)
+        continue;
       enum flagcxNetState state;
       FLAGCXCHECK(netGetState(i, &state));
-      if (state != flagcxNetStateEnabled) continue;
-      if (netName && strcasecmp(netName, flagcxNets[i]->name) != 0) continue;
-      if (flagcxSuccess != flagcxNetCheckDeviceVersion(comm, flagcxNets[i], 0)) {
+      if (state != flagcxNetStateEnabled)
+        continue;
+      if (netName && strcasecmp(netName, flagcxNets[i]->name) != 0)
+        continue;
+      if (flagcxSuccess !=
+          flagcxNetCheckDeviceVersion(comm, flagcxNets[i], 0)) {
         continue;
       }
 
@@ -677,11 +696,6 @@ flagcxResult_t flagcxNetInit(struct flagcxHeteroComm* comm) {
 
 flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
-  if (deviceKernel) {
-    deviceAdaptor->deviceMemcpy(args->hEventReady, args->dEventReady, 1,
-                                flagcxMemcpyDeviceToHost, resources->cpStream,
-                                NULL);
-  }
   if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
     return flagcxSuccess;
   if (args->transmitted < args->chunkSteps) {
@@ -692,21 +706,20 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
       int step = args->waitCopy & stepMask;
       args->subs[step].stepSize =
           std::min(args->chunkSize, size - args->totalCopySize);
-      if (resources->flagcxNet == &flagcxNetIb){
-        args->subs[step].stepBuff = resources->buffers[0] + (CHUNKSIZE * step);
-        deviceAdaptor->deviceMemcpy(
+      args->subs[step].stepBuff = resources->buffers[0] + (CHUNKSIZE * step);
+      if (resources->flagcxNet == &flagcxNetIb) {
+        FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
             args->subs[step].stepBuff, (char *)data + args->totalCopySize,
             args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
-            resources->cpStream, args->subs[step].copyArgs);
-      }else if (resources->flagcxNet == &flagcxNetSocket){
-        args->subs[step].stepBuff = resources->buffers[0] + (CHUNKSIZE * step);
-        deviceAdaptor->deviceMemcpy(
+            resources->cpStream, args->subs[step].copyArgs));
+      } else if (resources->flagcxNet == &flagcxNetSocket) {
+        FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
             args->subs[step].stepBuff, (char *)data + args->totalCopySize,
             args->subs[step].stepSize, flagcxMemcpyDeviceToHost,
-            resources->cpStream, args->subs[step].copyArgs);
+            resources->cpStream, args->subs[step].copyArgs));
       }
-      deviceAdaptor->eventRecord(resources->cpEvents[step],
-                                 resources->cpStream);
+      FLAGCXCHECK(deviceAdaptor->eventRecord(resources->cpEvents[step],
+                                             resources->cpStream));
       args->totalCopySize += args->subs[step].stepSize;
       args->waitCopy++;
     }
@@ -722,9 +735,9 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
     if (args->posted < args->copied) {
       void *req = NULL;
       resources->flagcxNet->isend(resources->netSendComm,
-                        args->subs[args->posted & stepMask].stepBuff,
-                        args->subs[args->posted & stepMask].stepSize, 0,
-                        resources->mhandles[0], &req);
+                                  args->subs[args->posted & stepMask].stepBuff,
+                                  args->subs[args->posted & stepMask].stepSize,
+                                  0, resources->mhandles[0], &req);
       if (req) {
         args->subs[args->posted++ & stepMask].requests[0] = req;
       }
@@ -739,12 +752,16 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
       }
     }
   } else {
-    __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
-    args->done = true;
-    if (deviceKernel) {
-      deviceAdaptor->deviceMemcpy(args->dlArgs, args->hlArgs, 1,
-                                  flagcxMemcpyHostToDevice, resources->cpStream,
-                                  NULL);
+    if (args->done != 1) {
+      __atomic_store_n(&args->hlArgs, 1, __ATOMIC_RELAXED);
+      if (deviceAsyncLoad && deviceAsyncStore) {
+        if (args->deviceFuncRelaxedOrdering == 1) {
+          FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+              args->dlArgs, (void *)&args->hlArgs, sizeof(bool),
+              flagcxMemcpyHostToDevice, resources->cpStream, NULL));
+        }
+      }
+      args->done = 1;
     }
   }
   return flagcxSuccess;
@@ -752,11 +769,6 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
 
 flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
-  if (deviceKernel) {
-    deviceAdaptor->deviceMemcpy(args->hEventReady, args->dEventReady, 1,
-                                flagcxMemcpyDeviceToHost, resources->cpStream,
-                                NULL);
-  }
   if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
     return flagcxSuccess;
   if (args->copied < args->chunkSteps) {
@@ -769,10 +781,11 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
           std::min(args->chunkSize, size - args->totalPostSize);
       args->subs[args->posted & stepMask].stepBuff =
           resources->buffers[0] + CHUNKSIZE * (args->posted & stepMask);
-      resources->flagcxNet->irecv(resources->netRecvComm, 1,
-                        &args->subs[args->posted & stepMask].stepBuff,
-                        (int *)&args->subs[args->posted & stepMask].stepSize,
-                        tags, resources->mhandles, &req);
+      resources->flagcxNet->irecv(
+          resources->netRecvComm, 1,
+          &args->subs[args->posted & stepMask].stepBuff,
+          (int *)&args->subs[args->posted & stepMask].stepSize, tags,
+          resources->mhandles, &req);
       if (req) {
         args->subs[args->posted & stepMask].requests[0] = req;
         args->totalPostSize += args->subs[args->posted++ & stepMask].stepSize;
@@ -789,26 +802,26 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
     }
 
     if (args->postFlush < args->transmitted) {
-      if (resources->flagcxNet == &flagcxNetIb){
+      if (resources->flagcxNet == &flagcxNetIb) {
         void *req = NULL;
         void *allData[] = {args->subs[args->postFlush & stepMask].stepBuff};
-        resources->flagcxNet->iflush(resources->netRecvComm, 1, allData,
-                          &args->subs[args->postFlush & stepMask].stepSize,
-                          resources->mhandles, &req);
+        resources->flagcxNet->iflush(
+            resources->netRecvComm, 1, allData,
+            &args->subs[args->postFlush & stepMask].stepSize,
+            resources->mhandles, &req);
         if (req) {
           args->subs[args->postFlush++ & stepMask].requests[0] = req;
-
         };
-      }else if(resources->flagcxNet == &flagcxNetSocket){
-          args->subs[args->postFlush & stepMask].requests[0] = (void*)0x1;
-          args->postFlush++;
+      } else if (resources->flagcxNet == &flagcxNetSocket) {
+        args->subs[args->postFlush & stepMask].requests[0] = (void *)0x1;
+        args->postFlush++;
       }
     }
     if (args->flushed < args->postFlush) {
       void *req = args->subs[args->flushed & stepMask].requests[0];
       int done = 0, sizes;
-      if (resources->flagcxNet == &flagcxNetSocket && req == (void*)0x1) {
-        done = 1; 
+      if (resources->flagcxNet == &flagcxNetSocket && req == (void *)0x1) {
+        done = 1;
         sizes = 0;
       } else {
         resources->flagcxNet->test(req, &done, &sizes);
@@ -820,19 +833,19 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
 
     if (args->waitCopy < args->flushed) {
       int step = args->waitCopy & stepMask;
-      if (resources->flagcxNet == &flagcxNetIb){
-          deviceAdaptor->deviceMemcpy(
-          (char *)data + args->totalCopySize, args->subs[step].stepBuff,
-          args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
-          resources->cpStream, args->subs[step].copyArgs);        
-      }else if (resources->flagcxNet == &flagcxNetSocket){
-          deviceAdaptor->deviceMemcpy(
-          (char *)data + args->totalCopySize, args->subs[step].stepBuff,
-          args->subs[step].stepSize, flagcxMemcpyHostToDevice,
-          resources->cpStream, args->subs[step].copyArgs);      
+      if (resources->flagcxNet == &flagcxNetIb) {
+        FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+            (char *)data + args->totalCopySize, args->subs[step].stepBuff,
+            args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
+            resources->cpStream, args->subs[step].copyArgs));
+      } else if (resources->flagcxNet == &flagcxNetSocket) {
+        FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+            (char *)data + args->totalCopySize, args->subs[step].stepBuff,
+            args->subs[step].stepSize, flagcxMemcpyHostToDevice,
+            resources->cpStream, args->subs[step].copyArgs));
       }
-      deviceAdaptor->eventRecord(resources->cpEvents[step],
-                                 resources->cpStream);
+      FLAGCXCHECK(deviceAdaptor->eventRecord(resources->cpEvents[step],
+                                             resources->cpStream));
       args->totalCopySize += args->subs[step].stepSize;
       args->waitCopy++;
     }
@@ -846,37 +859,40 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
     }
 
   } else {
-    __atomic_store_n(args->hlArgs, 1, __ATOMIC_RELAXED);
-    args->done = true;
-    if (deviceKernel) {
-      deviceAdaptor->deviceMemcpy(args->dlArgs, args->hlArgs, 1,
-                                  flagcxMemcpyHostToDevice, resources->cpStream,
-                                  NULL);
+    if (args->done != 1) {
+      __atomic_store_n(&args->hlArgs, 1, __ATOMIC_RELAXED);
+      if (deviceAsyncLoad && deviceAsyncStore) {
+        if (args->deviceFuncRelaxedOrdering == 1) {
+          FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+              args->dlArgs, (void *)&args->hlArgs, sizeof(bool),
+              flagcxMemcpyHostToDevice, resources->cpStream, NULL));
+        }
+      }
+      args->done = 1;
     }
   }
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxSendProxyFree(sendNetResources *resources) {
+  for (int s = 0; s < MAXSTEPS; s++) {
+    FLAGCXCHECK(deviceAdaptor->eventDestroy(resources->cpEvents[s]));
+  }
+  FLAGCXCHECK(deviceAdaptor->streamDestroy(resources->cpStream));
   resources->flagcxNet->deregMr(resources->netSendComm, resources->mhandles[0]);
   resources->flagcxNet->closeSend(resources->netSendComm);
-  deviceAdaptor->gdrMemFree(resources->buffers[0], NULL);
-  for (int s = 0; s < MAXSTEPS; s++) {
-    deviceAdaptor->eventDestroy(resources->cpEvents[s]);
-  }
-  deviceAdaptor->streamDestroy(resources->cpStream);
+  FLAGCXCHECK(deviceAdaptor->gdrMemFree(resources->buffers[0], NULL));
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxRecvProxyFree(recvNetResources *resources) {
+  for (int s = 0; s < MAXSTEPS; s++) {
+    FLAGCXCHECK(deviceAdaptor->eventDestroy(resources->cpEvents[s]));
+  }
+  FLAGCXCHECK(deviceAdaptor->streamDestroy(resources->cpStream));
   resources->flagcxNet->deregMr(resources->netRecvComm, resources->mhandles[0]);
   resources->flagcxNet->closeRecv(resources->netRecvComm);
   resources->flagcxNet->closeListen(resources->netListenComm);
-  deviceAdaptor->gdrMemFree(resources->buffers[0], NULL);
-  for (int s = 0; s < MAXSTEPS; s++) {
-    deviceAdaptor->eventDestroy(resources->cpEvents[s]);
-  }
-  deviceAdaptor->streamDestroy(resources->cpStream);
+  FLAGCXCHECK(deviceAdaptor->gdrMemFree(resources->buffers[0], NULL));
   return flagcxSuccess;
 }
-

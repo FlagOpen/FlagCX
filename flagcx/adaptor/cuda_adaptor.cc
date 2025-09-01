@@ -348,6 +348,9 @@ struct flagcxDeviceAdaptor cudaAdaptor {
       NULL, // flagcxResult_t (*hostShareMemAlloc)(void **ptr, size_t size, void
             // *memHandle);
       NULL, // flagcxResult_t (*hostShareMemFree)(void *ptr, void *memHandle);
+      NULL, // flagcxResult_t (*gdrPtrMmap)(void **pcpuptr, void *devptr, size_t
+            // sz);
+      NULL, // flagcxResult_t (*gdrPtrMunmap)(void *cpuptr, size_t sz);
       // Stream functions
       cudaAdaptorStreamCreate, cudaAdaptorStreamDestroy, cudaAdaptorStreamCopy,
       cudaAdaptorStreamFree, cudaAdaptorStreamSynchronize,

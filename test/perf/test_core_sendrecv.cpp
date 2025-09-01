@@ -129,11 +129,11 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  flagcxHeteroCommDestroy(comm);
+  devHandle->streamDestroy(stream);
   devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
   devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
   devHandle->deviceFree(hello, flagcxMemHost, NULL);
-  devHandle->streamDestroy(stream);
-  flagcxHeteroCommDestroy(comm);
   flagcxHandleFree(handler);
 
   MPI_Finalize();

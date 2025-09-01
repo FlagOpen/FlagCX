@@ -2,9 +2,11 @@
 #include "group.h"
 #include <stdio.h>
 
-flagcxLaunchFunc_t deviceKernel = NULL;
+flagcxLaunchFunc_t deviceAsyncLoad = NULL;
+flagcxLaunchFunc_t deviceAsyncStore = NULL;
 
-flagcxResult_t loadAsyncKernelSymbol(const char *path, flagcxLaunchFunc_t *fn) {
+flagcxResult_t loadKernelSymbol(const char *path, const char *name,
+                                flagcxLaunchFunc_t *fn) {
   void *handle = flagcxOpenLib(
       path, RTLD_LAZY, [](const char *p, int err, const char *msg) {
         fprintf(stderr, "dlopen failed: %s\n", dlerror());
@@ -13,7 +15,7 @@ flagcxResult_t loadAsyncKernelSymbol(const char *path, flagcxLaunchFunc_t *fn) {
   if (!handle)
     return flagcxSystemError;
 
-  void *sym = dlsym(handle, "launchAsyncKernel");
+  void *sym = dlsym(handle, name);
   if (!sym) {
     fprintf(stderr, "dlsym failed: %s\n", dlerror());
     return flagcxSystemError;
@@ -23,21 +25,13 @@ flagcxResult_t loadAsyncKernelSymbol(const char *path, flagcxLaunchFunc_t *fn) {
   return flagcxSuccess;
 }
 
-void cpuStreamWait(void *_args) {
-  bool *volatile args = (bool *)_args;
-  __atomic_store_n(args, 1, __ATOMIC_RELAXED);
+void cpuAsyncStore(void *args) {
+  bool *volatile value = (bool *)args;
+  __atomic_store_n(value, 1, __ATOMIC_RELAXED);
 }
 
-void cpuAsyncLaunch(void *_args) {
-  FuncArgs *args = (FuncArgs *)_args;
-  bool *volatile event = (bool *)args->hEvent;
-
-  __atomic_store_n(event, 1, __ATOMIC_RELAXED);
-  bool *volatile hargs = (bool *)args->hargs;
-  while (!__atomic_load_n(hargs, __ATOMIC_RELAXED))
-    ;
-
-  free(hargs);
-  free(event);
-  free(args);
+void cpuAsyncLoad(void *args) {
+  bool *volatile value = (bool *)args;
+  while (!__atomic_load_n(value, __ATOMIC_RELAXED)) {
+  }
 }

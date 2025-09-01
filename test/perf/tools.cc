@@ -1,18 +1,18 @@
+#include "tools.h"
 #include <chrono>
 #include <cstdio>
-#include <libgen.h>
 #include <cstdlib>
 #include <getopt.h>
-#include "tools.h"
+#include <libgen.h>
 
 std::uint64_t now() {
   using clock = std::chrono::steady_clock;
-  return std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now().time_since_epoch()).count();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(
+             clock::now().time_since_epoch())
+      .count();
 }
 
-timer::timer() {
-  start = now();
-}
+timer::timer() { start = now(); }
 
 double timer::elapsed() const {
   std::uint64_t end = now();
@@ -27,29 +27,29 @@ double timer::reset() {
 }
 
 double parsesize(const char *value) {
-    long long int units;
-    double size;
-    char size_lit;
+  long long int units;
+  double size;
+  char size_lit;
 
-    int count = sscanf(value, "%lf %1s", &size, &size_lit);
+  int count = sscanf(value, "%lf %1s", &size, &size_lit);
 
-    switch (count) {
+  switch (count) {
     case 2:
       switch (size_lit) {
-      case 'G':
-      case 'g':
-        units = 1024*1024*1024;
-        break;
-      case 'M':
-      case 'm':
-        units = 1024*1024;
-        break;
-      case 'K':
-      case 'k':
-        units = 1024;
-        break;
-      default:
-        return -1.0;
+        case 'G':
+        case 'g':
+          units = 1024 * 1024 * 1024;
+          break;
+        case 'M':
+        case 'm':
+          units = 1024 * 1024;
+          break;
+        case 'K':
+        case 'k':
+          units = 1024;
+          break;
+        default:
+          return -1.0;
       };
       break;
     case 1:
@@ -57,9 +57,9 @@ double parsesize(const char *value) {
       break;
     default:
       return -1.0;
-    }
+  }
 
-    return size * units;
+  return size * units;
 }
 
 parser::parser(int argc, char **argv) {
@@ -74,24 +74,24 @@ parser::parser(int argc, char **argv) {
   double parsedValue;
   int longIndex;
   static struct option longOpts[] = {
-    {"minbytes", required_argument, 0, 'b'},
-    {"maxbytes", required_argument, 0, 'e'},
-    {"stepfactor", required_argument, 0, 'f'},
-    {"warmup_iters", required_argument, 0, 'w'},
-    {"iters", required_argument, 0, 'n'},
-    {"print_buffer", required_argument, 0, 'p'},
-    {"root", required_argument, 0, 'r'},
-    // {"op", required_argument, 0, 'o'},
-    // {"datatype", required_argument, 0, 'd'},
-    {"help", no_argument, 0, 'h'},
-    {}
-  };
+      {"minbytes", required_argument, 0, 'b'},
+      {"maxbytes", required_argument, 0, 'e'},
+      {"stepfactor", required_argument, 0, 'f'},
+      {"warmup_iters", required_argument, 0, 'w'},
+      {"iters", required_argument, 0, 'n'},
+      {"print_buffer", required_argument, 0, 'p'},
+      {"root", required_argument, 0, 'r'},
+      // {"op", required_argument, 0, 'o'},
+      // {"datatype", required_argument, 0, 'd'},
+      {"help", no_argument, 0, 'h'},
+      {}};
 
   while (1) {
     int c;
     c = getopt_long(argc, argv, "b:e:f:w:n:p:r:h", longOpts, &longIndex);
 
-    if (c == -1) break;
+    if (c == -1)
+      break;
 
     switch (c) {
       case 'b':
@@ -147,16 +147,18 @@ parser::parser(int argc, char **argv) {
         break;
       case 'h':
       default:
-        if (c != 'h') printf("Invalid argument '%c'\n", c);
+        if (c != 'h')
+          printf("Invalid argument '%c'\n", c);
         printf("Usage: %s \n\t"
-            "[-b <minbytes K/M/G>] \n\t"
-            "[-e <maxbytes K/M/G>] \n\t"
-            "[-f <stepfactor>] \n\t"
-            "[-w <warmupiters>] \n\t"
-            "[-n <iters>] \n\t"
-            "[-p <printbuffer 0/1>] \n\t"
-            "[-r <root>] \n\t"
-            "[-h\n", basename(argv[0]));
+               "[-b <minbytes K/M/G>] \n\t"
+               "[-e <maxbytes K/M/G>] \n\t"
+               "[-f <stepfactor>] \n\t"
+               "[-w <warmupiters>] \n\t"
+               "[-n <iters>] \n\t"
+               "[-p <printbuffer 0/1>] \n\t"
+               "[-r <root>] \n\t"
+               "[-h\n",
+               basename(argv[0]));
         printf("Use default values with -b 1M -e 1G -f 2 -w 5 -n 20 -p 0\n");
         break;
     }

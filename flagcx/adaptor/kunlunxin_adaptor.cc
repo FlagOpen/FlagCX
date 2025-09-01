@@ -95,7 +95,7 @@ flagcxResult_t kunlunAdaptorGetDeviceCount(int *count) {
 }
 
 flagcxResult_t kunlunAdaptorGetVendor(char *vendor) {
-  strcpy(vendor, "NVIDIA");
+  strcpy(vendor, "KUNLUNXIN");
   return flagcxSuccess;
 }
 
@@ -118,6 +118,23 @@ flagcxResult_t kunlunAdaptorGdrMemFree(void *ptr, void *memHandle) {
     return flagcxSuccess;
   }
   DEVCHECK(cudaFree(ptr));
+  return flagcxSuccess;
+}
+
+flagcxResult_t kunlunAdaptorGdrPtrMmap(void **pcpuptr, void *devptr,
+                                       size_t sz) {
+  if (pcpuptr == NULL || devptr == NULL || sz == 0) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(baidu::xpu::bkcl::xccl_mmap(pcpuptr, devptr, sz));
+  return flagcxSuccess;
+}
+
+flagcxResult_t kunlunAdaptorGdrPtrMunmap(void *cpuptr, size_t sz) {
+  if (cpuptr == NULL || sz == 0) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(baidu::xpu::bkcl::xccl_munmap(cpuptr, sz));
   return flagcxSuccess;
 }
 
@@ -245,6 +262,15 @@ flagcxResult_t kunlunAdaptorLaunchHostFunc(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
+flagcxResult_t kunlunAdaptorLaunchDeviceFunc(flagcxStream_t stream,
+                                             flagcxLaunchFunc_t fn,
+                                             void *args) {
+  if (stream != NULL) {
+    fn(stream, args);
+  }
+  return flagcxSuccess;
+}
+
 flagcxResult_t kunlunAdaptorGetDeviceProperties(struct flagcxDevProps *props,
                                                 int dev) {
   if (props == NULL) {
@@ -297,6 +323,10 @@ struct flagcxDeviceAdaptor kunlunAdaptor {
       NULL, // flagcxResult_t (*hostShareMemAlloc)(void **ptr, size_t size, void
             // *memHandle);
       NULL, // flagcxResult_t (*hostShareMemFree)(void *ptr, void *memHandle);
+      kunlunAdaptorGdrPtrMmap,   // flagcxResult_t (*gdrPtrMmap)(void **pcpuptr,
+                                 // void *devptr, size_t sz);
+      kunlunAdaptorGdrPtrMunmap, // flagcxResult_t (*gdrPtrMunmap)(void *cpuptr,
+                                 // size_t sz);
       // Stream functions
       kunlunAdaptorStreamCreate, kunlunAdaptorStreamDestroy,
       kunlunAdaptorStreamCopy, kunlunAdaptorStreamFree,
@@ -313,8 +343,7 @@ struct flagcxDeviceAdaptor kunlunAdaptor {
             // share_mem, void *stream, void *memHandle);
       NULL, // flagcxResult_t (*copyArgsInit)(void **args);
       NULL, // flagcxResult_t (*copyArgsFree)(void *args);
-      NULL, // flagcxResult_t// (*launchDeviceFunc)(flagcxStream_t stream,
-            // void *args);
+      kunlunAdaptorLaunchDeviceFunc,
       // Others
       kunlunAdaptorGetDeviceProperties, // flagcxResult_t
                                         // (*getDeviceProperties)(struct

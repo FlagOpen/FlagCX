@@ -92,8 +92,6 @@ struct flagcxProxyArgs {
   int flushed;
   int transmitted;
   int sendStepMask;
-  bool *volatile hEventReady;
-  bool *volatile dEventReady;
   size_t totalCopySize;
   size_t totalPostSize;
   size_t totalSendSize;
@@ -117,8 +115,12 @@ struct flagcxProxyArgs {
   struct flagcxProxyArgs **proxyAppendPtr;
 
   /*for launch*/
-  bool *volatile hlArgs;
+  int deviceFuncRelaxedOrdering = 0;
+  volatile bool eventRecorded = false;
+  volatile bool hlArgs = false;
+  volatile bool hEventReady = false;
   bool *volatile dlArgs;
+  bool *volatile dEventReady;
 
   union flagcxProxyOpSpecifics specifics;
 };
@@ -160,6 +162,7 @@ struct flagcxProxyOp {
   flagcxHeteroComm_t comm;
   flagcxProxyArgs args;
   flagcxStream_t stream;
+  flagcxEvent_t event; // used to record host/device func
 };
 
 #define FLAGCX_MAX_NETDEVS 128

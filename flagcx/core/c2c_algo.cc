@@ -1429,7 +1429,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
   int sendType =
       (commOp_ == flagcxCommOpAlltoAll || commOp_ == flagcxCommOpAlltoAllv ||
        (commOp_ == flagcxCommOpScatter && rank_ == rootRank_) ||
-       (commOp_ == flagcxCommOpAllGather && eachNicPerRank_))
+       (commOp_ == flagcxCommOpAllGather && eachNicPerRank_ && multiNic_))
           ? 0
           : recvType;
 
@@ -1957,9 +1957,7 @@ flagcxResult_t flagcxC2cPlanner::findStrategy() {
       size_t clusterOffset = 0;
       for (size_t i = 0; i < clusterInterRankList_.size(); ++i) {
         if (nPipePreSteps_ + nSeqInterSteps_ + nPipePostSteps_ > 1) {
-          size_t step =
-              (comm_->cluster_ids[i] + comm_->nclusters - clusterId_) %
-              comm_->nclusters;
+          size_t step = (i + comm_->nclusters - clusterId_) % comm_->nclusters;
           postHomoFuncSteps_[step].emplace_back(
               clusterInterRankList_[clusterId_][0] - (rank_ - homoMyRank_),
               sendType, 1, clusterOffset * sendCount_,
@@ -2065,7 +2063,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
   void *sendTmpBuff =
       (commOp_ == flagcxCommOpAlltoAll || commOp_ == flagcxCommOpAlltoAllv ||
        (commOp_ == flagcxCommOpScatter && rank_ == rootRank_) ||
-       (commOp_ == flagcxCommOpAllGather && eachNicPerRank_))
+       (commOp_ == flagcxCommOpAllGather && eachNicPerRank_ && multiNic_))
           ? const_cast<void *>(sendbuff)
           : recvTmpBuff;
 
