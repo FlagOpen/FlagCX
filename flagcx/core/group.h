@@ -10,14 +10,6 @@
 #include "assert.h"
 #include "comm.h"
 
-struct FuncArgs {
-  flagcxStream_t stream;
-  void *hargs;
-  void *dargs;
-  void *hEvent;
-  void *dEvent;
-};
-
 flagcxResult_t flagcxGroupErrCheck(flagcxResult_t ret);
 void flagcxGroupCommJoin(struct flagcxHeteroComm *comm);
 void flagcxGroupCommPreconnect(struct flagcxHeteroComm *comm);

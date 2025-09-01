@@ -145,7 +145,7 @@ struct flagcxDeviceAdaptor {
   flagcxResult_t (*hostShareMemAlloc)(void **ptr, size_t size, void *memHandle);
   flagcxResult_t (*hostShareMemFree)(void *ptr, void *memHandle);
   flagcxResult_t (*gdrPtrMmap)(void **pcpuptr, void *devptr, size_t sz);
-  flagcxResult_t (*gdrPtrMummap)(void *cpuptr, size_t sz);
+  flagcxResult_t (*gdrPtrMunmap)(void *cpuptr, size_t sz);
 
   // Stream functions
   flagcxResult_t (*streamCreate)(flagcxStream_t *stream);

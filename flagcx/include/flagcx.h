@@ -86,6 +86,7 @@ typedef enum {
   flagcxMemManaged = 2
 } flagcxMemType_t;
 
+// TODO: add more vendor types
 typedef enum {
   FLAGCX_VENDOR_NVIDIA = 0,
   FLAGCX_VENDOR_ILUVATAR_COREX = 1,
@@ -105,6 +106,13 @@ typedef struct flagcxComm *flagcxComm_t;
 typedef struct flagcxStream *flagcxStream_t;
 /* Opaque handle to flagcxEvent */
 typedef struct flagcxEvent *flagcxEvent_t;
+
+/* Func(kernel) arguments */
+typedef struct {
+  flagcxStream_t stream;
+  flagcxEvent_t event;
+  void **argList;
+} flagcxFuncArgs;
 
 struct flagcxDeviceHandle {
   // Basic functions

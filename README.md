@@ -25,18 +25,18 @@ FlagCX leverages native collective communications libraries to provide the full 
 | Backend       | NCCL        | IXCCL       | CNCL        | MCCL        | XCCL        | DUCCL       | HCCL        | MUSACCL     |
 |:--------------|:------------|:------------|:------------|:------------|:------------|:------------|:------------|:------------|
 | Mode          | Homo/Hetero | Homo/Hetero | Homo/Hetero | Homo/Hetero | Homo/Hetero | Homo/Hetero | Homo/Hetero | Homo/Hetero |
-| send          | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
-| recv          | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
-| broadcast     | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
+| send          | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/✓         |
+| recv          | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/✓         |
+| broadcast     | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/✓         |
 | gather        | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ☓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
 | scatter       | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
-| reduce        | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
-| allreduce     | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
-| allgather     | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
-| reducescatter | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
-| alltoall      | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
+| reduce        | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/✓         |
+| allreduce     | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/✓         |
+| allgather     | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/✓         |
+| reducescatter | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/✓         |
+| alltoall      | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/✓         |
 | alltoallv     | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
-| group ops     | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/☓         | ✓/✓         |
+| group ops     | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/✓         | ✓/☓         | ✓/☓         | ✓/✓         |
 
 Note that `Homo` and `Hetero` modes refer to communications among homogeneous and heterogeneous clusters. All native collective communications libraries can be referenced through the links below:
 
@@ -119,6 +119,9 @@ All tests support the same set of arguments:
   * `-p, <0/1>` print buffer info. Default: 0.
   * `-h` print help message. Default: disabled.
 
+### Training Models
+After building and testing FlagCX, you can start training models using upper-layer deep learning frameworks such as PyTorch or PaddlePaddle with FlagCX as communication backend. We provide detailed user guides for both **homogeneous** and **heterogeneous** training across different hardware platforms. Please refer to the docs below:  
+📖 [Training Models with Paddle and FlagCX](docs/paddle/README.md)
 ## License
 
 This project is licensed under the [Apache License (Version 2.0)](https://github.com/FlagOpen/FlagCX/blob/main/LICENSE).

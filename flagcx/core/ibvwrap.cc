@@ -203,18 +203,9 @@ flagcxResult_t wrap_ibv_dealloc_pd(
 
 flagcxResult_t wrap_ibv_reg_mr(struct ibv_mr **ret, struct ibv_pd *pd,
                                void *addr, size_t length, int access) {
-  if (deviceAdaptor->gdrPtrMmap && deviceAdaptor->gdrPtrMummap) {
-    void *cpuptr;
-    deviceAdaptor->gdrPtrMmap(&cpuptr, addr, length);
-    IBV_PTR_CHECK_ERRNO(ibvSymbols, ibv_internal_reg_mr,
-                        ibv_internal_reg_mr(pd, cpuptr, length, access), *ret,
-                        NULL, "ibv_reg_mr");
-    deviceAdaptor->gdrPtrMummap(cpuptr, length);
-  } else {
-    IBV_PTR_CHECK_ERRNO(ibvSymbols, ibv_internal_reg_mr,
-                        ibv_internal_reg_mr(pd, addr, length, access), *ret,
-                        NULL, "ibv_reg_mr");
-  }
+  IBV_PTR_CHECK_ERRNO(ibvSymbols, ibv_internal_reg_mr,
+                      ibv_internal_reg_mr(pd, addr, length, access), *ret, NULL,
+                      "ibv_reg_mr");
 }
 
 struct ibv_mr *wrap_direct_ibv_reg_mr(struct ibv_pd *pd, void *addr,
@@ -235,20 +226,9 @@ flagcxResult_t wrap_ibv_reg_mr_iova2(struct ibv_mr **ret, struct ibv_pd *pd,
   if (ret == NULL) {
     return flagcxSuccess;
   } // Assume dummy call
-  if (deviceAdaptor->gdrPtrMmap && deviceAdaptor->gdrPtrMummap) {
-    void *cpuptr;
-    deviceAdaptor->gdrPtrMmap(&cpuptr, addr, length);
-    IBV_PTR_CHECK_ERRNO(
-        ibvSymbols, ibv_internal_reg_mr_iova2,
-        ibv_internal_reg_mr_iova2(pd, cpuptr, length, iova, access), *ret, NULL,
-        "ibv_reg_mr_iova2");
-    deviceAdaptor->gdrPtrMummap(cpuptr, length);
-  } else {
-    IBV_PTR_CHECK_ERRNO(
-        ibvSymbols, ibv_internal_reg_mr_iova2,
-        ibv_internal_reg_mr_iova2(pd, addr, length, iova, access), *ret, NULL,
-        "ibv_reg_mr_iova2");
-  }
+  IBV_PTR_CHECK_ERRNO(ibvSymbols, ibv_internal_reg_mr_iova2,
+                      ibv_internal_reg_mr_iova2(pd, addr, length, iova, access),
+                      *ret, NULL, "ibv_reg_mr_iova2");
 }
 
 /* DMA-BUF support */

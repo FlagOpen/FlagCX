@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 
 class timer {
@@ -24,7 +25,7 @@ public:
   size_t maxBytes;
   int stepFactor;
   int warmupIters;
-  int testIters; 
+  int testIters;
   int printBuffer;
   int root;
 };

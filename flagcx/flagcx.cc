@@ -195,7 +195,6 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
   (*comm)->homo_root_rank = -1;
   (*comm)->homo_ranks = -1;
   (*comm)->has_single_rank_homo_comm = -1;
-  (*comm)->support_multi_nic = -1;
   (*comm)->magic = 0;
   (*comm)->abortFlag = 0;
   (*comm)->bootstrap = NULL;
@@ -360,23 +359,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     }
   }
 
-  INFO(
-      FLAGCX_INIT,
-      "rank = %d, nranks = %d, nclusters = %d, cluster_id = %d, cluster_size "
-      "= %d, cluster_inter_rank = %d, homo_rank = %d, homo_root_rank = %d, "
-      "homo_inter_rank = %d, homo_ranks = %d, has_single_rank_homo_comm = %d, ",
-      rank, nranks, (*comm)->nclusters, (*comm)->cluster_ids[rank],
-      (*comm)->cluster_sizes[(*comm)->cluster_ids[rank]],
-      (*comm)->cluster_inter_ranks[(*comm)->cluster_ids[rank]],
-      (*comm)->homo_rank, (*comm)->homo_root_rank, (*comm)->homo_inter_rank,
-      (*comm)->homo_ranks, (*comm)->has_single_rank_homo_comm);
-
   if (!is_homo_comm(*comm)) {
-    char *enableMultiNicSupport = getenv("FLAGCX_ENABLE_MULTI_NIC_SUPPORT");
-    if (enableMultiNicSupport) {
-      (*comm)->support_multi_nic = std::stoi(enableMultiNicSupport);
-    }
-
     // Experimental for multi-nic support
     // Collect nic distance to ranks
     (*comm)->clusterInterRankList.resize((*comm)->nclusters);
@@ -434,15 +417,15 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
         "= %d, "
         "cluster_inter_rank = %d, homo_rank = %d, homo_root_rank = %d, "
         "homo_inter_rank = %d, homo_ranks = %d, "
-        "has_single_rank_homo_comm = %d, support_multi_nic = %d, "
+        "has_single_rank_homo_comm = %d, "
         "homoInterRootRank = %d, homoInterMyRank = %d, homoInterRanks = %d",
         rank, nranks, (*comm)->nclusters, (*comm)->cluster_ids[rank],
         (*comm)->cluster_sizes[(*comm)->cluster_ids[rank]],
         (*comm)->cluster_inter_ranks[(*comm)->cluster_ids[rank]],
         (*comm)->homo_rank, (*comm)->homo_root_rank, (*comm)->homo_inter_rank,
         (*comm)->homo_ranks, (*comm)->has_single_rank_homo_comm,
-        (*comm)->homo_ranks, (*comm)->homoInterRootRank,
-        (*comm)->homoInterMyRank, (*comm)->homoInterRanks);
+        (*comm)->homoInterRootRank, (*comm)->homoInterMyRank,
+        (*comm)->homoInterRanks);
 
     // Experimental for multi-nic support
     // Reset commId and homo inter root rank calls underlying GetUniqueId
@@ -471,8 +454,11 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     free(nicDistanceData);
     const char *deviceFuncPathEnv = flagcxGetEnv("FLAGCX_DEVICE_FUNC_PATH");
     if (deviceFuncPathEnv) {
-      FLAGCXCHECK(loadAsyncKernelSymbol(deviceFuncPathEnv, &deviceKernel));
-      if (deviceKernel == NULL) {
+      FLAGCXCHECK(loadKernelSymbol(deviceFuncPathEnv, "deviceAsyncLoad",
+                                   &deviceAsyncLoad));
+      FLAGCXCHECK(loadKernelSymbol(deviceFuncPathEnv, "deviceAsyncStore",
+                                   &deviceAsyncStore));
+      if (deviceAsyncLoad == NULL || deviceAsyncStore == NULL) {
         printf("Failed to load async kernel from %s\n", deviceFuncPathEnv);
         exit(1);
       }
@@ -1512,14 +1498,8 @@ flagcxResult_t flagcxSend(const void *sendbuff, size_t count,
            timers[TIMER_COLL_TOTAL] / 1e6, timers[TIMER_COLL_ALLOC] / 1e6,
            timers[TIMER_COLL_MEM_D2H] / 1e6, timers[TIMER_COLL_COMM] / 1e6);
     } else {
-      if (comm->cluster_ids[comm->rank] == comm->cluster_ids[peer]) {
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->send(
-            sendbuff, count, datatype, comm->globalrank2homorank[peer],
-            comm->homo_comm, stream));
-      } else {
-        FLAGCXCHECK(flagcxHeteroSend(sendbuff, count, datatype, peer,
-                                     comm->hetero_comm, stream));
-      }
+      FLAGCXCHECK(flagcxHeteroSend(sendbuff, count, datatype, peer,
+                                   comm->hetero_comm, stream));
     }
   }
   return flagcxSuccess;
@@ -1571,41 +1551,35 @@ flagcxResult_t flagcxRecv(void *recvbuff, size_t count,
            timers[TIMER_COLL_FREE] / 1e6, timers[TIMER_COLL_MEM_H2D] / 1e6,
            timers[TIMER_COLL_COMM] / 1e6);
     } else {
-      if (comm->cluster_ids[comm->rank] == comm->cluster_ids[peer]) {
-        FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->recv(
-            recvbuff, count, datatype, comm->globalrank2homorank[peer],
-            comm->homo_comm, stream));
-      } else {
-        FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, peer,
-                                     comm->hetero_comm, stream));
-      }
+      FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, peer,
+                                   comm->hetero_comm, stream));
     }
   }
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxGroupStart(flagcxComm_t comm) {
-  FLAGCXCHECK(flagcxEnsureCommReady(comm));
   if (!is_homo_comm(comm)) {
     FLAGCXCHECK(flagcxHeteroGroupStart());
-  }
-  if (use_host_comm()) {
-    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorHost]->groupStart());
   } else {
-    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->groupStart());
+    if (use_host_comm()) {
+      FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorHost]->groupStart());
+    } else {
+      FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->groupStart());
+    }
   }
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxGroupEnd(flagcxComm_t comm) {
-  FLAGCXCHECK(flagcxEnsureCommReady(comm));
-  if (use_host_comm()) {
-    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorHost]->groupEnd());
-  } else {
-    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd());
-  }
   if (!is_homo_comm(comm)) {
     FLAGCXCHECK(flagcxHeteroGroupEnd());
+  } else {
+    if (use_host_comm()) {
+      FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorHost]->groupEnd());
+    } else {
+      FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd());
+    }
   }
   return flagcxSuccess;
 }

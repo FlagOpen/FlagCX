@@ -8,7 +8,6 @@
 #define ENABLE_TIMER 0
 #include "timer.h"
 
-
 flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
                                        struct flagcxTopoGraph *graph,
                                        int connIndex,
@@ -29,7 +28,7 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
         resources->netDev = comm->netDev;
         resources->flagcxNet = comm->flagcxNet;
         comm->flagcxNet->listen(resources->netDev, (void *)handle,
-                           &resources->netListenComm);
+                                &resources->netListenComm);
         bootstrapSend(comm->bootstrap, peer, 1001 + c, handle,
                       sizeof(flagcxIbHandle));
         deviceAdaptor->streamCreate(&resources->cpStream);
@@ -38,11 +37,11 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
         }
         resources->buffSizes[0] = REGMRBUFFERSIZE;
         if (comm->flagcxNet == &flagcxNetSocket) {
-          resources->buffers[0] = (char*)malloc(resources->buffSizes[0]);
+          resources->buffers[0] = (char *)malloc(resources->buffSizes[0]);
           if (!resources->buffers[0]) {
             return flagcxSystemError;
           }
-        } else if (comm->flagcxNet == &flagcxNetIb){
+        } else if (comm->flagcxNet == &flagcxNetIb) {
           deviceAdaptor->gdrMemAlloc((void **)&resources->buffers[0],
                                      resources->buffSizes[0], NULL);
         }
@@ -73,11 +72,11 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
         }
         resources->buffSizes[0] = REGMRBUFFERSIZE;
         if (comm->flagcxNet == &flagcxNetSocket) {
-          resources->buffers[0] = (char*)malloc(resources->buffSizes[0]);
+          resources->buffers[0] = (char *)malloc(resources->buffSizes[0]);
           if (!resources->buffers[0]) {
             return flagcxSystemError;
           }
-        } else if (comm->flagcxNet == &flagcxNetIb){
+        } else if (comm->flagcxNet == &flagcxNetIb) {
           deviceAdaptor->gdrMemAlloc((void **)&resources->buffers[0],
                                      resources->buffSizes[0], NULL);
         }

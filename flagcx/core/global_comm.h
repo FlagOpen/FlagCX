@@ -28,7 +28,6 @@ struct flagcxComm {
   int homo_inter_rank;
   int homo_ranks;
   int has_single_rank_homo_comm;
-  int support_multi_nic;
   flagcxCommunicatorType_t comm_type;
   uint64_t magic;
   volatile uint32_t *abortFlag;
