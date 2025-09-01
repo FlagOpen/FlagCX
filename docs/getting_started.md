@@ -53,7 +53,7 @@ sudo docker run -itd \
    
 2. Successful Build Result
 
-   ![FlagCX_Build_and_Installation_Successful_Build_Result.PNG](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/FlagCX_Build_and_Installation_Successful_Build_Result.PNG)
+   ![flagcx_build_and_installation_successful_build_result.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/flagcx_build_and_installation_successful_build_result.png)
 
 3. Potential Issues During Compilation
 
@@ -91,7 +91,7 @@ sudo docker run -itd \
 
 ## Homogeneous Testing with FlagCX
 
-### Communication API Test
+## Communication API Test
 
 1. Environment Setup
 
@@ -106,9 +106,9 @@ sudo docker run -itd \
 
 3. Successful Build Result
 
-   ![Homogeneous_Communication_API_Test_Successful_Build_Result.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/Homogeneous_Communication_API_Test_Successful_Build_Result.png)
+   ![homogeneous_communication_api_test_successful_build_result.png](https://github.com/whollo/FlagCX/blob/add-flagcx-wuh/docs/images/homogeneous_communication_api_test_successful_build_result.png)
 
-### Torch API Test
+## Torch API Test
 
 1. Environment Setup
 
@@ -157,7 +157,7 @@ sudo docker run -itd \
      ```
 
 
-### FlagCX+FlagScale Homogeneous Training
+## Homogeneous Training with FlagCX + FlagScale
 
 1. Environment Setup
 
@@ -204,7 +204,7 @@ sudo docker run -itd \
 
 ## Heterogeneous Testing with FlagCX
 
-### Communication API Test
+## Communication API Test
 
 1. Environment Setup
 
