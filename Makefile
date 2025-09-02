@@ -14,6 +14,7 @@ USE_MUSA ?= 0
 USE_KUNLUNXIN ?=0
 USE_DU ?= 0
 USE_MPI ?= 0
+USE_MLX5DV ?= 0
 
 # set to empty if not provided
 DEVICE_HOME ?=
@@ -164,6 +165,11 @@ else
 	ADAPTOR_FLAG = -DUSE_NVIDIA_ADAPTOR
 endif
 
+
+ifneq ($(MLX5DV), 0)
+CXXFLAGS += -DUSE_BUILD_MLX5DV=1 -lmlx5
+endif
+
 ifeq ($(USE_GLOO), 1)
 	HOST_CCL_LIB = $(HOST_CCL_HOME)/lib
 	HOST_CCL_INCLUDE = $(HOST_CCL_HOME)/include
@@ -199,7 +205,8 @@ LIBSRCFILES:= \
 	$(wildcard flagcx/*.cc) \
 	$(wildcard flagcx/core/*.cc) \
 	$(wildcard flagcx/adaptor/*.cc) \
-	$(wildcard flagcx/service/*.cc)
+	$(wildcard flagcx/service/*.cc) \
+	$(wildcard flagcx/misc/*.cc)
 
 LIBOBJ     := $(LIBSRCFILES:%.cc=$(OBJDIR)/%.o)
 
