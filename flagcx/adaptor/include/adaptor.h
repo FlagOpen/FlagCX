@@ -195,6 +195,62 @@ struct flagcxDeviceAdaptor {
                                              unsigned long long flags);
 };
 
+struct flagcxNetAdaptor {
+  // Basic functions
+  const char *name;
+  flagcxResult_t (*init)();
+  flagcxResult_t (*devices)(int *ndev);
+  flagcxResult_t (*getProperties)(
+      int dev, void *props); // TODO: add flagcxNetProperties_t* props
+  flagcxResult_t (*reduceSupport)(flagcxDataType_t dataType,
+                                  flagcxRedOp_t redOp, int *supported);
+  flagcxResult_t (*getDeviceMr)(void *comm, void *mhandle, void **dptr_mhandle);
+  flagcxResult_t (*irecvConsumed)(void *recvComm, int n, void *request);
+  // flagcxResult_t (*makeVDevice)(int* d, flagcxNetVDeviceProps_t* props);
+
+  // Setup functions
+  flagcxResult_t (*listen)(int dev, void *handle, void **listenComm);
+  flagcxResult_t (*connect)(
+      int dev, void *handle,
+      void **sendComm); // TODO: add flagcxNetDeviceHandle_t** sendDevComm
+  // flagcxResult_t (*connect)(void* handles[], int nranks, int rank, void*
+  // listenComm, void** collComm);
+  flagcxResult_t (*accept)(
+      void *listenComm,
+      void **recvComm); // TODO: add flagcxNetDeviceHandle_t** recvDevComm
+  flagcxResult_t (*close)(void *comm);
+  flagcxResult_t (*closeListen)(void *listenComm);
+
+  // Memory region functions
+  flagcxResult_t (*regMr)(void *comm, void *data, size_t size, int type,
+                          void **mhandle);
+  flagcxResult_t (*regMrDmaBuf)(void *comm, void *data, size_t size, int type,
+                                uint64_t offset, int fd, void **mhandle);
+  flagcxResult_t (*deregMr)(void *comm, void *mhandle);
+
+  // Two-sided functions
+  flagcxResult_t (*isend)(void *sendComm, void *data, size_t size, int tag,
+                          void *mhandle, void *phandle, void **request);
+  flagcxResult_t (*irecv)(void *recvComm, int n, void **data, size_t *sizes,
+                          int *tags, void **mhandles, void **phandles,
+                          void **request);
+  flagcxResult_t (*iflush)(void *recvComm, int n, void **data, int *sizes,
+                           void **mhandles, void **request);
+  flagcxResult_t (*test)(void *request, int *done, int *sizes);
+
+  // One-sided functions
+  flagcxResult_t (*write)(void *sendComm, void *data, size_t size, int tag,
+                          void *mhandle, void *phandle, void **request);
+  flagcxResult_t (*read)(void *recvComm, void *data, size_t size, int tag,
+                         void *mhandle, void *phandle, void **request);
+  flagcxResult_t (*signal)(void *sendComm, void *data, size_t size, int tag,
+                           void *mhandle, void *phandle, void **request);
+
+  // TODO: add switch functions such as
+  // iallreduce, iallgather, ireducescatter,
+  // ireduce, ibroadcast, iflush, etc.
+};
+
 #ifdef __cplusplus
 } // end extern "C"
 #endif
