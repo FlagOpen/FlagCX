@@ -193,12 +193,16 @@ INCLUDEDIR := \
 	$(abspath flagcx/include) \
 	$(abspath flagcx/core) \
 	$(abspath flagcx/adaptor) \
+	$(abspath flagcx/adaptor/include) \
 	$(abspath flagcx/service)
 
 LIBSRCFILES:= \
 	$(wildcard flagcx/*.cc) \
 	$(wildcard flagcx/core/*.cc) \
 	$(wildcard flagcx/adaptor/*.cc) \
+	$(wildcard flagcx/adaptor/device/*.cc) \
+	$(wildcard flagcx/adaptor/ccl/*.cc) \
+	$(wildcard flagcx/adaptor/net/*.cc) \
 	$(wildcard flagcx/service/*.cc)
 
 LIBOBJ     := $(LIBSRCFILES:%.cc=$(OBJDIR)/%.o)
