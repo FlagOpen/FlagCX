@@ -10,8 +10,8 @@
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
 #elif USE_ASCEND_ADAPTOR
-#include "torch_npu/csrc/core/npu/NPUStream.h"
 #include "torch_npu/csrc/core/npu/NPUEvent.h"
+#include "torch_npu/csrc/core/npu/NPUStream.h"
 #elif USE_ILUVATAR_COREX_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
@@ -22,14 +22,18 @@
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
 #elif USE_MUSA_ADAPTOR
-#include <torch_musa/csrc/core/MUSAEvent.h>
 #include <musa_runtime.h>
+#include <torch_musa/csrc/core/MUSAEvent.h>
 #elif USE_DU_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
 #elif USE_KUNLUNXIN_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
+#elif USE_AMD_ADAPTOR
+#include <ATen/cuda/CUDAEvent.h>
+#include <cuda_runtime.h>
+// #include <hip/hip_runtime.h>
 #endif
 
 namespace c10d {
@@ -237,6 +241,28 @@ private:
 class flagcxXpuEvent : public flagcxEvent {
 public:
   flagcxXpuEvent() { cudaEvent_ = at::cuda::CUDAEvent(cudaEventDisableTiming); }
+
+  void record(const int deviceId) override {
+    cudaEvent_.record(at::cuda::getCurrentCUDAStream(deviceId));
+  }
+
+  void record(const flagcxStream_t &stream, const int deviceId) override {
+    cudaEvent_.record(
+        at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId));
+  }
+
+  void block(const int deviceId) override {
+    cudaEvent_.block(at::cuda::getCurrentCUDAStream(deviceId));
+  }
+
+  void block(const flagcxStream_t &stream, const int deviceId) override {
+    cudaEvent_.block(
+        at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId));
+  }
+#elif USE_AMD_ADAPTOR
+class flagcxHipEvent : public flagcxEvent {
+public:
+  flagcxHipEvent() { cudaEvent_ = at::cuda::CUDAEvent(cudaEventDisableTiming); }
 
   void record(const int deviceId) override {
     cudaEvent_.record(at::cuda::getCurrentCUDAStream(deviceId));

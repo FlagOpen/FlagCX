@@ -12,6 +12,7 @@ USE_BOOTSTRAP ?= 0
 USE_METAX ?= 0
 USE_MUSA ?= 0
 USE_KUNLUNXIN ?=0
+USE_AMD ?= 0
 USE_DU ?= 0
 USE_MPI ?= 0
 USE_UCX ?= 0
@@ -40,6 +41,8 @@ ifeq ($(strip $(DEVICE_HOME)),)
 		DEVICE_HOME = /usr/local/xpu
 	else ifeq ($(USE_DU), 1)
 		DEVICE_HOME = ${CUDA_PATH}
+	else ifeq ($(USE_AMD), 1)
+		DEVICE_HOME = /opt/rocm
 	else
 		DEVICE_HOME = /usr/local/cuda
 	endif
@@ -62,6 +65,8 @@ ifeq ($(strip $(CCL_HOME)),)
 		CCL_HOME = /usr/local/xccl
 	else ifeq ($(USE_DU), 1)
 		CCL_HOME = ${CUDA_PATH}
+	else ifeq ($(USE_AMD), 1)
+		CCL_HOME = /opt/rocm
 	else
 		CCL_HOME = /usr/local/nccl/build
 	endif
@@ -166,6 +171,14 @@ else ifeq ($(USE_DU), 1)
 	CCL_INCLUDE = $(CCL_HOME)/include
 	CCL_LINK = -lnccl
 	ADAPTOR_FLAG = -DUSE_DU_ADAPTOR
+else ifeq ($(USE_AMD), 1)
+	DEVICE_LIB = $(DEVICE_HOME)/lib
+	DEVICE_INCLUDE = $(DEVICE_HOME)/include
+	DEVICE_LINK = -lhiprtc
+	CCL_LIB = $(CCL_HOME)/lib
+	CCL_INCLUDE = $(CCL_HOME)/include/rccl
+	CCL_LINK = -lrccl
+	ADAPTOR_FLAG = -DUSE_AMD_ADAPTOR -D__HIP_PLATFORM_AMD__
 else
 	DEVICE_LIB = $(DEVICE_HOME)/lib64
 	DEVICE_INCLUDE = $(DEVICE_HOME)/include
@@ -242,6 +255,7 @@ print_var:
 	@echo "HOST_CCL_HOME: $(HOST_CCL_HOME)"
 	@echo "MPI_HOME: $(MPI_HOME)"
 	@echo "USE_NVIDIA: $(USE_NVIDIA)"
+	@echo "USE_ASCEND: $(USE_ASCEND)"
 	@echo "USE_ILUVATAR_COREX: $(USE_ILUVATAR_COREX)"
 	@echo "USE_CAMBRICON: $(USE_CAMBRICON)"
 	@echo "USE_KUNLUNXIN: $(USE_KUNLUNXIN)"
@@ -249,6 +263,7 @@ print_var:
 	@echo "USE_MPI: $(USE_MPI)"
 	@echo "USE_MUSA: $(USE_MUSA)"
 	@echo "USE_DU: $(USE_DU)"
+	@echo "USE_AMD: $(USE_AMD)"
 	@echo "DEVICE_LIB: $(DEVICE_LIB)"
 	@echo "DEVICE_INCLUDE: $(DEVICE_INCLUDE)"
 	@echo "CCL_LIB: $(CCL_LIB)"
