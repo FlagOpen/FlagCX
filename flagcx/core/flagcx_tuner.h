@@ -8,17 +8,11 @@
 #ifndef FLAGCX_TUNER_H_
 #define FLAGCX_TUNER_H_
 
-#include <string>
-#include <map>
-#include <utility>
-#include <vector>
 #include "core.h"
+#include "tuner.h"
 #include "flagcx_common.h"
 
-// Environment list type for tuner. Each element is a pair of <env_name, env_value>
-using TunerEnvList = std::vector<std::pair<std::string, std::string>>;
-
-// API of tuner to be implemented by internal only
+// API of tuner for internal use only
 typedef struct {
   // Name of the tuner
   const char *name;
@@ -35,20 +29,26 @@ typedef struct {
   flagcxResult_t (*init)(size_t nRanks, size_t nNodes,
                          flagcxDebugLogger_t logFunction, void **context);
 
-  // Gets all candidate communicator settings from this tuner.
-  // Note that these env settings take effect only for creating the underlying 
-  // communicator. Each communicator has its own unique communicator tag.
+  // Gets number of candidate communicator env settings available from this tuner.
   // Inputs:
   //   - context: tuner context object
   // Outputs:
-  //   - comm_env_map: a map of communicator tag and corresponding env settings(a list of env)
-  //                   for creating the underlying communicator.
-  //                   key: communicator tag, value: env setting list.
-  flagcxResult_t (*getCandidates)(void* context,
-                                 std::map<std::string, TunerEnvList>& comm_env_map);
+  //   - nCandidates: number of candidate communicator
+  flagcxResult_t (*getCandidateNumber)(void* context, int* nCandidates);
 
-  // Gets communicator tag and corresponding collective env setting(a list of env) for a given
-  // collective op. Note these env settings take effect only for this specific collective.
+  // Set appropriate environment variables according to index, and return the communicator tag.
+  // Note that all the env settings are set before returning from this function.
+  // Only env of type FLAGCX_ENV_TYPE_CREATION will be set in this function.
+  // Inputs:
+  //   - context: tuner context object
+  //   - index: index of candidate communicator, range [0, nCandidates)
+  // Outputs:
+  //   - comm_tag: communicator tag for this particular candidate
+  flagcxResult_t (*setCandidate)(void* context, int index, struct flagcxCommTag* comm_tag);
+
+  // Select the best communicator candidate for this collective.
+  // All the env of type FLAGCX_ENV_TYPE_COLL and FLAGCX_ENV_TYPE_ONETIME if necessary
+  // will be set before returning from this function.
   // Inputs:
   //   - context: tuner context object
   //   - collType: collective type , e.g., allreduce, allgather…
@@ -58,7 +58,6 @@ typedef struct {
   //
   // Outputs:
   //   - comm_tag: communicator tag, used to select the underlying communicator.
-  //   - env_list: a list of env settings for this specific collective op.
   //
   // InOut:
   //   - collCostTable: collective cost table.
@@ -66,14 +65,11 @@ typedef struct {
   flagcxResult_t (*getCollInfo)(void* context, flagcxFunc_t collType,
                                 size_t nBytes, int numPipeOps,
                                 float** collCostTable, int regBuff,
-                                std::string& comm_tag,
-                                TunerEnvList& env_list);
+                                struct flagcxCommTag* comm_tag);
 
   // Terminates the tuner and cleans up any resources that the tuner allocated.
   // context: tuner context object
   flagcxResult_t (*destroy)(void *context);
 } flagcxTuner_t;
-
-#define FLAGCX_TUNER_PLUGIN_SYMBOL "flagcxTunerPlugin_v1"
 
 #endif
