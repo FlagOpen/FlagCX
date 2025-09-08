@@ -310,7 +310,7 @@ struct flagcxProxyState {
   // Service threads
   pthread_t thread;
   pthread_t threadUDS;
-  struct flagcxSocket *listenSock;
+  struct flagcxSocket listenSock;
   struct flagcxSocket ipcSock;
   int stop;
   flagcxResult_t asyncResult;
