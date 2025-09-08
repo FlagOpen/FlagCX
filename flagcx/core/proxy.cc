@@ -747,13 +747,14 @@ void *flagcxProxyService(void *args) {
       closeConn = 1;
       break;
     }
+    if (closeConn) {
+      break;
+    }
 
     // Progress all ops
-    int type;
     list = opHead;
     while (list) {
       struct flagcxProxyAsyncOp *opNext = list->next;
-      type = list->type;
       res = proxyProgressAsync(&opHead, list, &asyncOpCount);
       if (res == flagcxSuccess || res == flagcxInProgress) {
         list = opNext;
@@ -765,8 +766,12 @@ void *flagcxProxyService(void *args) {
         break;
       }
     }
+    if (closeConn) {
+      break;
+    }
 
     // Check for additional ops coming in
+    int type;
     if (pollfds[0].revents & POLLIN) {
       int closed = 0;
       res = flagcxSocketTryRecv(&sock, &type, sizeof(int), &closed,
@@ -787,6 +792,12 @@ void *flagcxProxyService(void *args) {
           closeConn = 1;
         } else if (proxyMatchOpType(type)) {
           res = proxyServiceInitOp(type, &sock, &opHead, comm, &asyncOpCount);
+          if (res != flagcxSuccess) {
+            WARN("[Service thread] Error encountered initializing operation "
+                 "with res=%d, closing connection",
+                 res);
+            closeConn = 1;
+          }
         } else {
           INFO(FLAGCX_PROXY, "[Service thread] Unknown command %d from rank %d",
                type, comm->rank);
@@ -816,7 +827,6 @@ out:
     struct flagcxProxyAsyncOp *opNext = list->next;
     asyncProxyOpDequeue(&opHead, list);
     list = opNext;
-    asyncOpCount--;
   }
 
   INFO(FLAGCX_PROXY,

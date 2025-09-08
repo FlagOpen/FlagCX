@@ -265,14 +265,6 @@ struct flagcxProxyAsyncOp {
   flagcxProxyAsyncOp *next;
 };
 
-struct flagcxProxyLocalPeer {
-  struct flagcxSocket sock;
-  int tpRank;
-  int tpLocalRank;
-  flagcxProxyAsyncOp *asyncOps;
-  int asyncOpCounter;
-};
-
 // Common response header for all proxyOps
 // We pack this into a struct to reduce the number of blocking send and recv
 // calls
