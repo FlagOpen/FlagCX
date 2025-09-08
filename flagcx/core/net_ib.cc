@@ -96,17 +96,17 @@ static void *flagcxIbAsyncThreadMain(void *args) {
   struct flagcxIbDev *dev = (struct flagcxIbDev *)args;
   while (1) {
     struct ibv_async_event event;
-    if (flagcxSuccess != wrap_ibv_get_async_event(dev->context, &event)) {
+    if (flagcxSuccess != flagcxWrapIbvGetAsyncEvent(dev->context, &event)) {
       break;
     }
     char *str;
-    if (flagcxSuccess != wrap_ibv_event_type_str(&str, event.event_type)) {
+    if (flagcxSuccess != flagcxWrapIbvEventTypeStr(&str, event.event_type)) {
       break;
     }
     if (event.event_type != IBV_EVENT_COMM_EST)
       WARN("NET/IB : %s:%d Got async event : %s", dev->devName, dev->portNum,
            str);
-    if (flagcxSuccess != wrap_ibv_ack_async_event(&event)) {
+    if (flagcxSuccess != flagcxWrapIbvAckAsyncEvent(&event)) {
       break;
     }
   }
@@ -288,9 +288,9 @@ static flagcxResult_t flagcxUpdateGidIndex(struct ibv_context *context,
                                            int roceVer, int gidIndexCandidate,
                                            int *gidIndex) {
   union ibv_gid gid, gidCandidate;
-  FLAGCXCHECK(wrap_ibv_query_gid(context, portNum, *gidIndex, &gid));
-  FLAGCXCHECK(
-      wrap_ibv_query_gid(context, portNum, gidIndexCandidate, &gidCandidate));
+  FLAGCXCHECK(flagcxWrapIbvQueryGid(context, portNum, *gidIndex, &gid));
+  FLAGCXCHECK(flagcxWrapIbvQueryGid(context, portNum, gidIndexCandidate,
+                                    &gidCandidate));
 
   sa_family_t usrFam = af;
   sa_family_t gidFam = getGidAddrFamily(&gid);
@@ -308,7 +308,7 @@ static flagcxResult_t flagcxUpdateGidIndex(struct ibv_context *context,
     }
     int usrRoceVer = roceVer;
     int gidRoceVerNum, gidRoceVerNumCandidate;
-    const char *deviceName = wrap_ibv_get_device_name(context->device);
+    const char *deviceName = flagcxWrapIbvGetDeviceName(context->device);
     FLAGCXCHECK(flagcxIbRoceGetVersionNum(deviceName, portNum, *gidIndex,
                                           &gidRoceVerNum));
     FLAGCXCHECK(flagcxIbRoceGetVersionNum(
@@ -402,7 +402,7 @@ static int flagcxIbRelaxedOrderingCapable(void) {
   flagcxResult_t r = flagcxInternalError;
   if (roMode == 1 || roMode == 2) {
     // Query IBVERBS_1.8 API - needed for IBV_ACCESS_RELAXED_ORDERING support
-    r = wrap_ibv_reg_mr_iova2(NULL, NULL, NULL, 0, 0, 0);
+    r = flagcxWrapIbvRegMrIova2(NULL, NULL, NULL, 0, 0, 0);
   }
   return r == flagcxInternalError ? 0 : 1;
 }
@@ -437,13 +437,13 @@ flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
   if (flagcxParamIbDisable())
     return flagcxInternalError;
   static int shownIbHcaEnv = 0;
-  if (wrap_ibv_symbols() != flagcxSuccess) {
+  if (flagcxWrapIbvSymbols() != flagcxSuccess) {
     return flagcxInternalError;
   }
 
   if (flagcxNIbDevs == -1) {
     pthread_mutex_lock(&flagcxIbLock);
-    wrap_ibv_fork_init();
+    flagcxWrapIbvForkInit();
     if (flagcxNIbDevs == -1) {
       flagcxNIbDevs = 0;
       flagcxNMergedIbDevs = 0;
@@ -471,14 +471,14 @@ flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
         userIbEnv++;
       int nUserIfs = parseStringList(userIbEnv, userIfs, MAX_IB_DEVS);
 
-      if (flagcxSuccess != wrap_ibv_get_device_list(&devices, &nIbDevs)) {
+      if (flagcxSuccess != flagcxWrapIbvGetDeviceList(&devices, &nIbDevs)) {
         ret = flagcxInternalError;
         goto fail;
       }
 
       for (int d = 0; d < nIbDevs && flagcxNIbDevs < MAX_IB_DEVS; d++) {
         struct ibv_context *context;
-        if (flagcxSuccess != wrap_ibv_open_device(&context, devices[d]) ||
+        if (flagcxSuccess != flagcxWrapIbvOpenDevice(&context, devices[d]) ||
             context == NULL) {
           WARN("NET/IB : Unable to open device %s", devices[d]->name);
           continue;
@@ -486,9 +486,9 @@ flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
         int nPorts = 0;
         struct ibv_device_attr devAttr;
         memset(&devAttr, 0, sizeof(devAttr));
-        if (flagcxSuccess != wrap_ibv_query_device(context, &devAttr)) {
+        if (flagcxSuccess != flagcxWrapIbvQueryDevice(context, &devAttr)) {
           WARN("NET/IB : Unable to query device %s", devices[d]->name);
-          if (flagcxSuccess != wrap_ibv_close_device(context)) {
+          if (flagcxSuccess != flagcxWrapIbvCloseDevice(context)) {
             ret = flagcxInternalError;
             goto fail;
           }
@@ -497,7 +497,7 @@ flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
         for (int port_num = 1; port_num <= devAttr.phys_port_cnt; port_num++) {
           struct ibv_port_attr portAttr;
           if (flagcxSuccess !=
-              wrap_ibv_query_port(context, port_num, &portAttr)) {
+              flagcxWrapIbvQueryPort(context, port_num, &portAttr)) {
             WARN("NET/IB : Unable to query port_num %d", port_num);
             continue;
           }
@@ -591,12 +591,12 @@ flagcxResult_t flagcxIbInit(flagcxDebugLogger_t logFunction) {
           flagcxNIbDevs++;
           nPorts++;
         }
-        if (nPorts == 0 && flagcxSuccess != wrap_ibv_close_device(context)) {
+        if (nPorts == 0 && flagcxSuccess != flagcxWrapIbvCloseDevice(context)) {
           ret = flagcxInternalError;
           goto fail;
         }
       }
-      if (nIbDevs && (flagcxSuccess != wrap_ibv_free_device_list(devices))) {
+      if (nIbDevs && (flagcxSuccess != flagcxWrapIbvFreeDeviceList(devices))) {
         ret = flagcxInternalError;
         goto fail;
       };
@@ -689,16 +689,16 @@ flagcxResult_t flagcxIbDmaBufSupport(int dev) {
     for (int i = 0; i < mergedDev->ndevs; i++) {
       int ibDev = mergedDev->devs[i];
       ctx = flagcxIbDevs[ibDev].context;
-      FLAGCXCHECKGOTO(wrap_ibv_alloc_pd(&pd, ctx), res, failure);
+      FLAGCXCHECKGOTO(flagcxWrapIbvAllocPd(&pd, ctx), res, failure);
       // Test kernel DMA-BUF support with a dummy call (fd=-1)
-      (void)wrap_direct_ibv_reg_dmabuf_mr(pd, 0ULL /*offset*/, 0ULL /*len*/,
-                                          0ULL /*iova*/, -1 /*fd*/,
-                                          0 /*flags*/);
+      (void)flagcxWrapDirectIbvRegDmabufMr(pd, 0ULL /*offset*/, 0ULL /*len*/,
+                                           0ULL /*iova*/, -1 /*fd*/,
+                                           0 /*flags*/);
       // ibv_reg_dmabuf_mr() will fail with EOPNOTSUPP/EPROTONOSUPPORT if not
       // supported (EBADF otherwise)
       dmaBufSupported =
           (errno != EOPNOTSUPP && errno != EPROTONOSUPPORT) ? 1 : 0;
-      FLAGCXCHECKGOTO(wrap_ibv_dealloc_pd(pd), res, failure);
+      FLAGCXCHECKGOTO(flagcxWrapIbvDeallocPd(pd), res, failure);
     }
   }
   if (dmaBufSupported == 0)
@@ -927,7 +927,7 @@ flagcxResult_t flagcxIbInitCommDevBase(int ibDevN,
   pthread_mutex_lock(&ibDev->lock);
   if (0 == ibDev->pdRefs++) {
     flagcxResult_t res;
-    FLAGCXCHECKGOTO(wrap_ibv_alloc_pd(&ibDev->pd, ibDev->context), res,
+    FLAGCXCHECKGOTO(flagcxWrapIbvAllocPd(&ibDev->pd, ibDev->context), res,
                     failure);
     if (0) {
     failure:
@@ -940,20 +940,20 @@ flagcxResult_t flagcxIbInitCommDevBase(int ibDevN,
 
   // Recv requests can generate 2 completions (one for the post FIFO, one for
   // the Recv).
-  FLAGCXCHECK(wrap_ibv_create_cq(&base->cq, ibDev->context,
-                                 2 * MAX_REQUESTS * flagcxParamIbQpsPerConn(),
-                                 NULL, NULL, 0));
+  FLAGCXCHECK(flagcxWrapIbvCreateCq(
+      &base->cq, ibDev->context, 2 * MAX_REQUESTS * flagcxParamIbQpsPerConn(),
+      NULL, NULL, 0));
 
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxIbDestroyBase(struct flagcxIbNetCommDevBase *base) {
   flagcxResult_t res;
-  FLAGCXCHECK(wrap_ibv_destroy_cq(base->cq));
+  FLAGCXCHECK(flagcxWrapIbvDestroyCq(base->cq));
 
   pthread_mutex_lock(&flagcxIbDevs[base->ibDevN].lock);
   if (0 == --flagcxIbDevs[base->ibDevN].pdRefs) {
-    FLAGCXCHECKGOTO(wrap_ibv_dealloc_pd(flagcxIbDevs[base->ibDevN].pd), res,
+    FLAGCXCHECKGOTO(flagcxWrapIbvDeallocPd(flagcxIbDevs[base->ibDevN].pd), res,
                     returning);
   }
   res = flagcxSuccess;
@@ -977,16 +977,16 @@ flagcxResult_t flagcxIbCreateQp(uint8_t ib_port,
   qpInitAttr.cap.max_recv_sge = 1;
   qpInitAttr.cap.max_inline_data =
       flagcxParamIbUseInline() ? sizeof(struct flagcxIbSendFifo) : 0;
-  FLAGCXCHECK(wrap_ibv_create_qp(&qp->qp, base->pd, &qpInitAttr));
+  FLAGCXCHECK(flagcxWrapIbvCreateQp(&qp->qp, base->pd, &qpInitAttr));
   struct ibv_qp_attr qpAttr;
   memset(&qpAttr, 0, sizeof(struct ibv_qp_attr));
   qpAttr.qp_state = IBV_QPS_INIT;
   qpAttr.pkey_index = flagcxParamIbPkey();
   qpAttr.port_num = ib_port;
   qpAttr.qp_access_flags = access_flags;
-  FLAGCXCHECK(wrap_ibv_modify_qp(qp->qp, &qpAttr,
-                                 IBV_QP_STATE | IBV_QP_PKEY_INDEX |
-                                     IBV_QP_PORT | IBV_QP_ACCESS_FLAGS));
+  FLAGCXCHECK(flagcxWrapIbvModifyQp(qp->qp, &qpAttr,
+                                    IBV_QP_STATE | IBV_QP_PKEY_INDEX |
+                                        IBV_QP_PORT | IBV_QP_ACCESS_FLAGS));
   return flagcxSuccess;
 }
 
@@ -1016,7 +1016,7 @@ flagcxResult_t flagcxIbRtrQp(struct ibv_qp *qp, uint8_t sGidIndex,
   qpAttr.ah_attr.sl = flagcxParamIbSl();
   qpAttr.ah_attr.src_path_bits = 0;
   qpAttr.ah_attr.port_num = info->ib_port;
-  FLAGCXCHECK(wrap_ibv_modify_qp(
+  FLAGCXCHECK(flagcxWrapIbvModifyQp(
       qp, &qpAttr,
       IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
           IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER));
@@ -1032,10 +1032,10 @@ flagcxResult_t flagcxIbRtsQp(struct ibv_qp *qp) {
   qpAttr.rnr_retry = 7;
   qpAttr.sq_psn = 0;
   qpAttr.max_rd_atomic = 1;
-  FLAGCXCHECK(wrap_ibv_modify_qp(qp, &qpAttr,
-                                 IBV_QP_STATE | IBV_QP_TIMEOUT |
-                                     IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
-                                     IBV_QP_SQ_PSN | IBV_QP_MAX_QP_RD_ATOMIC));
+  FLAGCXCHECK(flagcxWrapIbvModifyQp(
+      qp, &qpAttr,
+      IBV_QP_STATE | IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
+          IBV_QP_SQ_PSN | IBV_QP_MAX_QP_RD_ATOMIC));
   return flagcxSuccess;
 }
 
@@ -1125,8 +1125,8 @@ ib_connect_check:
     meta.qpInfo[q].devIndex = comm->base.qps[q].devIndex;
 
     // Query ece capabilities (enhanced connection establishment)
-    FLAGCXCHECK(wrap_ibv_query_ece(comm->base.qps[q].qp, &meta.qpInfo[q].ece,
-                                   &meta.qpInfo[q].ece_supported));
+    FLAGCXCHECK(flagcxWrapIbvQueryEce(comm->base.qps[q].qp, &meta.qpInfo[q].ece,
+                                      &meta.qpInfo[q].ece_supported));
     devIndex = (devIndex + 1) % comm->base.ndevs;
   }
 
@@ -1141,12 +1141,12 @@ ib_connect_check:
     devInfo->lid = ibDev->portAttr.lid;
 
     // Prepare my fifo
-    FLAGCXCHECK(wrap_ibv_reg_mr(&commDev->fifoMr, commDev->base.pd, comm->fifo,
-                                sizeof(struct flagcxIbSendFifo) * MAX_REQUESTS *
-                                    FLAGCX_NET_IB_MAX_RECVS,
-                                IBV_ACCESS_LOCAL_WRITE |
-                                    IBV_ACCESS_REMOTE_WRITE |
-                                    IBV_ACCESS_REMOTE_READ));
+    FLAGCXCHECK(
+        flagcxWrapIbvRegMr(&commDev->fifoMr, commDev->base.pd, comm->fifo,
+                           sizeof(struct flagcxIbSendFifo) * MAX_REQUESTS *
+                               FLAGCX_NET_IB_MAX_RECVS,
+                           IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
+                               IBV_ACCESS_REMOTE_READ));
     devInfo->fifoRkey = commDev->fifoMr->rkey;
 
     // RoCE support
@@ -1156,9 +1156,9 @@ ib_connect_check:
       FLAGCXCHECK(flagcxIbGetGidIndex(ibDev->context, ibDev->portNum,
                                       ibDev->portAttr.gid_tbl_len,
                                       &commDev->base.gidInfo.localGidIndex));
-      FLAGCXCHECK(wrap_ibv_query_gid(ibDev->context, ibDev->portNum,
-                                     commDev->base.gidInfo.localGidIndex,
-                                     &commDev->base.gidInfo.localGid));
+      FLAGCXCHECK(flagcxWrapIbvQueryGid(ibDev->context, ibDev->portNum,
+                                        commDev->base.gidInfo.localGidIndex,
+                                        &commDev->base.gidInfo.localGid));
       devInfo->spn = commDev->base.gidInfo.localGid.global.subnet_prefix;
       devInfo->iid = commDev->base.gidInfo.localGid.global.interface_id;
     }
@@ -1259,11 +1259,11 @@ ib_connect:
 
   for (int i = 0; i < comm->base.ndevs; i++) {
     FLAGCXCHECK(
-        wrap_ibv_reg_mr(comm->remSizesFifo.mrs + i, comm->devs[i].base.pd,
-                        &comm->remSizesFifo.elems,
-                        sizeof(int) * MAX_REQUESTS * FLAGCX_NET_IB_MAX_RECVS,
-                        IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE |
-                            IBV_ACCESS_REMOTE_READ));
+        flagcxWrapIbvRegMr(comm->remSizesFifo.mrs + i, comm->devs[i].base.pd,
+                           &comm->remSizesFifo.elems,
+                           sizeof(int) * MAX_REQUESTS * FLAGCX_NET_IB_MAX_RECVS,
+                           IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE |
+                               IBV_ACCESS_REMOTE_READ));
   }
   comm->base.nRemDevs = remMeta.ndevs;
 
@@ -1280,7 +1280,7 @@ ib_connect:
     struct ibv_qp *qp = comm->base.qps[q].qp;
     if (remQpInfo->ece_supported && remQpInfo->ece_supported)
       FLAGCXCHECK(
-          wrap_ibv_set_ece(qp, &remQpInfo->ece, &remQpInfo->ece_supported));
+          flagcxWrapIbvSetEce(qp, &remQpInfo->ece, &remQpInfo->ece_supported));
 
     FLAGCXCHECK(flagcxIbRtrQp(qp, gidIndex, remQpInfo->qpn, remDevInfo));
     FLAGCXCHECK(flagcxIbRtsQp(qp));
@@ -1400,9 +1400,9 @@ ib_recv:
     FLAGCXCHECK(flagcxIbGetGidIndex(ibDev->context, ibDev->portNum,
                                     ibDev->portAttr.gid_tbl_len,
                                     &rCommDev->base.gidInfo.localGidIndex));
-    FLAGCXCHECK(wrap_ibv_query_gid(ibDev->context, ibDev->portNum,
-                                   rCommDev->base.gidInfo.localGidIndex,
-                                   &rCommDev->base.gidInfo.localGid));
+    FLAGCXCHECK(flagcxWrapIbvQueryGid(ibDev->context, ibDev->portNum,
+                                      rCommDev->base.gidInfo.localGidIndex,
+                                      &rCommDev->base.gidInfo.localGid));
   }
 
   // Copy remDevInfo for things like remGidInfo, remFifoAddr, etc.
@@ -1436,15 +1436,15 @@ ib_recv:
 
     // Set the ece (enhanced connection establishment) on this QP before RTR
     if (remMeta.qpInfo[q].ece_supported) {
-      FLAGCXCHECK(wrap_ibv_set_ece(qp->qp, &remMeta.qpInfo[q].ece,
-                                   &meta.qpInfo[q].ece_supported));
+      FLAGCXCHECK(flagcxWrapIbvSetEce(qp->qp, &remMeta.qpInfo[q].ece,
+                                      &meta.qpInfo[q].ece_supported));
 
       // Query the reduced ece for this QP (matching enhancements between the
       // requestor and the responder) Store this in our own qpInfo for returning
       // to the requestor
       if (meta.qpInfo[q].ece_supported)
-        FLAGCXCHECK(wrap_ibv_query_ece(qp->qp, &meta.qpInfo[q].ece,
-                                       &meta.qpInfo[q].ece_supported));
+        FLAGCXCHECK(flagcxWrapIbvQueryEce(qp->qp, &meta.qpInfo[q].ece,
+                                          &meta.qpInfo[q].ece_supported));
     }
 
     FLAGCXCHECK(flagcxIbRtrQp(qp->qp, rCommDev->base.gidInfo.localGidIndex,
@@ -1462,7 +1462,7 @@ ib_recv:
     // Retain remote fifo info and prepare my RDMA ops
     rCommDev->fifoRkey = remMeta.devs[i].fifoRkey;
     rComm->remFifo.addr = remMeta.fifoAddr;
-    FLAGCXCHECK(wrap_ibv_reg_mr(
+    FLAGCXCHECK(flagcxWrapIbvRegMr(
         &rCommDev->fifoMr, rCommDev->base.pd, &rComm->remFifo.elems,
         sizeof(struct flagcxIbSendFifo) * MAX_REQUESTS *
             FLAGCX_NET_IB_MAX_RECVS,
@@ -1474,9 +1474,9 @@ ib_recv:
 
     // Allocate Flush dummy buffer for GPU Direct RDMA
     if (rComm->flushEnabled) {
-      FLAGCXCHECK(wrap_ibv_reg_mr(&rCommDev->gpuFlush.hostMr, rCommDev->base.pd,
-                                  &rComm->gpuFlushHostMem, sizeof(int),
-                                  IBV_ACCESS_LOCAL_WRITE));
+      FLAGCXCHECK(flagcxWrapIbvRegMr(&rCommDev->gpuFlush.hostMr,
+                                     rCommDev->base.pd, &rComm->gpuFlushHostMem,
+                                     sizeof(int), IBV_ACCESS_LOCAL_WRITE));
       rCommDev->gpuFlush.sge.addr = (uint64_t)&rComm->gpuFlushHostMem;
       rCommDev->gpuFlush.sge.length = 1;
       rCommDev->gpuFlush.sge.lkey = rCommDev->gpuFlush.hostMr->lkey;
@@ -1511,7 +1511,7 @@ ib_recv:
     meta.devs[i].mtu = remMeta.devs[i].mtu;
 
     // Prepare sizes fifo
-    FLAGCXCHECK(wrap_ibv_reg_mr(
+    FLAGCXCHECK(flagcxWrapIbvRegMr(
         &rComm->devs[i].sizesFifoMr, rComm->devs[i].base.pd, rComm->sizesFifo,
         sizeof(int) * MAX_REQUESTS * FLAGCX_NET_IB_MAX_RECVS,
         IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
@@ -1619,9 +1619,9 @@ flagcxResult_t flagcxIbRegMrDmaBufInternal(flagcxIbNetCommDevBase *base,
         flags |= IBV_ACCESS_RELAXED_ORDERING;
       if (fd != -1) {
         /* DMA-BUF support */
-        FLAGCXCHECKGOTO(wrap_ibv_reg_dmabuf_mr(&mr, base->pd, offset,
-                                               pages * pageSize, addr, fd,
-                                               flags),
+        FLAGCXCHECKGOTO(flagcxWrapIbvRegDmabufMr(&mr, base->pd, offset,
+                                                 pages * pageSize, addr, fd,
+                                                 flags),
                         res, returning);
       } else {
         void *cpuptr = NULL;
@@ -1632,15 +1632,15 @@ flagcxResult_t flagcxIbRegMrDmaBufInternal(flagcxIbNetCommDevBase *base,
           // Use IBVERBS_1.8 API - needed for IBV_ACCESS_RELAXED_ORDERING
           // support
           FLAGCXCHECKGOTO(
-              wrap_ibv_reg_mr_iova2(&mr, base->pd,
-                                    cpuptr == NULL ? (void *)addr : cpuptr,
-                                    pages * pageSize, addr, flags),
+              flagcxWrapIbvRegMrIova2(&mr, base->pd,
+                                      cpuptr == NULL ? (void *)addr : cpuptr,
+                                      pages * pageSize, addr, flags),
               res, returning);
         } else {
           FLAGCXCHECKGOTO(
-              wrap_ibv_reg_mr(&mr, base->pd,
-                              cpuptr == NULL ? (void *)addr : cpuptr,
-                              pages * pageSize, flags),
+              flagcxWrapIbvRegMr(&mr, base->pd,
+                                 cpuptr == NULL ? (void *)addr : cpuptr,
+                                 pages * pageSize, flags),
               res, returning);
         }
         if (deviceAdaptor->gdrPtrMmap && deviceAdaptor->gdrPtrMunmap) {
@@ -1718,7 +1718,7 @@ flagcxResult_t flagcxIbRegMr(void *comm, void *data, size_t size, int type,
     struct flagcxIbNetCommDevBase *devComm = flagcxIbGetNetCommDevBase(base, i);
     unsigned int flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
                          IBV_ACCESS_REMOTE_READ;
-    wrap_ibv_reg_mr(&mhandleWrapper->mrs[i], devComm->pd, data, size, flags);
+    flagcxWrapIbvRegMr(&mhandleWrapper->mrs[i], devComm->pd, data, size, flags);
   }
   *mhandle = mhandleWrapper;
   return flagcxSuccess;
@@ -1739,7 +1739,7 @@ flagcxResult_t flagcxIbDeregMrInternal(flagcxIbNetCommDevBase *base,
           cache->slots = NULL;
           cache->capacity = 0;
         }
-        FLAGCXCHECKGOTO(wrap_ibv_dereg_mr(mhandle), res, returning);
+        FLAGCXCHECKGOTO(flagcxWrapIbvDeregMr(mhandle), res, returning);
       }
       res = flagcxSuccess;
       goto returning;
@@ -1862,7 +1862,7 @@ flagcxResult_t flagcxIbMultiSend(struct flagcxIbSendComm *comm, int slot) {
     }
 
     struct ibv_send_wr *bad_wr;
-    FLAGCXCHECK(wrap_ibv_post_send(qp->qp, comm->wrs, &bad_wr));
+    FLAGCXCHECK(flagcxWrapIbvPostSend(qp->qp, comm->wrs, &bad_wr));
 
     for (int r = 0; r < nreqs; r++) {
       int chunkSize = DIVUP(DIVUP(reqs[r]->send.size, nqps), align) * align;
@@ -2067,7 +2067,7 @@ flagcxResult_t flagcxIbPostFifo(struct flagcxIbRecvComm *comm, int n,
   }
 
   struct ibv_send_wr *bad_wr;
-  FLAGCXCHECK(wrap_ibv_post_send(ctsQp->qp, &wr, &bad_wr));
+  FLAGCXCHECK(flagcxWrapIbvPostSend(ctsQp->qp, &wr, &bad_wr));
   comm->remFifo.fifoTail++;
 
   return flagcxSuccess;
@@ -2113,7 +2113,7 @@ flagcxResult_t flagcxIbIrecv(void *recvComm, int n, void **data, int *sizes,
   for (int i = 0; i < nqps; i++) {
     struct flagcxIbQp *qp = comm->base.qps + comm->base.qpIndex;
     flagcxIbAddEvent(req, qp->devIndex, &comm->devs[qp->devIndex].base);
-    FLAGCXCHECK(wrap_ibv_post_recv(qp->qp, &wr, &bad_wr));
+    FLAGCXCHECK(flagcxWrapIbvPostRecv(qp->qp, &wr, &bad_wr));
     comm->base.qpIndex = (comm->base.qpIndex + 1) % comm->base.nqps;
   }
 
@@ -2160,7 +2160,8 @@ flagcxResult_t flagcxIbIflush(void *recvComm, int n, void **data, int *sizes,
 
     TIME_START(4);
     struct ibv_send_wr *bad_wr;
-    FLAGCXCHECK(wrap_ibv_post_send(comm->devs[i].gpuFlush.qp.qp, &wr, &bad_wr));
+    FLAGCXCHECK(
+        flagcxWrapIbvPostSend(comm->devs[i].gpuFlush.qp.qp, &wr, &bad_wr));
     TIME_STOP(4);
 
     flagcxIbAddEvent(req, i, &comm->devs[i].base);
@@ -2196,7 +2197,7 @@ flagcxResult_t flagcxIbTest(void *request, int *done, int *sizes) {
       TIME_START(3);
       // If we expect any completions from this device's CQ
       if (r->events[i]) {
-        FLAGCXCHECK(wrap_ibv_poll_cq(r->devBases[i]->cq, 4, wcs, &wrDone));
+        FLAGCXCHECK(flagcxWrapIbvPollCq(r->devBases[i]->cq, 4, wcs, &wrDone));
         totalWrDone += wrDone;
         if (wrDone == 0) {
           TIME_CANCEL(3);
@@ -2287,14 +2288,14 @@ flagcxResult_t flagcxIbCloseSend(void *sendComm) {
 
     for (int q = 0; q < comm->base.nqps; q++)
       if (comm->base.qps[q].qp != NULL)
-        FLAGCXCHECK(wrap_ibv_destroy_qp(comm->base.qps[q].qp));
+        FLAGCXCHECK(flagcxWrapIbvDestroyQp(comm->base.qps[q].qp));
 
     for (int i = 0; i < comm->base.ndevs; i++) {
       struct flagcxIbSendCommDev *commDev = comm->devs + i;
       if (commDev->fifoMr != NULL)
-        FLAGCXCHECK(wrap_ibv_dereg_mr(commDev->fifoMr));
+        FLAGCXCHECK(flagcxWrapIbvDeregMr(commDev->fifoMr));
       if (comm->remSizesFifo.mrs[i] != NULL)
-        FLAGCXCHECK(wrap_ibv_dereg_mr(comm->remSizesFifo.mrs[i]));
+        FLAGCXCHECK(flagcxWrapIbvDeregMr(comm->remSizesFifo.mrs[i]));
       FLAGCXCHECK(flagcxIbDestroyBase(&commDev->base));
     }
     free(comm);
@@ -2310,20 +2311,20 @@ flagcxResult_t flagcxIbCloseRecv(void *recvComm) {
 
     for (int q = 0; q < comm->base.nqps; q++)
       if (comm->base.qps[q].qp != NULL)
-        FLAGCXCHECK(wrap_ibv_destroy_qp(comm->base.qps[q].qp));
+        FLAGCXCHECK(flagcxWrapIbvDestroyQp(comm->base.qps[q].qp));
 
     for (int i = 0; i < comm->base.ndevs; i++) {
       struct flagcxIbRecvCommDev *commDev = comm->devs + i;
       if (comm->flushEnabled) {
         if (commDev->gpuFlush.qp.qp != NULL)
-          FLAGCXCHECK(wrap_ibv_destroy_qp(commDev->gpuFlush.qp.qp));
+          FLAGCXCHECK(flagcxWrapIbvDestroyQp(commDev->gpuFlush.qp.qp));
         if (commDev->gpuFlush.hostMr != NULL)
-          FLAGCXCHECK(wrap_ibv_dereg_mr(commDev->gpuFlush.hostMr));
+          FLAGCXCHECK(flagcxWrapIbvDeregMr(commDev->gpuFlush.hostMr));
       }
       if (commDev->fifoMr != NULL)
-        FLAGCXCHECK(wrap_ibv_dereg_mr(commDev->fifoMr));
+        FLAGCXCHECK(flagcxWrapIbvDeregMr(commDev->fifoMr));
       if (commDev->sizesFifoMr != NULL)
-        FLAGCXCHECK(wrap_ibv_dereg_mr(commDev->sizesFifoMr));
+        FLAGCXCHECK(flagcxWrapIbvDeregMr(commDev->sizesFifoMr));
       FLAGCXCHECK(flagcxIbDestroyBase(&commDev->base));
     }
     free(comm);
