@@ -8,17 +8,10 @@
 #ifndef FLAGCX_TUNER_H_
 #define FLAGCX_TUNER_H_
 
-#include <string>
-#include <map>
-#include <utility>
-#include <vector>
 #include "core.h"
 #include "flagcx_common.h"
 
-// Environment list type for tuner. Each element is a pair of <env_name, env_value>
-using TunerEnvList = std::vector<std::pair<std::string, std::string>>;
-
-// API of tuner to be implemented by internal only
+// API to be implemented by external tuner
 typedef struct {
   // Name of the tuner
   const char *name;
@@ -35,45 +28,37 @@ typedef struct {
   flagcxResult_t (*init)(size_t nRanks, size_t nNodes,
                          flagcxDebugLogger_t logFunction, void **context);
 
-  // Gets all candidate communicator settings from this tuner.
-  // Note that these env settings take effect only for creating the underlying 
-  // communicator. Each communicator has its own unique communicator tag.
-  // Inputs:
-  //   - context: tuner context object
-  // Outputs:
-  //   - comm_env_map: a map of communicator tag and corresponding env settings(a list of env)
-  //                   for creating the underlying communicator.
-  //                   key: communicator tag, value: env setting list.
-  flagcxResult_t (*getCandidates)(void* context,
-                                 std::map<std::string, TunerEnvList>& comm_env_map);
-
-  // Gets communicator tag and corresponding collective env setting(a list of env) for a given
-  // collective op. Note these env settings take effect only for this specific collective.
-  // Inputs:
+  // Gets info (algo, protocol, number of ctas and threads) for a given
+  // collective. Inputs:
   //   - context: tuner context object
   //   - collType: collective type , e.g., allreduce, allgather…
   //   - nBytes: collective size in bytes
+  //   - collNetTypeSupport: whether collnet supports this type
+  //   - nvlsTypeSupport: whether nvlink sharp supports this time
   //   - numPipeOps: number of operations in the group
-  //   - regBuff: can register user buffer
   //
   // Outputs:
-  //   - comm_tag: communicator tag, used to select the underlying communicator.
-  //   - env_list: a list of env settings for this specific collective op.
+  //   - algorithm: selected algorithm to be used for the given collective
+  //   - protocol: selected protocol to be used for the given collective
+  //   - nChannels: number of channels (hence SMs) to be used.
   //
-  // InOut:
-  //   - collCostTable: collective cost table.
-  //
-  flagcxResult_t (*getCollInfo)(void* context, flagcxFunc_t collType,
-                                size_t nBytes, int numPipeOps,
-                                float** collCostTable, int regBuff,
-                                std::string& comm_tag,
-                                TunerEnvList& env_list);
+  // If getCollInfo() does not return flagcxSuccess, FLAGCX will fall back to
+  // the default tuning for the given collective. Also, the plugin is allowed to
+  // not set any output, or set only the algorithm and protocol, but not only
+  // the algorithm or only the protocol. Unset fields will be set automatically
+  // by FLAGCX.
+  flagcxResult_t (*getCollInfo)(void *context, flagcxFunc_t collType,
+                                size_t nBytes, int collNetSupport,
+                                int nvlsSupport, int numPipeOps, int *algorithm,
+                                int *protocol, int *nChannels);
 
-  // Terminates the tuner and cleans up any resources that the tuner allocated.
-  // context: tuner context object
+  // Terminates the plugin and cleans up any resources that the plugin
+  // allocated. context: tuner context object
   flagcxResult_t (*destroy)(void *context);
-} flagcxTuner_t;
+} flagcxTuner_v2_t;
 
-#define FLAGCX_TUNER_PLUGIN_SYMBOL "flagcxTunerPlugin_v1"
+typedef flagcxTuner_v2_t flagcxTuner_t;
+
+#define FLAGCX_TUNER_PLUGIN_SYMBOL "flagcxTunerPlugin_v2"
 
 #endif
