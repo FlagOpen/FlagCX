@@ -1,5 +1,9 @@
-#ifndef FLAGCX_TUNER_H_
-#define FLAGCX_TUNER_H_
+#ifndef FLAGCX_ADAPTOR_TUNER_H_
+#define FLAGCX_ADAPTOR_TUNER_H_
+
+#include "flagcx.h"
+#include "global_comm.h"
+#include "debug.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -82,21 +86,20 @@ struct FlagcxTuner {
   //   - collType: collective type , e.g., allreduce, allgather…
   //   - nBytes: collective size in bytes
   //   - numPipeOps: number of operations in the group
-  //   - regBuff: can register user buffer
-  //
+  //   - regBuff: If non-zero, register user buffer is used.
   // Outputs:
   //   - commTag: communicator tag, used to select the underlying communicator.
   //
   // InOut:
-  //   - collCostTable: collective cost table.
+  //   - collCostTable: collective cost table.  the caller is responsible for allocating and
+  //                    deallocating the memory
   //
-  flagcxResult_t (*getCollInfo)(void* context, flagcxFunc_t collType,
+  flagcxResult_t (*getCollInfo)(void* context, flagcxCommOp_t collType,
                                 size_t nBytes, int numPipeOps,
                                 float** collCostTable, int regBuff,
                                 struct flagcxCommTag* commTag);
 
   // Terminates the tuner and cleans up any resources that the tuner allocated.
-  // context: tuner context object
   flagcxResult_t (*destroy)(void *context);
 };
 
@@ -104,4 +107,4 @@ struct FlagcxTuner {
 } // end extern "C"
 #endif
 
-#endif // end include guard
+#endif // FLAGCX_ADAPTOR_TUNER_H_

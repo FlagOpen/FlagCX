@@ -77,6 +77,10 @@ extern std::chrono::steady_clock::time_point flagcxEpoch;
 
 void flagcxSetThreadName(pthread_t thread, const char *fmt, ...);
 
+typedef void (*flagcxDebugLogger_t)(flagcxDebugLogLevel level,
+                                    unsigned long flags, const char *file,
+                                    int line, const char *fmt, ...);
+
 // time recorder
 #define TIMER_COLL_TOTAL 0
 #define TIMER_COLL_CALC 1
