@@ -45,7 +45,7 @@ struct flagcxEnvConfigList {
     struct flagcxEnvConfig configList[FLAGCX_ENV_CONFIG_MAX_COUNT];
 };
 
-struct FlagcxTuner {
+struct flagcxTuner {
   // Name of the tuner
   const char *name;
 
