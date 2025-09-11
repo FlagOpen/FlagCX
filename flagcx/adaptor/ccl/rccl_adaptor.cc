@@ -86,23 +86,27 @@ flagcxResult_t rcclAdaptorGather(const void *sendbuff, void *recvbuff,
                                  int root, flagcxInnerComm_t comm,
                                  flagcxStream_t stream) {
   int rank, nranks;
-  ncclResult_t res = ncclSuccess;
-  res = ncclCommUserRank(comm->base, &rank);
-  res = ncclCommCount(comm->base, &nranks);
-
   size_t size = count * getFlagcxDataTypeSize(datatype);
   char *buffer = static_cast<char *>(recvbuff);
+  ncclResult_t res = ncclSuccess;
 
-  res = ncclGroupStart();
+  CCLCHECKGOTO(ncclCommUserRank(comm->base, &rank), res, fail);
+  CCLCHECKGOTO(ncclCommCount(comm->base, &nranks), res, fail);
+  CCLCHECKGOTO(ncclGroupStart(), res, fail);
   if (rank == root) {
     for (int r = 0; r < nranks; r++) {
-      res = ncclRecv(static_cast<void *>(buffer + r * size), size, ncclChar, r,
-                     comm->base, stream->base);
+      CCLCHECKGOTO(ncclRecv(static_cast<void *>(buffer + r * size), size,
+                            ncclChar, r, comm->base, stream->base),
+                   res, fail);
     }
   }
-  res = ncclSend(sendbuff, size, ncclChar, root, comm->base, stream->base);
-  res = ncclGroupEnd();
+  CCLCHECKGOTO(
+      ncclSend(sendbuff, size, ncclChar, root, comm->base, stream->base), res,
+      fail);
+  CCLCHECKGOTO(ncclGroupEnd(), res, fail);
 
+  return flagcxSuccess;
+fail:
   return (flagcxResult_t)res;
 }
 
@@ -111,23 +115,27 @@ flagcxResult_t rcclAdaptorScatter(const void *sendbuff, void *recvbuff,
                                   int root, flagcxInnerComm_t comm,
                                   flagcxStream_t stream) {
   int rank, nranks;
-  ncclResult_t res = ncclSuccess;
-  res = ncclCommUserRank(comm->base, &rank);
-  res = ncclCommCount(comm->base, &nranks);
-
   size_t size = count * getFlagcxDataTypeSize(datatype);
   const char *buffer = static_cast<const char *>(sendbuff);
+  ncclResult_t res = ncclSuccess;
 
-  res = ncclGroupStart();
+  CCLCHECKGOTO(ncclCommUserRank(comm->base, &rank), res, fail);
+  CCLCHECKGOTO(ncclCommCount(comm->base, &nranks), res, fail);
+  CCLCHECKGOTO(ncclGroupStart(), res, fail);
   if (rank == root) {
     for (int r = 0; r < nranks; r++) {
-      res = ncclSend(static_cast<const void *>(buffer + r * size), size,
-                     ncclChar, r, comm->base, stream->base);
+      CCLCHECKGOTO(ncclSend(static_cast<const void *>(buffer + r * size), size,
+                            ncclChar, r, comm->base, stream->base),
+                   res, fail);
     }
   }
-  res = ncclRecv(recvbuff, size, ncclChar, root, comm->base, stream->base);
-  res = ncclGroupEnd();
+  CCLCHECKGOTO(
+      ncclRecv(recvbuff, size, ncclChar, root, comm->base, stream->base), res,
+      fail);
+  CCLCHECKGOTO(ncclGroupEnd(), res, fail);
 
+  return flagcxSuccess;
+fail:
   return (flagcxResult_t)res;
 }
 
@@ -172,22 +180,25 @@ flagcxResult_t rcclAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
                                    flagcxInnerComm_t comm,
                                    flagcxStream_t stream) {
   int nranks;
-  ncclResult_t res = ncclSuccess;
-  res = ncclCommCount(comm->base, &nranks);
-
   size_t size = count * getFlagcxDataTypeSize(datatype);
   const char *buffer_in = static_cast<const char *>(sendbuff);
   char *buffer_out = static_cast<char *>(recvbuff);
+  ncclResult_t res = ncclSuccess;
 
-  res = ncclGroupStart();
+  CCLCHECKGOTO(ncclCommCount(comm->base, &nranks), res, fail);
+  CCLCHECKGOTO(ncclGroupStart(), res, fail);
   for (int r = 0; r < nranks; r++) {
-    res = ncclSend(static_cast<const void *>(buffer_in + r * size), size,
-                   ncclChar, r, comm->base, stream->base);
-    res = ncclRecv(static_cast<void *>(buffer_out + r * size), size, ncclChar,
-                   r, comm->base, stream->base);
+    CCLCHECKGOTO(ncclSend(static_cast<const void *>(buffer_in + r * size), size,
+                          ncclChar, r, comm->base, stream->base),
+                 res, fail);
+    CCLCHECKGOTO(ncclRecv(static_cast<void *>(buffer_out + r * size), size,
+                          ncclChar, r, comm->base, stream->base),
+                 res, fail);
   }
-  res = ncclGroupEnd();
+  CCLCHECKGOTO(ncclGroupEnd(), res, fail);
 
+  return flagcxSuccess;
+fail:
   return (flagcxResult_t)res;
 }
 
@@ -198,28 +209,32 @@ flagcxResult_t rcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
                                     flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
   int nranks;
-  ncclResult_t res = ncclSuccess;
-  res = ncclCommCount(comm->base, &nranks);
-
   size_t size = getFlagcxDataTypeSize(datatype);
   const char *buffer_in = static_cast<const char *>(sendbuff);
   char *buffer_out = static_cast<char *>(recvbuff);
+  ncclResult_t res = ncclSuccess;
 
-  res = ncclGroupStart();
+  CCLCHECKGOTO(ncclCommCount(comm->base, &nranks), res, fail);
+  CCLCHECKGOTO(ncclGroupStart(), res, fail);
   for (int r = 0; r < nranks; r++) {
     if (flagcxCCLAdaptorNeedSendrecv(sendcounts[r])) {
-      res = ncclSend(static_cast<const void *>(buffer_in + sdispls[r] * size),
-                     sendcounts[r], (ncclDataType_t)datatype, r, comm->base,
-                     stream->base);
+      CCLCHECKGOTO(
+          ncclSend(static_cast<const void *>(buffer_in + sdispls[r] * size),
+                   sendcounts[r], (ncclDataType_t)datatype, r, comm->base,
+                   stream->base),
+          res, fail);
     }
     if (flagcxCCLAdaptorNeedSendrecv(recvcounts[r])) {
-      res = ncclRecv(static_cast<void *>(buffer_out + rdispls[r] * size),
-                     recvcounts[r], (ncclDataType_t)datatype, r, comm->base,
-                     stream->base);
+      CCLCHECKGOTO(ncclRecv(static_cast<void *>(buffer_out + rdispls[r] * size),
+                            recvcounts[r], (ncclDataType_t)datatype, r,
+                            comm->base, stream->base),
+                   res, fail);
     }
   }
-  res = ncclGroupEnd();
+  CCLCHECKGOTO(ncclGroupEnd(), res, fail);
 
+  return flagcxSuccess;
+fail:
   return (flagcxResult_t)res;
 }
 

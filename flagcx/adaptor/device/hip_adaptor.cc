@@ -89,7 +89,8 @@ flagcxResult_t hipAdaptorGetDeviceCount(int *count) {
 }
 
 flagcxResult_t hipAdaptorGetVendor(char *vendor) {
-  strcpy(vendor, "AMD");
+  strncpy(vendor, "AMD", MAX_VENDOR_LEN - 1);
+  vendor[MAX_VENDOR_LEN - 1] = '\0';
   return flagcxSuccess;
 }
 
@@ -126,7 +127,6 @@ flagcxResult_t hipAdaptorStreamDestroy(flagcxStream_t stream) {
   if (stream != NULL) {
     DEVCHECK(hipStreamDestroy(stream->base));
     free(stream);
-    stream = NULL;
   }
   return flagcxSuccess;
 }
@@ -142,7 +142,6 @@ flagcxResult_t hipAdaptorStreamCopy(flagcxStream_t *newStream,
 flagcxResult_t hipAdaptorStreamFree(flagcxStream_t stream) {
   if (stream != NULL) {
     free(stream);
-    stream = NULL;
   }
   return flagcxSuccess;
 }
@@ -189,7 +188,6 @@ flagcxResult_t hipAdaptorEventDestroy(flagcxEvent_t event) {
   if (event != NULL) {
     DEVCHECK(hipEventDestroy(event->base));
     free(event);
-    event = NULL;
   }
   return flagcxSuccess;
 }
@@ -285,7 +283,7 @@ flagcxResult_t hipAdaptorMemGetHandleForAddressRange(void *handleOut,
 }
 
 struct flagcxDeviceAdaptor hipAdaptor {
-  "hip",
+  "HIP",
       // Basic functions
       hipAdaptorDeviceSynchronize, hipAdaptorDeviceMemcpy,
       hipAdaptorDeviceMemset, hipAdaptorDeviceMalloc, hipAdaptorDeviceFree,

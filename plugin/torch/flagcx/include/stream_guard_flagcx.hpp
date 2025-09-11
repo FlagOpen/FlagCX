@@ -45,9 +45,9 @@
 #include <cuda_runtime.h>
 #elif USE_AMD_ADAPTOR
 #include <c10/core/impl/InlineStreamGuard.h>
-#include <c10/cuda/CUDAGuard.h>
-#include <c10/cuda/impl/CUDAGuardImpl.h>
-#include <cuda_runtime.h>
+#include <c10/hip/HIPGuard.h>
+#include <c10/hip/impl/HIPGuardImpl.h>
+#include <hip/hip_runtime.h>
 #endif
 
 namespace c10d {
@@ -82,8 +82,7 @@ public:
 #elif USE_ASCEND_ADAPTOR
         guard_(c10_npu::getNPUStreamFromPool(deviceId))
 #elif USE_AMD_ADAPTOR
-        guard_(
-            at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId))
+        guard_(at::hip::getStreamFromExternal(*(hipStream_t *)stream, deviceId))
 #endif
   {
   }
@@ -123,7 +122,7 @@ public:
     guard_ = c10_npu::getNPUStreamFromPool(deviceId_);
 #elif USE_AMD_ADAPTOR
     guard_.reset_stream(
-        at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId_));
+        at::hip::getStreamFromExternal(*(hipStream_t *)stream, deviceId_));
 #endif
     currentStream_ = stream;
   }
@@ -153,7 +152,7 @@ private:
 #elif USE_ASCEND_ADAPTOR
   c10_npu::NPUStream guard_;
 #elif USE_AMD_ADAPTOR
-  c10::cuda::CUDAStreamGuard guard_;
+  c10::hip::HIPStreamGuard guard_;
 #endif
 };
 
