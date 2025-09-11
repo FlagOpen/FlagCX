@@ -689,12 +689,13 @@ fail:
 
 flagcxResult_t flagcxProxyInit(struct flagcxHeteroComm *comm) {
   INFO(FLAGCX_INIT, "rank=%d flagcxProxyInit called.", comm->rank);
-  FLAGCXCHECK(flagcxSocketInit(&comm->proxyState->ipcSock, &bootstrapNetIfAddr,
-                               comm->magic, flagcxSocketTypeProxy, NULL, 1));
-  FLAGCXCHECK(flagcxSocketListen(&comm->proxyState->ipcSock));
+  FLAGCXCHECK(flagcxSocketInit(&comm->proxyState->listenSock,
+                               &bootstrapNetIfAddr, comm->magic,
+                               flagcxSocketTypeProxy, NULL, 1));
+  FLAGCXCHECK(flagcxSocketListen(&comm->proxyState->listenSock));
 
   flagcxSocket *proxySock = &comm->proxyState->peerSock;
-  FLAGCXCHECK(flagcxSocketInit(proxySock, &comm->proxyState->ipcSock.addr,
+  FLAGCXCHECK(flagcxSocketInit(proxySock, &comm->proxyState->listenSock.addr,
                                comm->magic, flagcxSocketTypeProxy));
   FLAGCXCHECK(flagcxSocketConnect(proxySock));
 
@@ -711,21 +712,26 @@ flagcxResult_t flagcxProxyInit(struct flagcxHeteroComm *comm) {
 }
 
 void *flagcxProxyService(void *args) {
-  struct flagcxHeteroComm *comm = (struct flagcxHeteroComm *)args;
-  struct flagcxSocket sock;
-  flagcxResult_t res;
-  struct flagcxProxyAsyncOp *opHead = NULL;
   int stop = 0;
+  int closeConn = 0;
   int asyncOpCount = 0;
-  deviceAdaptor->setDevice(comm->cudaDev);
+  struct flagcxHeteroComm *comm = (struct flagcxHeteroComm *)args;
+  struct flagcxProxyAsyncOp *opHead = NULL;
+  struct flagcxProxyAsyncOp *list = NULL;
+  struct flagcxSocket sock;
+  flagcxResult_t res = flagcxSuccess;
+
+  // Set device context
+  FLAGCXCHECKGOTO(deviceAdaptor->setDevice(comm->cudaDev), res, out);
+
+  // One peer only
   FLAGCXCHECKGOTO(flagcxSocketInit(&sock), res, out);
-  FLAGCXCHECKGOTO(flagcxSocketAccept(&sock, &comm->proxyState->ipcSock), res,
+  FLAGCXCHECKGOTO(flagcxSocketAccept(&sock, &comm->proxyState->listenSock), res,
                   out);
   char proxyMsg[10];
   flagcxSocketRecv(&sock, proxyMsg, 10);
-  INFO(FLAGCX_INIT, "proxy msg : \033[31m%s\033[0m", proxyMsg);
-
-  // Only one local rank is allowed.
+  INFO(FLAGCX_PROXY,
+       "[Service thread] Receive proxy message : \033[31m%s\033[0m", proxyMsg);
   struct pollfd pollfds[1];
   pollfds[0].fd = sock.fd;
   pollfds[0].events = POLLIN;
@@ -737,38 +743,93 @@ void *flagcxProxyService(void *args) {
     } while (ret < 0 && errno == EINTR);
     if (ret < 0) {
       WARN("[Proxy Service] Poll failed: %s", strerror(errno));
-      return NULL;
+      closeConn = 1;
+      break;
     }
-    if (pollfds[0].revents & POLLIN) {
-      int type, closed;
-      res = flagcxSocketTryRecv(&sock, &type, sizeof(int), &closed,
-                                false /*blocking*/);
-      if (res != flagcxSuccess && res != flagcxInProgress) {
-        WARN("[Service thread] Could not receive type from localRank %d, "
-             "res=%u, "
-             "closed=%d",
-             comm->rank, res, closed);
-      } else if (closed) {
-        INFO(FLAGCX_NET, "[Service thread] Connection closed by localRank %d",
-             comm->rank);
-      } else if (res == flagcxSuccess) {
-        if (type == flagcxProxyMsgStop) {
-          stop = 1;
-        } else if (proxyMatchOpType(type)) {
-          res = proxyServiceInitOp(type, &sock, &opHead, comm, &asyncOpCount);
-        }
-      }
+    if (closeConn) {
+      break;
     }
-    struct flagcxProxyAsyncOp *list;
+
+    // Progress all ops
     list = opHead;
     while (list) {
       struct flagcxProxyAsyncOp *opNext = list->next;
-      FLAGCXCHECKGOTO(proxyProgressAsync(&opHead, list, &asyncOpCount), res,
-                      out);
-      list = opNext;
+      res = proxyProgressAsync(&opHead, list, &asyncOpCount);
+      if (res == flagcxSuccess || res == flagcxInProgress) {
+        list = opNext;
+      } else {
+        WARN("[Service thread] Error encountered progressing operation with "
+             "res=%d, closing connection",
+             res);
+        closeConn = 1;
+        break;
+      }
+    }
+    if (closeConn) {
+      break;
+    }
+
+    // Check for additional ops coming in
+    int type;
+    if (pollfds[0].revents & POLLIN) {
+      int closed = 0;
+      res = flagcxSocketTryRecv(&sock, &type, sizeof(int), &closed,
+                                false /*blocking*/);
+      if (res != flagcxSuccess && res != flagcxInProgress) {
+        WARN("[Service thread] Could not receive type from rank %d, "
+             "res=%u, "
+             "closed=%d",
+             comm->rank, res, closed);
+        closeConn = 1;
+      } else if (closed) {
+        INFO(FLAGCX_PROXY, "[Service thread] Connection closed by rank %d",
+             comm->rank);
+        closeConn = 1;
+      } else if (res == flagcxSuccess) {
+        if (type == flagcxProxyMsgStop) {
+          stop = 1;
+          closeConn = 1;
+        } else if (proxyMatchOpType(type)) {
+          res = proxyServiceInitOp(type, &sock, &opHead, comm, &asyncOpCount);
+          if (res != flagcxSuccess) {
+            WARN("[Service thread] Error encountered initializing operation "
+                 "with res=%d, closing connection",
+                 res);
+            closeConn = 1;
+          }
+        } else {
+          INFO(FLAGCX_PROXY, "[Service thread] Unknown command %d from rank %d",
+               type, comm->rank);
+          closeConn = 1;
+        }
+      }
+    }
+    if (closeConn) {
+      break;
     }
   }
 out:
+  // Stop progress thread before freeing any resource
+  pthread_mutex_lock(&comm->proxyState->mutex);
+  comm->proxyState->progressState.stop = 1;
+  pthread_cond_signal(&comm->proxyState->cond);
+  pthread_mutex_unlock(&comm->proxyState->mutex);
+  pthread_join(comm->proxyState->progressState.thread, nullptr);
+
+  // Close sockets
+  flagcxSocketClose(&sock);
+  flagcxSocketClose(&comm->proxyState->listenSock);
+
+  // Dequeue unhandled ops
+  list = opHead;
+  while (list) {
+    struct flagcxProxyAsyncOp *opNext = list->next;
+    asyncProxyOpDequeue(&opHead, list);
+    list = opNext;
+  }
+
+  INFO(FLAGCX_PROXY,
+       "[Service thread] Wait for progress thread joined and free resources");
   return NULL;
 }
 
@@ -798,12 +859,7 @@ flagcxResult_t flagcxProxyDestroy(struct flagcxHeteroComm *comm) {
   if (comm->proxyState->initialized == 1) {
     int type = flagcxProxyMsgStop;
     flagcxSocketSend(&comm->proxyState->peerSock, &type, sizeof(int));
-    pthread_mutex_lock(&comm->proxyState->mutex);
-    comm->proxyState->progressState.stop = 1;
-    pthread_cond_signal(&comm->proxyState->cond);
-    pthread_mutex_unlock(&comm->proxyState->mutex);
     pthread_join(comm->proxyState->thread, nullptr);
-    pthread_join(comm->proxyState->progressState.thread, nullptr);
     flagcxProxyFree(comm);
   }
   return flagcxSuccess;
