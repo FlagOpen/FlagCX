@@ -29,16 +29,21 @@
 #include <cuda_runtime.h>
 #elif USE_MUSA_ADAPTOR
 #include <c10/core/impl/InlineStreamGuard.h>
-#include <torch_musa/csrc/core/MUSAStream.h>
-#include <torch_musa/csrc/core/MUSAGuard.h>
-#include <torch_musa/csrc/core/GuardImpl.h>
 #include <musa_runtime.h>
+#include <torch_musa/csrc/core/GuardImpl.h>
+#include <torch_musa/csrc/core/MUSAGuard.h>
+#include <torch_musa/csrc/core/MUSAStream.h>
 #elif USE_DU_ADAPTOR
 #include <c10/core/impl/InlineStreamGuard.h>
 #include <c10/cuda/CUDAGuard.h>
 #include <c10/cuda/impl/CUDAGuardImpl.h>
 #include <cuda_runtime.h>
 #elif USE_KUNLUNXIN_ADAPTOR
+#include <c10/core/impl/InlineStreamGuard.h>
+#include <c10/cuda/CUDAGuard.h>
+#include <c10/cuda/impl/CUDAGuardImpl.h>
+#include <cuda_runtime.h>
+#elif USE_AMD_ADAPTOR
 #include <c10/core/impl/InlineStreamGuard.h>
 #include <c10/cuda/CUDAGuard.h>
 #include <c10/cuda/impl/CUDAGuardImpl.h>
@@ -75,8 +80,10 @@ public:
         guard_(
             at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId))
 #elif USE_ASCEND_ADAPTOR
-	guard_(
-	    c10_npu::getNPUStreamFromPool(deviceId))
+        guard_(c10_npu::getNPUStreamFromPool(deviceId))
+#elif USE_AMD_ADAPTOR
+        guard_(
+            at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId))
 #endif
   {
   }
@@ -114,6 +121,9 @@ public:
         at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId_));
 #elif USE_ASCEND_ADAPTOR
     guard_ = c10_npu::getNPUStreamFromPool(deviceId_);
+#elif USE_AMD_ADAPTOR
+    guard_.reset_stream(
+        at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId_));
 #endif
     currentStream_ = stream;
   }
@@ -141,7 +151,9 @@ private:
 #elif USE_KUNLUNXIN_ADAPTOR
   c10::cuda::CUDAStreamGuard guard_;
 #elif USE_ASCEND_ADAPTOR
-   c10_npu::NPUStream guard_; 
+  c10_npu::NPUStream guard_;
+#elif USE_AMD_ADAPTOR
+  c10::cuda::CUDAStreamGuard guard_;
 #endif
 };
 

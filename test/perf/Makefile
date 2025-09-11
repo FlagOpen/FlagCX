@@ -8,6 +8,7 @@ USE_METAX ?= 0
 USE_MUSA ?= 0
 USE_KUNLUNXIN ?= 0
 USE_DU ?= 0
+USE_AMD ?= 0
 ifeq ($(USE_CAMBRICON), 1)
    DEV="MLU"
 else ifeq ($(USE_ASCEND), 1)
@@ -18,6 +19,8 @@ else ifeq ($(USE_MUSA), 1)
    DEV="MUSA"
 else ifeq ($(USE_KUNLUNXIN), 1)
    DEV="XPU"
+else ifeq ($(USE_AMD), 1)
+   DEV="HIP"
 else
    DEV="CUDA"
 endif
