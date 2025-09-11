@@ -34,5 +34,6 @@ extern flagcxLaunchFunc_t deviceAsyncLoad;
 
 void cpuAsyncStore(void *args);
 void cpuAsyncLoad(void *args);
+void cpuAsyncLoadWithMaxSpinCount(void *args);
 
 #endif

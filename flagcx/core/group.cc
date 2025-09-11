@@ -28,6 +28,9 @@ __thread int flagcxGroupBlocking = 1; /* default mode */
 __thread struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
     flagcxAsyncJobs;
 
+FLAGCX_PARAM(FuncNloops, "FUNC_NLOOPS", 1);
+static int64_t funcNloops = flagcxParamFuncNloops();
+
 flagcxResult_t flagcxHeteroGroupStart() {
   flagcxResult_t ret = flagcxSuccess;
   FLAGCXCHECK(flagcxGroupStartInternal());
@@ -248,12 +251,12 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
     } while (comm != nullptr);
   }
 
-  while (!funcQueue.empty()) {
-    // get corresponding func args
-    flagcxFuncArgs args = funcQueue.front();
+  if (deviceAsyncLoad && deviceAsyncStore) {
+    while (!funcQueue.empty()) {
+      // get corresponding func args
+      flagcxFuncArgs args = funcQueue.front();
 
-    // launch host or device func
-    if (deviceAsyncLoad && deviceAsyncStore) {
+      // launch device func
       if (deviceFuncRelaxedOrdering == 0) {
         bool *volatile hlArgs = (bool *)args.argList[1];
         while (!__atomic_load_n(hlArgs, __ATOMIC_RELAXED)) {
@@ -264,18 +267,51 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
       }
       FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(args.stream, deviceAsyncLoad,
                                                   args.argList[2]));
-    } else {
-      FLAGCXCHECK(deviceAdaptor->launchHostFunc(args.stream, cpuAsyncLoad,
-                                                args.argList[1]));
+
+      // record func op
+      FLAGCXCHECK(deviceAdaptor->eventRecord(args.event, args.stream));
+      bool *volatile recorded = (bool *)args.argList[0];
+      *recorded = true;
+
+      // pop item
+      funcQueue.pop();
+      argsQueue.pop();
     }
+  } else {
+    for (int64_t i = 0; i < funcNloops; i++) {
+      std::queue<flagcxFuncArgs> funcQueue_;
+      std::queue<std::vector<void *>> argsQueue_;
 
-    // record func op
-    FLAGCXCHECK(deviceAdaptor->eventRecord(args.event, args.stream));
-    bool *volatile recorded = (bool *)args.argList[0];
-    *recorded = true;
+      while (!funcQueue.empty()) {
+        // get corresponding args
+        flagcxFuncArgs args = funcQueue.front();
+        auto argList = argsQueue.front();
 
-    funcQueue.pop();
-    argsQueue.pop();
+        // launch host func
+        if (i == funcNloops - 1) {
+          FLAGCXCHECK(deviceAdaptor->launchHostFunc(args.stream, cpuAsyncLoad,
+                                                    args.argList[1]));
+          // record func op
+          FLAGCXCHECK(deviceAdaptor->eventRecord(args.event, args.stream));
+          bool *volatile recorded = (bool *)args.argList[0];
+          *recorded = true;
+        } else {
+          FLAGCXCHECK(deviceAdaptor->launchHostFunc(
+              args.stream, cpuAsyncLoadWithMaxSpinCount, args.argList[1]));
+          // push item
+          funcQueue_.push(std::move(args));
+          argsQueue_.push(std::move(argList));
+        }
+
+        // pop item
+        funcQueue.pop();
+        argsQueue.pop();
+      }
+
+      // reset queues
+      funcQueue = std::move(funcQueue_);
+      argsQueue = std::move(argsQueue_);
+    }
   }
 
   while (!flagcxIntruQueueEmpty(asyncJobsMain)) {
