@@ -103,6 +103,7 @@ struct flagcxTuner {
   flagcxResult_t (*destroy)(void *context);
 };
 
+typedef struct flagcxTuner flagcxTuner_t;
 #ifdef __cplusplus
 } // end extern "C"
 #endif
