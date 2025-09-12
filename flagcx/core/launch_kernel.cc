@@ -5,6 +5,9 @@
 flagcxLaunchFunc_t deviceAsyncLoad = NULL;
 flagcxLaunchFunc_t deviceAsyncStore = NULL;
 
+FLAGCX_PARAM(FuncMaxSpinCount, "FUNC_MAX_SPIN_COUNT", INT64_MAX);
+static int64_t funcMaxSpinCount = flagcxParamFuncMaxSpinCount();
+
 flagcxResult_t loadKernelSymbol(const char *path, const char *name,
                                 flagcxLaunchFunc_t *fn) {
   void *handle = flagcxOpenLib(
@@ -32,6 +35,9 @@ void cpuAsyncStore(void *args) {
 
 void cpuAsyncLoad(void *args) {
   bool *volatile value = (bool *)args;
-  while (!__atomic_load_n(value, __ATOMIC_RELAXED)) {
+  int64_t spinCount = 0;
+  while (!__atomic_load_n(value, __ATOMIC_RELAXED) &&
+         spinCount < funcMaxSpinCount) {
+    spinCount++;
   }
 }

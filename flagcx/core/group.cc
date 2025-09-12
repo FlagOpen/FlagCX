@@ -28,6 +28,9 @@ __thread int flagcxGroupBlocking = 1; /* default mode */
 __thread struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
     flagcxAsyncJobs;
 
+FLAGCX_PARAM(FuncNloops, "FUNC_NLOOPS", 1);
+static int64_t funcNloops = flagcxParamFuncNloops();
+
 flagcxResult_t flagcxHeteroGroupStart() {
   flagcxResult_t ret = flagcxSuccess;
   FLAGCXCHECK(flagcxGroupStartInternal());
@@ -265,8 +268,10 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
       FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(args.stream, deviceAsyncLoad,
                                                   args.argList[2]));
     } else {
-      FLAGCXCHECK(deviceAdaptor->launchHostFunc(args.stream, cpuAsyncLoad,
-                                                args.argList[1]));
+      for (int64_t i = 0; i < funcNloops; i++) {
+        FLAGCXCHECK(deviceAdaptor->launchHostFunc(args.stream, cpuAsyncLoad,
+                                                  args.argList[1]));
+      }
     }
 
     // record func op
