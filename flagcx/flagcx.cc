@@ -8,6 +8,7 @@
 #include "comm.h"
 #include "cost_model.h"
 #include "flagcx_hetero.h"
+#include "flagcx_tuner.h"
 #include "param.h"
 
 #include "launch_kernel.h"
@@ -15,6 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unordered_map>
+#include <cstring>
 #define FLAGCX_CACHE_CAPACITY 16
 static flagcxLRUCache<size_t, flagcxC2cPlanner>
     planCache(FLAGCX_CACHE_CAPACITY);
@@ -314,26 +316,42 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     (*comm)->has_single_rank_homo_comm = 0;
   }
 
-  // Reset commId and homo root rank calls underlying GetUniqueId function for
-  // initialization of homo communicator
-  memset((void *)commId, 0, sizeof(*commId));
-  if ((*comm)->homo_rank == 0) {
-    cclAdaptors[flagcxCCLAdaptorDevice]->getUniqueId(&commId);
-  }
   flagcxUniqueId *uniqueIdData;
   FLAGCXCHECK(flagcxCalloc(&uniqueIdData, nranks));
-  if ((*comm)->homo_rank == 0) {
-    memcpy((void *)&uniqueIdData[rank], (void *)commId, sizeof(flagcxUniqueId));
-  }
-  FLAGCXCHECK(
-      bootstrapAllGather(state, (void *)uniqueIdData, sizeof(flagcxUniqueId)));
-  FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
+  // Tuner init
+  (*comm)->tuner = &internalTuner;
+  FLAGCXCHECK((*comm)->tuner->init((*comm)->nranks, 0, flagcxDebugLog, &((*comm)->tunerContext)));
+  int nConfigs = 0;
+  FLAGCXCHECK((*comm)->tuner->getCandidateNumber((*comm)->tunerContext, &nConfigs));
+  assert(nConfigs >= 1);
+  for (int i = 0; i < nConfigs; ++i) {
+    struct flagcxCommTag tag;
+    flagcxInnerComm_t innerComm;
+    FLAGCXCHECK((*comm)->tuner->setCandidate((*comm)->tunerContext, i, &tag));
+    // Note: The tuner only support homo comm optimization for now
 
-  memcpy((void *)commId, (void *)&uniqueIdData[(*comm)->homo_root_rank],
-         sizeof(flagcxUniqueId));
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->commInitRank(
-      &(*comm)->homo_comm, (*comm)->homo_ranks, commId, (*comm)->homo_rank,
-      NULL));
+    // Reset commId and homo root rank calls underlying GetUniqueId function for
+    // initialization of homo communicator
+    memset((void *)commId, 0, sizeof(*commId));
+    if ((*comm)->homo_rank == 0) {
+      cclAdaptors[flagcxCCLAdaptorDevice]->getUniqueId(&commId);
+    }
+
+    if ((*comm)->homo_rank == 0) {
+      memcpy((void *)&uniqueIdData[rank], (void *)commId, sizeof(flagcxUniqueId));
+    }
+    FLAGCXCHECK(
+        bootstrapAllGather(state, (void *)uniqueIdData, sizeof(flagcxUniqueId)));
+    FLAGCXCHECK(bootstrapBarrier(state, rank, nranks, 0));
+
+    memcpy((void *)commId, (void *)&uniqueIdData[(*comm)->homo_root_rank],
+           sizeof(flagcxUniqueId));
+    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->commInitRank(
+        &innerComm, (*comm)->homo_ranks, commId, (*comm)->homo_rank,
+        NULL));
+    // Insert item into homoCommMap
+    (*comm)->homoCommMap[tag] = innerComm;
+  }
 
   if (!is_homo_comm(*comm)) {
     // Reset commId and hetero root rank calls flagcxHeteroGetUniqueId
@@ -982,8 +1000,13 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
                                flagcxStream_t stream) {
   FLAGCXCHECK(flagcxEnsureCommReady(comm));
   if (is_homo_comm(comm)) {
+    flagcxCommTag tag;
+    FLAGCXCHECK(comm->tuner->getCollInfo(comm->tunerContext, flagcxCommOpAllReduce, count * getFlagcxDataTypeSize(datatype), 0, NULL, 0, &tag));
+    assert(comm->homoCommMap.find(tag) != comm->homoCommMap.end());
+    flagcxInnerComm_t innerComm = comm->homoCommMap[tag];
+    assert(innerComm != NULL);
     return cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
-        sendbuff, recvbuff, count, datatype, op, comm->homo_comm, stream);
+        sendbuff, recvbuff, count, datatype, op, innerComm, stream);
   } else {
     if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation

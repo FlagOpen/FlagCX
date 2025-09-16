@@ -76,7 +76,7 @@ struct flagcxTuner {
   //   - index: index of candidate communicator, range [0, nCandidates)
   // Outputs:
   //   - commTag: communicator tag for this particular candidate
-  flagcxResult_t (*setCandidate)(void* context, int index, struct flagcxCommTag* commTag);
+  flagcxResult_t (*setCandidate)(void* context, int index, const struct flagcxCommTag* commTag);
 
   // Select the best communicator candidate for this collective.
   // All the env of type FLAGCX_ENV_TYPE_COLL and FLAGCX_ENV_TYPE_ONETIME if necessary
@@ -97,7 +97,7 @@ struct flagcxTuner {
   flagcxResult_t (*getCollInfo)(void* context, flagcxCommOp_t collType,
                                 size_t nBytes, int numPipeOps,
                                 float** collCostTable, int regBuff,
-                                struct flagcxCommTag* commTag);
+                                const struct flagcxCommTag* commTag);
 
   // Terminates the tuner and cleans up any resources that the tuner allocated.
   flagcxResult_t (*destroy)(void *context);
