@@ -1,5 +1,4 @@
 #include "flagcx.h"
-#include "mpi.h"
 #include "tools.h"
 #include <cstring>
 #include <iostream>
@@ -15,12 +14,7 @@ int main(int argc, char *argv[]) {
   int num_iters = args.getTestIters();
   int print_buffer = args.isPrintBuffer();
   int root = args.getRootRank();
-
-  int totalProcs, proc;
-  MPI_Init(&argc, &argv);
-  MPI_Comm_size(MPI_COMM_WORLD, &totalProcs);
-  MPI_Comm_rank(MPI_COMM_WORLD, &proc);
-  printf("I am %d of %d\n", proc, totalProcs);
+  uint64_t split_mask = args.getSplitMask();
 
   flagcxHandlerGroup_t handler;
   flagcxHandleInit(&handler);
@@ -28,14 +22,21 @@ int main(int argc, char *argv[]) {
   flagcxComm_t &comm = handler->comm;
   flagcxDeviceHandle_t &devHandle = handler->devHandle;
 
+  int color = 0;
+  int worldSize = 1, worldRank = 0;
+  int totalProcs = 1, proc = 0;
+  MPI_Comm splitComm;
+  initMpiEnv(argc, argv, worldRank, worldSize, proc, totalProcs, color,
+             splitComm, split_mask);
+  root = root % totalProcs;
+
   int nGpu;
   devHandle->getDeviceCount(&nGpu);
-  devHandle->setDevice(proc % nGpu);
+  devHandle->setDevice(worldRank % nGpu);
 
   if (proc == 0)
     flagcxGetUniqueId(&uniqueId);
-  MPI_Bcast((void *)uniqueId, sizeof(flagcxUniqueId), MPI_BYTE, 0,
-            MPI_COMM_WORLD);
+  MPI_Bcast((void *)uniqueId, sizeof(flagcxUniqueId), MPI_BYTE, 0, splitComm);
   MPI_Barrier(MPI_COMM_WORLD);
 
   flagcxCommInitRank(&comm, totalProcs, uniqueId, proc);
@@ -94,7 +95,7 @@ int main(int argc, char *argv[]) {
                                 NULL);
       }
 
-      if (proc == r && print_buffer) {
+      if (proc == r && color == 0 && print_buffer) {
         printf("root rank is %d\n", r);
         printf("sendbuff = ");
         for (size_t i = 0; i < 10; i++) {
@@ -117,7 +118,7 @@ int main(int argc, char *argv[]) {
       double elapsed_time = tim.elapsed() / num_iters;
       MPI_Allreduce(MPI_IN_PLACE, (void *)&elapsed_time, 1, MPI_DOUBLE, MPI_SUM,
                     MPI_COMM_WORLD);
-      elapsed_time /= totalProcs;
+      elapsed_time /= worldSize;
 
       double base_bw = (double)(size) / 1.0E9 / elapsed_time;
       double alg_bw = base_bw;
@@ -131,12 +132,12 @@ int main(int argc, char *argv[]) {
       devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
       devHandle->deviceMemcpy(hello, recvbuff, size / totalProcs,
                               flagcxMemcpyDeviceToHost, NULL);
-      if (print_buffer) {
+      if (color == 0 && print_buffer) {
         printf("rank %d recvbuff = %f\n", proc, ((float *)hello)[0]);
       }
     }
 
-    if (proc == 0) {
+    if (proc == 0 && color == 0) {
       double alg_bw = sum_alg_bw / test_count;
       double bus_bw = sum_bus_bw / test_count;
       double elapsed_time = sum_time / test_count;
