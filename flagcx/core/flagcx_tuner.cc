@@ -1,6 +1,8 @@
-#include "flagcx_tuner.h"
 #include <map>
 #include <vector>
+#include "flagcx_tuner.h"
+#include "param.h"
+#include "check.h"
 
 // Status of a communicator tracked by a tuner
 enum TunerCommStatus {
@@ -16,16 +18,18 @@ struct TunerContext {
   std::map<struct flagcxCommTag, TunerCommStatus> commsStatusMap;
   std::vector<struct flagcxEnvConfig> configList;
   flagcxDebugLogger_t logger = NULL;
+  struct flagcxCommTag envTag = {.tag = ""}; // envTag specified by FLAGCX_USE_COMM_TAG environment
+  int envTagIdx = -1; // the index of envTag in configList
 };
 
 static struct flagcxEnvConfig config1 = {
-  .commTag = "default config 1",
+  .commTag = "defaultConfig1",
   .envCount = 1,
   .envs = {{.type = 1, .name = "NCCL_BUFFSIZE", .value = "1024", .defaultValue = "4194304"}}
 };
 
 static struct flagcxEnvConfig config2 = {
-  .commTag = "default config 2",
+  .commTag = "defaultConfig2",
   .envCount = 1,
   .envs = {{.type = 1, .name = "NCCL_BUFFSIZE", .value = "4194304", .defaultValue = "4194304"}}
 };
@@ -34,25 +38,55 @@ bool operator<(const struct flagcxCommTag& lhs, const struct flagcxCommTag& rhs)
   return strcmp(lhs.tag, rhs.tag) < 0;
 }
 
-flagcxResult_t TunerInit(size_t nRanks, size_t nNodes,
-                         flagcxDebugLogger_t logFunction, void **context) {
+bool operator==(const struct flagcxCommTag& lhs, const struct flagcxCommTag& rhs) {
+    return strcmp(lhs.tag, rhs.tag) == 0;
+}
+
+// A helper function set envs filtered by envType mask
+static flagcxResult_t setEnvConfig(const struct flagcxEnvConfig& cfg, uint32_t mask) {
+  for (int i = 0; i < cfg.envCount; i++) {
+    const auto & item = cfg.envs[i];
+    if (item.type & mask) {
+      if(setenv(item.name, item.value, 1) != 0) {
+        return flagcxInternalError;
+      }
+    }
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
+                              flagcxDebugLogger_t logFunction, void **context) {
   struct TunerContext* ctx = new struct TunerContext;
   //TODO: read config from file.
   ctx->configList.push_back(config1);
   ctx->configList.push_back(config2);
   ctx->logger = logFunction;
   *context = ctx;
+
+  // Whether comm tag specified by environment variable
+  const char *tagEnv = flagcxGetEnv("FLAGCX_USE_COMM_TAG");
+  if (tagEnv != nullptr) {
+    strncpy(ctx->envTag.tag, tagEnv, FLAGCX_COMM_TAG_MAX_LENGTH);
+    for (int i = 0; i < ctx->configList.size(); ++i) {
+      if (ctx->envTag == ctx->configList[i].commTag) {
+        ctx->envTagIdx = i;
+        INFO(FLAGCX_INIT, "Communicator tag set by environment to %s.", ctx->envTag.tag);
+        break;
+      }
+    }
+  }
   return flagcxSuccess;
 }
 
-flagcxResult_t TunerGetCandidateNumber(void* context, int* nCandidates) {
+flagcxResult_t flagcxTunerGetCandidateNumber(void* context, int* nCandidates) {
   struct TunerContext* ctx = (struct TunerContext*)context;
   *nCandidates = ctx->configList.size();
   return flagcxSuccess;
 }
 
-flagcxResult_t TunerSetCandidate(void* context, int index,
-                                const struct flagcxCommTag* commTag) {
+flagcxResult_t flagcxTunerSetCandidate(void* context, int index,
+                                      struct flagcxCommTag* commTag) {
   struct TunerContext* ctx = (struct TunerContext*)context;
   if (index >= ctx->configList.size()) {
       WARN("invalid index, index %d must less than config size %ld, reset index to 0", 
@@ -60,50 +94,50 @@ flagcxResult_t TunerSetCandidate(void* context, int index,
       index = 0;
   }
   // Set env for that communicator index
-  bool succ;
   const auto & curCfg = ctx->configList[index];
-  for (int i = 0; i < curCfg.envCount; i++) {
-    const auto & item = curCfg.envs[i];
-    if(setenv(item.name, item.value, 1) != 0) {
-      succ = false;
-      break;
-    }
-  }
-  // update status for that communicator
-  if (!succ) {
-    ctx->commsStatusMap[curCfg.commTag] = TunerCommStatusError;
-  } else {
-    ctx->commsStatusMap[curCfg.commTag] = TunerCommStatusActive;
-  }
-  commTag = &curCfg.commTag;
+  FLAGCXCHECK(setEnvConfig(curCfg, FLAGCX_ENV_TYPE_CREATION));
+  ctx->commsStatusMap[curCfg.commTag] = TunerCommStatusActive;
+  *commTag = curCfg.commTag;
   return flagcxSuccess;
 }
 
-flagcxResult_t TunerGetCollInfo(void* context, flagcxCommOp_t collType,
-                                size_t nBytes, int numPipeOps,
-                                float** collCostTable, int regBuff,
-                                const struct flagcxCommTag* commTag) {
+flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
+                                      size_t nBytes, int numPipeOps,
+                                      float** collCostTable, int regBuff,
+                                      struct flagcxCommTag* commTag) {
   struct TunerContext* ctx = (struct TunerContext*)context;
-  for (const auto & item : ctx->commsStatusMap) {
-    if (item.second == TunerCommStatusActive) {
-      commTag = &(item.first);
-      break;
+  // Use env comm tag when possible.
+  if (ctx->envTagIdx != -1) {
+    FLAGCXCHECK(setEnvConfig(ctx->configList[ctx->envTagIdx], FLAGCX_ENV_TYPE_COLL));
+    *commTag = ctx->envTag;
+    INFO(FLAGCX_COLL, "Use Communicator tag %s set by environment.", commTag->tag);
+    return flagcxSuccess;
+  }
+  // TODO: Find best comm.
+  for (int i = 0; i < ctx->configList.size(); ++i) {
+    const auto & cfg = ctx->configList[i];
+    if (ctx->commsStatusMap.find(cfg.commTag) != ctx->commsStatusMap.end() &&
+        ctx->commsStatusMap[cfg.commTag] == TunerCommStatusActive) {
+      FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
+      *commTag = cfg.commTag;
+      INFO(FLAGCX_COLL, "Use Communicator tag %s.", commTag->tag);
+      return flagcxSuccess;
     }
   }
-  return flagcxSuccess;
+  return flagcxInternalError;
 }
 
-flagcxResult_t TunerDestroy(void *context) {
+flagcxResult_t flagcxTunerDestroy(void *context) {
   struct TunerContext* ctx = (struct TunerContext*)context;
-  free(ctx);
+  delete ctx;
   return flagcxSuccess;
 }
 
 
 flagcxTuner_t internalTuner = {
     "internal tuner",
-    TunerInit,
-    TunerGetCandidateNumber,
-    TunerSetCandidate,
-    TunerGetCollInfo,
-    TunerDestroy};
+    flagcxTunerInit,
+    flagcxTunerGetCandidateNumber,
+    flagcxTunerSetCandidate,
+    flagcxTunerGetCollInfo,
+    flagcxTunerDestroy};

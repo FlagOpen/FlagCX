@@ -4,5 +4,7 @@
 #include "tuner.h"
 
 bool operator<(const struct flagcxCommTag& lhs, const struct flagcxCommTag& rhs);
+bool operator==(const struct flagcxCommTag& lhs, const struct flagcxCommTag& rhs);
+
 extern flagcxTuner_t internalTuner;
 #endif // end of FLAGCX_TUNER_H_

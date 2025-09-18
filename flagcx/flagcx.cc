@@ -324,12 +324,13 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
   int nConfigs = 0;
   FLAGCXCHECK((*comm)->tuner->getCandidateNumber((*comm)->tunerContext, &nConfigs));
   assert(nConfigs >= 1);
+  (*comm)->homoCommMap.clear();
   for (int i = 0; i < nConfigs; ++i) {
-    struct flagcxCommTag tag;
-    flagcxInnerComm_t innerComm;
+    struct flagcxCommTag tag = {.tag = ""};
+    flagcxInnerComm_t innerComm = NULL;
     FLAGCXCHECK((*comm)->tuner->setCandidate((*comm)->tunerContext, i, &tag));
+    INFO(FLAGCX_INIT, "start to prepare communicator tag=%s(%d/%d)", tag.tag, i, nConfigs);
     // Note: The tuner only support homo comm optimization for now
-
     // Reset commId and homo root rank calls underlying GetUniqueId function for
     // initialization of homo communicator
     memset((void *)commId, 0, sizeof(*commId));
@@ -349,8 +350,11 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->commInitRank(
         &innerComm, (*comm)->homo_ranks, commId, (*comm)->homo_rank,
         NULL));
+
     // Insert item into homoCommMap
     (*comm)->homoCommMap[tag] = innerComm;
+    // For backward compatible, also asign homo_comm field.
+    (*comm)->homo_comm = innerComm;
   }
 
   if (!is_homo_comm(*comm)) {
@@ -521,10 +525,17 @@ flagcxResult_t flagcxCommDestroy(flagcxComm_t comm) {
           cclAdaptors[flagcxCCLAdaptorHost]->commDestroy(comm->host_comm));
     }
   }
-  // Destroy homo comm
-  FLAGCXCHECK(
-      cclAdaptors[flagcxCCLAdaptorDevice]->commDestroy(comm->homo_comm));
 
+  // Destroy homo comms
+  for (const auto & item : comm->homoCommMap) {
+    FLAGCXCHECK(
+      cclAdaptors[flagcxCCLAdaptorDevice]->commDestroy(item.second));
+  }
+
+  // Destroy tuner
+  if (comm->tuner) {
+    comm->tuner->destroy(comm->tunerContext);
+  }
   return flagcxSuccess;
 }
 
@@ -1000,7 +1011,7 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
                                flagcxStream_t stream) {
   FLAGCXCHECK(flagcxEnsureCommReady(comm));
   if (is_homo_comm(comm)) {
-    flagcxCommTag tag;
+    struct flagcxCommTag tag = {.tag = ""};
     FLAGCXCHECK(comm->tuner->getCollInfo(comm->tunerContext, flagcxCommOpAllReduce, count * getFlagcxDataTypeSize(datatype), 0, NULL, 0, &tag));
     assert(comm->homoCommMap.find(tag) != comm->homoCommMap.end());
     flagcxInnerComm_t innerComm = comm->homoCommMap[tag];
