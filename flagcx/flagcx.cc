@@ -323,7 +323,10 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
   FLAGCXCHECK((*comm)->tuner->init((*comm)->nranks, 0, flagcxDebugLog, &((*comm)->tunerContext)));
   int nConfigs = 0;
   FLAGCXCHECK((*comm)->tuner->getCandidateNumber((*comm)->tunerContext, &nConfigs));
-  assert(nConfigs >= 1);
+  if (nConfigs < 1) {
+    WARN("Tuner returned 0 candidates, at least 1 is required.");
+    return flagcxInternalError;
+  }
   (*comm)->homoCommMap.clear();
   for (int i = 0; i < nConfigs; ++i) {
     struct flagcxCommTag tag = {.tag = ""};
@@ -1014,9 +1017,11 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
     struct flagcxCommTag tag = {.tag = ""};
     FLAGCXCHECK(comm->tuner->getCollInfo(comm->tunerContext, flagcxCommOpAllReduce, count * getFlagcxDataTypeSize(datatype), 0, NULL, 0, &tag));
     const auto it = comm->homoCommMap.find(tag);
-    assert(it != comm->homoCommMap.end());
+    if (it == comm->homoCommMap.end()) {
+      WARN("Tuner returned a communicator tag '%s' that was not initialized.", tag.tag);
+      return flagcxInternalError;
+    }
     flagcxInnerComm_t innerComm = it->second;
-    assert(innerComm != NULL);
     return cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
         sendbuff, recvbuff, count, datatype, op, innerComm, stream);
   } else {

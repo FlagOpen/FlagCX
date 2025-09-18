@@ -25,13 +25,13 @@ struct TunerContext {
 static struct flagcxEnvConfig config1 = {
   .commTag = "defaultConfig1",
   .envCount = 1,
-  .envs = {{.type = 1, .name = "NCCL_P2P_NVL_CHUNKSIZE", .value = "1024", .defaultValue = "524288"}}
+  .envs = {{.type = FLAGCX_ENV_TYPE_CREATION, .name = "NCCL_P2P_NVL_CHUNKSIZE", .value = "1024", .defaultValue = "524288"}}
 };
 
 static struct flagcxEnvConfig config2 = {
   .commTag = "defaultConfig2",
   .envCount = 1,
-  .envs = {{.type = 1, .name = "NCCL_P2P_NVL_CHUNKSIZE", .value = "524288", .defaultValue = "524288"}}
+  .envs = {{.type = FLAGCX_ENV_TYPE_CREATION, .name = "NCCL_P2P_NVL_CHUNKSIZE", .value = "524288", .defaultValue = "524288"}}
 };
 
 bool operator<(const struct flagcxCommTag& lhs, const struct flagcxCommTag& rhs) {
@@ -80,18 +80,18 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
 }
 
 flagcxResult_t flagcxTunerGetCandidateNumber(void* context, int* nCandidates) {
-  struct TunerContext* ctx = (struct TunerContext*)context;
+  struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
   *nCandidates = ctx->configList.size();
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxTunerSetCandidate(void* context, int index,
                                       struct flagcxCommTag* commTag) {
-  struct TunerContext* ctx = (struct TunerContext*)context;
+  struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
   if (index >= ctx->configList.size()) {
-      WARN("invalid index, index %d must less than config size %ld, reset index to 0", 
+      WARN("invalid index, index %d must less than config size %ld.",
             index, ctx->configList.size());
-      index = 0;
+      return flagcxInvalidArgument;
   }
   // Set env for that communicator index
   const auto & curCfg = ctx->configList[index];
@@ -105,7 +105,7 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
                                       size_t nBytes, int numPipeOps,
                                       float** collCostTable, int regBuff,
                                       struct flagcxCommTag* commTag) {
-  struct TunerContext* ctx = (struct TunerContext*)context;
+  struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
   // Use env comm tag when possible.
   if (ctx->envTagIdx != -1) {
     FLAGCXCHECK(setEnvConfig(ctx->configList[ctx->envTagIdx], FLAGCX_ENV_TYPE_COLL));
@@ -129,7 +129,7 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
 }
 
 flagcxResult_t flagcxTunerDestroy(void *context) {
-  struct TunerContext* ctx = (struct TunerContext*)context;
+  struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
   delete ctx;
   return flagcxSuccess;
 }
