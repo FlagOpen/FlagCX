@@ -1013,8 +1013,9 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
   if (is_homo_comm(comm)) {
     struct flagcxCommTag tag = {.tag = ""};
     FLAGCXCHECK(comm->tuner->getCollInfo(comm->tunerContext, flagcxCommOpAllReduce, count * getFlagcxDataTypeSize(datatype), 0, NULL, 0, &tag));
-    assert(comm->homoCommMap.find(tag) != comm->homoCommMap.end());
-    flagcxInnerComm_t innerComm = comm->homoCommMap[tag];
+    const auto it = comm->homoCommMap.find(tag);
+    assert(it != comm->homoCommMap.end());
+    flagcxInnerComm_t innerComm = it->second;
     assert(innerComm != NULL);
     return cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
         sendbuff, recvbuff, count, datatype, op, innerComm, stream);

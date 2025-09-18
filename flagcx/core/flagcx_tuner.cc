@@ -25,13 +25,13 @@ struct TunerContext {
 static struct flagcxEnvConfig config1 = {
   .commTag = "defaultConfig1",
   .envCount = 1,
-  .envs = {{.type = 1, .name = "NCCL_BUFFSIZE", .value = "1024", .defaultValue = "4194304"}}
+  .envs = {{.type = 1, .name = "NCCL_P2P_NVL_CHUNKSIZE", .value = "1024", .defaultValue = "524288"}}
 };
 
 static struct flagcxEnvConfig config2 = {
   .commTag = "defaultConfig2",
   .envCount = 1,
-  .envs = {{.type = 1, .name = "NCCL_BUFFSIZE", .value = "4194304", .defaultValue = "4194304"}}
+  .envs = {{.type = 1, .name = "NCCL_P2P_NVL_CHUNKSIZE", .value = "524288", .defaultValue = "524288"}}
 };
 
 bool operator<(const struct flagcxCommTag& lhs, const struct flagcxCommTag& rhs) {
@@ -59,7 +59,7 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
                               flagcxDebugLogger_t logFunction, void **context) {
   struct TunerContext* ctx = new struct TunerContext;
   //TODO: read config from file.
-  ctx->configList.push_back(config1);
+  //ctx->configList.push_back(config1);
   ctx->configList.push_back(config2);
   ctx->logger = logFunction;
   *context = ctx;
@@ -67,7 +67,7 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
   // Whether comm tag specified by environment variable
   const char *tagEnv = flagcxGetEnv("FLAGCX_USE_COMM_TAG");
   if (tagEnv != nullptr) {
-    strncpy(ctx->envTag.tag, tagEnv, FLAGCX_COMM_TAG_MAX_LENGTH);
+    snprintf(ctx->envTag.tag, FLAGCX_COMM_TAG_MAX_LENGTH, "%s", tagEnv);
     for (int i = 0; i < ctx->configList.size(); ++i) {
       if (ctx->envTag == ctx->configList[i].commTag) {
         ctx->envTagIdx = i;
@@ -116,8 +116,9 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
   // TODO: Find best comm.
   for (int i = 0; i < ctx->configList.size(); ++i) {
     const auto & cfg = ctx->configList[i];
-    if (ctx->commsStatusMap.find(cfg.commTag) != ctx->commsStatusMap.end() &&
-        ctx->commsStatusMap[cfg.commTag] == TunerCommStatusActive) {
+    const auto it = ctx->commsStatusMap.find(cfg.commTag);
+    if (it != ctx->commsStatusMap.end() &&
+        it->second == TunerCommStatusActive) {
       FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
       *commTag = cfg.commTag;
       INFO(FLAGCX_COLL, "Use Communicator tag %s.", commTag->tag);
