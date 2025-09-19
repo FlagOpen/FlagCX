@@ -16,7 +16,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <unordered_map>
-#include <cstring>
 #define FLAGCX_CACHE_CAPACITY 16
 static flagcxLRUCache<size_t, flagcxC2cPlanner>
     planCache(FLAGCX_CACHE_CAPACITY);
@@ -321,14 +320,14 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
   // Tuner init
   (*comm)->tuner = &internalTuner;
   FLAGCXCHECK((*comm)->tuner->init((*comm)->nranks, 0, flagcxDebugLog, &((*comm)->tunerContext)));
-  int nConfigs = 0;
+  uint32_t nConfigs = 0;
   FLAGCXCHECK((*comm)->tuner->getCandidateNumber((*comm)->tunerContext, &nConfigs));
   if (nConfigs < 1) {
     WARN("Tuner returned 0 candidates, at least 1 is required.");
     return flagcxInternalError;
   }
   (*comm)->homoCommMap.clear();
-  for (int i = 0; i < nConfigs; ++i) {
+  for (uint32_t i = 0; i < nConfigs; ++i) {
     struct flagcxCommTag tag = {.tag = ""};
     flagcxInnerComm_t innerComm = NULL;
     FLAGCXCHECK((*comm)->tuner->setCandidate((*comm)->tunerContext, i, &tag));
@@ -356,7 +355,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
 
     // Insert item into homoCommMap
     (*comm)->homoCommMap[tag] = innerComm;
-    // For backward compatible, also asign homo_comm field.
+    // For backward compatible, also assign homo_comm field.
     (*comm)->homo_comm = innerComm;
   }
 

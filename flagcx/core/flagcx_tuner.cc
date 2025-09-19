@@ -79,13 +79,13 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxTunerGetCandidateNumber(void* context, int* nCandidates) {
+flagcxResult_t flagcxTunerGetCandidateNumber(void* context, uint32_t* nCandidates) {
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
   *nCandidates = ctx->configList.size();
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxTunerSetCandidate(void* context, int index,
+flagcxResult_t flagcxTunerSetCandidate(void* context, uint32_t index,
                                       struct flagcxCommTag* commTag) {
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
   if (index >= ctx->configList.size()) {
@@ -113,7 +113,8 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
     INFO(FLAGCX_COLL, "Use Communicator tag %s set by environment.", commTag->tag);
     return flagcxSuccess;
   }
-  // TODO: Find best comm.
+  // TODO: Implement logic to select the best communicator based on performance metrics.
+  // Currently, selects the first active communicator found.
   for (int i = 0; i < ctx->configList.size(); ++i) {
     const auto & cfg = ctx->configList[i];
     const auto it = ctx->commsStatusMap.find(cfg.commTag);
