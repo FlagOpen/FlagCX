@@ -60,6 +60,7 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
   struct TunerContext* ctx = new struct TunerContext;
   //TODO: read config from file.
   //ctx->configList.push_back(config1);
+  (void) config1;
   ctx->configList.push_back(config2);
   ctx->logger = logFunction;
   *context = ctx;
@@ -68,7 +69,7 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
   const char *tagEnv = flagcxGetEnv("FLAGCX_USE_COMM_TAG");
   if (tagEnv != nullptr) {
     snprintf(ctx->envTag.tag, FLAGCX_COMM_TAG_MAX_LENGTH, "%s", tagEnv);
-    for (int i = 0; i < ctx->configList.size(); ++i) {
+    for (size_t i = 0; i < ctx->configList.size(); ++i) {
       if (ctx->envTag == ctx->configList[i].commTag) {
         ctx->envTagIdx = i;
         INFO(FLAGCX_INIT, "Communicator tag set by environment to %s.", ctx->envTag.tag);
@@ -89,7 +90,7 @@ flagcxResult_t flagcxTunerSetCandidate(void* context, uint32_t index,
                                       struct flagcxCommTag* commTag) {
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
   if (index >= ctx->configList.size()) {
-      WARN("invalid index, index %d must less than config size %ld.",
+      WARN("invalid index, index %u must less than config size %zu.",
             index, ctx->configList.size());
       return flagcxInvalidArgument;
   }
@@ -115,7 +116,7 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
   }
   // TODO: Implement logic to select the best communicator based on performance metrics.
   // Currently, selects the first active communicator found.
-  for (int i = 0; i < ctx->configList.size(); ++i) {
+  for (size_t i = 0; i < ctx->configList.size(); ++i) {
     const auto & cfg = ctx->configList[i];
     const auto it = ctx->commsStatusMap.find(cfg.commTag);
     if (it != ctx->commsStatusMap.end() &&

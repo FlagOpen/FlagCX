@@ -331,7 +331,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     struct flagcxCommTag tag = {.tag = ""};
     flagcxInnerComm_t innerComm = NULL;
     FLAGCXCHECK((*comm)->tuner->setCandidate((*comm)->tunerContext, i, &tag));
-    INFO(FLAGCX_INIT, "start to prepare communicator tag=%s(%d/%d)", tag.tag, i, nConfigs);
+    INFO(FLAGCX_INIT, "start to prepare communicator tag=%s(%u/%u)", tag.tag, i, nConfigs);
     // Note: The tuner only support homo comm optimization for now
     // Reset commId and homo root rank calls underlying GetUniqueId function for
     // initialization of homo communicator

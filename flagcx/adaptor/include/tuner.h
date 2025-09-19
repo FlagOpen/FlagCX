@@ -2,7 +2,6 @@
 #define FLAGCX_ADAPTOR_TUNER_H_
 
 #include "flagcx.h"
-#include "global_comm.h"
 #include "debug.h"
 
 #ifdef __cplusplus

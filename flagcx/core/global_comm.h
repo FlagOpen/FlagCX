@@ -49,7 +49,7 @@ struct flagcxComm {
   flagcxInnerComm_t homoInterComm;
   std::vector<flagcxVendorType> clusterVendorMap;
   struct flagcxTuner *tuner;
-  void  *tunerContext;
+  void *tunerContext;
   std::map<struct flagcxCommTag, flagcxInnerComm_t> homoCommMap; // key: commTag returned by tuner
 };
 
