@@ -1038,6 +1038,10 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
                                flagcxStream_t stream) {
   FLAGCXCHECK(flagcxEnsureCommReady(comm));
   if (is_homo_comm(comm)) {
+    if (comm->tuner == NULL) {
+      return cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
+              sendbuff, recvbuff, count, datatype, op, comm->homo_comm, stream);
+    }
     struct flagcxCommTag tag = {.tag = ""};
     FLAGCXCHECK(comm->tuner->getCollInfo(comm->tunerContext, flagcxCommOpAllReduce, count * getFlagcxDataTypeSize(datatype), 0, NULL, 0, &tag));
     const auto it = comm->homoCommMap.find(tag);
