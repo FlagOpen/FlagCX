@@ -22,6 +22,8 @@
 
 namespace c10d {
 
+constexpr const char *FLAGCX_BACKEND_NAME = "flagcx";
+
 class flagcxWork : public Work {
   friend class flagcxBackend;
 
@@ -78,6 +80,11 @@ public:
   void startCoalescing() override;
 
   c10::intrusive_ptr<Work> endCoalescing() override;
+
+  const std::string getBackendName() const override {
+    static const std::string name{FLAGCX_BACKEND_NAME};
+    return name;
+  }
 
   // For specifying a composite optype, such as ALLGATHER and REDUCE_SCATTER
   c10::intrusive_ptr<Work> endCoalescing(OpType optype);
