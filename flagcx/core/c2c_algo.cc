@@ -36,7 +36,7 @@ size_t getC2cCommPatternHash(size_t count, size_t rootClusterId,
   std::size_t h4 = std::hash<size_t>()(redOp);
   std::size_t h5 = std::hash<size_t>()((size_t)((uintptr_t)comm));
   return static_cast<size_t>(h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3) ^
-                             (h5 << 4));
+                             (h5 << 4) + h3);
 }
 
 flagcxInterRankBufferInfoManager::flagcxInterRankBufferInfoManager(
