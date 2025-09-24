@@ -32,7 +32,7 @@ void flagcxRegPool::registerBuffer(void *data, size_t length) {
 
   for (auto &reg : regPool) {
     if (beginAddr < reg.beginAddr) {
-      regPool.push_front({beginAddr, endAddr, 1, 0, nullptr, nullptr});
+      regPool.push_front({beginAddr, endAddr, 1, nullptr, nullptr});
       auto &newReg = regPool.front();
       regMap[reinterpret_cast<uintptr_t>(data)] = &newReg;
       pthread_mutex_unlock(&poolMutex);
@@ -45,7 +45,7 @@ void flagcxRegPool::registerBuffer(void *data, size_t length) {
     }
   }
 
-  regPool.push_back({beginAddr, endAddr, 1, 0, nullptr, nullptr});
+  regPool.push_back({beginAddr, endAddr, 1, nullptr, nullptr});
   auto &newReg = regPool.back();
   regMap[reinterpret_cast<uintptr_t>(data)] = &newReg;
   pthread_mutex_unlock(&poolMutex);
@@ -247,10 +247,11 @@ flagcxRegItem *flagcxRegPool::getItem(uintptr_t key) {
 void flagcxRegPool::dump() {
   pthread_mutex_lock(&poolMutex);
   printf("========================\n");
+  printf("RegPool(pageSize=%lu\n", pageSize);
   for (auto &p : regMap)
-    printf("%lu -> [%lu,%lu,%d,%d,%p,%p]\n", p.first, p.second->beginAddr,
-           p.second->endAddr, p.second->refCount, p.second->status,
-           p.second->sendMrHandle, p.second->recvMrHandle);
+    printf("%lu -> [%lu,%lu,%d,%p,%p]\n", p.first, p.second->beginAddr,
+           p.second->endAddr, p.second->refCount, p.second->sendMrHandle,
+           p.second->recvMrHandle);
   printf("========================\n");
   pthread_mutex_unlock(&poolMutex);
 }

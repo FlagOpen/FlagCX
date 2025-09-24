@@ -11,7 +11,7 @@ struct flagcxRegItem {
   uintptr_t beginAddr = 0;
   uintptr_t endAddr = 0;
   int refCount = 1;
-  int status = 0; // 0:to-be-registered, 1:registered
+  // int status = 0; // 0:to-be-registered, 1:registered
   void *sendMrHandle = nullptr;
   void *recvMrHandle = nullptr;
 };
