@@ -2,6 +2,7 @@
 #include "adaptor.h"
 #include "device.h"
 #include "proxy.h"
+#include "reg_pool.h"
 
 #include <errno.h>
 #include <string.h>
@@ -136,6 +137,30 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
   if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
     return flagcxSuccess;
+
+  // check if data is registered
+  // globalRegPool.dump();
+  flagcxRegItem *reg = globalRegPool.getItem((uintptr_t)data);
+  if (reg != NULL) {
+    // INFO(FLAGCX_REG, "Data buffer found in reg pool: %p, size %zu", data,
+    // size); if (reg->status == 0 && resources->netAdaptor ==
+    // getUnifiedNetAdaptor(IBRC)) {
+    if (reg->status == 0 &&
+        resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+      // INFO(FLAGCX_REG, "send regMr with beginAddr=%lx, endAddr=%lx\n",
+      // beginAddr, reg.endAddr);
+      FLAGCXCHECK(resources->netAdaptor->regMr(
+          resources->netSendComm, (void *)reg->beginAddr,
+          (size_t)(reg->endAddr - reg->beginAddr), 2, &reg->sendMrHandle));
+      // resources->netSendComm, data,
+      // size, 2, &reg.sendMrHandle));
+      // size, 2, &resources->mhandles[0]));
+      reg->status = 1;
+      // } else if (reg.type == flagcxDeviceRdmaMemNative) {
+      //   args->reg = &reg;
+    }
+  }
+
   if (args->transmitted < args->chunkSteps) {
     int stepMask = args->sendStepMask;
 
@@ -145,16 +170,18 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
       args->subs[step].stepSize =
           std::min(args->chunkSize, size - args->totalCopySize);
       args->subs[step].stepBuff = resources->buffers[0] + (CHUNKSIZE * step);
-      if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
-        FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
-            args->subs[step].stepBuff, (char *)data + args->totalCopySize,
-            args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
-            resources->cpStream, args->subs[step].copyArgs));
-      } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
-        FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
-            args->subs[step].stepBuff, (char *)data + args->totalCopySize,
-            args->subs[step].stepSize, flagcxMemcpyDeviceToHost,
-            resources->cpStream, args->subs[step].copyArgs));
+      if (reg == NULL) {
+        if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+          FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+              args->subs[step].stepBuff, (char *)data + args->totalCopySize,
+              args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
+              resources->cpStream, args->subs[step].copyArgs));
+        } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
+          FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+              args->subs[step].stepBuff, (char *)data + args->totalCopySize,
+              args->subs[step].stepSize, flagcxMemcpyDeviceToHost,
+              resources->cpStream, args->subs[step].copyArgs));
+        }
       }
       FLAGCXCHECK(deviceAdaptor->eventRecord(resources->cpEvents[step],
                                              resources->cpStream));
@@ -172,10 +199,20 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
 
     if (args->posted < args->copied) {
       void *req = NULL;
-      resources->netAdaptor->isend(resources->netSendComm,
-                                   args->subs[args->posted & stepMask].stepBuff,
-                                   args->subs[args->posted & stepMask].stepSize,
-                                   0, resources->mhandles[0], NULL, &req);
+      // INFO(FLAGCX_REG, "isend args->reg: %p", args->reg);
+      if (reg == NULL) {
+        resources->netAdaptor->isend(
+            resources->netSendComm,
+            args->subs[args->posted & stepMask].stepBuff,
+            args->subs[args->posted & stepMask].stepSize, 0,
+            resources->mhandles[0], NULL, &req);
+      } else {
+        resources->netAdaptor->isend(
+            resources->netSendComm,
+            (void *)((char *)data + (CHUNKSIZE * (args->posted & stepMask))),
+            args->subs[args->posted & stepMask].stepSize, 0, reg->sendMrHandle,
+            NULL, &req);
+      }
       if (req) {
         args->subs[args->posted++ & stepMask].requests[0] = req;
       }
@@ -209,6 +246,33 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
   if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
     return flagcxSuccess;
+
+  // check if data is registered
+  // globalRegPool.dump();
+  flagcxRegItem *reg = globalRegPool.getItem((uintptr_t)data);
+  if (reg != NULL) {
+    // INFO(FLAGCX_REG, "Data buffer found in reg pool: %p, size %zu", data,
+    // size);
+    // if (reg.type == flagcxDeviceRdmaMemRegistered && reg.status == 0 &&
+    // resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+    // if (reg->status == 0 && resources->netAdaptor ==
+    // getUnifiedNetAdaptor(IBRC)) {
+    if (reg->status == 0 &&
+        resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+      // INFO(FLAGCX_REG, "recv regMr with beginAddr=%lx, endAddr=%lx\n",
+      // beginAddr, reg.endAddr);
+      FLAGCXCHECK(resources->netAdaptor->regMr(
+          resources->netRecvComm, (void *)reg->beginAddr,
+          (size_t)(reg->endAddr - reg->beginAddr), 2, &reg->recvMrHandle));
+      // resources->netRecvComm, data,
+      // size, 2, &reg.recvMrHandle));
+      // size, 2, &resources->mhandles[0]));
+      reg->status = 1;
+      // } else if (reg.type == flagcxDeviceRdmaMemNative) {
+      //   args->reg = &reg;
+    }
+  }
+
   if (args->copied < args->chunkSteps) {
     int stepMask = args->sendStepMask;
     if (args->posted < args->chunkSteps &&
@@ -220,10 +284,19 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
       args->subs[args->posted & stepMask].stepBuff =
           resources->buffers[0] + CHUNKSIZE * (args->posted & stepMask);
       size_t stepSize = args->subs[args->posted & stepMask].stepSize;
-      resources->netAdaptor->irecv(
-          resources->netRecvComm, 1,
-          &args->subs[args->posted & stepMask].stepBuff, &stepSize, tags,
-          resources->mhandles, NULL, &req);
+      // INFO(FLAGCX_REG, "irecv args->reg: %p", args->reg);
+      if (reg == NULL) {
+        resources->netAdaptor->irecv(
+            resources->netRecvComm, 1,
+            &args->subs[args->posted & stepMask].stepBuff, &stepSize, tags,
+            resources->mhandles, NULL, &req);
+      } else {
+        void *allData[] = {
+            (void *)((char *)data + CHUNKSIZE * (args->posted & stepMask))};
+        resources->netAdaptor->irecv(resources->netRecvComm, 1, allData,
+                                     &stepSize, tags, &reg->recvMrHandle, NULL,
+                                     &req);
+      }
       if (req) {
         args->subs[args->posted & stepMask].requests[0] = req;
         args->totalPostSize += args->subs[args->posted++ & stepMask].stepSize;
@@ -242,11 +315,21 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
     if (args->postFlush < args->transmitted) {
       if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
         void *req = NULL;
-        void *allData[] = {args->subs[args->postFlush & stepMask].stepBuff};
-        resources->netAdaptor->iflush(
-            resources->netRecvComm, 1, allData,
-            &args->subs[args->postFlush & stepMask].stepSize,
-            resources->mhandles, &req);
+        // INFO(FLAGCX_REG, "iflush args->reg: %p", args->reg);
+        if (reg == NULL) {
+          void *allData[] = {args->subs[args->postFlush & stepMask].stepBuff};
+          resources->netAdaptor->iflush(
+              resources->netRecvComm, 1, allData,
+              &args->subs[args->postFlush & stepMask].stepSize,
+              resources->mhandles, &req);
+        } else {
+          void *allData[] = {(
+              void *)((char *)data + CHUNKSIZE * (args->postFlush & stepMask))};
+          resources->netAdaptor->iflush(
+              resources->netRecvComm, 1, allData,
+              &args->subs[args->postFlush & stepMask].stepSize,
+              &reg->recvMrHandle, &req);
+        }
         if (req) {
           args->subs[args->postFlush++ & stepMask].requests[0] = req;
         };
@@ -272,16 +355,18 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
 
     if (args->waitCopy < args->flushed) {
       int step = args->waitCopy & stepMask;
-      if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
-        FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
-            (char *)data + args->totalCopySize, args->subs[step].stepBuff,
-            args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
-            resources->cpStream, args->subs[step].copyArgs));
-      } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
-        FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
-            (char *)data + args->totalCopySize, args->subs[step].stepBuff,
-            args->subs[step].stepSize, flagcxMemcpyHostToDevice,
-            resources->cpStream, args->subs[step].copyArgs));
+      if (reg == NULL) {
+        if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+          FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+              (char *)data + args->totalCopySize, args->subs[step].stepBuff,
+              args->subs[step].stepSize, flagcxMemcpyDeviceToDevice,
+              resources->cpStream, args->subs[step].copyArgs));
+        } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
+          FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+              (char *)data + args->totalCopySize, args->subs[step].stepBuff,
+              args->subs[step].stepSize, flagcxMemcpyHostToDevice,
+              resources->cpStream, args->subs[step].copyArgs));
+        }
       }
       FLAGCXCHECK(deviceAdaptor->eventRecord(resources->cpEvents[step],
                                              resources->cpStream));
@@ -318,9 +403,30 @@ flagcxResult_t flagcxSendProxyFree(sendNetResources *resources) {
     FLAGCXCHECK(deviceAdaptor->eventDestroy(resources->cpEvents[s]));
   }
   FLAGCXCHECK(deviceAdaptor->streamDestroy(resources->cpStream));
-  resources->netAdaptor->deregMr(resources->netSendComm,
-                                 resources->mhandles[0]);
-  resources->netAdaptor->closeSend(resources->netSendComm);
+  // globalRegPool.dump();
+  auto &regMap = globalRegPool.getMap();
+  for (auto &reg : regMap) {
+    // if (reg.second.type == flagcxDeviceRdmaMemRegistered &&
+    // reg.second.sendMrHandle != NULL && resources->netAdaptor ==
+    // getUnifiedNetAdaptor(IBRC)) {
+
+    if (reg.second->sendMrHandle != NULL &&
+        resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+      // globalRegPool.deRegisterBuffer((void *)reg.first);
+      if (reg.second->refCount > 0)
+        reg.second->refCount--;
+      if (reg.second->refCount == 0) {
+        FLAGCXCHECK(resources->netAdaptor->deregMr(resources->netSendComm,
+                                                   reg.second->sendMrHandle));
+        reg.second->sendMrHandle = NULL;
+      }
+      // reg.second.status = 0;
+    }
+  }
+  // globalRegPool.dump();
+  FLAGCXCHECK(resources->netAdaptor->deregMr(resources->netSendComm,
+                                             resources->mhandles[0]));
+  FLAGCXCHECK(resources->netAdaptor->closeSend(resources->netSendComm));
   FLAGCXCHECK(deviceAdaptor->gdrMemFree(resources->buffers[0], NULL));
   return flagcxSuccess;
 }
@@ -330,10 +436,28 @@ flagcxResult_t flagcxRecvProxyFree(recvNetResources *resources) {
     FLAGCXCHECK(deviceAdaptor->eventDestroy(resources->cpEvents[s]));
   }
   FLAGCXCHECK(deviceAdaptor->streamDestroy(resources->cpStream));
-  resources->netAdaptor->deregMr(resources->netRecvComm,
-                                 resources->mhandles[0]);
-  resources->netAdaptor->closeRecv(resources->netRecvComm);
-  resources->netAdaptor->closeListen(resources->netListenComm);
+  auto &regMap = globalRegPool.getMap();
+  for (auto &reg : regMap) {
+    // if (reg.second.type == flagcxDeviceRdmaMemRegistered &&
+    // reg.second.recvMrHandle != NULL && resources->netAdaptor ==
+    // getUnifiedNetAdaptor(IBRC)) {
+    if (reg.second->recvMrHandle != NULL &&
+        resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+      // globalRegPool.deRegisterBuffer((void *)reg.first);
+      if (reg.second->refCount > 0)
+        reg.second->refCount--;
+      if (reg.second->refCount == 0) {
+        FLAGCXCHECK(resources->netAdaptor->deregMr(resources->netRecvComm,
+                                                   reg.second->recvMrHandle));
+        reg.second->recvMrHandle = NULL;
+      }
+      // reg.second.status = 0;
+    }
+  }
+  FLAGCXCHECK(resources->netAdaptor->deregMr(resources->netRecvComm,
+                                             resources->mhandles[0]));
+  FLAGCXCHECK(resources->netAdaptor->closeRecv(resources->netRecvComm));
+  FLAGCXCHECK(resources->netAdaptor->closeListen(resources->netListenComm));
   FLAGCXCHECK(deviceAdaptor->gdrMemFree(resources->buffers[0], NULL));
   return flagcxSuccess;
 }

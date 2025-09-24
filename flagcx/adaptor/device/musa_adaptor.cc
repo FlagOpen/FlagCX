@@ -284,7 +284,7 @@ struct flagcxDeviceAdaptor musaAdaptor {
       musaAdaptorDeviceSynchronize, musaAdaptorDeviceMemcpy,
       musaAdaptorDeviceMemset, musaAdaptorDeviceMalloc, musaAdaptorDeviceFree,
       musaAdaptorSetDevice, musaAdaptorGetDevice, musaAdaptorGetDeviceCount,
-      musaAdaptorGetVendor,
+      musaAdaptorGetVendor, NULL,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);

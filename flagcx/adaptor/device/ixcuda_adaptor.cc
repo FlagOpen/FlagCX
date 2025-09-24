@@ -281,7 +281,7 @@ struct flagcxDeviceAdaptor ixcudaAdaptor {
       ixcudaAdaptorDeviceSynchronize, ixcudaAdaptorDeviceMemcpy,
       ixcudaAdaptorDeviceMemset, ixcudaAdaptorDeviceMalloc,
       ixcudaAdaptorDeviceFree, ixcudaAdaptorSetDevice, ixcudaAdaptorGetDevice,
-      ixcudaAdaptorGetDeviceCount, ixcudaAdaptorGetVendor,
+      ixcudaAdaptorGetDeviceCount, ixcudaAdaptorGetVendor, NULL,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);

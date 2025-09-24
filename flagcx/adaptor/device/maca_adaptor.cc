@@ -284,7 +284,7 @@ struct flagcxDeviceAdaptor macaAdaptor {
       macaAdaptorDeviceSynchronize, macaAdaptorDeviceMemcpy,
       macaAdaptorDeviceMemset, macaAdaptorDeviceMalloc, macaAdaptorDeviceFree,
       macaAdaptorSetDevice, macaAdaptorGetDevice, macaAdaptorGetDeviceCount,
-      macaAdaptorGetVendor,
+      macaAdaptorGetVendor, NULL,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);

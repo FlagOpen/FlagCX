@@ -149,6 +149,7 @@ struct flagcxDeviceAdaptor {
   flagcxResult_t (*getDevice)(int *dev);
   flagcxResult_t (*getDeviceCount)(int *count);
   flagcxResult_t (*getVendor)(char *vendor);
+  flagcxResult_t (*hostGetDevicePointer)(void **pDevice, void *pHost);
 
   // GDR functions
   flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);

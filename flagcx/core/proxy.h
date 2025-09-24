@@ -13,6 +13,7 @@
 #include "ipcsocket.h"
 #include "launch_kernel.h"
 #include "net.h"
+#include "reg_pool.h"
 #include "socket.h"
 #include <pthread.h>
 

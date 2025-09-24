@@ -14,6 +14,7 @@ int main(int argc, char *argv[]) {
   int num_iters = args.getTestIters();
   int print_buffer = args.isPrintBuffer();
   uint64_t split_mask = args.getSplitMask();
+  int local_register = args.getLocalRegister();
 
   flagcxHandlerGroup_t handler;
   flagcxHandleInit(&handler);
@@ -48,8 +49,13 @@ int main(int argc, char *argv[]) {
   int recvPeer = (proc - 1 + totalProcs) % totalProcs;
   int sendPeer = (proc + 1) % totalProcs;
 
-  devHandle->deviceMalloc(&sendbuff, max_bytes, flagcxMemDevice, NULL);
-  devHandle->deviceMalloc(&recvbuff, max_bytes, flagcxMemDevice, NULL);
+  if (local_register) {
+    flagcxMemAlloc(&sendbuff, max_bytes);
+    flagcxMemAlloc(&recvbuff, max_bytes);
+  } else {
+    devHandle->deviceMalloc(&sendbuff, max_bytes, flagcxMemDevice, NULL);
+    devHandle->deviceMalloc(&recvbuff, max_bytes, flagcxMemDevice, NULL);
+  }
   devHandle->deviceMalloc(&hello, max_bytes, flagcxMemHost, NULL);
   devHandle->deviceMemset(hello, 0, max_bytes, flagcxMemHost, NULL);
 
@@ -132,9 +138,14 @@ int main(int argc, char *argv[]) {
   }
 
   flagcxCommDestroy(comm);
+  if (local_register) {
+    flagcxMemFree(sendbuff);
+    flagcxMemFree(recvbuff);
+  } else {
+    devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
+    devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
+  }
   devHandle->streamDestroy(stream);
-  devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
-  devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
   devHandle->deviceFree(hello, flagcxMemHost, NULL);
   flagcxHandleFree(handler);
 

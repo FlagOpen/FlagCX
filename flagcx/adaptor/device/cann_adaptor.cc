@@ -229,7 +229,7 @@ struct flagcxDeviceAdaptor cannAdaptor {
       cannAdaptorDeviceSynchronize, cannAdaptorDeviceMemcpy,
       cannAdaptorDeviceMemset, cannAdaptorDeviceMalloc, cannAdaptorDeviceFree,
       cannAdaptorSetDevice, cannAdaptorGetDevice, cannAdaptorGetDeviceCount,
-      cannAdaptorGetVendor,
+      cannAdaptorGetVendor, NULL,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);

@@ -9,9 +9,10 @@
 #include "cost_model.h"
 #include "flagcx_hetero.h"
 #include "flagcx_tuner.h"
+#include "launch_kernel.h"
+#include "reg_pool.h"
 #include "param.h"
 
-#include "launch_kernel.h"
 #include <cassert>
 #include <stdio.h>
 #include <string.h>
@@ -20,6 +21,8 @@
 #define FLAGCX_CACHE_CAPACITY 16
 static flagcxLRUCache<size_t, flagcxC2cPlanner>
     planCache(FLAGCX_CACHE_CAPACITY);
+
+flagcxRegPool globalRegPool;
 
 size_t getFlagcxDataTypeSize(flagcxDataType_t dtype) {
   switch (dtype) {
@@ -67,7 +70,7 @@ static struct flagcxDeviceHandle globalDeviceHandle {
       deviceAdaptor->deviceMemset, deviceAdaptor->deviceMalloc,
       deviceAdaptor->deviceFree, deviceAdaptor->setDevice,
       deviceAdaptor->getDevice, deviceAdaptor->getDeviceCount,
-      deviceAdaptor->getVendor,
+      deviceAdaptor->getVendor, deviceAdaptor->hostGetDevicePointer,
       // Stream functions
       deviceAdaptor->streamCreate, deviceAdaptor->streamDestroy,
       deviceAdaptor->streamCopy, deviceAdaptor->streamFree,
@@ -128,6 +131,55 @@ flagcxResult_t flagcxHandleFree(flagcxHandlerGroup_t handler) {
     handler->devHandle = NULL;
     free(handler);
     handler = NULL;
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t flagcxMemAlloc(void **ptr, size_t size, flagcxComm_t comm) {
+  if (*ptr != NULL || size == 0) {
+    WARN("Invalid pointer(!=NULL) or size(0) for allocation.");
+    return flagcxSuccess;
+  }
+  if (comm != NULL && is_homo_comm(comm)) {
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    // TODO: add CCLAdaptor->memAlloc
+  } else {
+    FLAGCXCHECK(deviceAdaptor->gdrMemAlloc(ptr, size, NULL));
+    if (*ptr != NULL) {
+      INFO(FLAGCX_REG, "User buffer registration succeed with [%p, %ld]", *ptr,
+           size);
+      globalRegPool.registerBuffer(*ptr, size);
+      // globalRegPool.dump();
+    } else {
+      WARN("User buffer registration failed");
+      return flagcxUnhandledDeviceError;
+    }
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t flagcxMemFree(void *ptr, flagcxComm_t comm) {
+  if (ptr == NULL) {
+    WARN("Invalid pointer(=NULL)for de-allocation.");
+    return flagcxSuccess;
+  }
+  if (comm != NULL && is_homo_comm(comm)) {
+    FLAGCXCHECK(flagcxEnsureCommReady(comm));
+    // TODO: add CCLAdaptor->memFree
+  } else {
+    // globalRegPool.dump();
+    flagcxRegItem *reg = globalRegPool.getItem((uintptr_t)ptr);
+    if (reg != NULL) {
+      // globalRegPool.deRegisterBuffer(ptr);
+      if (reg->refCount == 0) {
+        // while (reg->refCount > 0 && reg->sendMrHandle != NULL &&
+        // reg->recvMrHandle != NULL) {}
+        FLAGCXCHECK(deviceAdaptor->gdrMemFree(ptr, NULL));
+        INFO(FLAGCX_REG, "User buffer deregistration succeed");
+      }
+    } else {
+      WARN("No available user buffer to be freed");
+    }
   }
   return flagcxSuccess;
 }

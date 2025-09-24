@@ -315,7 +315,7 @@ struct flagcxDeviceAdaptor kunlunAdaptor {
       kunlunAdaptorDeviceSynchronize, kunlunAdaptorDeviceMemcpy,
       kunlunAdaptorDeviceMemset, kunlunAdaptorDeviceMalloc,
       kunlunAdaptorDeviceFree, kunlunAdaptorSetDevice, kunlunAdaptorGetDevice,
-      kunlunAdaptorGetDeviceCount, kunlunAdaptorGetVendor,
+      kunlunAdaptorGetDeviceCount, kunlunAdaptorGetVendor, NULL,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);

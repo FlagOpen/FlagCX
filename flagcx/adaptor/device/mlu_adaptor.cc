@@ -259,7 +259,7 @@ struct flagcxDeviceAdaptor mluAdaptor {
       mluAdaptorDeviceSynchronize, mluAdaptorDeviceMemcpy,
       mluAdaptorDeviceMemset, mluAdaptorDeviceMalloc, mluAdaptorDeviceFree,
       mluAdaptorSetDevice, mluAdaptorGetDevice, mluAdaptorGetDeviceCount,
-      mluAdaptorGetVendor,
+      mluAdaptorGetVendor, NULL,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);

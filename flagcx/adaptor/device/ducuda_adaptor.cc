@@ -283,7 +283,7 @@ struct flagcxDeviceAdaptor ducudaAdaptor {
       ducudaAdaptorDeviceSynchronize, ducudaAdaptorDeviceMemcpy,
       ducudaAdaptorDeviceMemset, ducudaAdaptorDeviceMalloc,
       ducudaAdaptorDeviceFree, ducudaAdaptorSetDevice, ducudaAdaptorGetDevice,
-      ducudaAdaptorGetDeviceCount, ducudaAdaptorGetVendor,
+      ducudaAdaptorGetDeviceCount, ducudaAdaptorGetVendor, NULL,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);
