@@ -52,6 +52,8 @@ int main(int argc, char *argv[]) {
   if (local_register) {
     flagcxMemAlloc(&sendbuff, max_bytes);
     flagcxMemAlloc(&recvbuff, max_bytes);
+    flagcxCommRegister(comm, sendbuff, max_bytes, NULL);
+    flagcxCommRegister(comm, recvbuff, max_bytes, NULL);
   } else {
     devHandle->deviceMalloc(&sendbuff, max_bytes, flagcxMemDevice, NULL);
     devHandle->deviceMalloc(&recvbuff, max_bytes, flagcxMemDevice, NULL);
@@ -141,6 +143,8 @@ int main(int argc, char *argv[]) {
   if (local_register) {
     flagcxMemFree(sendbuff);
     flagcxMemFree(recvbuff);
+    flagcxCommDeregister(comm, NULL);
+    flagcxCommDeregister(comm, NULL);
   } else {
     devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
     devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);

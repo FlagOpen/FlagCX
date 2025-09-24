@@ -23,17 +23,19 @@ public:
 
   inline void getPagedAddr(void *data, size_t length, uintptr_t *beginAddr,
                            uintptr_t *endAddr);
-  void registerBuffer(void *data, size_t length);
-  void deRegisterBuffer(void *data);
+  void registerBuffer(void *comm, void *data, size_t length);
+  void deRegisterBuffer(void *comm, void *data);
   // void updateBuffer(void *data, int newStatus);
   // uintptr_t findBuffer(void *data, size_t length);
-  std::map<uintptr_t, flagcxRegItem *> &getMap();
-  flagcxRegItem *getItem(uintptr_t key);
+  std::map<uintptr_t, std::map<uintptr_t, flagcxRegItem *>> &getGlobalMap();
+  std::map<uintptr_t, flagcxRegItem *> &getCommMap(void *comm);
+  flagcxRegItem *getItem(void *comm, void *data);
   void dump();
 
 private:
-  std::map<uintptr_t, flagcxRegItem *> regMap;
-  std::list<flagcxRegItem> regPool;
+  std::map<uintptr_t, std::map<uintptr_t, flagcxRegItem *>>
+      regMap; // <commPtr, <dataPtr, regItem>>
+  std::map<uintptr_t, std::list<flagcxRegItem>> regPool;
   pthread_mutex_t poolMutex;
   uintptr_t pageSize;
 };

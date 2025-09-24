@@ -135,52 +135,63 @@ flagcxResult_t flagcxHandleFree(flagcxHandlerGroup_t handler) {
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxMemAlloc(void **ptr, size_t size, flagcxComm_t comm) {
+flagcxResult_t flagcxMemAlloc(void **ptr, size_t size) {
   if (*ptr != NULL || size == 0) {
     WARN("Invalid pointer(!=NULL) or size(0) for allocation.");
     return flagcxSuccess;
   }
-  if (comm != NULL && is_homo_comm(comm)) {
-    FLAGCXCHECK(flagcxEnsureCommReady(comm));
-    // TODO: add CCLAdaptor->memAlloc
+  FLAGCXCHECK(deviceAdaptor->gdrMemAlloc(ptr, size, NULL));
+  if (*ptr != NULL) {
+    INFO(FLAGCX_REG, "User buffer memory allocated with [%p, %ld]", *ptr, size);
   } else {
-    FLAGCXCHECK(deviceAdaptor->gdrMemAlloc(ptr, size, NULL));
-    if (*ptr != NULL) {
-      INFO(FLAGCX_REG, "User buffer registration succeed with [%p, %ld]", *ptr,
-           size);
-      globalRegPool.registerBuffer(*ptr, size);
-      // globalRegPool.dump();
-    } else {
-      WARN("User buffer registration failed");
-      return flagcxUnhandledDeviceError;
-    }
+    WARN("User buffer registration failed");
+    return flagcxUnhandledDeviceError;
   }
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxMemFree(void *ptr, flagcxComm_t comm) {
+flagcxResult_t flagcxMemFree(void *ptr) {
   if (ptr == NULL) {
     WARN("Invalid pointer(=NULL)for de-allocation.");
     return flagcxSuccess;
   }
-  if (comm != NULL && is_homo_comm(comm)) {
-    FLAGCXCHECK(flagcxEnsureCommReady(comm));
-    // TODO: add CCLAdaptor->memFree
-  } else {
-    // globalRegPool.dump();
-    flagcxRegItem *reg = globalRegPool.getItem((uintptr_t)ptr);
-    if (reg != NULL) {
-      // globalRegPool.deRegisterBuffer(ptr);
-      if (reg->refCount == 0) {
-        // while (reg->refCount > 0 && reg->sendMrHandle != NULL &&
-        // reg->recvMrHandle != NULL) {}
-        FLAGCXCHECK(deviceAdaptor->gdrMemFree(ptr, NULL));
-        INFO(FLAGCX_REG, "User buffer deregistration succeed");
-      }
-    } else {
-      WARN("No available user buffer to be freed");
-    }
+  // TODO: add CCLAdaptor->memFree
+  FLAGCXCHECK(deviceAdaptor->gdrMemFree(ptr, NULL));
+  INFO(FLAGCX_REG, "User buffer memory deallocated");
+  return flagcxSuccess;
+}
+
+flagcxResult_t flagcxCommRegister(const flagcxComm_t comm, void *buff,
+                                  size_t size, void **handle) {
+  FLAGCXCHECK(flagcxEnsureCommReady(comm));
+  if (buff == NULL || size == 0) {
+    WARN("Invalid buffer or size for buffer registration.");
+    return flagcxInvalidArgument;
   }
+  if (is_homo_comm(comm)) {
+    // TODO: add cclAdaptor->commRegister
+  } else {
+    globalRegPool.registerBuffer((void *)comm->hetero_comm, buff, size);
+    // flagcxRegItem *reg = globalRegPool.getItem((void *)comm->hetero_comm,
+    // buff);
+    *handle = NULL;
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t flagcxCommDeregister(const flagcxComm_t comm, void *handle) {
+  FLAGCXCHECK(flagcxEnsureCommReady(comm))
+  // globalRegPool.dump();
+  // flagcxRegItem *reg = globalRegPool.getItem((void *)comm->hetero_comm,
+  // buff);
+  auto &regMap = globalRegPool.getGlobalMap();
+  // For now, we don't make use of handle
+  while (!regMap.empty()) {
+  }
+  // if (reg->refCount == 0) {
+  // while (reg->refCount > 0 && reg->sendMrHandle != NULL &&
+  // reg->recvMrHandle != NULL) {}
+  // }
   return flagcxSuccess;
 }
 

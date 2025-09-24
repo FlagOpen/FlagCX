@@ -37,6 +37,7 @@ struct sendNetResources {
   struct flagcxSendMem *sendMem;
   struct flagcxRecvMem *recvMem;
 
+  struct flagcxHeteroComm *commPtr;
   struct flagcxNetAdaptor *netAdaptor;
   int tpRank;
   int tpLocalRank;
@@ -68,6 +69,7 @@ struct recvNetResources {
   struct flagcxSendMem *sendMem;
   struct flagcxRecvMem *recvMem;
 
+  struct flagcxHeteroComm *commPtr;
   struct flagcxNetAdaptor *netAdaptor;
   int tpRank;
   int tpLocalRank;

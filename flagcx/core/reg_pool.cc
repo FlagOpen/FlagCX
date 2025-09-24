@@ -21,33 +21,34 @@ inline void flagcxRegPool::getPagedAddr(void *data, size_t length,
       (reinterpret_cast<uintptr_t>(data) + length + pageSize - 1) & -pageSize;
 }
 
-void flagcxRegPool::registerBuffer(void *data, size_t length) {
+void flagcxRegPool::registerBuffer(void *comm, void *data, size_t length) {
   if (data == nullptr || length == 0)
     return;
 
+  uintptr_t commKey = reinterpret_cast<uintptr_t>(comm);
   uintptr_t beginAddr, endAddr;
   getPagedAddr(data, length, &beginAddr, &endAddr);
 
   pthread_mutex_lock(&poolMutex);
 
-  for (auto &reg : regPool) {
+  for (auto &reg : regPool[commKey]) {
     if (beginAddr < reg.beginAddr) {
-      regPool.push_front({beginAddr, endAddr, 1, nullptr, nullptr});
-      auto &newReg = regPool.front();
-      regMap[reinterpret_cast<uintptr_t>(data)] = &newReg;
+      regPool[commKey].push_front({beginAddr, endAddr, 1, nullptr, nullptr});
+      auto &newReg = regPool[commKey].front();
+      regMap[commKey][reinterpret_cast<uintptr_t>(data)] = &newReg;
       pthread_mutex_unlock(&poolMutex);
       return;
     } else if ((reg.beginAddr <= beginAddr) && (reg.endAddr >= endAddr)) {
       reg.refCount++;
-      regMap[reinterpret_cast<uintptr_t>(data)] = &reg;
+      regMap[commKey][reinterpret_cast<uintptr_t>(data)] = &reg;
       pthread_mutex_unlock(&poolMutex);
       return;
     }
   }
 
-  regPool.push_back({beginAddr, endAddr, 1, nullptr, nullptr});
-  auto &newReg = regPool.back();
-  regMap[reinterpret_cast<uintptr_t>(data)] = &newReg;
+  regPool[commKey].push_back({beginAddr, endAddr, 1, nullptr, nullptr});
+  auto &newReg = regPool[commKey].back();
+  regMap[commKey][reinterpret_cast<uintptr_t>(data)] = &newReg;
   pthread_mutex_unlock(&poolMutex);
 
   // auto it = regMap.lower_bound(beginAddr);
@@ -91,16 +92,18 @@ void flagcxRegPool::registerBuffer(void *data, size_t length) {
   // dump();
 }
 
-void flagcxRegPool::deRegisterBuffer(void *data) {
+void flagcxRegPool::deRegisterBuffer(void *comm, void *data) {
   // if (data == nullptr || length == 0) return;
 
   // uintptr_t beginAddr, endAddr;
   // getPagedAddr(data, length, &beginAddr, &endAddr);
 
+  uintptr_t commKey = reinterpret_cast<uintptr_t>(comm);
+
   pthread_mutex_lock(&poolMutex);
 
-  auto it = regMap.find(reinterpret_cast<uintptr_t>(data));
-  if (it != regMap.end()) {
+  auto it = regMap[commKey].find(reinterpret_cast<uintptr_t>(data));
+  if (it != regMap[commKey].end()) {
     flagcxRegItem *reg = it->second;
     if (reg->refCount > 0) {
       reg->refCount--;
@@ -234,11 +237,21 @@ void flagcxRegPool::deRegisterBuffer(void *data) {
 //   return 0;
 // }
 
-std::map<uintptr_t, flagcxRegItem *> &flagcxRegPool::getMap() { return regMap; }
+std::map<uintptr_t, std::map<uintptr_t, flagcxRegItem *>> &
+flagcxRegPool::getGlobalMap() {
+  return regMap;
+}
 
-flagcxRegItem *flagcxRegPool::getItem(uintptr_t key) {
-  auto it = regMap.find(key);
-  if (it == regMap.end()) {
+std::map<uintptr_t, flagcxRegItem *> &flagcxRegPool::getCommMap(void *comm) {
+  uintptr_t commKey = reinterpret_cast<uintptr_t>(comm);
+  return regMap[commKey];
+}
+
+flagcxRegItem *flagcxRegPool::getItem(void *comm, void *data) {
+  uintptr_t commKey = reinterpret_cast<uintptr_t>(comm);
+  uintptr_t key = reinterpret_cast<uintptr_t>(data);
+  auto it = regMap[commKey].find(key);
+  if (it == regMap[commKey].end()) {
     return nullptr;
   }
   return it->second;
@@ -248,10 +261,14 @@ void flagcxRegPool::dump() {
   pthread_mutex_lock(&poolMutex);
   printf("========================\n");
   printf("RegPool(pageSize=%lu\n", pageSize);
-  for (auto &p : regMap)
-    printf("%lu -> [%lu,%lu,%d,%p,%p]\n", p.first, p.second->beginAddr,
-           p.second->endAddr, p.second->refCount, p.second->sendMrHandle,
-           p.second->recvMrHandle);
+  for (auto &c : regMap) {
+    printf("========comm(%lu)=====\n", c.first);
+    for (auto &p : c.second) {
+      printf("%lu -> [%lu,%lu,%d,%p,%p]\n", p.first, p.second->beginAddr,
+             p.second->endAddr, p.second->refCount, p.second->sendMrHandle,
+             p.second->recvMrHandle);
+    }
+  }
   printf("========================\n");
   pthread_mutex_unlock(&poolMutex);
 }

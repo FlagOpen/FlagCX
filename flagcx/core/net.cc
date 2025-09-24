@@ -141,27 +141,28 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
   // check if data is registered
   if (args->reg == NULL) {
     // globalRegPool.dump();
-    args->reg = globalRegPool.getItem((uintptr_t)data);
-    if (args->reg != NULL) {
-      // INFO(FLAGCX_REG, "Data buffer found in reg pool: %p, size %zu", data,
-      // size); if (reg->status == 0 && resources->netAdaptor ==
-      // getUnifiedNetAdaptor(IBRC)) {
-      if (args->reg->sendMrHandle == NULL &&
-          resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
-        // INFO(FLAGCX_REG, "send regMr with beginAddr=%lx, endAddr=%lx\n",
-        // beginAddr, reg.endAddr);
-        FLAGCXCHECK(resources->netAdaptor->regMr(
-            resources->netSendComm, (void *)args->reg->beginAddr,
-            (size_t)(args->reg->endAddr - args->reg->beginAddr), 2,
-            &args->reg->sendMrHandle));
-        // resources->netSendComm, data,
-        // size, 2, &reg.sendMrHandle));
-        // size, 2, &resources->mhandles[0]));
-        // reg->status = 1;
-        // } else if (reg.type == flagcxDeviceRdmaMemNative) {
-        //   args->reg = &reg;
-      }
-    }
+    args->reg = globalRegPool.getItem((void *)resources->commPtr, data);
+    // if (args->reg != NULL) {
+    //   // INFO(FLAGCX_REG, "Data buffer found in reg pool: %p, size %zu",
+    //   data,
+    //   // size); if (reg->status == 0 && resources->netAdaptor ==
+    //   // getUnifiedNetAdaptor(IBRC)) {
+    //   if (args->reg->sendMrHandle == NULL &&
+    //       resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+    //     // INFO(FLAGCX_REG, "send regMr with beginAddr=%lx, endAddr=%lx\n",
+    //     // beginAddr, reg.endAddr);
+    //     FLAGCXCHECK(resources->netAdaptor->regMr(
+    //         resources->netSendComm, (void *)args->reg->beginAddr,
+    //         (size_t)(args->reg->endAddr - args->reg->beginAddr), 2,
+    //         &args->reg->sendMrHandle));
+    //     // resources->netSendComm, data,
+    //     // size, 2, &reg.sendMrHandle));
+    //     // size, 2, &resources->mhandles[0]));
+    //     // reg->status = 1;
+    //     // } else if (reg.type == flagcxDeviceRdmaMemNative) {
+    //     //   args->reg = &reg;
+    //   }
+    // }
   }
 
   if (args->transmitted < args->chunkSteps) {
@@ -265,30 +266,31 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
   // check if data is registered
   if (args->reg == NULL) {
     // globalRegPool.dump();
-    args->reg = globalRegPool.getItem((uintptr_t)data);
-    if (args->reg != NULL) {
-      // INFO(FLAGCX_REG, "Data buffer found in reg pool: %p, size %zu", data,
-      // size);
-      // if (reg.type == flagcxDeviceRdmaMemRegistered && reg.status == 0 &&
-      // resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
-      // if (reg->status == 0 && resources->netAdaptor ==
-      // getUnifiedNetAdaptor(IBRC)) {
-      if (args->reg->recvMrHandle == NULL &&
-          resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
-        // INFO(FLAGCX_REG, "recv regMr with beginAddr=%lx, endAddr=%lx\n",
-        // beginAddr, reg.endAddr);
-        FLAGCXCHECK(resources->netAdaptor->regMr(
-            resources->netRecvComm, (void *)args->reg->beginAddr,
-            (size_t)(args->reg->endAddr - args->reg->beginAddr), 2,
-            &args->reg->recvMrHandle));
-        // resources->netRecvComm, data,
-        // size, 2, &reg.recvMrHandle));
-        // size, 2, &resources->mhandles[0]));
-        // reg->status = 1;
-        // } else if (reg.type == flagcxDeviceRdmaMemNative) {
-        //   args->reg = &reg;
-      }
-    }
+    args->reg = globalRegPool.getItem((void *)resources->commPtr, data);
+    // if (args->reg != NULL) {
+    //   // INFO(FLAGCX_REG, "Data buffer found in reg pool: %p, size %zu",
+    //   data,
+    //   // size);
+    //   // if (reg.type == flagcxDeviceRdmaMemRegistered && reg.status == 0 &&
+    //   // resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+    //   // if (reg->status == 0 && resources->netAdaptor ==
+    //   // getUnifiedNetAdaptor(IBRC)) {
+    //   if (args->reg->recvMrHandle == NULL &&
+    //       resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+    //     // INFO(FLAGCX_REG, "recv regMr with beginAddr=%lx, endAddr=%lx\n",
+    //     // beginAddr, reg.endAddr);
+    //     FLAGCXCHECK(resources->netAdaptor->regMr(
+    //         resources->netRecvComm, (void *)args->reg->beginAddr,
+    //         (size_t)(args->reg->endAddr - args->reg->beginAddr), 2,
+    //         &args->reg->recvMrHandle));
+    //     // resources->netRecvComm, data,
+    //     // size, 2, &reg.recvMrHandle));
+    //     // size, 2, &resources->mhandles[0]));
+    //     // reg->status = 1;
+    //     // } else if (reg.type == flagcxDeviceRdmaMemNative) {
+    //     //   args->reg = &reg;
+    //   }
+    // }
   }
 
   if (args->copied < args->chunkSteps) {
@@ -448,23 +450,25 @@ flagcxResult_t flagcxSendProxyFree(sendNetResources *resources) {
   }
   FLAGCXCHECK(deviceAdaptor->streamDestroy(resources->cpStream));
   // globalRegPool.dump();
-  auto &regMap = globalRegPool.getMap();
-  for (auto &reg : regMap) {
-    // if (reg.second.type == flagcxDeviceRdmaMemRegistered &&
-    // reg.second.sendMrHandle != NULL && resources->netAdaptor ==
-    // getUnifiedNetAdaptor(IBRC)) {
+  auto &regMap = globalRegPool.getGlobalMap();
+  for (auto &commMap : regMap) {
+    for (auto &reg : commMap.second) {
+      // if (reg.second.type == flagcxDeviceRdmaMemRegistered &&
+      // reg.second.sendMrHandle != NULL && resources->netAdaptor ==
+      // getUnifiedNetAdaptor(IBRC)) {
 
-    if (reg.second->sendMrHandle != NULL &&
-        resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
-      // globalRegPool.deRegisterBuffer((void *)reg.first);
-      if (reg.second->refCount > 0)
-        reg.second->refCount--;
-      if (reg.second->refCount == 0) {
-        FLAGCXCHECK(resources->netAdaptor->deregMr(resources->netSendComm,
-                                                   reg.second->sendMrHandle));
-        reg.second->sendMrHandle = NULL;
+      if (reg.second->sendMrHandle != NULL &&
+          resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+        // globalRegPool.deRegisterBuffer((void *)reg.first);
+        if (reg.second->refCount > 0)
+          reg.second->refCount--;
+        if (reg.second->refCount == 0) {
+          FLAGCXCHECK(resources->netAdaptor->deregMr(resources->netSendComm,
+                                                     reg.second->sendMrHandle));
+          reg.second->sendMrHandle = NULL;
+        }
+        // reg.second.status = 0;
       }
-      // reg.second.status = 0;
     }
   }
   // globalRegPool.dump();
@@ -480,22 +484,24 @@ flagcxResult_t flagcxRecvProxyFree(recvNetResources *resources) {
     FLAGCXCHECK(deviceAdaptor->eventDestroy(resources->cpEvents[s]));
   }
   FLAGCXCHECK(deviceAdaptor->streamDestroy(resources->cpStream));
-  auto &regMap = globalRegPool.getMap();
-  for (auto &reg : regMap) {
-    // if (reg.second.type == flagcxDeviceRdmaMemRegistered &&
-    // reg.second.recvMrHandle != NULL && resources->netAdaptor ==
-    // getUnifiedNetAdaptor(IBRC)) {
-    if (reg.second->recvMrHandle != NULL &&
-        resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
-      // globalRegPool.deRegisterBuffer((void *)reg.first);
-      if (reg.second->refCount > 0)
-        reg.second->refCount--;
-      if (reg.second->refCount == 0) {
-        FLAGCXCHECK(resources->netAdaptor->deregMr(resources->netRecvComm,
-                                                   reg.second->recvMrHandle));
-        reg.second->recvMrHandle = NULL;
+  auto &regMap = globalRegPool.getGlobalMap();
+  for (auto &commMap : regMap) {
+    for (auto &reg : commMap.second) {
+      // if (reg.second.type == flagcxDeviceRdmaMemRegistered &&
+      // reg.second.recvMrHandle != NULL && resources->netAdaptor ==
+      // getUnifiedNetAdaptor(IBRC)) {
+      if (reg.second->recvMrHandle != NULL &&
+          resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+        // globalRegPool.deRegisterBuffer((void *)reg.first);
+        if (reg.second->refCount > 0)
+          reg.second->refCount--;
+        if (reg.second->refCount == 0) {
+          FLAGCXCHECK(resources->netAdaptor->deregMr(resources->netRecvComm,
+                                                     reg.second->recvMrHandle));
+          reg.second->recvMrHandle = NULL;
+        }
+        // reg.second.status = 0;
       }
-      // reg.second.status = 0;
     }
   }
   FLAGCXCHECK(resources->netAdaptor->deregMr(resources->netRecvComm,

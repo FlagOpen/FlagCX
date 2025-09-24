@@ -508,11 +508,13 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
         FLAGCXCHECK(resources->netAdaptor->connect(
             resources->netDev, (void *)op->reqBuff, &resources->netSendComm));
       } else {
+        auto &commRegMap = globalRegPool.getCommMap((void *)resources->commPtr);
         bool dmaBufferSupport = false;
         if (deviceAdaptor->dmaSupport != NULL) {
           deviceAdaptor->dmaSupport(&dmaBufferSupport);
         }
-        if (dmaBufferSupport && dmaEnabled) {
+        if (dmaBufferSupport && dmaEnabled &&
+            resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
           INFO(FLAGCX_PROXY, "Registering memory region with DMA-BUF support");
           int dmabuf_fd;
           FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
@@ -522,11 +524,32 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
               resources->netSendComm, resources->buffers[0],
               resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
               &resources->mhandles[0]));
+          // TODO: move regBuffer to proxyRegister stage
+          for (auto &reg : commRegMap) {
+            if (reg.second->sendMrHandle == NULL &&
+                resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+              FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
+                  (void *)&dmabuf_fd, (void *)reg.second->beginAddr,
+                  (size_t)(reg.second->endAddr - reg.second->beginAddr), 0));
+              FLAGCXCHECK(resources->netAdaptor->regMrDmaBuf(
+                  resources->netSendComm, (void *)reg.second->beginAddr,
+                  (size_t)(reg.second->endAddr - reg.second->beginAddr), 2,
+                  0ULL, dmabuf_fd, &reg.second->sendMrHandle));
+            }
+          }
         } else {
           if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
             FLAGCXCHECK(resources->netAdaptor->regMr(
                 resources->netSendComm, resources->buffers[0],
                 resources->buffSizes[0], 2, &resources->mhandles[0]));
+            for (auto &reg : commRegMap) {
+              if (reg.second->sendMrHandle == NULL) {
+                FLAGCXCHECK(resources->netAdaptor->regMr(
+                    resources->netSendComm, (void *)reg.second->beginAddr,
+                    (size_t)(reg.second->endAddr - reg.second->beginAddr), 2,
+                    &reg.second->sendMrHandle));
+              }
+            }
           } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
             FLAGCXCHECK(resources->netAdaptor->regMr(
                 resources->netSendComm, resources->buffers[0],
@@ -542,6 +565,7 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
         FLAGCXCHECK(resources->netAdaptor->accept(resources->netListenComm,
                                                   &resources->netRecvComm));
       } else {
+        auto &commRegMap = globalRegPool.getCommMap((void *)resources->commPtr);
         bool dmaBufferSupport = false;
         if (deviceAdaptor->dmaSupport != NULL) {
           deviceAdaptor->dmaSupport(&dmaBufferSupport);
@@ -556,11 +580,33 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
               resources->netRecvComm, resources->buffers[0],
               resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
               &resources->mhandles[0]));
+          // TODO: move regBuffer to proxyRegister stage
+          for (auto &reg : commRegMap) {
+            if (reg.second->recvMrHandle == NULL &&
+                resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+              FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
+                  (void *)&dmabuf_fd, (void *)reg.second->beginAddr,
+                  (size_t)(reg.second->endAddr - reg.second->beginAddr), 0));
+              FLAGCXCHECK(resources->netAdaptor->regMrDmaBuf(
+                  resources->netRecvComm, (void *)reg.second->beginAddr,
+                  (size_t)(reg.second->endAddr - reg.second->beginAddr), 2,
+                  0ULL, dmabuf_fd, &reg.second->recvMrHandle));
+            }
+          }
         } else {
           if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
             FLAGCXCHECK(resources->netAdaptor->regMr(
                 resources->netRecvComm, resources->buffers[0],
                 resources->buffSizes[0], 2, &resources->mhandles[0]));
+            // TODO: move regBuffer to proxyRegister stage
+            for (auto &reg : commRegMap) {
+              if (reg.second->recvMrHandle == NULL) {
+                FLAGCXCHECK(resources->netAdaptor->regMr(
+                    resources->netRecvComm, (void *)reg.second->beginAddr,
+                    (size_t)(reg.second->endAddr - reg.second->beginAddr), 2,
+                    &reg.second->recvMrHandle));
+              }
+            }
           } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
             FLAGCXCHECK(resources->netAdaptor->regMr(
                 resources->netRecvComm, resources->buffers[0],
