@@ -44,6 +44,12 @@ struct flagcxEnvConfigList {
     struct flagcxEnvConfig configList[FLAGCX_ENV_CONFIG_MAX_COUNT];
 };
 
+// Used to pair ProfilingStart()/ProfilingStop() calls
+#define FLGACX_PROFILE_KEY_MAX_LENGTH 64 // max length of profiling key string
+struct alignas(16) flagcxProfileKey {
+  char key[FLGACX_PROFILE_KEY_MAX_LENGTH]; // profiling key string
+};
+
 struct flagcxTuner {
   // Name of the tuner
   const char *name;
@@ -97,6 +103,28 @@ struct flagcxTuner {
                                 size_t nBytes, int numPipeOps,
                                 float** collCostTable, int regBuff,
                                 struct flagcxCommTag* commTag);
+  
+  // Start profiling for a specific collective with given parameters.
+  // Inputs:
+  //   - context: tuner context object
+  //   - collType: collective type , e.g., allreduce, allgather…
+  //   - nBytes: collective size in bytes
+  //   - commTag: communicator tag
+  // Outputs:
+  //   - key: profiling key to pair with stopProfiling
+  //
+  flagcxResult_t (*startProfiling)(void* context, flagcxCommOp_t collType,
+                                  size_t nBytes, struct flagcxCommTag commTag,
+                                  struct flagcxProfileKey *key);
+
+  // Stop profiling for a specific collective with given key.
+  // Inputs:
+  //   - context: tuner context object
+  //   - key: profiling key returned by startProfiling
+  // Outputs:
+  //   - None
+  //
+  flagcxResult_t (*stopProfiling)(void* context, struct flagcxProfileKey key);
 
   // Terminates the tuner and cleans up any resources that the tuner allocated.
   flagcxResult_t (*destroy)(void *context);
