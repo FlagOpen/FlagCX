@@ -1,4 +1,4 @@
-#include "flagcx_timer.h"
+#include "timer.h"
 
 
 template <typename T>
