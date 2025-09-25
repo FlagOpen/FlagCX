@@ -36,7 +36,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                          Param.recv_buff: BuffRef(rank_data[rank][1], rank + 4, 1),
                          Param.count: 1,
                          Param.homo_type: 0,
-                         Param.comm_op: Instr.ReduceScatter})
+                         Param.comm_op: Primitive.ReduceScatter})
         # pre homo funcs for cluster 1
         add_opr(rank_=rank + 4,
                 stage_=Stage.PreHomoFunc,
@@ -45,7 +45,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                          Param.recv_buff: BuffRef(rank_data[rank + 4][1], rank - 4, 1),
                          Param.count: 1,
                          Param.homo_type: 0,
-                         Param.comm_op: Instr.ReduceScatter})
+                         Param.comm_op: Primitive.ReduceScatter})
         add_opr(rank_=rank + 4,
                 stage_=Stage.PreHomoFunc,
                 step_=0,
@@ -53,7 +53,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                          Param.recv_buff: BuffRef(rank_data[rank + 4][1], rank, 1),
                          Param.count: 1,
                          Param.homo_type: 0,
-                         Param.comm_op: Instr.ReduceScatter})
+                         Param.comm_op: Primitive.ReduceScatter})
 
     # hetero funcs
     for rank in range(4):
@@ -126,7 +126,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                          Param.recv_buff: BuffRef(rank_data[rank][1], rank, 1),
                          Param.count: 1,
                          Param.homo_type: 2,
-                         Param.comm_op: Instr.ReduceScatter})
+                         Param.comm_op: Primitive.ReduceScatter})
         add_opr(rank_=rank, stage_=Stage.HomoInterFunc, step_=1, params_=None)
         # cluster 1
         add_opr(rank_=rank + 4,
@@ -136,7 +136,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                          Param.recv_buff: BuffRef(rank_data[rank + 4][1], rank, 1),
                          Param.count: 1,
                          Param.homo_type: 2,
-                         Param.comm_op: Instr.ReduceScatter})
+                         Param.comm_op: Primitive.ReduceScatter})
         add_opr(rank_=rank, stage_=Stage.HomoInterFunc, step_=1, params_=None)
 
     # post homo funcs
@@ -150,7 +150,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                              Param.recv_buff: BuffRef(rank_data[rank][1], root, 1),
                              Param.count: 1,
                              Param.homo_type: 2,
-                             Param.comm_op: Instr.Broadcast})
+                             Param.comm_op: Primitive.Broadcast})
         for root in range(4):
             add_opr(rank_=rank,
                     stage_=Stage.PostHomoFunc,
@@ -160,7 +160,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                              Param.recv_buff: BuffRef(rank_data[rank][1], root + 4, 1),
                              Param.count: 1,
                              Param.homo_type: 2,
-                             Param.comm_op: Instr.Broadcast})
+                             Param.comm_op: Primitive.Broadcast})
         for root in range(4):
             add_opr(rank_=rank + 4,
                     stage_=Stage.PostHomoFunc,
@@ -170,7 +170,7 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                              Param.recv_buff: BuffRef(rank_data[rank + 4][1], root + 4, 1),
                              Param.count: 1,
                              Param.homo_type: 2,
-                             Param.comm_op: Instr.Broadcast})
+                             Param.comm_op: Primitive.Broadcast})
         for root in range(4):
             add_opr(rank_=rank + 4,
                     stage_=Stage.PostHomoFunc,
@@ -180,9 +180,8 @@ with FlagcxWorkflow("test", Collective.AllReduce, [], [], 8):
                              Param.recv_buff: BuffRef(rank_data[rank + 4][1], root, 1),
                              Param.count: 1,
                              Param.homo_type: 2,
-                             Param.comm_op: Instr.Broadcast})
+                             Param.comm_op: Primitive.Broadcast})
 
     # export as xml
     for rank in range(8):
         to_xml(rank_=rank, path_="output")
-
