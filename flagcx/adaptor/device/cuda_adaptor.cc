@@ -183,7 +183,7 @@ flagcxResult_t cudaAdaptorEventCreate(flagcxEvent_t *event) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
   DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
-                                    cudaEventDisableTiming));
+                                    cudaEventDefault));
   return flagcxSuccess;
 }
 
@@ -339,9 +339,15 @@ flagcxResult_t cudaAdaptorEventElapsedTime(float *ms, flagcxEvent_t start,
   if (ms == NULL || start == NULL || end == NULL) {
     return flagcxInvalidArgument;
   }
-  DEVCHECK(cudaEventElapsedTime(ms, start->base, end->base));
-  return flagcxSuccess;
-} 
+  cudaError_t error = cudaEventElapsedTime(ms, start->base, end->base);
+  if (error == cudaSuccess) {
+      return flagcxSuccess;
+    } else if (error == cudaErrorNotReady) {
+      return flagcxInProgress;
+    } else {
+      return flagcxUnhandledDeviceError;
+    }
+  }
 
 struct flagcxDeviceAdaptor cudaAdaptor {
   "CUDA",
