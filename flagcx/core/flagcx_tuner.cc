@@ -1,9 +1,9 @@
 #include <cfloat>
 #include <map>
 #include <vector>
+#include "check.h"
 #include "flagcx_tuner.h"
 #include "param.h"
-#include "check.h"
 
 // Status of a communicator tracked by a tuner
 enum TunerCommStatus {
@@ -27,14 +27,14 @@ bool operator<(const struct TunerCollCategory& lhs, const struct TunerCollCatego
   return lhs.nBytes < rhs.nBytes;
 }
 
-static_assert(FLGACX_PROFILE_KEY_MAX_LENGTH >= 20, "FLGACX_PROFILE_KEY_MAX_LENGTH too short");
+static_assert(FLGACX_PROFILE_KEY_MAX_LENGTH >= 20, "FLGACX_PROFILE_KEY_MAX_LENGTH < 20, too short");
 static_assert(alignof(struct flagcxProfileKey) >= 8, "We rely on 8-byte alignment for flagcxProfileKey");
 
 // Key used for time profiling
 struct TunerProfileKey {
   size_t nBytes;
   uint32_t collType; // flagcxCommOp_t
-  uint32_t seqId; // sequence id of this collective within this TunerCollCategory
+  uint32_t seqId; // sequence id of collective within this TunerCollCategory
   uint32_t commTagIdx; // index of commTag in configList
 
   // constructors
@@ -48,9 +48,10 @@ struct TunerProfileKey {
     commTagIdx = *(reinterpret_cast<const uint32_t*>(k.key + 16));
   }
 
-  // conversion functions
+  // conversion function
   operator struct flagcxProfileKey() const {
     struct flagcxProfileKey k;
+    memset(k.key, 0, FLGACX_PROFILE_KEY_MAX_LENGTH);
     memcpy(k.key, &nBytes, sizeof(size_t));
     memcpy(k.key + 8, &collType, sizeof(uint32_t));
     memcpy(k.key + 12, &seqId, sizeof(uint32_t));
@@ -81,13 +82,13 @@ struct TunerProfileKey {
 // customized context structure for internal use
 struct TunerContext {
   // configure related struct
-  std::map<struct flagcxCommTag, TunerCommStatus> commsStatusMap;
   std::vector<struct flagcxEnvConfig> configList;
   flagcxDebugLogger_t logger = NULL;
   int envTagIdx = -1; // the index of envTag in configList
   int warmupCnt = TUNER_WARMUP_COUNT; // number of warmup collectives before tuning
 
   // runtime related struct
+  std::map<struct flagcxCommTag, TunerCommStatus> commsStatusMap;
   std::vector<int> activeCommList; // List of active communicator. Holds indices of configList
   std::map<struct flagcxCommTag, int> commTagIdxMap; // map from commTag to configList index
   std::map<TunerCollCategory, uint32_t> collSeqMap; // record the sequence number of each collective category
@@ -203,7 +204,6 @@ static flagcxResult_t findBestComm(struct TunerContext* ctx, const struct TunerC
   float minTime = FLT_MAX;
   // calculate the best communicator based on profiling data
   for (const auto & idx : ctx->activeCommList) {
-    const auto & cfg = ctx->configList[idx];
     // For now, use seqId = 2 metric as the time of that collective category.
     uint32_t seqId = 2;
     TunerProfileKey profileKey(cat.nBytes, static_cast<uint32_t>(cat.collType), seqId, idx);
@@ -253,8 +253,8 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
     seqId = it->second;
   }
   if (seqId < ctx->warmupCnt) {
-    int commId = seqId % ctx->activeCommList.size();
-    const auto & cfg = ctx->configList[ctx->activeCommList[commId]];
+    int idx = seqId % ctx->activeCommList.size();
+    const auto & cfg = ctx->configList[ctx->activeCommList[idx]];
     FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
     *commTag = cfg.commTag;
     INFO(FLAGCX_TUNING, "Use Communicator tag %s in warmup phase seqId=%u.", commTag->tag, seqId);
@@ -273,8 +273,8 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
     WARN("No best communicator found for collective type %d with size %zu.", collType, nBytes);
     return flagcxInternalError;
   }
-  int idx = ctx->commTagIdxMap[it2->second];
-  auto & cfg = ctx->configList[idx];
+  int commId = ctx->commTagIdxMap[it2->second];
+  auto & cfg = ctx->configList[commId];
   FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
   *commTag = cfg.commTag;
   INFO(FLAGCX_TUNING, "Use Communicator tag %s.", commTag->tag);
@@ -304,7 +304,7 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
   *key = profileKey;
 
   // do profile only for warmup collectives
-  if (it->second < ctx->warmupCnt) {
+  if (seqId < ctx->warmupCnt) {
     // TODO: time call start
   }
   return flagcxSuccess;
