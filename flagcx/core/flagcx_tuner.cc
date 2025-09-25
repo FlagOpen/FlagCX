@@ -1,5 +1,6 @@
 #include <cfloat>
 #include <map>
+#include <string>
 #include <vector>
 #include "check.h"
 #include "flagcx_tuner.h"
