@@ -302,7 +302,7 @@ flagcxResult_t flagcxC2cHomoFunc::run(const void *sendbuff, void *recvbuff,
   void *actualRecvbuff = recvType_ == 1 ? recvbuff : scratchbuff;
 
   TRACE_CALL("flagcxC2cHomoFunc run: rank = %d, rootRank = %d, sendType = %d, "
-             "recvType = %d sendOffset = %lu, "
+             "recvType = %d, sendOffset = %lu, "
              "recvOffset = %lu, count = %lu, "
              "homoType = %d, commOp = %d, datatype = %d, redOp = %d, root = %d",
              comm->rank, rootRank_, sendType_, recvType_, sendOffset_,
@@ -570,14 +570,13 @@ flagcxResult_t flagcxC2cHeteroFunc::run(void *sendbuff, void *recvbuff,
 }
 
 flagcxC2cRefreshFunc::flagcxC2cRefreshFunc()
-    : offset_(0), count_(0), totalCount_(0), redOp_(flagcxSum) {}
+    : bufftype_(-1), start_(0), offset_(0), count_(0), totalCount_(0),
+      redOp_(flagcxSum) {}
 flagcxC2cRefreshFunc::flagcxC2cRefreshFunc(size_t offset, size_t count,
                                            size_t totalCount,
                                            flagcxRedOp_t redOp)
-    : offset_(offset), count_(count), totalCount_(totalCount), redOp_(redOp) {
-  bufftype_ = -1;
-  start_ = 0;
-}
+    : bufftype_(-1), start_(0), offset_(offset), count_(count),
+      totalCount_(totalCount), redOp_(redOp) {}
 flagcxC2cRefreshFunc::flagcxC2cRefreshFunc(int bufftype, size_t start,
                                            size_t offset, size_t count,
                                            size_t totalCount,
@@ -1036,9 +1035,9 @@ flagcxResult_t flagcxC2cPlanner::importXml(const char *prefix) {
       "init refreshFunc with: offset = %lu, count = %lu, totalCount = %lu, "
       "redOp = %d",
       offset, count, totalCount, redOp);
-  refreshFunc_ =
-      flagcxC2cRefreshFunc(buffType, startOffset, offset * chunksize,
-                           count * chunksize, totalCount * chunksize, redOp);
+  refreshFunc_ = flagcxC2cRefreshFunc(buffType, startOffset * chunksize,
+                                      offset * chunksize, count * chunksize,
+                                      totalCount * chunksize, redOp);
 
   // function sequences
   preHomoFuncSteps_ =

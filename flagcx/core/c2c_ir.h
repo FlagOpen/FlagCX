@@ -68,7 +68,8 @@ inline void serializRefreshFunc(FILE *file, size_t chunksize,
           func.start_ / chunksize);
   fprintf(file, "%*s<offset>%zu</offset>\n", indent + 2, "",
           func.offset_ / chunksize);
-  fprintf(file, "%*s<count>%zu</count>\n", indent + 2, "", func.count_);
+  fprintf(file, "%*s<count>%zu</count>\n", indent + 2, "",
+          func.count_ / chunksize);
   fprintf(file, "%*s<totalCount>%zu</totalCount>\n", indent + 2, "",
           func.totalCount_ / chunksize);
   fprintf(file, "%*s<redOp>%d</redOp>\n", indent + 2, "", func.redOp_);
