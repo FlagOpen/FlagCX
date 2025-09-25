@@ -112,7 +112,6 @@ struct flagcxRecord {
     flagcxEvent_t end_event;
     RecordKey<T> recordKey; // commHash = Hash(groupID, datasize, comm_type)
     float duration;      // ms
-    flagcxStream_t stream;
 
     flagcxRecord();
     flagcxRecord(const flagcxRecord &) = delete;
@@ -124,7 +123,7 @@ struct flagcxRecord {
 };
 
 template <typename T>
-flagcxRecord<T>::flagcxRecord() : duration(0.0f), stream(NULL) {
+flagcxRecord<T>::flagcxRecord() : duration(0.0f){
     deviceAdaptor->eventCreate(&begin_event);
     deviceAdaptor->eventCreate(&end_event);
 }
@@ -151,7 +150,6 @@ class flagcxTimer {
     pthread_mutex_t mutex_profiling{};
     pthread_cond_t  cond_profiling{};
     pthread_mutex_t mutex_profiled{};
-    flagcxStream_t stream = NULL;
 
     void initSyncPrimitives();
     void destroySyncPrimitives();
@@ -178,8 +176,6 @@ void flagcxTimer<T>::initSyncPrimitives() {
 
     pthread_cond_init(&cond_available, nullptr);
     pthread_cond_init(&cond_profiling, nullptr);
-
-    stream = nullptr;
 }
 
 template <typename T>
@@ -198,6 +194,7 @@ void *flagcxQuery(void *flagcxTimer_) {
     flagcxRecord<T> *curr_record = nullptr;
 
     while (true) {
+        curr_record = nullptr;
         pthread_mutex_lock(&timer->mutex_profiling);
         while (!timer->stop_query && timer->profiling_records.empty()) {
             pthread_cond_wait(&timer->cond_profiling, &timer->mutex_profiling);

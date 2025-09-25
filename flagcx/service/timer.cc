@@ -45,21 +45,32 @@ float flagcxTimer<T>::getRecord(const RecordKey<T> &recordKey, bool blocking) {
         pthread_mutex_unlock(&this->mutex_profiling);
     }
 
+    float duration = -1.0f;
+    flagcxRecord<T> *found_record = nullptr;
+    std::queue<flagcxRecord<T> *> remaining_records;
+
     pthread_mutex_lock(&this->mutex_profiled);
     while (!this->profiled_records.empty()) {
         flagcxRecord<T> *record = this->profiled_records.front();
-        temp_available_records.push_back(record);
         this->profiled_records.pop();
-    }
-    pthread_mutex_unlock(&this->mutex_profiled);
-
-    for (flagcxRecord<T> *record : temp_available_records) {
-        if (record->recordKey == recordKey) {
-            float duration = record->duration;
-            // Return the record to available_records
-            return duration;
+        if (found_record == nullptr && record->recordKey == recordKey) {
+            found_record = record;
+        } else {
+            remaining_records.push(record);
         }
     }
+    this->profiled_records.swap(remaining_records);
+    pthread_mutex_unlock(&this->mutex_profiled);
+
+    if (found_record) {
+        duration = found_record->duration;
+        pthread_mutex_lock(&this->mutex_available);
+        this->available_records.push(found_record);
+        pthread_cond_signal(&this->cond_available);
+        pthread_mutex_unlock(&this->mutex_available);
+        return duration;
+    }
+
     return -1.0f; // Indicate that no matching record was found
 }
 
@@ -117,6 +128,11 @@ flagcxResult_t flagcxTimer<T>::end(const RecordKey<T> &recordKey, bool blocking)
         using_records.pop();
     }
     using_records = using_records_copy;
+
+    if (record == nullptr) {
+        WARN("Logger::LogSubSys::TIMER: no matching begin for end call");
+        return flagcxInvalidUsage;
+    }
 
     if (blocking) {
         FLAGCXCHECK(deviceAdaptor->streamSynchronize(record->stream));
