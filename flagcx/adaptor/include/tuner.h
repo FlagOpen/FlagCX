@@ -109,12 +109,14 @@ struct flagcxTuner {
   //   - context: tuner context object
   //   - collType: collective type , e.g., allreduce, allgather…
   //   - nBytes: collective size in bytes
+  //   - stream: the stream that the collective will be launched on
   //   - commTag: communicator tag
   // Outputs:
   //   - key: profiling key to pair with stopProfiling
   //
   flagcxResult_t (*startProfiling)(void* context, flagcxCommOp_t collType,
-                                  size_t nBytes, struct flagcxCommTag commTag,
+                                  size_t nBytes, flagcxStream_t stream,
+                                  struct flagcxCommTag commTag,
                                   struct flagcxProfileKey *key);
 
   // Stop profiling for a specific collective with given key.
