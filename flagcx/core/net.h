@@ -9,8 +9,10 @@
 
 #include "check.h"
 #include "comm.h"
+#include "device.h"
 #include "flagcx_net.h"
 #include "ib_common.h"
+#include "register.h"
 #include <socket.h>
 
 typedef char flagcxNetHandle_t[FLAGCX_NET_HANDLE_MAXSIZE];
@@ -141,5 +143,14 @@ flagcxResult_t flagcxRecv(flagcxHeteroComm_t comm, void *data, size_t size,
                           int peer, int channel);
 flagcxResult_t flagcxSendProxyFree(sendNetResources *resources);
 flagcxResult_t flagcxRecvProxyFree(recvNetResources *resources);
+
+flagcxResult_t flagcxNetRegisterBuffer(flagcxHeteroComm *comm,
+                                       const void *userbuff, size_t buffSize,
+                                       struct flagcxConnector **peerConns,
+                                       int nPeers, int *outRegBufFlag,
+                                       void **outHandle);
+flagcxResult_t flagcxNetDeregisterBuffer(void *comm,
+                                         struct flagcxProxyConnector *proxyConn,
+                                         void *handle);
 
 #endif

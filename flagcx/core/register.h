@@ -3,6 +3,7 @@
 
 #include "core.h"
 #include "device.h"
+#include <list>
 
 enum {
   NET_REG_COMPLETE = 0x01,
@@ -10,6 +11,23 @@ enum {
   NVLS_REG_POSSIBLE = 0x04,
   NVLS_REG_NO_SUPPORT = 0x08,
   COLLNET_REG_COMPLETE = 0x10
+};
+
+struct netRegInfo {
+  uintptr_t buffer;
+  size_t size;
+};
+
+struct flagcxRegNetHandle {
+  void *handle = NULL;
+  struct flagcxProxyConnector *proxyConn = NULL;
+};
+
+struct flagcxRegItem {
+  uintptr_t beginAddr = 0;
+  uintptr_t endAddr = 0;
+  int refCount = 1;
+  std::list<flagcxRegNetHandle> netHandles;
 };
 
 struct flagcxReg {

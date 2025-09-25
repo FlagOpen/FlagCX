@@ -123,8 +123,9 @@ struct flagcxProxyArgs {
   bool *volatile dlArgs;
   bool *volatile dEventReady;
 
-  // user registration
-  flagcxRegItem *reg = NULL;
+  // user buffer registration
+  void *regHandle = nullptr;
+  int regBufFlag = 0;
 
   union flagcxProxyOpSpecifics specifics;
 };

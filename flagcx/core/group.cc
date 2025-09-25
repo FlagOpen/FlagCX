@@ -147,6 +147,55 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
 
   if (groupCommHeadMain != nullptr) {
     struct flagcxHeteroComm *comm = groupCommHeadMain;
+    // record all p2p handles and registered buffer flags
+    std::vector<void *> handles;
+    std::vector<int> regBufFlags;
+    handles.reserve(comm->nRanks);
+    regBufFlags.reserve(comm->nRanks);
+    // register all buffers if needed
+    do {
+      flagcxTasks *tasks = &comm->tasks;
+      for (int i = 0; i < tasks->p2pOrderSteps; i++) {
+        int peer = tasks->p2pOrder[i];
+        if (!flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue)) {
+          flagcxTaskP2p *p2p =
+              flagcxIntruQueueHead(&tasks->peers[peer].sendQueue);
+          while (p2p->next != nullptr) {
+            void *outHandle = nullptr;
+            int outRegBufFlag = 0;
+            flagcxConnector *peerConns[] = {
+                comm->channels[0].peers[peer]->send};
+            FLAGCXCHECK(flagcxNetRegisterBuffer(comm, p2p->buff, p2p->bytes,
+                                                peerConns, 1, &outRegBufFlag,
+                                                &outHandle));
+            handles.push_back(std::move(outHandle));
+            regBufFlags.push_back(std::move(outRegBufFlag));
+            p2p = p2p->next;
+          }
+        }
+        if (!flagcxIntruQueueEmpty(&tasks->peers[peer].recvQueue)) {
+          flagcxTaskP2p *p2p =
+              flagcxIntruQueueHead(&tasks->peers[peer].recvQueue);
+          while (p2p->next != nullptr) {
+            void *outHandle = nullptr;
+            int outRegBufFlag = 0;
+            flagcxConnector *peerConns[] = {
+                comm->channels[0].peers[peer]->recv};
+            FLAGCXCHECK(flagcxNetRegisterBuffer(comm, p2p->buff, p2p->bytes,
+                                                peerConns, 1, &outRegBufFlag,
+                                                &outHandle));
+            handles.push_back(std::move(outHandle));
+            regBufFlags.push_back(std::move(outRegBufFlag));
+            p2p = p2p->next;
+          }
+        }
+      }
+      comm = comm->groupNext;
+    } while (comm != nullptr);
+
+    int regIdx = 0;
+    comm = groupCommHeadMain;
+    // post all send/recv tasks
     do {
       flagcxTasks *tasks = &comm->tasks;
       for (int i = 0; i < tasks->p2pOrderSteps; i++) {
@@ -170,6 +219,9 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.sendStepMask = MAXSTEPS - 1;
           op->args.deviceFuncRelaxedOrdering = deviceFuncRelaxedOrdering;
           op->stream = p2p->stream;
+          op->args.regHandle = handles[regIdx];
+          op->args.regBufFlag = regBufFlags[regIdx];
+          regIdx++;
           FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
           std::vector<void *> argList;
           if (deviceAsyncLoad && deviceAsyncStore) {
@@ -217,6 +269,9 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.sendStepMask = MAXSTEPS - 1;
           op->args.deviceFuncRelaxedOrdering = deviceFuncRelaxedOrdering;
           op->stream = p2p->stream;
+          op->args.regHandle = handles[regIdx];
+          op->args.regBufFlag = regBufFlags[regIdx];
+          regIdx++;
           FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
           std::vector<void *> argList;
           if (deviceAsyncLoad && deviceAsyncStore) {
