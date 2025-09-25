@@ -204,6 +204,9 @@ struct flagcxDeviceAdaptor {
   flagcxResult_t (*getHandleForAddressRange)(void *handleOut, void *buffer,
                                              size_t size,
                                              unsigned long long flags);
+  // Event elapsed time
+  flagcxResult_t (*eventElapsedTime)(float *ms, flagcxEvent_t start,
+                                     flagcxEvent_t end);
 };
 
 struct flagcxNetAdaptor {

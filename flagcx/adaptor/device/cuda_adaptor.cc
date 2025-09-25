@@ -334,6 +334,15 @@ cudaAdaptorMemGetHandleForAddressRange(void *handleOut, void *buffer,
   return flagcxSuccess;
 }
 
+flagcxResult_t cudaAdaptorEventElapsedTime(float *ms, flagcxEvent_t start,
+                                           flagcxEvent_t end) {
+  if (ms == NULL || start == NULL || end == NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(cudaEventElapsedTime(ms, start->base, end->base));
+  return flagcxSuccess;
+} 
+
 struct flagcxDeviceAdaptor cudaAdaptor {
   "CUDA",
       // Basic functions
@@ -386,6 +395,7 @@ struct flagcxDeviceAdaptor cudaAdaptor {
                                               // *handleOut, void *buffer,
                                               // size_t size, unsigned long long
                                               // flags);
+      cudaAdaptorEventElapsedTime, // flagcxResult_t
 };
 
 #endif // USE_NVIDIA_ADAPTOR
