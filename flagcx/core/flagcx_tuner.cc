@@ -92,7 +92,7 @@ struct TunerContext {
   std::vector<int> activeCommList; // List of active communicator. Holds indices of configList
   std::map<struct flagcxCommTag, int> commTagIdxMap; // map from commTag to configList index
   std::map<TunerCollCategory, uint32_t> collSeqMap; // record the sequence number of each collective category
-  std::map<TunerCollCategory, struct flagcxCommTag> collBestCommMap; // record the best communicator for each collective category
+  std::map<TunerCollCategory, int> collBestCommMap; // record the best communicator for each collective category. value is comm index in configList.
   // TODO add timer structure here.
 };
 
@@ -218,7 +218,7 @@ static flagcxResult_t findBestComm(struct TunerContext* ctx, const struct TunerC
     WARN("No best communicator found for collective type %d with size %zu.", cat.collType, cat.nBytes);
     return flagcxInternalError;
   }
-  ctx->collBestCommMap[cat] = ctx->configList[bestCommIdx].commTag;
+  ctx->collBestCommMap[cat] = bestCommIdx;
   return flagcxSuccess;
 }
 
@@ -273,8 +273,7 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
     WARN("No best communicator found for collective type %d with size %zu.", collType, nBytes);
     return flagcxInternalError;
   }
-  int commId = ctx->commTagIdxMap[it2->second];
-  auto & cfg = ctx->configList[commId];
+  auto & cfg = ctx->configList[it2->second];
   FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
   *commTag = cfg.commTag;
   INFO(FLAGCX_TUNING, "Use Communicator tag %s.", commTag->tag);
