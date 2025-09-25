@@ -84,13 +84,11 @@ struct TunerContext {
   std::map<struct flagcxCommTag, TunerCommStatus> commsStatusMap;
   std::vector<struct flagcxEnvConfig> configList;
   flagcxDebugLogger_t logger = NULL;
-  struct flagcxCommTag envTag = {.tag = ""}; // envTag specified by FLAGCX_USE_COMM_TAG environment
   int envTagIdx = -1; // the index of envTag in configList
   int warmupCnt = TUNER_WARMUP_COUNT; // number of warmup collectives before tuning
 
   // runtime related struct
-  int activeCommCnt = 0; // number of active communicators
-  std::map<int, int> activeCommMap; // map from active communicator index to configList index
+  std::vector<int> activeCommList; // List of active communicator. Holds indices of configList
   std::map<struct flagcxCommTag, int> commTagIdxMap; // map from commTag to configList index
   std::map<TunerCollCategory, uint32_t> collSeqMap; // record the sequence number of each collective category
   std::map<TunerCollCategory, struct flagcxCommTag> collBestCommMap; // record the best communicator for each collective category
@@ -148,14 +146,15 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
   // Whether comm tag specified by environment variable
   const char *tagEnv = flagcxGetEnv("FLAGCX_USE_COMM_TAG");
   if (tagEnv != nullptr) {
-    snprintf(ctx->envTag.tag, FLAGCX_COMM_TAG_MAX_LENGTH, "%s", tagEnv);
-    auto it = ctx->commTagIdxMap.find(ctx->envTag);
+    struct flagcxCommTag envTag;
+    snprintf(envTag.tag, FLAGCX_COMM_TAG_MAX_LENGTH, "%s", tagEnv);
+    auto it = ctx->commTagIdxMap.find(envTag);
     if (it == ctx->commTagIdxMap.end()) {
-      WARN("Communicator tag %s set by environment not found in config list.", ctx->envTag.tag);
+      WARN("Communicator tag %s set by environment not found in config list.", envTag.tag);
       return flagcxInvalidArgument;
     }
     ctx->envTagIdx = it->second;
-    INFO(FLAGCX_ENV|FLAGCX_TUNING, "Communicator tag set by environment to %s.", ctx->envTag.tag);
+    INFO(FLAGCX_ENV|FLAGCX_TUNING, "Communicator tag set by environment to %s.", envTag.tag);
   }
 
   // Whether to change warmup count by environment variable
@@ -189,38 +188,45 @@ flagcxResult_t flagcxTunerSetCandidate(void* context, uint32_t index,
   FLAGCXCHECK(setEnvConfig(curCfg, FLAGCX_ENV_TYPE_CREATION));
   ctx->commsStatusMap[curCfg.commTag] = TunerCommStatusActive;
   *commTag = curCfg.commTag;
-  ctx->activeCommMap[ctx->activeCommCnt] = index;
-  ctx->activeCommCnt++;
+  ctx->activeCommList.push_back(index);
   return flagcxSuccess;
 }
 
-// Find the best communicator for a collective category based on profiling data
-// For now, use seqId = 2 metric as the time of that collective category.
+// Helper function to find the best communicator for a collective category based on profiling data
+// Strategy:
+// For each active communicator, check if we have profiling data for that collective category.
+// If yes, use that data to calculate the time for that collective category.
+// If no, skip that communicator.
+// Finally, select the communicator with the minimum time as the best communicator.
 static flagcxResult_t findBestComm(struct TunerContext* ctx, const struct TunerCollCategory& cat) {
-  int bestCommIdx = -1; // index of best communicator in activeCommMap
+  int bestCommIdx = -1; // index of best communicator in configList
   float minTime = FLT_MAX;
   // calculate the best communicator based on profiling data
-  for (int i = 0; i < ctx->activeCommCnt; ++i) {
-    const auto & cfg = ctx->configList[ctx->activeCommMap[i]];
-    TunerProfileKey profileKey(cat.nBytes, static_cast<uint32_t>(cat.collType), 2, ctx->activeCommMap[i]);
+  for (const auto & idx : ctx->activeCommList) {
+    const auto & cfg = ctx->configList[idx];
+    // For now, use seqId = 2 metric as the time of that collective category.
+    uint32_t seqId = 2;
+    TunerProfileKey profileKey(cat.nBytes, static_cast<uint32_t>(cat.collType), seqId, idx);
     // TODO get time from timer
     float time = 0;
     if (time < minTime) {
       minTime = time;
-      bestCommIdx = i;
+      bestCommIdx = idx;
     }
   }
   if (bestCommIdx == -1) {
     WARN("No best communicator found for collective type %d with size %zu.", cat.collType, cat.nBytes);
     return flagcxInternalError;
   }
-  ctx->collBestCommMap[cat] = ctx->configList[ctx->activeCommMap[bestCommIdx]].commTag;
+  ctx->collBestCommMap[cat] = ctx->configList[bestCommIdx].commTag;
   return flagcxSuccess;
 }
 
 // Communicator selection logic:
+// Always favor the communicator specified by environment variable if possible.
+// Otherwise,
 // for the first WARMUP_COUNT collectives {collType, nBytes}
-// we will cycle through all the communicators use rr policy.
+// we will cycle through all the communicators use round-robin policy.
 // after that, we will select the best communicator based on profiling data
 // if no profiling data available, we will return flagcxInternalError for now.
 flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
@@ -231,7 +237,7 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
   // Use env comm tag when possible.
   if (ctx->envTagIdx != -1) {
     FLAGCXCHECK(setEnvConfig(ctx->configList[ctx->envTagIdx], FLAGCX_ENV_TYPE_COLL));
-    *commTag = ctx->envTag;
+    *commTag = ctx->configList[ctx->envTagIdx].commTag;
     INFO(FLAGCX_TUNING, "Use Communicator tag %s set by environment.", commTag->tag);
     return flagcxSuccess;
   }
@@ -247,8 +253,8 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
     seqId = it->second;
   }
   if (seqId < ctx->warmupCnt) {
-    int commId = seqId % ctx->activeCommCnt;
-    const auto & cfg = ctx->configList[ctx->activeCommMap[commId]];
+    int commId = seqId % ctx->activeCommList.size();
+    const auto & cfg = ctx->configList[ctx->activeCommList[commId]];
     FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
     *commTag = cfg.commTag;
     INFO(FLAGCX_TUNING, "Use Communicator tag %s in warmup phase seqId=%u.", commTag->tag, seqId);
@@ -280,7 +286,7 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
                                         struct flagcxCommTag commTag,
                                         struct flagcxProfileKey *key) {
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
-  // TODO: always generate the key
+  // Always generate the key, even if we do not do profiling for this collective.
   struct TunerCollCategory collCat = {collType, nBytes};
   auto it = ctx->collSeqMap.find(collCat);
   if (it == ctx->collSeqMap.end()) {
