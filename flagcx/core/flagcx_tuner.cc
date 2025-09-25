@@ -34,12 +34,12 @@ static_assert(alignof(struct flagcxProfileKey) >= 8, "We rely on 8-byte alignmen
 struct TunerProfileKey {
   size_t nBytes;
   uint32_t collType; // flagcxCommOp_t
-  uint32_t seqId; // sequence id of this collective within this category
+  uint32_t seqId; // sequence id of this collective within this TunerCollCategory
   uint32_t commTagIdx; // index of commTag in configList
 
   // constructors
   TunerProfileKey() : nBytes(0), collType(0), seqId(0), commTagIdx(0) {}
-  TunerProfileKey(size_t n, uint32_t c, uint32_t s = 0, uint32_t i = 0)
+  TunerProfileKey(size_t n, uint32_t c, uint32_t s, uint32_t i)
     : nBytes(n), collType(c), seqId(s), commTagIdx(i) {}
   TunerProfileKey(const struct flagcxProfileKey& k) {
     nBytes = *(reinterpret_cast<const size_t*>(k.key));
@@ -86,13 +86,13 @@ struct TunerContext {
   flagcxDebugLogger_t logger = NULL;
   struct flagcxCommTag envTag = {.tag = ""}; // envTag specified by FLAGCX_USE_COMM_TAG environment
   int envTagIdx = -1; // the index of envTag in configList
-  int warmupCount = TUNER_WARMUP_COUNT; // number of warmup collectives before tuning
+  int warmupCnt = TUNER_WARMUP_COUNT; // number of warmup collectives before tuning
 
   // runtime related struct
   int activeCommCnt = 0; // number of active communicators
   std::map<int, int> activeCommMap; // map from active communicator index to configList index
   std::map<struct flagcxCommTag, int> commTagIdxMap; // map from commTag to configList index
-  std::map<TunerCollCategory, size_t> collSeqMap; // record the sequence number of each collective category
+  std::map<TunerCollCategory, uint32_t> collSeqMap; // record the sequence number of each collective category
   std::map<TunerCollCategory, struct flagcxCommTag> collBestCommMap; // record the best communicator for each collective category
   // TODO add timer structure here.
 };
@@ -163,8 +163,8 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
   if (warmupEnv != nullptr) {
     int val = std::stoi(warmupEnv);
     if (val >= 0) {
-      ctx->warmupCount = val;
-      INFO(FLAGCX_ENV|FLAGCX_TUNING, "Tuner warmup count set by environment to %d.", ctx->warmupCount);
+      ctx->warmupCnt = val;
+      INFO(FLAGCX_ENV|FLAGCX_TUNING, "Tuner warmup count set by environment to %d.", ctx->warmupCnt);
     }
   }
   return flagcxSuccess;
@@ -239,19 +239,19 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
   // for the first WARMUP_COUNT collectives, use round-robin policy
   struct TunerCollCategory collCat = {collType, nBytes};
   auto it = ctx->collSeqMap.find(collCat);
-  size_t seqId = 0;
+  uint32_t seqId = 0;
   if (it == ctx->collSeqMap.end()) {
     ctx->collSeqMap[collCat] = 0;
   } else {
     it->second++;
     seqId = it->second;
   }
-  if (seqId < ctx->warmupCount) {
+  if (seqId < ctx->warmupCnt) {
     int commId = seqId % ctx->activeCommCnt;
     const auto & cfg = ctx->configList[ctx->activeCommMap[commId]];
     FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
     *commTag = cfg.commTag;
-    INFO(FLAGCX_TUNING, "Use Communicator tag %s in warmup phase seqId=%zu.", commTag->tag, seqId);
+    INFO(FLAGCX_TUNING, "Use Communicator tag %s in warmup phase seqId=%u.", commTag->tag, seqId);
     return flagcxSuccess;
   }
 
@@ -298,7 +298,7 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
   *key = profileKey;
 
   // do profile only for warmup collectives
-  if (it->second < ctx->warmupCount) {
+  if (it->second < ctx->warmupCnt) {
     // TODO: time call start
   }
   return flagcxSuccess;
@@ -308,7 +308,7 @@ flagcxResult_t flagcxTunerStopProfiling(void* context, struct flagcxProfileKey k
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
   TunerProfileKey profileKey(key);
   // do profile only for warmup collectives
-  if (profileKey.seqId < ctx->warmupCount) {
+  if (profileKey.seqId < ctx->warmupCnt) {
     // TODO: time call stop and record the time
   }
   return flagcxSuccess;
