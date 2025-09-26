@@ -5,7 +5,7 @@
 #include "check.h"
 #include "flagcx_tuner.h"
 #include "param.h"
-#include "time.h"
+#include "timer.h"
 
 // Status of a communicator tracked by a tuner
 enum TunerCommStatus {
@@ -29,8 +29,7 @@ bool operator<(const struct TunerCollCategory& lhs, const struct TunerCollCatego
   return lhs.nBytes < rhs.nBytes;
 }
 
-static_assert(FLGACX_PROFILE_KEY_MAX_LENGTH >= 20, "FLGACX_PROFILE_KEY_MAX_LENGTH < 20, too short");
-static_assert(alignof(struct flagcxProfileKey) >= 8, "We rely on 8-byte alignment for flagcxProfileKey");
+static_assert(FLAGCX_PROFILE_KEY_MAX_LENGTH >= 20, "FLAGCX_PROFILE_KEY_MAX_LENGTH < 20, too short");
 
 // Key used for time profiling
 struct TunerProfileKey {
@@ -44,16 +43,16 @@ struct TunerProfileKey {
   TunerProfileKey(size_t n, uint32_t c, uint32_t s, uint32_t i)
     : nBytes(n), collType(c), seqId(s), commTagIdx(i) {}
   TunerProfileKey(const struct flagcxProfileKey& k) {
-    nBytes = *(reinterpret_cast<const size_t*>(k.key));
-    collType = *(reinterpret_cast<const uint32_t*>(k.key + 8));
-    seqId = *(reinterpret_cast<const uint32_t*>(k.key + 12));
-    commTagIdx = *(reinterpret_cast<const uint32_t*>(k.key + 16));
+    memcpy(&nBytes, k.key, sizeof(size_t));
+    memcpy(&collType, k.key + 8, sizeof(uint32_t));
+    memcpy(&seqId, k.key + 12, sizeof(uint32_t));
+    memcpy(&commTagIdx, k.key + 16, sizeof(uint32_t));
   }
 
   // conversion function
   operator struct flagcxProfileKey() const {
     struct flagcxProfileKey k;
-    memset(k.key, 0, FLGACX_PROFILE_KEY_MAX_LENGTH);
+    memset(k.key, 0, FLAGCX_PROFILE_KEY_MAX_LENGTH);
     memcpy(k.key, &nBytes, sizeof(size_t));
     memcpy(k.key + 8, &collType, sizeof(uint32_t));
     memcpy(k.key + 12, &seqId, sizeof(uint32_t));
@@ -172,10 +171,14 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
   // Whether to change warmup count by environment variable
   const char *warmupEnv = flagcxGetEnv("FLAGCX_TUNER_WARMUP_COUNT");
   if (warmupEnv != nullptr) {
-    int val = std::stoi(warmupEnv);
-    if (val >= 0) {
-      ctx->warmupCnt = val;
-      INFO(FLAGCX_ENV|FLAGCX_TUNING, "Tuner warmup count set by environment to %d.", ctx->warmupCnt);
+    try {
+      int val = std::stoi(warmupEnv);
+      if (val >= 0) {
+        ctx->warmupCnt = val;
+        INFO(FLAGCX_ENV|FLAGCX_TUNING, "Tuner warmup count set by environment to %d.", ctx->warmupCnt);
+      }
+    } catch (const std::exception& e) {
+      WARN("Invalid value for FLAGCX_TUNER_WARMUP_COUNT: %s. Using default.", warmupEnv);
     }
   }
 
@@ -306,22 +309,22 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
 
 flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
                                         size_t nBytes, flagcxStream_t stream,
-                                        struct flagcxCommTag commTag,
+                                        const struct flagcxCommTag *commTag,
                                         struct flagcxProfileKey *key) {
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
   struct TunerCollCategory collCat = {collType, nBytes};
   auto it = ctx->collSeqMap.find(collCat);
   uint32_t seqId = 0;
-  if (it != ctx->collSeqMap.end()) {
+  if (it == ctx->collSeqMap.end()) {
     ctx->collSeqMap[collCat] = 0;
   } else {
     it->second++;
     seqId = it->second;
   }
 
-  auto it2 = ctx->commTagIdxMap.find(commTag);
+  auto it2 = ctx->commTagIdxMap.find(*commTag);
   if (it2 == ctx->commTagIdxMap.end()) {
-      WARN("Communicator tag %s not found in config list.", commTag.tag);
+      WARN("Communicator tag %s not found in config list.", commTag->tag);
       return flagcxInvalidArgument;
   }
   uint32_t commTagIdx = it2->second;
@@ -338,9 +341,9 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxTunerStopProfiling(void* context, struct flagcxProfileKey key){
+flagcxResult_t flagcxTunerStopProfiling(void* context, const struct flagcxProfileKey *key){
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
-  TunerProfileKey profileKey(key);
+  TunerProfileKey profileKey(*key);
   // do profile only for warmup collectives
   if (profileKey.seqId < ctx->warmupCnt) {
     struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
