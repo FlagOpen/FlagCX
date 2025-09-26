@@ -244,7 +244,7 @@ static flagcxResult_t findBestComm(struct TunerContext* ctx, const struct TunerC
     WARN("No best communicator found for collective type %d with size %zu.", cat.collType, cat.nBytes);
     return flagcxInternalError;
   }
-  INFO(FLAGCX_TUNING, "(commId=%d,coll=%d,size=%zu,seq=%u) best CommId=%d.", idx, cat.collType, cat.nBytes, seqId, duration, bestCommIdx);
+  INFO(FLAGCX_TUNING, "(coll=%d,size=%zu) best CommId=%d.", cat.collType, cat.nBytes, bestCommIdx);
   ctx->collBestCommMap[cat] = bestCommIdx;
   return flagcxSuccess;
 }
