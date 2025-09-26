@@ -1,4 +1,5 @@
 #include "flagcx.h"
+#include "check.h"
 #include "tools.h"
 #include <cstring>
 #include <iostream>
