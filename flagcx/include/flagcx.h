@@ -18,8 +18,9 @@ typedef enum {
   flagcxInvalidUsage = 5,
   flagcxRemoteError = 6,
   flagcxInProgress = 7,
-  flagcxNotSupported = 8,
-  flagcxNumResults = 9
+  flagcxUnhandledCCLError = 8,
+  flagcxNotSupported = 9,
+  flagcxNumResults = 10
 } flagcxResult_t;
 
 /* Data types */

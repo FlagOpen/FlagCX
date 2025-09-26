@@ -12,14 +12,17 @@ USE_BOOTSTRAP ?= 0
 USE_METAX ?= 0
 USE_MUSA ?= 0
 USE_KUNLUNXIN ?=0
+USE_AMD ?= 0
 USE_DU ?= 0
 USE_MPI ?= 0
+USE_UCX ?= 0
 
 # set to empty if not provided
 DEVICE_HOME ?=
 CCL_HOME ?=
 HOST_CCL_HOME ?=
 MPI_HOME ?=
+UCX_HOME ?=
 
 ifeq ($(strip $(DEVICE_HOME)),)
 	ifeq ($(USE_NVIDIA), 1)
@@ -38,6 +41,8 @@ ifeq ($(strip $(DEVICE_HOME)),)
 		DEVICE_HOME = /usr/local/xpu
 	else ifeq ($(USE_DU), 1)
 		DEVICE_HOME = ${CUDA_PATH}
+	else ifeq ($(USE_AMD), 1)
+		DEVICE_HOME = /opt/rocm
 	else
 		DEVICE_HOME = /usr/local/cuda
 	endif
@@ -60,6 +65,8 @@ ifeq ($(strip $(CCL_HOME)),)
 		CCL_HOME = /usr/local/xccl
 	else ifeq ($(USE_DU), 1)
 		CCL_HOME = ${CUDA_PATH}
+	else ifeq ($(USE_AMD), 1)
+		CCL_HOME = /opt/rocm
 	else
 		CCL_HOME = /usr/local/nccl/build
 	endif
@@ -81,6 +88,12 @@ ifeq ($(strip $(MPI_HOME)),)
 	endif
 endif
 
+ifeq ($(strip $(UCX_HOME)),)
+	ifeq ($(USE_UCX), 1)
+		UCX_HOME = /usr/local/ucx
+	endif
+endif
+
 DEVICE_LIB =
 DEVICE_INCLUDE =
 DEVICE_LINK =
@@ -92,6 +105,10 @@ HOST_CCL_INCLUDE =
 HOST_CCL_LINK =
 ADAPTOR_FLAG =
 HOST_CCL_ADAPTOR_FLAG =
+UCX_LIB =
+UCX_INCLUDE =
+UCX_LINK =
+NET_ADAPTOR_FLAG =
 ifeq ($(USE_NVIDIA), 1)
 	DEVICE_LIB = $(DEVICE_HOME)/lib64
 	DEVICE_INCLUDE = $(DEVICE_HOME)/include
@@ -154,6 +171,14 @@ else ifeq ($(USE_DU), 1)
 	CCL_INCLUDE = $(CCL_HOME)/include
 	CCL_LINK = -lnccl
 	ADAPTOR_FLAG = -DUSE_DU_ADAPTOR
+else ifeq ($(USE_AMD), 1)
+	DEVICE_LIB = $(DEVICE_HOME)/lib
+	DEVICE_INCLUDE = $(DEVICE_HOME)/include
+	DEVICE_LINK = -lhiprtc
+	CCL_LIB = $(CCL_HOME)/lib
+	CCL_INCLUDE = $(CCL_HOME)/include/rccl
+	CCL_LINK = -lrccl
+	ADAPTOR_FLAG = -DUSE_AMD_ADAPTOR -D__HIP_PLATFORM_AMD__
 else
 	DEVICE_LIB = $(DEVICE_HOME)/lib64
 	DEVICE_INCLUDE = $(DEVICE_HOME)/include
@@ -184,6 +209,19 @@ else
 	HOST_CCL_INCLUDE = /usr/local/include
 	HOST_CCL_LINK = 
 	HOST_CCL_ADAPTOR_FLAG = -DUSE_BOOTSTRAP_ADAPTOR
+endif
+
+# UCX network adaptor configuration
+ifeq ($(USE_UCX), 1)
+	UCX_LIB = $(UCX_HOME)/lib
+	UCX_INCLUDE = $(UCX_HOME)/include
+	UCX_LINK = -lucp -lucs -luct
+	NET_ADAPTOR_FLAG = -DUSE_UCX
+else
+	UCX_LIB = $(UCX_HOME)/lib
+	UCX_INCLUDE = $(UCX_HOME)/include
+	UCX_LINK = 
+	NET_ADAPTOR_FLAG = 
 endif
 
 LIBDIR := $(BUILDDIR)/lib
@@ -217,6 +255,7 @@ print_var:
 	@echo "HOST_CCL_HOME: $(HOST_CCL_HOME)"
 	@echo "MPI_HOME: $(MPI_HOME)"
 	@echo "USE_NVIDIA: $(USE_NVIDIA)"
+	@echo "USE_ASCEND: $(USE_ASCEND)"
 	@echo "USE_ILUVATAR_COREX: $(USE_ILUVATAR_COREX)"
 	@echo "USE_CAMBRICON: $(USE_CAMBRICON)"
 	@echo "USE_KUNLUNXIN: $(USE_KUNLUNXIN)"
@@ -224,6 +263,7 @@ print_var:
 	@echo "USE_MPI: $(USE_MPI)"
 	@echo "USE_MUSA: $(USE_MUSA)"
 	@echo "USE_DU: $(USE_DU)"
+	@echo "USE_AMD: $(USE_AMD)"
 	@echo "DEVICE_LIB: $(DEVICE_LIB)"
 	@echo "DEVICE_INCLUDE: $(DEVICE_INCLUDE)"
 	@echo "CCL_LIB: $(CCL_LIB)"
@@ -232,16 +272,21 @@ print_var:
 	@echo "HOST_CCL_INCLUDE: $(HOST_CCL_INCLUDE)"
 	@echo "ADAPTOR_FLAG: $(ADAPTOR_FLAG)"
 	@echo "HOST_CCL_ADAPTOR_FLAG: $(HOST_CCL_ADAPTOR_FLAG)"
+	@echo "USE_UCX: $(USE_UCX)"
+	@echo "UCX_HOME: $(UCX_HOME)"
+	@echo "UCX_LIB: $(UCX_LIB)"
+	@echo "UCX_INCLUDE: $(UCX_INCLUDE)"
+	@echo "NET_ADAPTOR_FLAG: $(NET_ADAPTOR_FLAG)"
 
 $(LIBDIR)/$(TARGET): $(LIBOBJ)
 	@mkdir -p `dirname $@`
 	@echo "Linking   $@"
-	@g++ $(LIBOBJ) -o $@ -L$(CCL_LIB) -L$(DEVICE_LIB) -L$(HOST_CCL_LIB) -shared -fvisibility=default -Wl,--no-as-needed -Wl,-rpath,$(LIBDIR) -Wl,-rpath,$(CCL_LIB) -Wl,-rpath,$(HOST_CCL_LIB) -lpthread -lrt -ldl $(CCL_LINK) $(DEVICE_LINK) $(HOST_CCL_LINK) -g
+	@g++ $(LIBOBJ) -o $@ -L$(CCL_LIB) -L$(DEVICE_LIB) -L$(HOST_CCL_LIB) -L$(UCX_LIB) -shared -fvisibility=default -Wl,--no-as-needed -Wl,-rpath,$(LIBDIR) -Wl,-rpath,$(CCL_LIB) -Wl,-rpath,$(HOST_CCL_LIB) -Wl,-rpath,$(UCX_LIB) -lpthread -lrt -ldl $(CCL_LINK) $(DEVICE_LINK) $(HOST_CCL_LINK) $(UCX_LINK) -g
 
 $(OBJDIR)/%.o: %.cc
 	@mkdir -p `dirname $@`
 	@echo "Compiling $@"
-	@g++ $< -o $@ $(foreach dir,$(INCLUDEDIR),-I$(dir)) -I$(CCL_INCLUDE) -I$(DEVICE_INCLUDE) -I$(HOST_CCL_INCLUDE) $(ADAPTOR_FLAG) $(HOST_CCL_ADAPTOR_FLAG) -c -fPIC -fvisibility=default -Wvla -Wno-unused-function -Wno-sign-compare -Wall -MMD -MP -g
+	@g++ $< -o $@ $(foreach dir,$(INCLUDEDIR),-I$(dir)) -I$(CCL_INCLUDE) -I$(DEVICE_INCLUDE) -I$(HOST_CCL_INCLUDE) -I$(UCX_INCLUDE) $(ADAPTOR_FLAG) $(HOST_CCL_ADAPTOR_FLAG) $(NET_ADAPTOR_FLAG) -c -fPIC -fvisibility=default -Wvla -Wno-unused-function -Wno-sign-compare -Wall -MMD -MP -g
 
 -include $(LIBOBJ:.o=.d)
 

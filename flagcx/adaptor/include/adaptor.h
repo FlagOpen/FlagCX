@@ -22,6 +22,7 @@ extern "C" {
 
 extern struct flagcxCCLAdaptor bootstrapAdaptor;
 extern struct flagcxCCLAdaptor glooAdaptor;
+extern struct flagcxCCLAdaptor mpiAdaptor;
 extern struct flagcxCCLAdaptor ncclAdaptor;
 extern struct flagcxCCLAdaptor hcclAdaptor;
 extern struct flagcxCCLAdaptor ixncclAdaptor;
@@ -30,7 +31,7 @@ extern struct flagcxCCLAdaptor mcclAdaptor;
 extern struct flagcxCCLAdaptor musa_mcclAdaptor;
 extern struct flagcxCCLAdaptor xcclAdaptor;
 extern struct flagcxCCLAdaptor duncclAdaptor;
-extern struct flagcxCCLAdaptor mpiAdaptor;
+extern struct flagcxCCLAdaptor rcclAdaptor;
 extern struct flagcxCCLAdaptor *cclAdaptors[];
 
 extern struct flagcxDeviceAdaptor cudaAdaptor;
@@ -41,14 +42,15 @@ extern struct flagcxDeviceAdaptor macaAdaptor;
 extern struct flagcxDeviceAdaptor musaAdaptor;
 extern struct flagcxDeviceAdaptor kunlunAdaptor;
 extern struct flagcxDeviceAdaptor ducudaAdaptor;
+extern struct flagcxDeviceAdaptor hipAdaptor;
 extern struct flagcxDeviceAdaptor *deviceAdaptor;
 
 extern struct flagcxNetAdaptor *netAdaptor;
 
 // Network type enumeration
 enum NetType {
-  IBRC = 1,    // InfiniBand RC
-  SOCKET = 2   // Socket
+  IBRC = 1,  // InfiniBand RC (or UCX when USE_UCX=1)
+  SOCKET = 2 // Socket
 };
 
 // Unified network adaptor function declarations

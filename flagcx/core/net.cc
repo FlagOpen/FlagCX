@@ -10,15 +10,12 @@ static pthread_mutex_t netLock = PTHREAD_MUTEX_INITIALIZER;
 // Use adaptor system for all network types
 struct flagcxNetAdaptor *flagcxNetAdaptors[3] = {
     nullptr, getUnifiedNetAdaptor(IBRC), getUnifiedNetAdaptor(SOCKET)};
-flagcxCollNet_t *flagcxCollNets[3] = {nullptr, nullptr, nullptr};
 enum flagcxNetState {
   flagcxNetStateInit = 0,
   flagcxNetStateEnabled = 1,
   flagcxNetStateDisabled = 2
 };
 enum flagcxNetState flagcxNetStates[3] = {
-    flagcxNetStateInit, flagcxNetStateInit, flagcxNetStateInit};
-enum flagcxNetState flagcxCollNetStates[3] = {
     flagcxNetStateInit, flagcxNetStateInit, flagcxNetStateInit};
 
 flagcxResult_t flagcxNetCheckDeviceVersion(struct flagcxHeteroComm *comm,
@@ -72,22 +69,6 @@ static flagcxResult_t netGetState(int i, enum flagcxNetState *state) {
   return flagcxSuccess;
 }
 
-static flagcxResult_t collNetGetState(int i, enum flagcxNetState *state) {
-  pthread_mutex_lock(&netLock);
-  if (flagcxCollNetStates[i] == flagcxNetStateInit) {
-    int ndev;
-    if (flagcxCollNets[i]->init(flagcxDebugLog) != flagcxSuccess)
-      flagcxCollNetStates[i] = flagcxNetStateDisabled;
-    else if (flagcxCollNets[i]->devices(&ndev) != flagcxSuccess || ndev <= 0)
-      flagcxCollNetStates[i] = flagcxNetStateDisabled;
-    else
-      flagcxCollNetStates[i] = flagcxNetStateEnabled;
-  }
-  *state = flagcxCollNetStates[i];
-  pthread_mutex_unlock(&netLock);
-  return flagcxSuccess;
-}
-
 flagcxResult_t flagcxNetInit(struct flagcxHeteroComm *comm) {
   // Initialize main communication network
   const char *netName;
@@ -119,16 +100,10 @@ flagcxResult_t flagcxNetInit(struct flagcxHeteroComm *comm) {
       comm->netAdaptor = flagcxNetAdaptors[i];
       ok = true;
 
-      if (flagcxCollNets[i]) {
-        FLAGCXCHECK(collNetGetState(i, &state));
-        if (state == flagcxNetStateEnabled) {
-          comm->flagcxCollNet = flagcxCollNets[i];
-        }
-      }
       break;
     }
   } else {
-    // Normal network selection order (IBRC first, then socket)
+    // Normal network selection order (IBRC/UCX first, then socket)
     for (int i = 0; i < 3; i++) {
       if (flagcxNetAdaptors[i] == nullptr)
         continue;
@@ -146,12 +121,6 @@ flagcxResult_t flagcxNetInit(struct flagcxHeteroComm *comm) {
       comm->netAdaptor = flagcxNetAdaptors[i];
       ok = true;
 
-      if (flagcxCollNets[i]) {
-        FLAGCXCHECK(collNetGetState(i, &state));
-        if (state == flagcxNetStateEnabled) {
-          comm->flagcxCollNet = flagcxCollNets[i];
-        }
-      }
       break;
     }
   }

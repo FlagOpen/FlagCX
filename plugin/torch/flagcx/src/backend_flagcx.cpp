@@ -190,7 +190,8 @@ flagcxStream_t flagcxBackend::getStreamByIndex(int streamId) {
   } else {
     flagcxStreams_[streamId] = nullptr;
 #ifdef USE_ASCEND_ADAPTOR
-// TODO: The getStreamFromExternal interface is not supported at this stage on NPU. Adaptation modifications will be made in the future.
+    // TODO: The getStreamFromExternal interface is not supported at this stage
+    // on NPU. Adaptation modifications will be made in the future.
     acl_stream = c10_npu::getCurrentNPUStream().stream(false);
     flagcxStreams_[streamId] = reinterpret_cast<flagcxStream_t>(&acl_stream);
 #else
@@ -223,6 +224,8 @@ std::unique_ptr<flagcxEvent> &flagcxBackend::getEventByIndex(int eventId) {
     flagcxEvents_[eventId] = std::make_unique<flagcxDuEvent>();
 #elif USE_KUNLUNXIN_ADAPTOR
     flagcxEvents_[eventId] = std::make_unique<flagcxXpuEvent>();
+#elif USE_AMD_ADAPTOR
+    flagcxEvents_[eventId] = std::make_unique<flagcxHipEvent>();
 #endif
     return flagcxEvents_[eventId];
   }
@@ -273,16 +276,16 @@ void flagcxBackend::initComm(at::Device dev) {
 
 void flagcxBackend::initComm() {
 #if defined(USE_NVIDIA_ADAPTOR) || defined(USE_ILUVATAR_COREX_ADAPTOR) ||      \
-    defined(USE_METAX_ADAPTOR) || defined(USE_MUSA_ADAPTOR) || defined(USE_DU_ADAPTOR)|| \
-    defined(USE_KUNLUNXIN_ADAPTOR)
+    defined(USE_METAX_ADAPTOR) || defined(USE_MUSA_ADAPTOR) ||                 \
+    defined(USE_DU_ADAPTOR) || defined(USE_KUNLUNXIN_ADAPTOR) ||               \
+    defined(USE_AMD_ADAPTOR)
   initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::CUDA)->getDevice());
 #elif defined(USE_CAMBRICON_ADAPTOR)
   initComm(
       c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice());
 #elif defined(USE_ASCEND_ADAPTOR)
   initComm(
-      c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice()
-      );
+      c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice());
 #endif
 }
 

@@ -21,59 +21,18 @@
 #include <sys/types.h>
 #include <unistd.h>
 #define ENABLE_TIMER 0
+#include "ib_common.h"
 #include "net.h"
 #include "timer.h"
 
-#define MAXNAMESIZE 64
 static char flagcxIbIfName[MAX_IF_NAME_SIZE + 1];
 static union flagcxSocketAddress flagcxIbIfAddr;
 
-struct flagcxIbMr {
-  uintptr_t addr;
-  size_t pages;
-  int refs;
-  ibv_mr *mr;
-};
-
-struct flagcxIbMrCache {
-  struct flagcxIbMr *slots;
-  int capacity, population;
-};
-
 static int flagcxNMergedIbDevs = -1;
-#define FLAGCX_IB_MAX_DEVS_PER_NIC 2
-#define MAX_MERGED_DEV_NAME                                                    \
-  (MAXNAMESIZE * FLAGCX_IB_MAX_DEVS_PER_NIC) + FLAGCX_IB_MAX_DEVS_PER_NIC
-struct alignas(64) flagcxIbMergedDev {
-  int ndevs;
-  int devs[FLAGCX_IB_MAX_DEVS_PER_NIC]; // Points to an index in flagcxIbDevs
-  int speed;
-  char devName[MAX_MERGED_DEV_NAME]; // Up to FLAGCX_IB_MAX_DEVS_PER_NIC * name
-                                     // size, and a character for each '+'
-};
-
 static int flagcxNIbDevs = -1;
-struct alignas(64) flagcxIbDev {
-  pthread_mutex_t lock;
-  int device;
-  uint64_t guid;
-  uint8_t portNum;
-  uint8_t link;
-  int speed;
-  ibv_context *context;
-  int pdRefs;
-  ibv_pd *pd;
-  char devName[MAXNAMESIZE];
-  char *pciPath;
-  int realPort;
-  int maxQp;
-  struct flagcxIbMrCache mrCache;
-  int ar; // ADAPTIVE_ROUTING
-  struct ibv_port_attr portAttr;
-};
 
-#define MAX_IB_DEVS 32
-struct flagcxIbMergedDev flagcxIbMergedDevs[MAX_IB_DEVS];
+// Define global arrays
+struct flagcxIbMergedDev flagcxIbMergedDevs[MAX_IB_VDEVS];
 struct flagcxIbDev flagcxIbDevs[MAX_IB_DEVS];
 pthread_mutex_t flagcxIbLock = PTHREAD_MUTEX_INITIALIZER;
 static int flagcxIbRelaxedOrderingEnabled = 0;
@@ -1920,7 +1879,7 @@ flagcxResult_t flagcxIbIsend(void *sendComm, void *data, size_t size, int tag,
       union flagcxSocketAddress addr;
       flagcxSocketGetAddr(&comm->base.sock, &addr);
       WARN("NET/IB : req %d/%d tag %x peer %s posted incorrect receive info: "
-           "size %d addr %lx rkeys[0]=%x",
+           "size %ld addr %lx rkeys[0]=%x",
            r, nreqs, tag, flagcxSocketToString(&addr, line), slots[r].size,
            slots[r].addr, slots[r].rkeys[0]);
       return flagcxInternalError;
