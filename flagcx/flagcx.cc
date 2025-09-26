@@ -10,9 +10,10 @@
 #include "flagcx_hetero.h"
 #include "flagcx_tuner.h"
 #include "launch_kernel.h"
-#include "reg_pool.h"
 #include "param.h"
+#include "reg_pool.h"
 
+#include "timer.h"
 #include <cassert>
 #include <stdio.h>
 #include <string.h>
@@ -135,12 +136,15 @@ flagcxResult_t flagcxHandleFree(flagcxHandlerGroup_t handler) {
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxMemAlloc(void **ptr, size_t size) {
+flagcxResult_t flagcxMemAlloc(void **ptr, size_t size, flagcxComm_t comm) {
   if (*ptr != NULL || size == 0) {
     WARN("Invalid pointer(!=NULL) or size(0) for allocation.");
     return flagcxSuccess;
   }
-  // TODO: add cclAdaptor->memAlloc
+  if (comm != NULL && is_homo_comm(comm)) {
+    // TODO: add cclAdaptor->memAlloc
+    return flagcxSuccess;
+  }
   FLAGCXCHECK(deviceAdaptor->gdrMemAlloc(ptr, size, NULL));
   if (*ptr != NULL) {
     INFO(FLAGCX_REG, "User buffer memory allocated with [%p, %ld]", *ptr, size);
@@ -151,12 +155,15 @@ flagcxResult_t flagcxMemAlloc(void **ptr, size_t size) {
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxMemFree(void *ptr) {
+flagcxResult_t flagcxMemFree(void *ptr, flagcxComm_t comm) {
   if (ptr == NULL) {
     WARN("Invalid pointer(=NULL)for de-allocation.");
     return flagcxSuccess;
   }
-  // TODO: add cclAdaptor->memFree
+  if (comm != NULL && is_homo_comm(comm)) {
+    // TODO: add cclAdaptor->memFree
+    return flagcxSuccess;
+  }
   FLAGCXCHECK(deviceAdaptor->gdrMemFree(ptr, NULL));
   INFO(FLAGCX_REG, "User buffer memory deallocated");
   return flagcxSuccess;

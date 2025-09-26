@@ -44,16 +44,19 @@ int main(int argc, char *argv[]) {
   devHandle->streamCreate(&stream);
 
   void *sendbuff, *recvbuff, *hello;
+  void *sendHandle, *recvHandle;
   size_t count;
   timer tim;
   int recvPeer = (proc - 1 + totalProcs) % totalProcs;
   int sendPeer = (proc + 1) % totalProcs;
 
   if (local_register) {
+    // allocate buffer
     flagcxMemAlloc(&sendbuff, max_bytes);
     flagcxMemAlloc(&recvbuff, max_bytes);
-    flagcxCommRegister(comm, sendbuff, max_bytes, NULL);
-    flagcxCommRegister(comm, recvbuff, max_bytes, NULL);
+    // register buffer
+    flagcxCommRegister(comm, sendbuff, max_bytes, &sendHandle);
+    flagcxCommRegister(comm, recvbuff, max_bytes, &recvHandle);
   } else {
     devHandle->deviceMalloc(&sendbuff, max_bytes, flagcxMemDevice, NULL);
     devHandle->deviceMalloc(&recvbuff, max_bytes, flagcxMemDevice, NULL);
@@ -141,10 +144,12 @@ int main(int argc, char *argv[]) {
 
   flagcxCommDestroy(comm);
   if (local_register) {
+    // deregister buffer
+    flagcxCommDeregister(comm, sendHandle);
+    flagcxCommDeregister(comm, recvHandle);
+    // deallocate buffer
     flagcxMemFree(sendbuff);
     flagcxMemFree(recvbuff);
-    flagcxCommDeregister(comm, NULL);
-    flagcxCommDeregister(comm, NULL);
   } else {
     devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
     devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
