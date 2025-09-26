@@ -183,7 +183,7 @@ flagcxResult_t cudaAdaptorEventCreate(flagcxEvent_t *event) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
   DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
-                                    cudaEventDefault));
+                                    cudaEventDisableTiming));
   return flagcxSuccess;
 }
 
