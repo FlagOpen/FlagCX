@@ -208,6 +208,9 @@ flagcxResult_t flagcxTunerSetCandidate(void *context, uint32_t index,
   return flagcxSuccess;
 }
 
+// add a small factor to avoid switching between two close communicators caused by measurement noise
+const float tunerProfileFactor = 0.95f;
+
 // Helper function to find the best communicator for a collective category based on profiling data
 // Strategy:
 // For each active communicator, check if we have profiling data for that collective category.
@@ -223,15 +226,16 @@ static flagcxResult_t findBestComm(struct TunerContext* ctx, const struct TunerC
     uint32_t seqId = 2;
     TunerProfileKey profileKey(cat.nBytes, static_cast<uint32_t>(cat.collType), seqId, idx);
     // TODO get time from timer
-    flagcxRecordKey<TunerProfileKey> rkey(profileKey);
+    struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
     float duration = ctx->timer.getRecord(rkey);
     if (duration <= 0) {
       // no profiling data for this communicator and collective category
-      WARN("No profiling data for communicator index %d, collective type %d with size %zu.", idx, cat.collType, cat.nBytes);
+      WARN("No profiling data for (commId=%d,coll=%d,size=%zu,seq=%u).", idx, cat.collType, cat.nBytes, seqId);
       continue;
     }
-    const float factor = 0.95f; // add a small factor to avoid switching between two close communicators caused by measurement noise
-    if (duration < minTime * factor) {
+    INFO(FLAGCX_TUNING, "Profiling data for (commId=%d,coll=%d,size=%zu,seq=%u) is %f.", idx, cat.collType, cat.nBytes, seqId, duration);
+
+    if (duration < minTime * tunerProfileFactor) {
       minTime = duration;
       bestCommIdx = idx;
     }
@@ -240,6 +244,7 @@ static flagcxResult_t findBestComm(struct TunerContext* ctx, const struct TunerC
     WARN("No best communicator found for collective type %d with size %zu.", cat.collType, cat.nBytes);
     return flagcxInternalError;
   }
+  INFO(FLAGCX_TUNING, "(commId=%d,coll=%d,size=%zu,seq=%u) best CommId=%d.", idx, cat.collType, cat.nBytes, seqId, duration, bestCommIdx);
   ctx->collBestCommMap[cat] = bestCommIdx;
   return flagcxSuccess;
 }
@@ -268,10 +273,7 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
   struct TunerCollCategory collCat = {collType, nBytes};
   auto it = ctx->collSeqMap.find(collCat);
   uint32_t seqId = 0;
-  if (it == ctx->collSeqMap.end()) {
-    ctx->collSeqMap[collCat] = 0;
-  } else {
-    it->second++;
+  if (it != ctx->collSeqMap.end()) {
     seqId = it->second;
   }
   if (seqId < ctx->warmupCnt) {
@@ -298,7 +300,7 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
   auto & cfg = ctx->configList[it2->second];
   FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
   *commTag = cfg.commTag;
-  INFO(FLAGCX_TUNING, "Use Communicator tag %s.", commTag->tag);
+  INFO(FLAGCX_TUNING, "Use Communicator tag %s based on profile data.", commTag->tag);
   return flagcxSuccess;
 }
 
@@ -307,13 +309,15 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
                                         struct flagcxCommTag commTag,
                                         struct flagcxProfileKey *key) {
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
-  // Always generate the key, even if we do not do profiling for this collective.
   struct TunerCollCategory collCat = {collType, nBytes};
   auto it = ctx->collSeqMap.find(collCat);
-  if (it == ctx->collSeqMap.end()) {
-    return flagcxInvalidArgument;
+  uint32_t seqId = 0;
+  if (it != ctx->collSeqMap.end()) {
+    ctx->collSeqMap[collCat] = 0;
+  } else {
+    it->second++;
+    seqId = it->second;
   }
-  uint32_t seqId = it->second;
 
   auto it2 = ctx->commTagIdxMap.find(commTag);
   if (it2 == ctx->commTagIdxMap.end()) {
@@ -321,12 +325,14 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
       return flagcxInvalidArgument;
   }
   uint32_t commTagIdx = it2->second;
+
+  // Always generate the key, even if we do not do profiling for this collective.
   TunerProfileKey profileKey(nBytes, static_cast<uint32_t>(collType), seqId, commTagIdx);
   *key = profileKey;
 
   // do profile only for warmup collectives
   if (seqId < ctx->warmupCnt) {
-    flagcxRecordKey<TunerProfileKey> rkey(profileKey);
+    struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
     FLAGCXCHECK(ctx->timer.begin(rkey, stream));
   }
   return flagcxSuccess;
@@ -337,7 +343,7 @@ flagcxResult_t flagcxTunerStopProfiling(void* context, struct flagcxProfileKey k
   TunerProfileKey profileKey(key);
   // do profile only for warmup collectives
   if (profileKey.seqId < ctx->warmupCnt) {
-    flagcxRecordKey<TunerProfileKey> rkey(profileKey);
+    struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
     FLAGCXCHECK(ctx->timer.end(rkey));
   }
   return flagcxSuccess;

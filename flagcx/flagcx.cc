@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unordered_map>
-#include "timer.h"
+
 #define FLAGCX_CACHE_CAPACITY 16
 static flagcxLRUCache<size_t, flagcxC2cPlanner>
     planCache(FLAGCX_CACHE_CAPACITY);
