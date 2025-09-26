@@ -5,6 +5,7 @@
 #include "check.h"
 #include "flagcx_tuner.h"
 #include "param.h"
+#include "time.h"
 
 // Status of a communicator tracked by a tuner
 enum TunerCommStatus {
@@ -94,7 +95,9 @@ struct TunerContext {
   std::map<struct flagcxCommTag, int> commTagIdxMap; // map from commTag to configList index
   std::map<TunerCollCategory, uint32_t> collSeqMap; // record the sequence number of each collective category
   std::map<TunerCollCategory, int> collBestCommMap; // record the best communicator for each collective category. value is comm index in configList.
-  // TODO add timer structure here.
+
+  // timer
+  flagcxTimer<TunerProfileKey> timer;
 };
 
 static struct flagcxEnvConfig config1 = {
@@ -168,6 +171,9 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
       INFO(FLAGCX_ENV|FLAGCX_TUNING, "Tuner warmup count set by environment to %d.", ctx->warmupCnt);
     }
   }
+
+  // start timer
+  ctx->timer.start();
   return flagcxSuccess;
 }
 
@@ -209,9 +215,16 @@ static flagcxResult_t findBestComm(struct TunerContext* ctx, const struct TunerC
     uint32_t seqId = 2;
     TunerProfileKey profileKey(cat.nBytes, static_cast<uint32_t>(cat.collType), seqId, idx);
     // TODO get time from timer
-    float time = 0;
-    if (time < minTime) {
-      minTime = time;
+    flagcxRecordKey<TunerProfileKey> rkey(profileKey);
+    float duration = ctx->timer.getRecord(rkey);
+    if (duration <= 0) {
+      // no profiling data for this communicator and collective category
+      WARN("No profiling data for communicator index %d, collective type %d with size %zu.", idx, cat.collType, cat.nBytes);
+      continue;
+    }
+    const float factor = 0.95f; // add a small factor to avoid switching between two close communicators caused by measurement noise
+    if (duration < minTime * factor) {
+      minTime = duration;
       bestCommIdx = idx;
     }
   }
@@ -305,7 +318,8 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
 
   // do profile only for warmup collectives
   if (seqId < ctx->warmupCnt) {
-    // TODO: time call start
+    flagcxRecordKey<TunerProfileKey> rkey(profileKey);
+    FLAGCXCHECK(ctx->timer.begin(rkey, stream));
   }
   return flagcxSuccess;
 }
@@ -315,13 +329,16 @@ flagcxResult_t flagcxTunerStopProfiling(void* context, struct flagcxProfileKey k
   TunerProfileKey profileKey(key);
   // do profile only for warmup collectives
   if (profileKey.seqId < ctx->warmupCnt) {
-    // TODO: time call stop and record the time
+    flagcxRecordKey<TunerProfileKey> rkey(profileKey);
+    FLAGCXCHECK(ctx->timer.end(rkey));
   }
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxTunerDestroy(void *context) {
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
+  // stop timer
+  ctx->timer.stop();
   delete ctx;
   return flagcxSuccess;
 }
