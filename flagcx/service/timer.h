@@ -111,8 +111,8 @@ struct flagcxRecordKey {
 
 template <typename T>
 struct flagcxRecord {
-    flagcxEvent_t begin_event;
-    flagcxEvent_t end_event;
+    flagcxEvent_t beginEvent;
+    flagcxEvent_t endEvent;
     flagcxRecordKey<T> recordKey;
     float duration;      // ms
     flagcxStream_t stream;
@@ -128,14 +128,14 @@ struct flagcxRecord {
 
 template <typename T>
 flagcxRecord<T>::flagcxRecord() : duration(0.0f){
-    deviceAdaptor->eventCreate(&begin_event);
-    deviceAdaptor->eventCreate(&end_event);
+    deviceAdaptor->eventCreate(&beginEvent);
+    deviceAdaptor->eventCreate(&endEvent);
 }
 
 template <typename T>
 flagcxRecord<T>::~flagcxRecord<T>() {
-    deviceAdaptor->eventDestroy(begin_event);
-    deviceAdaptor->eventDestroy(end_event);
+    deviceAdaptor->eventDestroy(beginEvent);
+    deviceAdaptor->eventDestroy(endEvent);
 }
 
 template <typename T>
@@ -143,17 +143,17 @@ class flagcxTimer {
   
   public:
     flagcxRecord<T> flagcxRecords[RECORD_NUM];
-    pthread_t query_thread;
-    bool stop_query = false;
-    std::queue<flagcxRecord<T> *> available_records;  // NOLINT
-    std::queue<flagcxRecord<T> *> using_records;      // NOLINT
-    std::queue<flagcxRecord<T> *> profiling_records;  // NOLINT
-    std::queue<flagcxRecord<T> *> profiled_records;   // NOLINT
-    pthread_mutex_t mutex_available{};
-    pthread_cond_t  cond_available{};
-    pthread_mutex_t mutex_profiling{};
-    pthread_cond_t  cond_profiling{};
-    pthread_mutex_t mutex_profiled{};
+    pthread_t queryThread;
+    bool stopQuery = false;
+    std::queue<flagcxRecord<T> *> availableRecords;  // NOLINT
+    std::queue<flagcxRecord<T> *> usingRecords;      // NOLINT
+    std::queue<flagcxRecord<T> *> profilingRecords;  // NOLINT
+    std::queue<flagcxRecord<T> *> profiledRecords;   // NOLINT
+    pthread_mutex_t mutexAvailable{};
+    pthread_cond_t  condAvailable{};
+    pthread_mutex_t mutexProfiling{};
+    pthread_cond_t  condProfiling{};
+    pthread_mutex_t mutexProfiled{};
 
     void initSyncPrimitives();
     void destroySyncPrimitives();
@@ -174,77 +174,77 @@ class flagcxTimer {
 
 template <typename T>
 void flagcxTimer<T>::initSyncPrimitives() {
-    pthread_mutex_init(&mutex_available,  nullptr);
-    pthread_mutex_init(&mutex_profiling,  nullptr);
-    pthread_mutex_init(&mutex_profiled,   nullptr);
+    pthread_mutex_init(&mutexAvailable,  nullptr);
+    pthread_mutex_init(&mutexProfiling,  nullptr);
+    pthread_mutex_init(&mutexProfiled,   nullptr);
 
-    pthread_cond_init(&cond_available, nullptr);
-    pthread_cond_init(&cond_profiling, nullptr);
+    pthread_cond_init(&condAvailable, nullptr);
+    pthread_cond_init(&condProfiling, nullptr);
 }
 
 template <typename T>
 void flagcxTimer<T>::destroySyncPrimitives() {
-    pthread_cond_destroy(&cond_available);
-    pthread_cond_destroy(&cond_profiling);
+    pthread_cond_destroy(&condAvailable);
+    pthread_cond_destroy(&condProfiling);
 
-    pthread_mutex_destroy(&mutex_available);
-    pthread_mutex_destroy(&mutex_profiling);
-    pthread_mutex_destroy(&mutex_profiled);
+    pthread_mutex_destroy(&mutexAvailable);
+    pthread_mutex_destroy(&mutexProfiling);
+    pthread_mutex_destroy(&mutexProfiled);
 }
 
 template <typename T>
 void *flagcxQuery(void *flagcxTimer_) {
     auto *timer = reinterpret_cast<flagcxTimer<T> *>(flagcxTimer_);
-    flagcxRecord<T> *curr_record = nullptr;
+    flagcxRecord<T> *currRecord = nullptr;
 
     while (true) {
-        curr_record = nullptr;
-        pthread_mutex_lock(&timer->mutex_profiling);
-                while (!timer->stop_query && timer->profiling_records.empty()) {
-            pthread_cond_wait(&timer->cond_profiling, &timer->mutex_profiling);
+        currRecord = nullptr;
+        pthread_mutex_lock(&timer->mutexProfiling);
+                while (!timer->stopQuery && timer->profilingRecords.empty()) {
+            pthread_cond_wait(&timer->condProfiling, &timer->mutexProfiling);
         }
-        if (timer->stop_query && timer->profiling_records.empty() && !curr_record) {
-            pthread_mutex_unlock(&timer->mutex_profiling);
+        if (timer->stopQuery && timer->profilingRecords.empty() && !currRecord) {
+            pthread_mutex_unlock(&timer->mutexProfiling);
             break;
         }
-        if (!timer->profiling_records.empty()) {
-            curr_record = timer->profiling_records.front();
+        if (!timer->profilingRecords.empty()) {
+            currRecord = timer->profilingRecords.front();
         }
-        pthread_mutex_unlock(&timer->mutex_profiling);
+        pthread_mutex_unlock(&timer->mutexProfiling);
 
-        while (curr_record) {
+        while (currRecord) {
             flagcxResult_t res = flagcxSuccess;
 
-            res = deviceAdaptor->eventQuery(curr_record->end_event);
+            res = deviceAdaptor->eventQuery(currRecord->endEvent);
             if(res != flagcxSuccess){
               if(res != flagcxInProgress){
-                curr_record = nullptr;
-                pthread_mutex_lock(&timer->mutex_profiling);
-                timer->profiling_records.pop();
-                pthread_mutex_unlock(&timer->mutex_profiling);
+                currRecord = nullptr;
+                pthread_mutex_lock(&timer->mutexProfiling);
+                timer->profilingRecords.pop();
+                pthread_mutex_unlock(&timer->mutexProfiling);
                 WARN("Cannot query event, drop this record");
               }
               break;
             }
 
-            res = deviceAdaptor->eventElapsedTime(&curr_record->duration,
-                                                        curr_record->begin_event,
-                                                        curr_record->end_event);  // ms
+            res = deviceAdaptor->eventElapsedTime(&currRecord->duration,
+                                                        currRecord->beginEvent,
+                                                        currRecord->endEvent);  // ms
 
             if(res != flagcxSuccess){
                 WARN("Cannot get elapsed time, will try again later");
                 break;
             }
 
-            pthread_mutex_lock(&timer->mutex_profiled);
-            timer->profiled_records.push(curr_record);
-            pthread_mutex_unlock(&timer->mutex_profiled);
+            pthread_mutex_lock(&timer->mutexProfiled);
+            timer->profiledRecords.push(currRecord);
+            pthread_mutex_unlock(&timer->mutexProfiled);
 
-            curr_record = nullptr;
+            currRecord = nullptr;
 
-            pthread_mutex_lock(&timer->mutex_profiling);
-            timer->profiling_records.pop();
-            pthread_mutex_unlock(&timer->mutex_profiling);
+            pthread_mutex_lock(&timer->mutexProfiling);
+            timer->profilingRecords.pop();
+            pthread_mutex_unlock(&timer->mutexProfiling);
         }
     }
     return nullptr;
@@ -254,12 +254,12 @@ template <typename T>
 flagcxTimer<T>::flagcxTimer() {
     initSyncPrimitives();
     for (auto &rec : flagcxRecords) {
-        this->available_records.push(&rec);
+        this->availableRecords.push(&rec);
     }
 }
 template <typename T>
 flagcxTimer<T>::~flagcxTimer() {
-  if (!stop_query) {
+  if (!stopQuery) {
     stop();
   }
   destroySyncPrimitives();
@@ -267,57 +267,57 @@ flagcxTimer<T>::~flagcxTimer() {
 
 template <typename T>
 void flagcxTimer<T>::start() {
-    pthread_create(&query_thread, NULL, &flagcxQuery<T>, this);
+    pthread_create(&queryThread, NULL, &flagcxQuery<T>, this);
     INFO(FLAGCX_TUNING, "flagcx timer start profiling thread");
 }
 
 template <typename T>
 void flagcxTimer<T>::stop() {
     INFO(FLAGCX_TUNING, "stopping timer");
-    pthread_mutex_lock(&this->mutex_profiling);
-    stop_query = true;
-    pthread_cond_signal(&this->cond_profiling);
-    pthread_mutex_unlock(&this->mutex_profiling);
-    pthread_join(query_thread, NULL);
+    pthread_mutex_lock(&this->mutexProfiling);
+    stopQuery = true;
+    pthread_cond_signal(&this->condProfiling);
+    pthread_mutex_unlock(&this->mutexProfiling);
+    pthread_join(queryThread, NULL);
 
 }
 
 template <typename T>
 float flagcxTimer<T>::getRecord(const flagcxRecordKey<T> &recordKey, bool blocking) {
-    std::vector<flagcxRecord<T> *> temp_available_records;
+    std::vector<flagcxRecord<T> *> temp_availableRecords;
 
     while (blocking) {
-        pthread_mutex_lock(&this->mutex_profiling);
-        if (this->profiling_records.empty()) {
-            pthread_mutex_unlock(&this->mutex_profiling);
+        pthread_mutex_lock(&this->mutexProfiling);
+        if (this->profilingRecords.empty()) {
+            pthread_mutex_unlock(&this->mutexProfiling);
             break;
         }
-        pthread_mutex_unlock(&this->mutex_profiling);
+        pthread_mutex_unlock(&this->mutexProfiling);
     }
 
     float duration = -1.0f;
     flagcxRecord<T> *found_record = nullptr;
     std::queue<flagcxRecord<T> *> remaining_records;
 
-    pthread_mutex_lock(&this->mutex_profiled);
-    while (!this->profiled_records.empty()) {
-        flagcxRecord<T> *record = this->profiled_records.front();
-        this->profiled_records.pop();
+    pthread_mutex_lock(&this->mutexProfiled);
+    while (!this->profiledRecords.empty()) {
+        flagcxRecord<T> *record = this->profiledRecords.front();
+        this->profiledRecords.pop();
         if (found_record == nullptr && record->recordKey == recordKey) {
             found_record = record;
         } else {
             remaining_records.push(record);
         }
     }
-    this->profiled_records.swap(remaining_records);
-    pthread_mutex_unlock(&this->mutex_profiled);
+    this->profiledRecords.swap(remaining_records);
+    pthread_mutex_unlock(&this->mutexProfiled);
 
     if (found_record) {
         duration = found_record->duration;
-        pthread_mutex_lock(&this->mutex_available);
-        this->available_records.push(found_record);
-        pthread_cond_signal(&this->cond_available);
-        pthread_mutex_unlock(&this->mutex_available);
+        pthread_mutex_lock(&this->mutexAvailable);
+        this->availableRecords.push(found_record);
+        pthread_cond_signal(&this->condAvailable);
+        pthread_mutex_unlock(&this->mutexAvailable);
         return duration;
     }
 
@@ -328,21 +328,21 @@ template <typename T>
 flagcxResult_t flagcxTimer<T>::begin(const flagcxRecordKey<T> &recordKey, flagcxStream_t stream_, bool blocking) {
     flagcxRecord<T> *record = nullptr;
 
-    pthread_mutex_lock(&this->mutex_available);
-    while (available_records.empty() && blocking) {
-        WARN("Logger::LogSubSys::TIMER: flagcx event is empty!");
-        pthread_cond_wait(&this->cond_available, &this->mutex_available);
+    pthread_mutex_lock(&this->mutexAvailable);
+    while (availableRecords.empty() && blocking) {
+        WARN("flagcx event is empty!");
+        pthread_cond_wait(&this->condAvailable, &this->mutexAvailable);
     }
-    if (!available_records.empty()) {
-        record = available_records.front();
-        available_records.pop();
+    if (!availableRecords.empty()) {
+        record = availableRecords.front();
+        availableRecords.pop();
     }
-    pthread_mutex_unlock(&this->mutex_available);
+    pthread_mutex_unlock(&this->mutexAvailable);
 
     if (record) {
         record->recordKey = recordKey;
-        FLAGCXCHECK(deviceAdaptor->eventRecord(record->begin_event, record->stream));
-        using_records.push(record);
+        FLAGCXCHECK(deviceAdaptor->eventRecord(record->beginEvent, record->stream));
+        usingRecords.push(record);
     }
     
     return flagcxSuccess;
@@ -350,38 +350,38 @@ flagcxResult_t flagcxTimer<T>::begin(const flagcxRecordKey<T> &recordKey, flagcx
 
 template <typename T>
 flagcxResult_t flagcxTimer<T>::end(const flagcxRecordKey<T> &recordKey, bool blocking) {
-    if (using_records.empty()) {
+    if (usingRecords.empty()) {
         return flagcxInvalidUsage;
     }
 
     // Find the record with recordKey
     flagcxRecord<T> *record = nullptr;
-    std::queue<flagcxRecord<T> *> using_records_copy;
+    std::queue<flagcxRecord<T> *> usingRecordsCopy;
 
-    while (!using_records.empty()) {
-        record = using_records.front();
-        using_records.pop();
+    while (!usingRecords.empty()) {
+        record = usingRecords.front();
+        usingRecords.pop();
         if (record->recordKey == recordKey) {
-            // Record found, update the end_event and add it back to using_records
-            FLAGCXCHECK(deviceAdaptor->eventRecord(record->end_event, record->stream));
+            // Record found, update the endEvent and add it back to usingRecords
+            FLAGCXCHECK(deviceAdaptor->eventRecord(record->endEvent, record->stream));
             break;
         } else {
-            WARN("Logger::LogSubSys::TIMER: begin-end is not a pair");
+            WARN("begin-end is not a pair");
             record = nullptr;
-            // Record not found, keep it in using_records
-            using_records_copy.push(record);
+            // Record not found, keep it in usingRecords
+            usingRecordsCopy.push(record);
         }
     }
 
-    // Add the records from using_records_copy to using_records
-    while (!using_records.empty()) {
-        using_records_copy.push(using_records.front());
-        using_records.pop();
+    // Add the records from usingRecordsCopy to usingRecords
+    while (!usingRecords.empty()) {
+        usingRecordsCopy.push(usingRecords.front());
+        usingRecords.pop();
     }
-    using_records = using_records_copy;
+    usingRecords = usingRecordsCopy;
 
     if (record == nullptr) {
-        WARN("Logger::LogSubSys::TIMER: no matching begin for end call");
+        WARN("no matching begin for end call");
         return flagcxInvalidUsage;
     }
 
@@ -389,10 +389,10 @@ flagcxResult_t flagcxTimer<T>::end(const flagcxRecordKey<T> &recordKey, bool blo
         FLAGCXCHECK(deviceAdaptor->streamSynchronize(record->stream));
     }
 
-    pthread_mutex_lock(&this->mutex_profiling);
-    this->profiling_records.push(record);
-    pthread_cond_signal(&this->cond_profiling);
-    pthread_mutex_unlock(&this->mutex_profiling);
+    pthread_mutex_lock(&this->mutexProfiling);
+    this->profilingRecords.push(record);
+    pthread_cond_signal(&this->condProfiling);
+    pthread_mutex_unlock(&this->mutexProfiling);
 
     return flagcxSuccess;
 }
