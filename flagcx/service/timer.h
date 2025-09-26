@@ -341,6 +341,7 @@ flagcxResult_t flagcxTimer<T>::begin(const flagcxRecordKey<T> &recordKey, flagcx
 
     if (record) {
         record->recordKey = recordKey;
+        record->stream = stream_;
         FLAGCXCHECK(deviceAdaptor->eventRecord(record->beginEvent, record->stream));
         usingRecords.push(record);
     }

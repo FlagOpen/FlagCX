@@ -1060,8 +1060,13 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
       return flagcxInternalError;
     }
     flagcxInnerComm_t innerComm = it->second;
-    return cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
+    flagcxProfileKey pkey;
+    FLAGCXCHECK(comm->tuner->startProfiling(comm->tunerContext, flagcxCommOpAllReduce,
+          count * getFlagcxDataTypeSize(datatype), stream, &tag, &pkey));
+    flagcxResult_t res =  cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
         sendbuff, recvbuff, count, datatype, op, innerComm, stream);
+    FLAGCXCHECK(comm->tuner->stopProfiling(comm->tunerContext, &pkey));
+    return res;
   } else {
     if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation
