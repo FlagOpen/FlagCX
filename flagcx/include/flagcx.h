@@ -72,7 +72,7 @@ typedef enum {
   flagcxCommOpAlltoAll = 9,
   flagcxCommOpAlltoAllv = 10,
   flagcxCommNoOp = 11,
-  flagcxNumCommOps = 11
+  flagcxNumCommOps = 12
 } flagcxCommOp_t;
 
 typedef enum {
