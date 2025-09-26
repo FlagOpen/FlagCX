@@ -236,7 +236,7 @@ static flagcxResult_t findBestComm(struct TunerContext* ctx, const struct TunerC
       WARN("No profiling data for (commId=%d,coll=%d,size=%zu,seq=%u).", idx, cat.collType, cat.nBytes, seqId);
       continue;
     }
-    INFO(FLAGCX_TUNING, "Profiling data for (commId=%d,coll=%d,size=%zu,seq=%u) is %fms.", idx, cat.collType, cat.nBytes, seqId, duration);
+    INFO(FLAGCX_TUNING, "Profiling data for (commId=%d,coll=%d,size=%zu,seq=%u) is %.3fms.", idx, cat.collType, cat.nBytes, seqId, duration);
 
     if (duration < minTime * tunerProfileFactor) {
       minTime = duration;
