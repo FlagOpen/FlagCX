@@ -364,7 +364,7 @@ flagcxResult_t flagcxTunerStopProfiling(void* context, const struct flagcxProfil
 
 flagcxResult_t flagcxTunerDestroy(void *context) {
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
-  INFO(FLAGCX_TUNING, "Enter flagcxTunerDestroy.")
+  INFO(FLAGCX_TUNING, "Enter flagcxTunerDestroy.");
 
   // stop timer
   ctx->timer.stop();
