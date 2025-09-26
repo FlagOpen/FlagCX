@@ -9,10 +9,10 @@
 
 // Status of a communicator tracked by a tuner
 enum TunerCommStatus {
-  TunerCommStatusUnset = 0, // initial state
-  TunerCommStatusActive = 1, // active and ready to use
+  TunerCommStatusUnset = 0,    // initial state
+  TunerCommStatusActive = 1,   // active and ready to use
   TunerCommStatusDisabled = 2, // disabled temporarily and can be re-enabled
-  TunerCommStatusError = 3, // error happened
+  TunerCommStatusError = 3,    // error happened
   TunerCommStatusDestroyed = 4 // destroyed
 };
 
@@ -101,31 +101,38 @@ struct TunerContext {
 };
 
 static struct flagcxEnvConfig config1 = {
-  .commTag = "defaultConfig1",
-  .envCount = 1,
-  .envs = {{.type = FLAGCX_ENV_TYPE_CREATION, .name = "NCCL_P2P_NVL_CHUNKSIZE", .value = "1024", .defaultValue = "524288"}}
-};
+    .commTag = "defaultConfig1",
+    .envCount = 1,
+    .envs = {{.type = FLAGCX_ENV_TYPE_CREATION,
+              .name = "NCCL_P2P_NVL_CHUNKSIZE",
+              .value = "1024",
+              .defaultValue = "524288"}}};
 
 static struct flagcxEnvConfig config2 = {
-  .commTag = "defaultConfig2",
-  .envCount = 1,
-  .envs = {{.type = FLAGCX_ENV_TYPE_CREATION, .name = "NCCL_P2P_NVL_CHUNKSIZE", .value = "524288", .defaultValue = "524288"}}
-};
+    .commTag = "defaultConfig2",
+    .envCount = 1,
+    .envs = {{.type = FLAGCX_ENV_TYPE_CREATION,
+              .name = "NCCL_P2P_NVL_CHUNKSIZE",
+              .value = "524288",
+              .defaultValue = "524288"}}};
 
-bool operator<(const struct flagcxCommTag& lhs, const struct flagcxCommTag& rhs) {
+bool operator<(const struct flagcxCommTag &lhs,
+               const struct flagcxCommTag &rhs) {
   return strcmp(lhs.tag, rhs.tag) < 0;
 }
 
-bool operator==(const struct flagcxCommTag& lhs, const struct flagcxCommTag& rhs) {
-    return strcmp(lhs.tag, rhs.tag) == 0;
+bool operator==(const struct flagcxCommTag &lhs,
+                const struct flagcxCommTag &rhs) {
+  return strcmp(lhs.tag, rhs.tag) == 0;
 }
 
 // A helper function set envs filtered by envType mask
-static flagcxResult_t setEnvConfig(const struct flagcxEnvConfig& cfg, uint32_t mask) {
+static flagcxResult_t setEnvConfig(const struct flagcxEnvConfig &cfg,
+                                   uint32_t mask) {
   for (int i = 0; i < cfg.envCount; i++) {
-    const auto & item = cfg.envs[i];
+    const auto &item = cfg.envs[i];
     if (item.type & mask) {
-      if(setenv(item.name, item.value, 1) != 0) {
+      if (setenv(item.name, item.value, 1) != 0) {
         return flagcxInternalError;
       }
     }
@@ -177,22 +184,23 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxTunerGetCandidateNumber(void* context, uint32_t* nCandidates) {
-  struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
+flagcxResult_t flagcxTunerGetCandidateNumber(void *context,
+                                             uint32_t *nCandidates) {
+  struct TunerContext *ctx = static_cast<struct TunerContext *>(context);
   *nCandidates = ctx->configList.size();
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxTunerSetCandidate(void* context, uint32_t index,
-                                      struct flagcxCommTag* commTag) {
-  struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
+flagcxResult_t flagcxTunerSetCandidate(void *context, uint32_t index,
+                                       struct flagcxCommTag *commTag) {
+  struct TunerContext *ctx = static_cast<struct TunerContext *>(context);
   if (index >= ctx->configList.size()) {
-      WARN("invalid index, index %u must less than config size %zu.",
-            index, ctx->configList.size());
-      return flagcxInvalidArgument;
+    WARN("invalid index, index %u must less than config size %zu.", index,
+         ctx->configList.size());
+    return flagcxInvalidArgument;
   }
   // Set env for that communicator index
-  const auto & curCfg = ctx->configList[index];
+  const auto &curCfg = ctx->configList[index];
   FLAGCXCHECK(setEnvConfig(curCfg, FLAGCX_ENV_TYPE_CREATION));
   ctx->commsStatusMap[curCfg.commTag] = TunerCommStatusActive;
   *commTag = curCfg.commTag;
@@ -245,9 +253,9 @@ static flagcxResult_t findBestComm(struct TunerContext* ctx, const struct TunerC
 // if no profiling data available, we will return flagcxInternalError for now.
 flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
                                       size_t nBytes, int numPipeOps,
-                                      float** collCostTable, int regBuff,
-                                      struct flagcxCommTag* commTag) {
-  struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
+                                      float **collCostTable, int regBuff,
+                                      struct flagcxCommTag *commTag) {
+  struct TunerContext *ctx = static_cast<struct TunerContext *>(context);
   // Use env comm tag when possible.
   if (ctx->envTagIdx != -1) {
     FLAGCXCHECK(setEnvConfig(ctx->configList[ctx->envTagIdx], FLAGCX_ENV_TYPE_COLL));
@@ -343,7 +351,6 @@ flagcxResult_t flagcxTunerDestroy(void *context) {
   return flagcxSuccess;
 }
 
-
 flagcxTuner_t internalTuner = {
   "internal tuner",
   flagcxTunerInit,
@@ -353,3 +360,4 @@ flagcxTuner_t internalTuner = {
   flagcxTunerStartProfiling,
   flagcxTunerStopProfiling,
   flagcxTunerDestroy};
+

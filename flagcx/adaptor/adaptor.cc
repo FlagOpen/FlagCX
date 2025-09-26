@@ -106,17 +106,38 @@ struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&mpiAdaptor,
                                                       &duncclAdaptor};
 #endif
 struct flagcxDeviceAdaptor *deviceAdaptor = &ducudaAdaptor;
+#elif USE_AMD_ADAPTOR
+#ifdef USE_BOOTSTRAP_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
+                                                      &rcclAdaptor};
+#elif USE_GLOO_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&glooAdaptor,
+                                                      &rcclAdaptor};
+#elif USE_MPI_ADAPTOR
+struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&mpiAdaptor,
+                                                      &rcclAdaptor};
+#endif
+struct flagcxDeviceAdaptor *deviceAdaptor = &hipAdaptor;
 #endif
 
 // External adaptor declarations
 extern struct flagcxNetAdaptor flagcxNetSocket;
 extern struct flagcxNetAdaptor flagcxNetIb;
 
+#ifdef USE_UCX
+extern struct flagcxNetAdaptor flagcxNetUcx;
+#endif
+
 // Unified network adaptor entry point
 struct flagcxNetAdaptor *getUnifiedNetAdaptor(int netType) {
   switch (netType) {
     case IBRC:
+#ifdef USE_UCX
+      // When UCX is enabled, use UCX instead of IBRC
+      return &flagcxNetUcx;
+#else
       return &flagcxNetIb;
+#endif
     case SOCKET:
       return &flagcxNetSocket;
     default:

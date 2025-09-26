@@ -10,9 +10,9 @@
 #include "bootstrap.h"
 #include "device.h"
 #include "flagcx_net.h"
-#include "tuner.h" // adaptor/include/tuner.h
 #include "info.h"
 #include "register.h"
+#include "tuner.h" // adaptor/include/tuner.h
 #include "type.h"
 #include <stdint.h>
 
@@ -177,7 +177,6 @@ struct flagcxHeteroComm {
   struct flagcxInterServerTopo *interServerTopo;
 
   struct flagcxNetAdaptor *netAdaptor;
-  flagcxCollNet_t *flagcxCollNet;
   struct bootstrapState *bootstrap;
   // Bitmasks for flagcxTransportP2pSetup
   uint64_t *connectSend;

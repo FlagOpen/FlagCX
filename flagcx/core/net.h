@@ -10,12 +10,14 @@
 #include "check.h"
 #include "comm.h"
 #include "flagcx_net.h"
+#include "ib_common.h"
 #include <socket.h>
 
 typedef char flagcxNetHandle_t[FLAGCX_NET_HANDLE_MAXSIZE];
 
 #define REGMRBUFFERSIZE (64ULL * 1024 * 1024)
 #define CHUNKSIZE (4ULL * 1024 * 1024)
+#define FLAGCX_MAX_NET_SIZE_BYTES (1 * 1024 * 1024 * 1024 * 1024L)
 #define MAXSTEPS (REGMRBUFFERSIZE / CHUNKSIZE)
 static_assert((MAXSTEPS & (MAXSTEPS - 1)) == 0, "send step must a power of 2");
 
@@ -36,7 +38,6 @@ struct sendNetResources {
   struct flagcxRecvMem *recvMem;
 
   struct flagcxNetAdaptor *netAdaptor;
-  flagcxCollNet_t *flagcxCollNet;
   int tpRank;
   int tpLocalRank;
   int tpRemoteRank;
@@ -68,7 +69,6 @@ struct recvNetResources {
   struct flagcxRecvMem *recvMem;
 
   struct flagcxNetAdaptor *netAdaptor;
-  flagcxCollNet_t *flagcxCollNet;
   int tpRank;
   int tpLocalRank;
   int tpRemoteRank;

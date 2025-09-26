@@ -54,6 +54,8 @@ public:
     event_ = std::make_unique<flagcxDuEvent>();
 #elif USE_KUNLUNXIN_ADAPTOR
     event_ = std::make_unique<flagcxXpuEvent>();
+#elif USE_AMD_ADAPTOR
+    event_ = std::make_unique<flagcxHipEvent>();
 #endif
   }
   bool isCompleted() override;

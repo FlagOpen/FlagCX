@@ -5,6 +5,21 @@
 #include <getopt.h>
 #include <libgen.h>
 
+void initMpiEnv(int argc, char **argv, int &worldRank, int &worldSize,
+                int &proc, int &totalProcs, int &color, MPI_Comm &splitComm,
+                uint64_t splitMask) {
+  MPI_Init(&argc, &argv);
+  MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
+  MPI_Comm_rank(MPI_COMM_WORLD, &worldRank);
+  printf("I am %d of %d\n", worldRank, worldSize);
+
+  color = worldRank & splitMask;
+  MPI_Comm_split(MPI_COMM_WORLD, color, worldRank, &splitComm);
+  MPI_Comm_size(splitComm, &totalProcs);
+  MPI_Comm_rank(splitComm, &proc);
+  printf("I am %d of %d in group %d\n", proc, totalProcs, color);
+}
+
 std::uint64_t now() {
   using clock = std::chrono::steady_clock;
   return std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -70,6 +85,7 @@ parser::parser(int argc, char **argv) {
   testIters = 20;
   printBuffer = 0;
   root = -1;
+  splitMask = 0;
 
   double parsedValue;
   int longIndex;
@@ -81,6 +97,7 @@ parser::parser(int argc, char **argv) {
       {"iters", required_argument, 0, 'n'},
       {"print_buffer", required_argument, 0, 'p'},
       {"root", required_argument, 0, 'r'},
+      {"split_mask", required_argument, 0, 'm'},
       // {"op", required_argument, 0, 'o'},
       // {"datatype", required_argument, 0, 'd'},
       {"help", no_argument, 0, 'h'},
@@ -88,7 +105,7 @@ parser::parser(int argc, char **argv) {
 
   while (1) {
     int c;
-    c = getopt_long(argc, argv, "b:e:f:w:n:p:r:h", longOpts, &longIndex);
+    c = getopt_long(argc, argv, "b:e:f:w:n:p:r:m:h", longOpts, &longIndex);
 
     if (c == -1)
       break;
@@ -145,6 +162,9 @@ parser::parser(int argc, char **argv) {
           exit(1);
         }
         break;
+      case 'm':
+        splitMask = strtoul(optarg, NULL, 0);
+        break;
       case 'h':
       default:
         if (c != 'h')
@@ -157,9 +177,11 @@ parser::parser(int argc, char **argv) {
                "[-n <iters>] \n\t"
                "[-p <printbuffer 0/1>] \n\t"
                "[-r <root>] \n\t"
+               "[-m <splitmask OCT/DEC/HEX>] \n\t"
                "[-h\n",
                basename(argv[0]));
-        printf("Use default values with -b 1M -e 1G -f 2 -w 5 -n 20 -p 0\n");
+        printf(
+            "Use default values with -b 1M -e 1G -f 2 -w 5 -n 20 -p 0 -m 0\n");
         break;
     }
   }

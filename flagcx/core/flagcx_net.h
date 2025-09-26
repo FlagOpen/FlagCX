@@ -365,6 +365,11 @@ typedef struct {
   flagcxResult_t (*makeVDevice)(int *d, flagcxNetVDeviceProps_v9_t *props);
 } flagcxCollNet_v9_t;
 
+#define FLAGCX_NET_MAX_DEVS_PER_NIC 4
+typedef struct {
+  int ndevs;
+  int devs[FLAGCX_NET_MAX_DEVS_PER_NIC];
+} flagcxNetVDeviceProps_t;
 typedef struct {
   char *name;      // Used mostly for logging.
   char *pciPath;   // Path to the PCI device in /sys.

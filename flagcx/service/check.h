@@ -161,4 +161,14 @@
     }                                                                          \
   } while (0)
 
+// Type definitions
+#define PTHREADCHECKGOTO(statement, name, RES, label)                          \
+  do {                                                                         \
+    int retval = (statement);                                                  \
+    if (retval != 0) {                                                         \
+      WARN("Call to " name " failed: %s", strerror(retval));                   \
+      RES = flagcxSystemError;                                                 \
+      goto label;                                                              \
+    }                                                                          \
+  } while (0)
 #endif
