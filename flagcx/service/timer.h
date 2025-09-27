@@ -93,12 +93,6 @@ struct flagcxRecordKey {
     flagcxRecordKey() = default;
     flagcxRecordKey(const T &v) : value(v) {}
 
-    std::string debugStr() const {
-        std::stringstream ss;
-        ss << value;
-        return ss.str();
-    }
-
     bool operator<(const flagcxRecordKey<T> &other) const {
         return value < other.value;
     }
@@ -106,8 +100,6 @@ struct flagcxRecordKey {
         return value == other.value;
     }
 };
-
-
 
 template <typename T>
 struct flagcxRecord {
@@ -341,6 +333,7 @@ flagcxResult_t flagcxTimer<T>::begin(const flagcxRecordKey<T> &recordKey, flagcx
 
     if (record) {
         record->recordKey = recordKey;
+        record->stream = stream_;
         FLAGCXCHECK(deviceAdaptor->eventRecord(record->beginEvent, record->stream));
         usingRecords.push(record);
     }
