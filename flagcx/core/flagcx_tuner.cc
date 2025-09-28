@@ -1,6 +1,7 @@
 #include <cfloat>
 #include <map>
 #include <string>
+#include <sstream>
 #include <vector>
 #include "check.h"
 #include "flagcx_tuner.h"
@@ -74,6 +75,12 @@ struct TunerProfileKey {
   bool operator==(const TunerProfileKey& other) const {
     return (nBytes == other.nBytes) && (collType == other.collType) 
     && (seqId == other.seqId) && (commTagIdx == other.commTagIdx);
+  }
+
+  std::string toString() const {
+    std::ostringstream oss;
+    oss << "{nBytes=" << nBytes << ",collType=" << collType << ",seqId=" << seqId << ",commTagIdx=" << commTagIdx << "}";
+    return oss.str();
   }
 };
 
@@ -211,6 +218,31 @@ flagcxResult_t flagcxTunerSetCandidate(void *context, uint32_t index,
   return flagcxSuccess;
 }
 
+// Given a warmup phase seqId, get the corresponding communicator index in configList.
+// Logic must be consistent with getSeqIdForCommIdx.
+static int getCommIdxFromSeqId(const struct TunerContext* ctx, uint32_t seqId) {
+  if (ctx->activeCommList.size() == 0) {
+    return -1;
+  }
+  return ctx->activeCommList[seqId % ctx->activeCommList.size()];
+}
+
+// Given a communicator index in configList, get the corresponding warmup phase seqId for specific round.
+// Logic must be consistent with getCommIdxFromSeqId.
+static int getSeqIdForCommIdx(const struct TunerContext* ctx, int commIdx, uint32_t round) {
+  int seqId = round * ctx->activeCommList.size();
+  bool found = false;
+  for (const auto & idx : ctx->activeCommList) {
+    if (idx != commIdx) {
+      seqId++;
+    } else {
+      found = true;
+      break;
+    }
+  }
+  return (found ? seqId : -1);
+}
+
 // add a small factor to avoid switching between two close communicators caused by measurement noise
 const float tunerProfileFactor = 0.95f;
 
@@ -224,13 +256,12 @@ static flagcxResult_t findBestComm(struct TunerContext* ctx, const struct TunerC
   int bestCommIdx = -1; // index of best communicator in configList
   float minTime = FLT_MAX;
   // calculate the best communicator based on profiling data
-  for (const auto & idx : ctx->activeCommList) {
-    // For now, use seqId = 2 metric as the time of that collective category.
-    uint32_t seqId = 2;
-    TunerProfileKey profileKey(cat.nBytes, static_cast<uint32_t>(cat.collType), seqId, idx);
-    // TODO get time from timer
+  for (const auto &idx : ctx->activeCommList) {
+    // For now, use round = 2 as the time of that collective category.
+    int seqId = getSeqIdForCommIdx(ctx, idx, 2);
+    TunerProfileKey profileKey(cat.nBytes, static_cast<uint32_t>(cat.collType), static_cast<uint32_t>(seqId), idx);
     struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
-    float duration = ctx->timer.getRecord(rkey);
+    float duration = ctx->timer.getRecord(rkey, true);
     if (duration <= 0) {
       // no profiling data for this communicator and collective category
       WARN("No profiling data for (commId=%d,coll=%d,size=%zu,seq=%u).", idx, cat.collType, cat.nBytes, seqId);
@@ -276,12 +307,20 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
   struct TunerCollCategory collCat = {collType, nBytes};
   auto it = ctx->collSeqMap.find(collCat);
   uint32_t seqId = 0;
-  if (it != ctx->collSeqMap.end()) {
+  if (it == ctx->collSeqMap.end()) {
+    ctx->collSeqMap[collCat] = 0;
+  } else {
+    it->second++;
     seqId = it->second;
   }
+
   if (seqId < ctx->warmupCnt) {
-    int idx = seqId % ctx->activeCommList.size();
-    const auto & cfg = ctx->configList[ctx->activeCommList[idx]];
+    int idx = getCommIdxFromSeqId(ctx, seqId);
+    if (idx == -1) {
+      WARN("No active communicator found for warmup phase seqId=%u.", seqId);
+      return flagcxInternalError;
+    }
+    const auto & cfg = ctx->configList[idx];
     FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
     *commTag = cfg.commTag;
     INFO(FLAGCX_TUNING, "Use Communicator tag %s in warmup phase seqId=%u.", commTag->tag, seqId);
@@ -313,13 +352,14 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
                                         struct flagcxProfileKey *key) {
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
   struct TunerCollCategory collCat = {collType, nBytes};
+
   auto it = ctx->collSeqMap.find(collCat);
   uint32_t seqId = 0;
-  if (it == ctx->collSeqMap.end()) {
-    ctx->collSeqMap[collCat] = 1;
-  } else {
-    it->second++;
+  if (it != ctx->collSeqMap.end()) {
     seqId = it->second;
+  } else {
+    WARN("Collective category (coll=%d,size=%zu) not found in collSeqMap.", collType, nBytes);
+    return flagcxInvalidArgument;
   }
 
   auto it2 = ctx->commTagIdxMap.find(*commTag);
@@ -341,30 +381,35 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
     struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
     FLAGCXCHECK(ctx->timer.begin(rkey, stream));
   }
+  /*
   INFO(FLAGCX_TUNING, "Leave StartProfiling for (commId=%d,coll=%d,size=%zu,seq=%u).",
     profileKey.commTagIdx, profileKey.collType, profileKey.nBytes, profileKey.seqId);
-
+  */
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxTunerStopProfiling(void* context, const struct flagcxProfileKey *key){
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
   TunerProfileKey profileKey(*key);
+  /*
   INFO(FLAGCX_TUNING, "Enter StopProfiling for (commId=%d,coll=%d,size=%zu,seq=%u).",
     profileKey.commTagIdx, profileKey.collType, profileKey.nBytes, profileKey.seqId);
+  */
   // do profile only for warmup collectives
   if (profileKey.seqId < ctx->warmupCnt) {
     struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
     FLAGCXCHECK(ctx->timer.end(rkey));
   }
+  /*
   INFO(FLAGCX_TUNING, "Leave StopProfiling for (commId=%d,coll=%d,size=%zu,seq=%u).",
     profileKey.commTagIdx, profileKey.collType, profileKey.nBytes, profileKey.seqId);
+  */
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxTunerDestroy(void *context) {
   struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
-  INFO(FLAGCX_TUNING, "Enter flagcxTunerDestroy.");
+  //INFO(FLAGCX_TUNING, "Enter flagcxTunerDestroy.");
 
   // stop timer
   ctx->timer.stop();
