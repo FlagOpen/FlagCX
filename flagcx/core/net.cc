@@ -139,35 +139,14 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
     return flagcxSuccess;
 
   if (args->transmitted < args->chunkSteps) {
-    if (args->regBufFlag) {
-      // zero-copy send
-      // INFO(FLAGCX_REG, "isend args->reg: %p", args->reg);
-      if (args->posted < args->chunkSteps) {
-        void *req = NULL;
-        resources->netAdaptor->isend(resources->netSendComm, data, size, 0,
-                                     args->regHandle, NULL, &req);
-        if (req) {
-          args->subs[0].requests[0] = req;
-          args->posted = args->chunkSteps;
-        }
-      }
+    int stepMask = args->sendStepMask;
 
-      if (args->posted == args->chunkSteps) {
-        void *req = args->subs[0].requests[0];
-        int done = 0, sizes;
-        resources->netAdaptor->test(req, &done, &sizes);
-        if (done) {
-          args->transmitted = args->chunkSteps;
-        }
-      }
-    } else {
-      int stepMask = args->sendStepMask;
-
-      if (args->waitCopy < args->chunkSteps &&
-          args->waitCopy - args->transmitted < MAXSTEPS) {
-        int step = args->waitCopy & stepMask;
-        args->subs[step].stepSize =
-            std::min(args->chunkSize, size - args->totalCopySize);
+    if (args->waitCopy < args->chunkSteps &&
+        args->waitCopy - args->transmitted < MAXSTEPS) {
+      int step = args->waitCopy & stepMask;
+      args->subs[step].stepSize =
+          std::min(args->chunkSize, size - args->totalCopySize);
+      if (!args->regBufFlag) {
         args->subs[step].stepBuff = resources->buffers[0] + (CHUNKSIZE * step);
         if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
           FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
@@ -182,37 +161,44 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
         }
         FLAGCXCHECK(deviceAdaptor->eventRecord(resources->cpEvents[step],
                                                resources->cpStream));
-        args->totalCopySize += args->subs[step].stepSize;
-        args->waitCopy++;
+      } else {
+        args->subs[step].stepBuff =
+            (void *)((char *)data + (CHUNKSIZE * args->waitCopy));
       }
+      args->totalCopySize += args->subs[step].stepSize;
+      args->waitCopy++;
+    }
 
-      if (args->copied < args->waitCopy) {
-        int step = args->copied & stepMask;
+    if (args->copied < args->waitCopy) {
+      int step = args->copied & stepMask;
+      if (!args->regBufFlag) {
         if (deviceAdaptor->eventQuery(resources->cpEvents[step]) ==
             flagcxSuccess) {
           args->copied++;
         }
+      } else {
+        args->copied++;
       }
+    }
 
-      if (args->posted < args->copied) {
-        void *req = NULL;
-        resources->netAdaptor->isend(
-            resources->netSendComm,
-            args->subs[args->posted & stepMask].stepBuff,
-            args->subs[args->posted & stepMask].stepSize, 0,
-            resources->mhandles[0], NULL, &req);
-        if (req) {
-          args->subs[args->posted++ & stepMask].requests[0] = req;
-        }
+    if (args->posted < args->copied) {
+      void *req = NULL;
+      resources->netAdaptor->isend(
+          resources->netSendComm, args->subs[args->posted & stepMask].stepBuff,
+          args->subs[args->posted & stepMask].stepSize, 0,
+          args->regBufFlag ? args->regHandle : resources->mhandles[0], NULL,
+          &req);
+      if (req) {
+        args->subs[args->posted++ & stepMask].requests[0] = req;
       }
+    }
 
-      if (args->transmitted < args->posted) {
-        void *req = args->subs[args->transmitted & stepMask].requests[0];
-        int done = 0, sizes;
-        resources->netAdaptor->test(req, &done, &sizes);
-        if (done) {
-          args->transmitted++;
-        }
+    if (args->transmitted < args->posted) {
+      void *req = args->subs[args->transmitted & stepMask].requests[0];
+      int done = 0, sizes;
+      resources->netAdaptor->test(req, &done, &sizes);
+      if (done) {
+        args->transmitted++;
       }
     }
   } else {
@@ -237,113 +223,76 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
     return flagcxSuccess;
 
   if (args->copied < args->chunkSteps) {
-    if (args->regBufFlag) {
-      // zero-copy recv
-      // INFO(FLAGCX_REG, "irecv args->reg: %p", args->reg);
-      if (args->posted < args->chunkSteps) {
-        int tags[8] = {0};
-        void *req = NULL;
-        resources->netAdaptor->irecv(resources->netRecvComm, 1, &data, &size,
-                                     tags, &args->regHandle, NULL, &req);
-        if (req) {
-          args->subs[0].requests[0] = req;
-          args->posted = args->chunkSteps;
-        }
-      }
-
-      if (args->transmitted < args->chunkSteps) {
-        void *req = args->subs[0].requests[0];
-        int done = 0, sizes;
-        resources->netAdaptor->test(req, &done, &sizes);
-        if (done) {
-          args->transmitted = args->chunkSteps;
-        }
-      }
-
-      // INFO(FLAGCX_REG, "iflush args->reg: %p", args->reg);
-      if (args->postFlush < args->chunkSteps) {
-        void *req = NULL;
-        resources->netAdaptor->iflush(resources->netRecvComm, 1, &data,
-                                      (int *)&size, &args->regHandle, &req);
-        if (req) {
-          args->subs[0].requests[0] = req;
-          args->postFlush = args->chunkSteps;
-        }
-      }
-
-      if (args->flushed < args->chunkSteps) {
-        void *req = args->subs[0].requests[0];
-        int done = 0, sizes;
-        resources->netAdaptor->test(req, &done, &sizes);
-        if (done) {
-          args->flushed = args->chunkSteps;
-          args->copied = args->chunkSteps;
-        }
-      }
-    } else {
-      int stepMask = args->sendStepMask;
-      if (args->posted < args->chunkSteps &&
-          args->posted - args->copied < MAXSTEPS) {
-        int tags[8] = {0};
-        void *req = NULL;
-        args->subs[args->posted & stepMask].stepSize =
-            std::min(args->chunkSize, size - args->totalPostSize);
+    int stepMask = args->sendStepMask;
+    if (args->posted < args->chunkSteps &&
+        args->posted - args->copied < MAXSTEPS) {
+      int tags[8] = {0};
+      void *req = NULL;
+      args->subs[args->posted & stepMask].stepSize =
+          std::min(args->chunkSize, size - args->totalPostSize);
+      if (!args->regBufFlag) {
         args->subs[args->posted & stepMask].stepBuff =
             resources->buffers[0] + CHUNKSIZE * (args->posted & stepMask);
-        size_t stepSize = args->subs[args->posted & stepMask].stepSize;
-        resources->netAdaptor->irecv(
+      } else {
+        args->subs[args->posted & stepMask].stepBuff =
+            (void *)((char *)data + CHUNKSIZE * args->posted);
+      }
+      resources->netAdaptor->irecv(
+          resources->netRecvComm, 1,
+          &args->subs[args->posted & stepMask].stepBuff,
+          (size_t *)&args->subs[args->posted & stepMask].stepSize, tags,
+          args->regBufFlag ? &args->regHandle : resources->mhandles, NULL,
+          &req);
+      if (req) {
+        args->subs[args->posted & stepMask].requests[0] = req;
+        args->totalPostSize += args->subs[args->posted++ & stepMask].stepSize;
+      }
+    }
+
+    if (args->transmitted < args->posted) {
+      void *req = args->subs[args->transmitted & stepMask].requests[0];
+      int done = 0, sizes;
+      resources->netAdaptor->test(req, &done, &sizes);
+      if (done) {
+        args->transmitted++;
+      }
+    }
+
+    if (args->postFlush < args->transmitted) {
+      if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+        void *req = NULL;
+        resources->netAdaptor->iflush(
             resources->netRecvComm, 1,
-            &args->subs[args->posted & stepMask].stepBuff, &stepSize, tags,
-            resources->mhandles, NULL, &req);
+            &args->subs[args->postFlush & stepMask].stepBuff,
+            &args->subs[args->postFlush & stepMask].stepSize,
+            args->regBufFlag ? &args->regHandle : resources->mhandles, &req);
         if (req) {
-          args->subs[args->posted & stepMask].requests[0] = req;
-          args->totalPostSize += args->subs[args->posted++ & stepMask].stepSize;
+          args->subs[args->postFlush++ & stepMask].requests[0] = req;
         }
+      } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
+        args->subs[args->postFlush & stepMask].requests[0] = (void *)0x1;
+        args->postFlush++;
       }
+    }
 
-      if (args->transmitted < args->posted) {
-        void *req = args->subs[args->transmitted & stepMask].requests[0];
-        int done = 0, sizes;
+    if (args->flushed < args->postFlush) {
+      void *req = args->subs[args->flushed & stepMask].requests[0];
+      int done = 0, sizes;
+      if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET) &&
+          req == (void *)0x1) {
+        done = 1;
+        sizes = 0;
+      } else {
         resources->netAdaptor->test(req, &done, &sizes);
-        if (done) {
-          args->transmitted++;
-        }
       }
-
-      if (args->postFlush < args->transmitted) {
-        if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
-          void *req = NULL;
-          void *allData[] = {args->subs[args->postFlush & stepMask].stepBuff};
-          resources->netAdaptor->iflush(
-              resources->netRecvComm, 1, allData,
-              &args->subs[args->postFlush & stepMask].stepSize,
-              resources->mhandles, &req);
-          if (req) {
-            args->subs[args->postFlush++ & stepMask].requests[0] = req;
-          }
-        } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
-          args->subs[args->postFlush & stepMask].requests[0] = (void *)0x1;
-          args->postFlush++;
-        }
+      if (done) {
+        args->flushed++;
       }
+    }
 
-      if (args->flushed < args->postFlush) {
-        void *req = args->subs[args->flushed & stepMask].requests[0];
-        int done = 0, sizes;
-        if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET) &&
-            req == (void *)0x1) {
-          done = 1;
-          sizes = 0;
-        } else {
-          resources->netAdaptor->test(req, &done, &sizes);
-        }
-        if (done) {
-          args->flushed++;
-        }
-      }
-
-      if (args->waitCopy < args->flushed) {
-        int step = args->waitCopy & stepMask;
+    if (args->waitCopy < args->flushed) {
+      int step = args->waitCopy & stepMask;
+      if (!args->regBufFlag) {
         if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
           FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
               (char *)data + args->totalCopySize, args->subs[step].stepBuff,
@@ -357,16 +306,20 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
         }
         FLAGCXCHECK(deviceAdaptor->eventRecord(resources->cpEvents[step],
                                                resources->cpStream));
-        args->totalCopySize += args->subs[step].stepSize;
-        args->waitCopy++;
       }
+      args->totalCopySize += args->subs[step].stepSize;
+      args->waitCopy++;
+    }
 
-      if (args->copied < args->waitCopy) {
-        int step = args->copied & stepMask;
+    if (args->copied < args->waitCopy) {
+      int step = args->copied & stepMask;
+      if (!args->regBufFlag) {
         if (deviceAdaptor->eventQuery(resources->cpEvents[step]) ==
             flagcxSuccess) {
           args->copied++;
         }
+      } else {
+        args->copied++;
       }
     }
   } else {
@@ -472,6 +425,8 @@ flagcxResult_t flagcxNetRegisterBuffer(flagcxHeteroComm *comm,
                                        struct flagcxConnector **peerConns,
                                        int nPeers, int *outRegBufFlag,
                                        void **outHandle) {
+  INFO(FLAGCX_REG, "comm = %p, userbuff = %p, buffSize = %ld, nPeers = %d",
+       comm, userbuff, buffSize, nPeers);
   *outRegBufFlag = 0;
   if (comm && userbuff && buffSize > 0 && nPeers > 0) {
     flagcxRegItem *reg = globalRegPool.getItem(reinterpret_cast<void *>(comm),
@@ -487,10 +442,10 @@ flagcxResult_t flagcxNetRegisterBuffer(flagcxHeteroComm *comm,
 flagcxResult_t flagcxNetDeregisterBuffer(void *comm,
                                          struct flagcxProxyConnector *proxyConn,
                                          void *handle) {
+  INFO(FLAGCX_REG, "rank %d - deregister net buffer handle %p",
+       reinterpret_cast<flagcxHeteroComm *>(comm)->rank, handle);
   FLAGCXCHECK(flagcxProxyCallBlocking(
       reinterpret_cast<flagcxHeteroComm *>(comm), proxyConn,
       flagcxProxyMsgDeregister, &handle, sizeof(void *), NULL, 0));
-  INFO(FLAGCX_REG, "rank %d - deregistered net buffer handle %p",
-       reinterpret_cast<flagcxHeteroComm *>(comm)->rank, handle);
   return flagcxSuccess;
 }
