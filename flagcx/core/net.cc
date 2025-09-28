@@ -135,7 +135,7 @@ flagcxResult_t flagcxNetInit(struct flagcxHeteroComm *comm) {
 
 flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
-  if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
+  if (!__atomic_load_n(&args->signal->readyToTrigger, __ATOMIC_ACQUIRE))
     return flagcxSuccess;
 
   if (args->transmitted < args->chunkSteps) {
@@ -203,7 +203,8 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
     }
   } else {
     if (args->done != 1) {
-      __atomic_store_n(&args->hlArgs, 1, __ATOMIC_RELAXED);
+      // args->signal->groupOpCount.fetch_sub(args->nsubs);
+      __atomic_fetch_sub(&args->signal->groupOpCount, 1, __ATOMIC_SEQ_CST);
       if (deviceAsyncLoad && deviceAsyncStore) {
         if (args->deviceFuncRelaxedOrdering == 1) {
           FLAGCXCHECK(deviceAdaptor->deviceMemcpy(

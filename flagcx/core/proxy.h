@@ -117,6 +117,7 @@ struct flagcxProxyArgs {
 
   /*for launch*/
   int deviceFuncRelaxedOrdering = 0;
+  struct flagcxHostFuncSignal *signal = nullptr;
   volatile bool eventRecorded = false;
   volatile bool hlArgs = false;
   volatile bool hEventReady = false;

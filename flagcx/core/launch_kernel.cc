@@ -33,10 +33,19 @@ void cpuAsyncStore(void *args) {
   __atomic_store_n(value, 1, __ATOMIC_RELAXED);
 }
 
+// void cpuAsyncLoad(void *args) {
+//   bool *volatile value = (bool *)args;
+//   while (!__atomic_load_n(value, __ATOMIC_RELAXED)) {
+//   }
+// }
+
 void cpuAsyncLoad(void *args) {
-  bool *volatile value = (bool *)args;
-  while (!__atomic_load_n(value, __ATOMIC_RELAXED)) {
+  flagcxHostFuncSignal *signal = (flagcxHostFuncSignal *)args;
+  __atomic_store_n(&signal->readyToTrigger, 1, __ATOMIC_RELEASE);
+  while (__atomic_load_n(&signal->groupOpCount, __ATOMIC_ACQUIRE) != 0) {
+    sched_yield();
   }
+  free(signal);
 }
 
 void cpuAsyncLoadWithMaxSpinCount(void *args) {

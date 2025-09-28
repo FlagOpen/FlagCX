@@ -32,6 +32,11 @@ flagcxResult_t loadKernelSymbol(const char *path, const char *name,
 extern flagcxLaunchFunc_t deviceAsyncStore;
 extern flagcxLaunchFunc_t deviceAsyncLoad;
 
+struct flagcxHostFuncSignal {
+  volatile int groupOpCount = 0;
+  volatile int readyToTrigger = 0;
+};
+
 void cpuAsyncStore(void *args);
 void cpuAsyncLoad(void *args);
 void cpuAsyncLoadWithMaxSpinCount(void *args);
