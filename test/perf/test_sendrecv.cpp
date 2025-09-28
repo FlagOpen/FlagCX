@@ -153,8 +153,8 @@ int main(int argc, char *argv[]) {
     devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
     devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
   }
-  devHandle->streamDestroy(stream);
   free(hello);
+  devHandle->streamDestroy(stream);
   flagcxCommDestroy(comm);
   flagcxHandleFree(handler);
 

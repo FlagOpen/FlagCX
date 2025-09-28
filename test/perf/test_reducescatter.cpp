@@ -14,6 +14,7 @@ int main(int argc, char *argv[]) {
   int num_iters = args.getTestIters();
   int print_buffer = args.isPrintBuffer();
   uint64_t split_mask = args.getSplitMask();
+  int local_register = args.getLocalRegister();
 
   flagcxHandlerGroup_t handler;
   flagcxHandleInit(&handler);
@@ -43,14 +44,24 @@ int main(int argc, char *argv[]) {
   devHandle->streamCreate(&stream);
 
   void *sendbuff, *recvbuff, *hello;
+  void *sendHandle, *recvHandle;
   size_t count, recvcount, recvsize;
   timer tim;
 
-  devHandle->deviceMalloc(&sendbuff, max_bytes, flagcxMemDevice, NULL);
-  devHandle->deviceMalloc(&recvbuff, max_bytes / totalProcs, flagcxMemDevice,
-                          NULL);
-  devHandle->deviceMalloc(&hello, max_bytes, flagcxMemHost, NULL);
-  devHandle->deviceMemset(hello, 0, max_bytes, flagcxMemHost, NULL);
+  if (local_register) {
+    // allocate buffer
+    flagcxMemAlloc(&sendbuff, max_bytes);
+    flagcxMemAlloc(&recvbuff, max_bytes / totalProcs);
+    // register buffer
+    flagcxCommRegister(comm, sendbuff, max_bytes, &sendHandle);
+    flagcxCommRegister(comm, recvbuff, max_bytes / totalProcs, &recvHandle);
+  } else {
+    devHandle->deviceMalloc(&sendbuff, max_bytes, flagcxMemDevice, NULL);
+    devHandle->deviceMalloc(&recvbuff, max_bytes / totalProcs, flagcxMemDevice,
+                            NULL);
+  }
+  hello = malloc(max_bytes);
+  memset(hello, 0, max_bytes);
 
   // Warm-up for large size
   for (int i = 0; i < num_warmup_iters; i++) {
@@ -122,7 +133,7 @@ int main(int argc, char *argv[]) {
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    devHandle->deviceMemset(hello, 0, size, flagcxMemHost, NULL);
+    memset(hello, 0, size);
     devHandle->deviceMemcpy(hello, recvbuff, recvsize, flagcxMemcpyDeviceToHost,
                             NULL);
     if ((proc == 0 || proc == totalProcs - 1) && color == 0 && print_buffer) {
@@ -134,11 +145,20 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if (local_register) {
+    // deregister buffer
+    flagcxCommDeregister(comm, sendHandle);
+    flagcxCommDeregister(comm, recvHandle);
+    // deallocate buffer
+    flagcxMemFree(sendbuff);
+    flagcxMemFree(recvbuff);
+  } else {
+    devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
+    devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
+  }
+  free(hello);
   flagcxCommDestroy(comm);
   devHandle->streamDestroy(stream);
-  devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
-  devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
-  devHandle->deviceFree(hello, flagcxMemHost, NULL);
   flagcxHandleFree(handler);
 
   MPI_Finalize();
