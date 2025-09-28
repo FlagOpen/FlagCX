@@ -121,9 +121,28 @@ flagcxResult_t xcclAdaptorCommUserRank(const flagcxInnerComm_t comm,
   return (flagcxResult_t)bkcl_comm_user_rank(comm->base, rank);
 }
 
+// TODO: unsupported
+flagcxResult_t xcclAdaptorMemAlloc(void **ptr, size_t size) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t xcclAdaptorMemFree(void *ptr) { return flagcxNotSupported; }
+
 // Unsupported
 flagcxResult_t xcclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
                                             flagcxResult_t asyncError) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t xcclAdaptorCommRegister(flagcxInnerComm_t comm, void *buff,
+                                       size_t size, void **handle) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t xcclAdaptorCommDeregister(flagcxInnerComm_t comm, void *handle) {
   return flagcxNotSupported;
 }
 
@@ -289,7 +308,8 @@ struct flagcxCCLAdaptor xcclAdaptor = {
     xcclAdaptorCommInitRank, xcclAdaptorCommFinalize, xcclAdaptorCommDestroy,
     xcclAdaptorCommAbort, xcclAdaptorCommResume, xcclAdaptorCommSuspend,
     xcclAdaptorCommCount, xcclAdaptorCommCuDevice, xcclAdaptorCommUserRank,
-    xcclAdaptorCommGetAsyncError,
+    xcclAdaptorCommGetAsyncError, xcclAdaptorMemAlloc, xcclAdaptorMemFree,
+    xcclAdaptorCommRegister, xcclAdaptorCommDeregister,
     // Communication functions
     xcclAdaptorReduce, xcclAdaptorGather, xcclAdaptorScatter,
     xcclAdaptorBroadcast, xcclAdaptorAllReduce, xcclAdaptorReduceScatter,

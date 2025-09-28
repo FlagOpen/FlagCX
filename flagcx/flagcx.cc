@@ -142,14 +142,14 @@ flagcxResult_t flagcxMemAlloc(void **ptr, size_t size, flagcxComm_t comm) {
     return flagcxSuccess;
   }
   if (comm != NULL && is_homo_comm(comm)) {
-    // TODO: add cclAdaptor->memAlloc
+    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->memAlloc(ptr, size));
     return flagcxSuccess;
   }
   FLAGCXCHECK(deviceAdaptor->gdrMemAlloc(ptr, size, NULL));
   if (*ptr != NULL) {
     INFO(FLAGCX_REG, "User buffer memory allocated with [%p, %ld]", *ptr, size);
   } else {
-    WARN("User buffer registration failed");
+    WARN("User buffer allocation failed");
     return flagcxUnhandledDeviceError;
   }
   return flagcxSuccess;
@@ -161,7 +161,7 @@ flagcxResult_t flagcxMemFree(void *ptr, flagcxComm_t comm) {
     return flagcxSuccess;
   }
   if (comm != NULL && is_homo_comm(comm)) {
-    // TODO: add cclAdaptor->memFree
+    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->memFree(ptr));
     return flagcxSuccess;
   }
   FLAGCXCHECK(deviceAdaptor->gdrMemFree(ptr, NULL));
@@ -177,7 +177,8 @@ flagcxResult_t flagcxCommRegister(const flagcxComm_t comm, void *buff,
     return flagcxInvalidArgument;
   }
   if (is_homo_comm(comm)) {
-    // TODO: add cclAdaptor->commRegister
+    cclAdaptors[flagcxCCLAdaptorDevice]->commRegister(comm->homo_comm, buff,
+                                                      size, handle);
   } else {
     globalRegPool.registerBuffer((void *)comm->hetero_comm, buff, size);
     *handle = reinterpret_cast<void *>(
@@ -189,7 +190,8 @@ flagcxResult_t flagcxCommRegister(const flagcxComm_t comm, void *buff,
 flagcxResult_t flagcxCommDeregister(const flagcxComm_t comm, void *handle) {
   FLAGCXCHECK(flagcxEnsureCommReady(comm))
   if (is_homo_comm(comm)) {
-    // TODO: add cclAdaptor->commDeregister
+    cclAdaptors[flagcxCCLAdaptorDevice]->commDeregister(comm->homo_comm,
+                                                        handle);
   }
   globalRegPool.deRegisterBuffer((void *)comm->hetero_comm, handle);
   return flagcxSuccess;

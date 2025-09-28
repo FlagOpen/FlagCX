@@ -72,6 +72,26 @@ flagcxResult_t duncclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
                                                (ncclResult_t *)&asyncError);
 }
 
+// TODO: unsupported
+flagcxResult_t duncclAdaptorMemAlloc(void **ptr, size_t size) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t duncclAdaptorMemFree(void *ptr) { return flagcxNotSupported; }
+
+// TODO: unsupported
+flagcxResult_t duncclAdaptorCommRegister(flagcxInnerComm_t comm, void *buff,
+                                         size_t size, void **handle) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t duncclAdaptorCommDeregister(flagcxInnerComm_t comm,
+                                           void *handle) {
+  return flagcxNotSupported;
+}
+
 flagcxResult_t duncclAdaptorReduce(const void *sendbuff, void *recvbuff,
                                    size_t count, flagcxDataType_t datatype,
                                    flagcxRedOp_t op, int root,
@@ -261,6 +281,8 @@ struct flagcxCCLAdaptor duncclAdaptor = {
     duncclAdaptorCommDestroy, duncclAdaptorCommAbort, duncclAdaptorCommResume,
     duncclAdaptorCommSuspend, duncclAdaptorCommCount, duncclAdaptorCommCuDevice,
     duncclAdaptorCommUserRank, duncclAdaptorCommGetAsyncError,
+    duncclAdaptorMemAlloc, duncclAdaptorMemFree, duncclAdaptorCommRegister,
+    duncclAdaptorCommDeregister,
     // Communication functions
     duncclAdaptorReduce, duncclAdaptorGather, duncclAdaptorScatter,
     duncclAdaptorBroadcast, duncclAdaptorAllReduce, duncclAdaptorReduceScatter,

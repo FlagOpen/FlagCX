@@ -226,7 +226,7 @@ flagcxResult_t cudaAdaptorStreamWaitEvent(flagcxStream_t stream,
                                           flagcxEvent_t event) {
   if (stream != NULL && event != NULL) {
     DEVCHECK(
-        cudaStreamWaitEvent(stream->base, event->base, cudaEventDisableTiming));
+        cudaStreamWaitEvent(stream->base, event->base, cudaEventWaitDefault));
   }
   return flagcxSuccess;
 }
@@ -234,7 +234,8 @@ flagcxResult_t cudaAdaptorStreamWaitEvent(flagcxStream_t stream,
 flagcxResult_t cudaAdaptorEventCreate(flagcxEvent_t *event) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event), cudaEventDefault));
+  DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
+                                    cudaEventDisableTiming));
   return flagcxSuccess;
 }
 

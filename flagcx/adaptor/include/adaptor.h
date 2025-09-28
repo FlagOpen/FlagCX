@@ -81,6 +81,11 @@ struct flagcxCCLAdaptor {
   flagcxResult_t (*commUserRank)(const flagcxInnerComm_t comm, int *rank);
   flagcxResult_t (*commGetAsyncError)(flagcxInnerComm_t comm,
                                       flagcxResult_t asyncError);
+  flagcxResult_t (*memAlloc)(void **ptr, size_t size);
+  flagcxResult_t (*memFree)(void *ptr);
+  flagcxResult_t (*commRegister)(const flagcxInnerComm_t comm, void *buff,
+                                 size_t size, void **handle);
+  flagcxResult_t (*commDeregister)(const flagcxInnerComm_t comm, void *handle);
 
   // Communication functions
   flagcxResult_t (*reduce)(const void *sendbuff, void *recvbuff, size_t count,

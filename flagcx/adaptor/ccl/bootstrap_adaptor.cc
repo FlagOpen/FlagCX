@@ -84,6 +84,26 @@ flagcxResult_t bootstrapAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
   return flagcxNotSupported;
 }
 
+// TODO: unsupported
+flagcxResult_t bootstrapAdaptorMemAlloc(void **ptr, size_t size) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t bootstrapAdaptorMemFree(void *ptr) { return flagcxNotSupported; }
+
+// TODO: unsupported
+flagcxResult_t bootstrapAdaptorCommRegister(flagcxInnerComm_t comm, void *buff,
+                                            size_t size, void **handle) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t bootstrapAdaptorCommDeregister(flagcxInnerComm_t comm,
+                                              void *handle) {
+  return flagcxNotSupported;
+}
+
 flagcxResult_t bootstrapAdaptorGather(const void *sendbuff, void *recvbuff,
                                       size_t count, flagcxDataType_t datatype,
                                       int root, flagcxInnerComm_t comm,
@@ -212,6 +232,8 @@ struct flagcxCCLAdaptor bootstrapAdaptor = {
     bootstrapAdaptorCommResume, bootstrapAdaptorCommSuspend,
     bootstrapAdaptorCommCount, bootstrapAdaptorCommCuDevice,
     bootstrapAdaptorCommUserRank, bootstrapAdaptorCommGetAsyncError,
+    bootstrapAdaptorMemAlloc, bootstrapAdaptorMemFree,
+    bootstrapAdaptorCommRegister, bootstrapAdaptorCommDeregister,
     // Communication functions
     bootstrapAdaptorReduce, bootstrapAdaptorGather, bootstrapAdaptorScatter,
     bootstrapAdaptorBroadcast, bootstrapAdaptorAllReduce,

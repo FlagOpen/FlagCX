@@ -115,6 +115,25 @@ flagcxResult_t glooAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
   return flagcxNotSupported;
 }
 
+// TODO: unsupported
+flagcxResult_t glooAdaptorMemAlloc(void **ptr, size_t size) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t glooAdaptorMemFree(void *ptr) { return flagcxNotSupported; }
+
+// TODO: unsupported
+flagcxResult_t glooAdaptorCommRegister(flagcxInnerComm_t comm, void *buff,
+                                       size_t size, void **handle) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t glooAdaptorCommDeregister(flagcxInnerComm_t comm, void *handle) {
+  return flagcxNotSupported;
+}
+
 flagcxResult_t glooAdaptorReduce(const void *sendbuff, void *recvbuff,
                                  size_t count, flagcxDataType_t datatype,
                                  flagcxRedOp_t op, int root,
@@ -305,7 +324,8 @@ struct flagcxCCLAdaptor glooAdaptor = {
     glooAdaptorCommInitRank, glooAdaptorCommFinalize, glooAdaptorCommDestroy,
     glooAdaptorCommAbort, glooAdaptorCommResume, glooAdaptorCommSuspend,
     glooAdaptorCommCount, glooAdaptorCommCuDevice, glooAdaptorCommUserRank,
-    glooAdaptorCommGetAsyncError,
+    glooAdaptorCommGetAsyncError, glooAdaptorMemAlloc, glooAdaptorMemFree,
+    glooAdaptorCommRegister, glooAdaptorCommDeregister,
     // Communication functions
     glooAdaptorReduce, glooAdaptorGather, glooAdaptorScatter,
     glooAdaptorBroadcast, glooAdaptorAllReduce, glooAdaptorReduceScatter,
