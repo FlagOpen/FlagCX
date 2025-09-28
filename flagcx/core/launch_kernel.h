@@ -37,8 +37,8 @@ void cpuAsyncLoad(void *args);
 void cpuAsyncLoadWithMaxSpinCount(void *args);
 
 struct flagcxHostSemaphore {
-  int flag = 0;    // if ready to be triggered
-  int counter = 0; // total operations to wait for inside the group
+  int flag;    // if ready to be triggered
+  int counter; // total operations to wait for inside the group
   void signalFlag() { __atomic_store_n(&flag, 1, __ATOMIC_RELEASE); }
   void signalCounter(int value) {
     __atomic_fetch_sub(&counter, value, __ATOMIC_RELAXED);

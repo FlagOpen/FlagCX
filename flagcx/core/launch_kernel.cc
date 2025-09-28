@@ -52,6 +52,6 @@ void cpuAsyncKernel(void *args) {
   flagcxHostSemaphore *semaphore = (flagcxHostSemaphore *)args;
   semaphore->signalFlag();
   semaphore->wait();
-  delete semaphore;
+  free(semaphore);
   semaphore = nullptr;
 }

@@ -109,8 +109,10 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
 
   // Each groupLaunch we create a semaphore to track the p2p ops
   // and a stream to launch host or device func
-  struct flagcxHostSemaphore *semaphore =
-      new struct flagcxHostSemaphore({0, 0});
+  struct flagcxHostSemaphore *semaphore;
+  FLAGCXCHECK(flagcxCalloc(&semaphore, 1));
+  semaphore->flag = 0;
+  semaphore->counter = 0;
   flagcxStream_t launchStream = nullptr;
 
   if (groupCommPreconnectHeadMain != nullptr) {
