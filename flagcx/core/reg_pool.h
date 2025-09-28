@@ -7,7 +7,6 @@
 #include "net.h"
 #include "register.h"
 #include <map>
-#include <pthread.h>
 #include <unistd.h>
 
 class flagcxRegPool {
@@ -19,19 +18,16 @@ public:
                            uintptr_t *endAddr);
   flagcxResult_t removeRegItemNetHandles(void *comm, flagcxRegItem *reg);
   flagcxResult_t registerBuffer(void *comm, void *data, size_t length);
-  flagcxResult_t deRegisterBuffer(void *comm, void *handle);
-  // void updateBuffer(void *data, int newStatus);
-  // uintptr_t findBuffer(void *data, size_t length);
+  flagcxResult_t deregisterBuffer(void *comm, void *handle);
   std::map<uintptr_t, std::map<uintptr_t, flagcxRegItem *>> &getGlobalMap();
   flagcxRegItem *getItem(const void *comm, void *data);
   void dump();
 
 private:
   std::map<uintptr_t, std::map<uintptr_t, flagcxRegItem *>>
-      regMap; // <commPtr, regItemPtr>>
+      regMap; // <commPtr, <dataPtr, regItemPtr>>
   std::map<uintptr_t, std::list<flagcxRegItem>>
       regPool; // <commPtr, regItemList>
-  pthread_mutex_t poolMutex;
   uintptr_t pageSize;
 };
 

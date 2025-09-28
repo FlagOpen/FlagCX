@@ -193,7 +193,7 @@ flagcxResult_t flagcxCommDeregister(const flagcxComm_t comm, void *handle) {
     cclAdaptors[flagcxCCLAdaptorDevice]->commDeregister(comm->homo_comm,
                                                         handle);
   }
-  globalRegPool.deRegisterBuffer((void *)comm->hetero_comm, handle);
+  globalRegPool.deregisterBuffer((void *)comm->hetero_comm, handle);
   return flagcxSuccess;
 }
 
