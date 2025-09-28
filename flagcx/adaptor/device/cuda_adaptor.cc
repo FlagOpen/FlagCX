@@ -174,7 +174,7 @@ flagcxResult_t cudaAdaptorStreamWaitEvent(flagcxStream_t stream,
                                           flagcxEvent_t event) {
   if (stream != NULL && event != NULL) {
     DEVCHECK(
-        cudaStreamWaitEvent(stream->base, event->base, cudaEventWaitDefault));
+        cudaStreamWaitEvent(stream->base, event->base, cudaEventDisableTiming));
   }
   return flagcxSuccess;
 }
@@ -182,8 +182,7 @@ flagcxResult_t cudaAdaptorStreamWaitEvent(flagcxStream_t stream,
 flagcxResult_t cudaAdaptorEventCreate(flagcxEvent_t *event) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
-                                    cudaEventDefault));
+  DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event), cudaEventDefault));
   return flagcxSuccess;
 }
 
@@ -341,13 +340,13 @@ flagcxResult_t cudaAdaptorEventElapsedTime(float *ms, flagcxEvent_t start,
   }
   cudaError_t error = cudaEventElapsedTime(ms, start->base, end->base);
   if (error == cudaSuccess) {
-      return flagcxSuccess;
-    } else if (error == cudaErrorNotReady) {
-      return flagcxInProgress;
-    } else {
-      return flagcxUnhandledDeviceError;
-    }
+    return flagcxSuccess;
+  } else if (error == cudaErrorNotReady) {
+    return flagcxInProgress;
+  } else {
+    return flagcxUnhandledDeviceError;
   }
+}
 
 struct flagcxDeviceAdaptor cudaAdaptor {
   "CUDA",
