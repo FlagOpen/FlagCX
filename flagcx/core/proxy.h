@@ -117,7 +117,8 @@ struct flagcxProxyArgs {
 
   /*for launch*/
   int deviceFuncRelaxedOrdering = 0;
-  struct flagcxHostFuncSignal *signal = nullptr;
+  struct flagcxHostSemaphore *semaphore = nullptr;
+  // only for device func, to be deprecated
   volatile bool eventRecorded = false;
   volatile bool hlArgs = false;
   volatile bool hEventReady = false;

@@ -135,9 +135,9 @@ flagcxResult_t flagcxNetInit(struct flagcxHeteroComm *comm) {
 
 flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
-  if (!__atomic_load_n(&args->signal->readyToTrigger, __ATOMIC_ACQUIRE))
+  if (!args->semaphore->poll()) {
     return flagcxSuccess;
-
+  }
   if (args->transmitted < args->chunkSteps) {
     int stepMask = args->sendStepMask;
 
@@ -203,8 +203,7 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
     }
   } else {
     if (args->done != 1) {
-      // args->signal->groupOpCount.fetch_sub(args->nsubs);
-      __atomic_fetch_sub(&args->signal->groupOpCount, 1, __ATOMIC_SEQ_CST);
+      args->semaphore->signalCounter(1);
       if (deviceAsyncLoad && deviceAsyncStore) {
         if (args->deviceFuncRelaxedOrdering == 1) {
           FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
@@ -220,9 +219,9 @@ flagcxResult_t flagcxProxySend(sendNetResources *resources, void *data,
 
 flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
                                size_t size, flagcxProxyArgs *args) {
-  if (!__atomic_load_n(&args->hEventReady, __ATOMIC_RELAXED))
+  if (!args->semaphore->poll()) {
     return flagcxSuccess;
-
+  }
   if (args->copied < args->chunkSteps) {
     int stepMask = args->sendStepMask;
     if (args->posted < args->chunkSteps &&
@@ -325,7 +324,7 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
     }
   } else {
     if (args->done != 1) {
-      __atomic_store_n(&args->hlArgs, 1, __ATOMIC_RELAXED);
+      args->semaphore->signalCounter(1);
       if (deviceAsyncLoad && deviceAsyncStore) {
         if (args->deviceFuncRelaxedOrdering == 1) {
           FLAGCXCHECK(deviceAdaptor->deviceMemcpy(

@@ -33,19 +33,10 @@ void cpuAsyncStore(void *args) {
   __atomic_store_n(value, 1, __ATOMIC_RELAXED);
 }
 
-// void cpuAsyncLoad(void *args) {
-//   bool *volatile value = (bool *)args;
-//   while (!__atomic_load_n(value, __ATOMIC_RELAXED)) {
-//   }
-// }
-
 void cpuAsyncLoad(void *args) {
-  flagcxHostFuncSignal *signal = (flagcxHostFuncSignal *)args;
-  __atomic_store_n(&signal->readyToTrigger, 1, __ATOMIC_RELEASE);
-  while (__atomic_load_n(&signal->groupOpCount, __ATOMIC_ACQUIRE) != 0) {
-    sched_yield();
+  bool *volatile value = (bool *)args;
+  while (!__atomic_load_n(value, __ATOMIC_RELAXED)) {
   }
-  free(signal);
 }
 
 void cpuAsyncLoadWithMaxSpinCount(void *args) {
@@ -55,4 +46,12 @@ void cpuAsyncLoadWithMaxSpinCount(void *args) {
          spinCount < funcMaxSpinCount) {
     spinCount++;
   }
+}
+
+void cpuAsyncKernel(void *args) {
+  flagcxHostSemaphore *semaphore = (flagcxHostSemaphore *)args;
+  semaphore->signalFlag();
+  semaphore->wait();
+  delete semaphore;
+  semaphore = nullptr;
 }
