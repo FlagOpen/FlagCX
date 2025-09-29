@@ -124,6 +124,10 @@ struct flagcxDeviceAdaptor *deviceAdaptor = &hipAdaptor;
 extern struct flagcxNetAdaptor flagcxNetSocket;
 extern struct flagcxNetAdaptor flagcxNetIb;
 
+#ifdef USE_IBUC
+extern struct flagcxNetAdaptor flagcxNetIbuc;
+#endif
+
 #ifdef USE_UCX
 extern struct flagcxNetAdaptor flagcxNetUcx;
 #endif
@@ -137,6 +141,10 @@ struct flagcxNetAdaptor *getUnifiedNetAdaptor(int netType) {
       return &flagcxNetUcx;
 #else
       return &flagcxNetIb;
+#endif
+#ifdef USE_IBUC
+    case IBUC:
+      return &flagcxNetIbuc;
 #endif
     case SOCKET:
       return &flagcxNetSocket;

@@ -544,7 +544,11 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
               &resources->mhandles[0]));
           (void)close(dmabuf_fd);
         } else {
-          if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+          if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)
+#ifdef USE_IBUC
+              || resources->netAdaptor == getUnifiedNetAdaptor(IBUC)
+#endif
+          ) {
             FLAGCXCHECK(resources->netAdaptor->regMr(
                 resources->netSendComm, resources->buffers[0],
                 resources->buffSizes[0], 2, &resources->mhandles[0]));
@@ -575,7 +579,11 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
               &resources->mhandles[0]));
           (void)close(dmabuf_fd);
         } else {
-          if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+          if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)
+#ifdef USE_IBUC
+              || resources->netAdaptor == getUnifiedNetAdaptor(IBUC)
+#endif
+          ) {
             FLAGCXCHECK(resources->netAdaptor->regMr(
                 resources->netRecvComm, resources->buffers[0],
                 resources->buffSizes[0], 2, &resources->mhandles[0]));
