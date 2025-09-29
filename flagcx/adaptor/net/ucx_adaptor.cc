@@ -41,7 +41,9 @@ static int flagcxNIbDevs = -1;
 static int flagcxNMergedIbDevs = -1;
 static pthread_mutex_t flagcx_p2p_lock = PTHREAD_MUTEX_INITIALIZER;
 static int flagcxIbGdrModuleLoaded = 0;
-static struct { pthread_once_t once; } onces[MAX_IB_DEVS];
+static struct {
+  pthread_once_t once;
+} onces[MAX_IB_DEVS];
 
 flagcxResult_t flagcxIbMakeVDeviceInternal(int *d,
                                            flagcxNetVDeviceProps_t *props,

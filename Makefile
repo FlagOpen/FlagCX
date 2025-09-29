@@ -16,6 +16,7 @@ USE_AMD ?= 0
 USE_DU ?= 0
 USE_MPI ?= 0
 USE_UCX ?= 0
+USE_IBUC ?= 0
 
 # set to empty if not provided
 DEVICE_HOME ?=
@@ -224,6 +225,11 @@ else
 	NET_ADAPTOR_FLAG = 
 endif
 
+# IBUC network adaptor configuration
+ifeq ($(USE_IBUC), 1)
+	NET_ADAPTOR_FLAG += -DUSE_IBUC
+endif
+
 LIBDIR := $(BUILDDIR)/lib
 OBJDIR := $(BUILDDIR)/obj
 
@@ -276,6 +282,7 @@ print_var:
 	@echo "UCX_HOME: $(UCX_HOME)"
 	@echo "UCX_LIB: $(UCX_LIB)"
 	@echo "UCX_INCLUDE: $(UCX_INCLUDE)"
+	@echo "USE_IBUC: $(USE_IBUC)"
 	@echo "NET_ADAPTOR_FLAG: $(NET_ADAPTOR_FLAG)"
 
 $(LIBDIR)/$(TARGET): $(LIBOBJ)
