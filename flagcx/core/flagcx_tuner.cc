@@ -44,20 +44,28 @@ struct TunerProfileKey {
   TunerProfileKey(size_t n, uint32_t c, uint32_t s, uint32_t i)
     : nBytes(n), collType(c), seqId(s), commTagIdx(i) {}
   TunerProfileKey(const struct flagcxProfileKey& k) {
-    memcpy(&nBytes, k.key, sizeof(size_t));
-    memcpy(&collType, k.key + 8, sizeof(uint32_t));
-    memcpy(&seqId, k.key + 12, sizeof(uint32_t));
-    memcpy(&commTagIdx, k.key + 16, sizeof(uint32_t));
+    const char* ptr = k.key;
+    memcpy(&nBytes, ptr, sizeof(nBytes));
+    ptr += sizeof(nBytes);
+    memcpy(&collType, ptr, sizeof(collType));
+    ptr += sizeof(collType);
+    memcpy(&seqId, ptr, sizeof(seqId));
+    ptr += sizeof(seqId);
+    memcpy(&commTagIdx, ptr, sizeof(commTagIdx));
   }
 
   // conversion function
   operator struct flagcxProfileKey() const {
     struct flagcxProfileKey k;
     memset(k.key, 0, FLAGCX_PROFILE_KEY_MAX_LENGTH);
-    memcpy(k.key, &nBytes, sizeof(size_t));
-    memcpy(k.key + 8, &collType, sizeof(uint32_t));
-    memcpy(k.key + 12, &seqId, sizeof(uint32_t));
-    memcpy(k.key + 16, &commTagIdx, sizeof(uint32_t));
+    char* ptr = k.key;
+    memcpy(ptr, &nBytes, sizeof(nBytes));
+    ptr += sizeof(nBytes);
+    memcpy(ptr, &collType, sizeof(collType));
+    ptr += sizeof(collType);
+    memcpy(ptr, &seqId, sizeof(seqId));
+    ptr += sizeof(seqId);
+    memcpy(ptr, &commTagIdx, sizeof(commTagIdx));
     return k;
   }
 
