@@ -83,8 +83,9 @@ struct TunerProfileKey {
   }
 };
 
-// number of warmup collectives before tuning. Default to 100. Can be changed later by environment variable.
-#define TUNER_WARMUP_COUNT 100
+// number loops of collectives call before using profiled data.
+// Each loop will go thoroughly through all search space of all candidates.
+#define TUNER_SEARCH_NLOOPS 5
 
 // customized context structure for internal use
 struct flagcxTunerContext {
@@ -92,7 +93,7 @@ struct flagcxTunerContext {
   std::vector<struct flagcxEnvConfig> configList;
   flagcxDebugLogger_t logger = NULL;
   int envTagIdx = -1; // the index of envTag in configList
-  int warmupCnt = TUNER_WARMUP_COUNT; // number of warmup collectives before tuning
+  uint32_t searchNLoops = TUNER_SEARCH_NLOOPS;
 
   // runtime related struct
   std::vector<int> activeCommList; // List of active communicator. Holds indices of configList
@@ -172,17 +173,17 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
     INFO(FLAGCX_ENV|FLAGCX_TUNING, "Communicator tag set by environment to %s.", envTag.tag);
   }
 
-  // Whether to change warmup count by environment variable
-  const char *warmupEnv = flagcxGetEnv("FLAGCX_TUNER_WARMUP_COUNT");
-  if (warmupEnv != nullptr) {
+  // Whether to change search nloops by environment variable
+  const char *nLoopsEnv = flagcxGetEnv("FLAGCX_TUNER_SEARCH_NLOOPS");
+  if (nLoopsEnv != nullptr) {
     try {
-      int val = std::stoi(warmupEnv);
-      if (val >= 0) {
-        ctx->warmupCnt = val;
-        INFO(FLAGCX_ENV|FLAGCX_TUNING, "Tuner warmup count set by environment to %d.", ctx->warmupCnt);
+      int val = std::stoi(nLoopsEnv);
+      if (val >= 1) {
+        ctx->searchNLoops = val;
+        INFO(FLAGCX_ENV|FLAGCX_TUNING, "Tuner search nloops set by environment to %d.", ctx->searchNLoops);
       }
     } catch (const std::exception& e) {
-      WARN("Invalid value for FLAGCX_TUNER_WARMUP_COUNT: %s. Using default.", warmupEnv);
+      WARN("Invalid value for FLAGCX_TUNER_SEARCH_NLOOPS: %s. Using default.", nLoopsEnv);
     }
   }
 
@@ -214,7 +215,7 @@ flagcxResult_t flagcxTunerSetCandidate(void *context, uint32_t index,
   return flagcxSuccess;
 }
 
-// Given a warmup phase seqId, get the corresponding communicator index in configList.
+// Given a startup phase seqId, get the corresponding communicator index in configList.
 // Logic must be consistent with getSeqIdForCommIdx.
 static int getCommIdxFromSeqId(const struct flagcxTunerContext* ctx, uint32_t seqId) {
   if (ctx->activeCommList.size() == 0) {
@@ -223,7 +224,7 @@ static int getCommIdxFromSeqId(const struct flagcxTunerContext* ctx, uint32_t se
   return ctx->activeCommList[seqId % ctx->activeCommList.size()];
 }
 
-// Given a communicator index in configList, get the corresponding warmup phase seqId for specific round.
+// Given a communicator index in configList, get the corresponding startup phase seqId for specific round.
 // Logic must be consistent with getCommIdxFromSeqId.
 static int getSeqIdForCommIdx(const struct flagcxTunerContext* ctx, int commIdx, uint32_t round) {
   int seqId = round * ctx->activeCommList.size();
@@ -255,7 +256,7 @@ static flagcxResult_t findBestComm(struct flagcxTunerContext* ctx, const struct 
   for (const auto &idx : ctx->activeCommList) {
     // For now, use round = 2 as the time of that collective category.
     const uint32_t kProfileDataRound = 2; // Use data from the 3rd round, as it's likely more stable.
-    int seqId = getSeqIdForCommIdx(ctx, idx, kProfileDataRound);
+    int seqId = getSeqIdForCommIdx(ctx, idx, std::min(kProfileDataRound, static_cast<uint32_t>(ctx->searchNLoops - 1)));
     TunerProfileKey profileKey(cat.nBytes, static_cast<uint32_t>(cat.collType), static_cast<uint32_t>(seqId), idx);
     struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
     float duration = ctx->timer.getRecord(rkey, true);
@@ -283,7 +284,7 @@ static flagcxResult_t findBestComm(struct flagcxTunerContext* ctx, const struct 
 // Communicator selection logic:
 // Always favor the communicator specified by environment variable if possible.
 // Otherwise,
-// for the first WARMUP_COUNT collectives {collType, nBytes}
+// for the first searchNLoops * activeCommCount collectives {collType, nBytes}
 // we will cycle through all the communicators use round-robin policy.
 // after that, we will select the best communicator based on profiling data
 // if no profiling data available, we will return flagcxInternalError for now.
@@ -300,7 +301,7 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
     return flagcxSuccess;
   }
 
-  // for the first WARMUP_COUNT collectives, use round-robin policy
+  // for the first searchNLoops * activeCommCount collectives, use round-robin policy
   struct TunerCollCategory collCat = {collType, nBytes};
   auto it = ctx->collSeqMap.find(collCat);
   uint32_t seqId = 0;
@@ -311,20 +312,20 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
     seqId = it->second;
   }
 
-  if (seqId < ctx->warmupCnt) {
+  if (seqId < ctx->searchNLoops * ctx->activeCommList.size()) {
     int idx = getCommIdxFromSeqId(ctx, seqId);
     if (idx == -1) {
-      WARN("No active communicator found for warmup phase seqId=%u.", seqId);
+      WARN("No active communicator found for startup phase seqId=%u.", seqId);
       return flagcxInternalError;
     }
     const auto & cfg = ctx->configList[idx];
     FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
     *commTag = cfg.commTag;
-    INFO(FLAGCX_TUNING, "Use Communicator tag %s in warmup phase seqId=%u.", commTag->tag, seqId);
+    INFO(FLAGCX_TUNING, "Use Communicator tag %s in startup phase seqId=%u.", commTag->tag, seqId);
     return flagcxSuccess;
   }
 
-  // Select a communicator from active communicators based on profiling data after WARMUP_COUNT collectives.
+  // Select a communicator from active communicators based on profiling data after searchNLoops * activeCommCount collectives.
   // If we do not have a best communicator recorded for this collective category, find it.
   if (ctx->collBestCommMap.find(collCat) == ctx->collBestCommMap.end()) {
     FLAGCXCHECK(findBestComm(ctx, collCat));
@@ -368,13 +369,14 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
 
   // Always generate the key, even if we do not do profiling for this collective.
   TunerProfileKey profileKey(nBytes, static_cast<uint32_t>(collType), seqId, commTagIdx);
+  /*
   INFO(FLAGCX_TUNING, "Enter StartProfiling for (commId=%d,coll=%d,size=%zu,seq=%u).",
     profileKey.commTagIdx, profileKey.collType, profileKey.nBytes, profileKey.seqId);
-
+  */
   *key = profileKey;
 
-  // do profile only for warmup collectives
-  if (seqId < ctx->warmupCnt) {
+  // do profile only for startup collectives
+  if (seqId < ctx->searchNLoops * ctx->activeCommList.size()) {
     struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
     FLAGCXCHECK(ctx->timer.begin(rkey, stream));
   }
@@ -392,8 +394,8 @@ flagcxResult_t flagcxTunerStopProfiling(void* context, const struct flagcxProfil
   INFO(FLAGCX_TUNING, "Enter StopProfiling for (commId=%d,coll=%d,size=%zu,seq=%u).",
     profileKey.commTagIdx, profileKey.collType, profileKey.nBytes, profileKey.seqId);
   */
-  // do profile only for warmup collectives
-  if (profileKey.seqId < ctx->warmupCnt) {
+  // do profile only for startup collectives
+  if (profileKey.seqId < ctx->searchNLoops * ctx->activeCommList.size()) {
     struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
     FLAGCXCHECK(ctx->timer.end(rkey));
   }
