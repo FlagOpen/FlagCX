@@ -9,8 +9,9 @@
 #include "bootstrap.h"
 #include "flagcx.h"
 #include "global_comm.h"
-#include "launch_kernel.h"
 #include "topo.h"
+
+typedef void (*flagcxLaunchFunc_t)(flagcxStream_t, void *);
 
 #ifdef __cplusplus
 extern "C" {

@@ -188,7 +188,7 @@ flagcxResult_t flagcxCommRegister(const flagcxComm_t comm, void *buff,
 }
 
 flagcxResult_t flagcxCommDeregister(const flagcxComm_t comm, void *handle) {
-  FLAGCXCHECK(flagcxEnsureCommReady(comm))
+  FLAGCXCHECK(flagcxEnsureCommReady(comm));
   if (is_homo_comm(comm)) {
     cclAdaptors[flagcxCCLAdaptorDevice]->commDeregister(comm->homo_comm,
                                                         handle);
@@ -725,11 +725,13 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
   if (is_homo_comm(comm)) {
     if (comm->tuner == NULL) {
       return cclAdaptors[flagcxCCLAdaptorDevice]->reduce(
-        sendbuff, recvbuff, count, datatype, op, root, comm->homo_comm, stream);
+          sendbuff, recvbuff, count, datatype, op, root, comm->homo_comm,
+          stream);
     }
     FLAGCXCALLWITHTUNER(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(
-        sendbuff, recvbuff, count, datatype, op, root, comm->tunerInnerComm, stream), \
-        comm, flagcxCommOpReduce, count, datatype, stream);
+                            sendbuff, recvbuff, count, datatype, op, root,
+                            comm->tunerInnerComm, stream),
+                        comm, flagcxCommOpReduce, count, datatype, stream);
   } else {
     char *useBootstrap = getenv("USE_BOOTSTRAP_CCL");
     if (useBootstrap) {
@@ -832,11 +834,12 @@ flagcxResult_t flagcxGather(const void *sendbuff, void *recvbuff, size_t count,
   if (is_homo_comm(comm)) {
     if (comm->tuner == NULL) {
       return cclAdaptors[flagcxCCLAdaptorDevice]->gather(
-        sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
+          sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
     }
     FLAGCXCALLWITHTUNER(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
-        sendbuff, recvbuff, count, datatype, root, comm->tunerInnerComm, stream), \
-        comm, flagcxCommOpGather, count, datatype, stream);
+                            sendbuff, recvbuff, count, datatype, root,
+                            comm->tunerInnerComm, stream),
+                        comm, flagcxCommOpGather, count, datatype, stream);
   } else {
     if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation
@@ -931,11 +934,12 @@ flagcxResult_t flagcxScatter(const void *sendbuff, void *recvbuff, size_t count,
   if (is_homo_comm(comm)) {
     if (comm->tuner == NULL) {
       return cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
-        sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
+          sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
     }
     FLAGCXCALLWITHTUNER(cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
-        sendbuff, recvbuff, count, datatype, root, comm->tunerInnerComm, stream), \
-        comm, flagcxCommOpScatter, count, datatype, stream);
+                            sendbuff, recvbuff, count, datatype, root,
+                            comm->tunerInnerComm, stream),
+                        comm, flagcxCommOpScatter, count, datatype, stream);
   } else {
     if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation
@@ -1032,11 +1036,12 @@ flagcxResult_t flagcxBroadcast(const void *sendbuff, void *recvbuff,
   if (is_homo_comm(comm)) {
     if (comm->tuner == NULL) {
       return cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
-        sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
+          sendbuff, recvbuff, count, datatype, root, comm->homo_comm, stream);
     }
     FLAGCXCALLWITHTUNER(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
-        sendbuff, recvbuff, count, datatype, root, comm->tunerInnerComm, stream), \
-        comm, flagcxCommOpBroadcast, count, datatype, stream);
+                            sendbuff, recvbuff, count, datatype, root,
+                            comm->tunerInnerComm, stream),
+                        comm, flagcxCommOpBroadcast, count, datatype, stream);
   } else {
     if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation
@@ -1136,8 +1141,9 @@ flagcxResult_t flagcxAllReduce(const void *sendbuff, void *recvbuff,
           sendbuff, recvbuff, count, datatype, op, comm->homo_comm, stream);
     }
     FLAGCXCALLWITHTUNER(cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
-        sendbuff, recvbuff, count, datatype, op, comm->tunerInnerComm, stream), \
-        comm, flagcxCommOpAllReduce, count, datatype, stream);
+                            sendbuff, recvbuff, count, datatype, op,
+                            comm->tunerInnerComm, stream),
+                        comm, flagcxCommOpAllReduce, count, datatype, stream);
   } else {
     if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation
@@ -1238,11 +1244,13 @@ flagcxResult_t flagcxReduceScatter(const void *sendbuff, void *recvbuff,
   if (is_homo_comm(comm)) {
     if (comm->tuner == NULL) {
       return cclAdaptors[flagcxCCLAdaptorDevice]->reduceScatter(
-        sendbuff, recvbuff, recvcount, datatype, op, comm->homo_comm, stream);
+          sendbuff, recvbuff, recvcount, datatype, op, comm->homo_comm, stream);
     }
     FLAGCXCALLWITHTUNER(cclAdaptors[flagcxCCLAdaptorDevice]->reduceScatter(
-        sendbuff, recvbuff, recvcount, datatype, op, comm->tunerInnerComm, stream), \
-        comm, flagcxCommOpReduceScatter, recvcount, datatype, stream);
+                            sendbuff, recvbuff, recvcount, datatype, op,
+                            comm->tunerInnerComm, stream),
+                        comm, flagcxCommOpReduceScatter, recvcount, datatype,
+                        stream);
   } else {
     if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation
@@ -1340,11 +1348,13 @@ flagcxResult_t flagcxAllGather(const void *sendbuff, void *recvbuff,
   if (is_homo_comm(comm)) {
     if (comm->tuner == NULL) {
       return cclAdaptors[flagcxCCLAdaptorDevice]->allGather(
-        sendbuff, recvbuff, sendcount, datatype, comm->homo_comm, stream);
+          sendbuff, recvbuff, sendcount, datatype, comm->homo_comm, stream);
     }
     FLAGCXCALLWITHTUNER(cclAdaptors[flagcxCCLAdaptorDevice]->allGather(
-        sendbuff, recvbuff, sendcount, datatype, comm->tunerInnerComm, stream), \
-        comm, flagcxCommOpAllGather, sendcount, datatype, stream);
+                            sendbuff, recvbuff, sendcount, datatype,
+                            comm->tunerInnerComm, stream),
+                        comm, flagcxCommOpAllGather, sendcount, datatype,
+                        stream);
   } else {
     if (use_host_comm()) {
       uint64_t timers[TIMERS_COLL_COUNT] = {0};
@@ -1436,10 +1446,11 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff,
   if (is_homo_comm(comm)) {
     if (comm->tuner == NULL) {
       return cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(
-        sendbuff, recvbuff, count, datatype, comm->homo_comm, stream);
+          sendbuff, recvbuff, count, datatype, comm->homo_comm, stream);
     }
-    FLAGCXCALLWITHTUNER(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(
-        sendbuff, recvbuff, count, datatype, comm->tunerInnerComm, stream), \
+    FLAGCXCALLWITHTUNER(
+        cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(
+            sendbuff, recvbuff, count, datatype, comm->tunerInnerComm, stream),
         comm, flagcxCommOpAlltoAll, count, datatype, stream);
   } else {
     if (use_host_comm()) {

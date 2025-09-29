@@ -185,15 +185,21 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
             struct sendNetResources *resources =
                 (sendNetResources *)op->connection->transportResources;
             flagcxProxySend(resources, op->recvbuff, op->nbytes, &op->args);
-            if (op->args.done == 1) {
-              // if (op->args.done == 1 && op->args.eventRecorded) {
-              // The P2P object should not be destroyed until the associated
-              // event has completed
-              // if (deviceAdaptor->eventQuery(op->event) == flagcxSuccess) {
-              flagcxIntruQueueDelete(queue, op);
-              // FLAGCXCHECK(deviceAdaptor->eventDestroy(op->event));
-              free(op);
-              // }
+            if (deviceAsyncLoad && deviceAsyncStore) {
+              if (op->args.done == 1 && op->args.eventRecorded) {
+                // The P2P object should not be destroyed until the associated
+                // event has completed
+                if (deviceAdaptor->eventQuery(op->event) == flagcxSuccess) {
+                  flagcxIntruQueueDelete(queue, op);
+                  FLAGCXCHECK(deviceAdaptor->eventDestroy(op->event));
+                  free(op);
+                }
+              }
+            } else {
+              if (op->args.done == 1) {
+                flagcxIntruQueueDelete(queue, op);
+                free(op);
+              }
             }
           }
           queue = &peer->recvQueue;
@@ -203,15 +209,21 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
             struct recvNetResources *resources =
                 (recvNetResources *)op->connection->transportResources;
             flagcxProxyRecv(resources, op->recvbuff, op->nbytes, &op->args);
-            if (op->args.done == 1) {
-              // if (op->args.done == 1 && op->args.eventRecorded) {
-              // The P2P object should not be destroyed until the associated
-              // event has completed
-              // if (deviceAdaptor->eventQuery(op->event) == flagcxSuccess) {
-              flagcxIntruQueueDelete(queue, op);
-              // FLAGCXCHECK(deviceAdaptor->eventDestroy(op->event));
-              free(op);
-              // }
+            if (deviceAsyncLoad && deviceAsyncStore) {
+              if (op->args.done == 1 && op->args.eventRecorded) {
+                // The P2P object should not be destroyed until the associated
+                // event has completed
+                if (deviceAdaptor->eventQuery(op->event) == flagcxSuccess) {
+                  flagcxIntruQueueDelete(queue, op);
+                  FLAGCXCHECK(deviceAdaptor->eventDestroy(op->event));
+                  free(op);
+                }
+              }
+            } else {
+              if (op->args.done == 1) {
+                flagcxIntruQueueDelete(queue, op);
+                free(op);
+              }
             }
           }
           if (flagcxIntruQueueEmpty(&peer->sendQueue) &&

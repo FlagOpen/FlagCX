@@ -22,7 +22,7 @@ fi
 source ../script/_gpu_check.sh
 wait_for_gpu
 
-mpirun -np 8   ./test_alltoall -b 128M -e 1G -f 2 -p 1
+mpirun -np 8 ./test_alltoall -b 128M -e 1G -f 2 -p 1
 if [ $? -ne 0 ]; then
     echo "test_alltoall execution failed!"
     exit 1
@@ -58,8 +58,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-
-
 mpirun -np 8 ./test_broadcast -b 128M -e 1G -f 2 -r 0 -p 1
 if [ $? -ne 0 ]; then
     echo "test_broadcast execution failed!"
@@ -85,4 +83,3 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "All tests completed successfully!"
-

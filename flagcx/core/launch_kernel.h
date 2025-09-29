@@ -1,10 +1,9 @@
 #ifndef FLAGCX_LAUNCH_KERNEL_H_
 #define FLAGCX_LAUNCH_KERNEL_H_
 #pragma once
-#include "flagcx.h"
-typedef void (*flagcxLaunchFunc_t)(flagcxStream_t, void *);
 #include "adaptor.h"
 #include "debug.h"
+#include "flagcx.h"
 #include "param.h"
 #include "topo.h"
 #include "utils.h"
@@ -39,14 +38,25 @@ void cpuAsyncLoadWithMaxSpinCount(void *args);
 struct flagcxHostSemaphore {
   int flag;    // if ready to be triggered
   int counter; // total operations to wait for inside the group
+  std::vector<flagcxEvent_t> events;
+
+  flagcxEvent_t getEvent() {
+    events.push_back(nullptr);
+    auto &event = events.back();
+    deviceAdaptor->eventCreate(&event);
+    return event;
+  }
   void signalFlag() { __atomic_store_n(&flag, 1, __ATOMIC_RELEASE); }
   void signalCounter(int value) {
-    __atomic_fetch_sub(&counter, value, __ATOMIC_RELAXED);
+    __atomic_fetch_sub(&counter, value, __ATOMIC_RELEASE);
   }
-  int poll() { return __atomic_load_n(&flag, __ATOMIC_RELAXED); }
+  int poll() { return __atomic_load_n(&flag, __ATOMIC_ACQUIRE); }
   void wait() {
     while (__atomic_load_n(&counter, __ATOMIC_ACQUIRE) > 0) {
       sched_yield();
+    }
+    for (auto event : events) {
+      deviceAdaptor->eventDestroy(event);
     }
   }
 };

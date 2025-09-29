@@ -100,6 +100,9 @@ flagcxResult_t cudaAdaptorHostGetDevicePointer(void **pDevice, void *pHost) {
 
 flagcxResult_t cudaAdaptorGdrMemAlloc(void **ptr, size_t size,
                                       void *memHandle) {
+  if (ptr == NULL) {
+    return flagcxInvalidArgument;
+  }
 #if 0
 #if CUDART_VERSION >= 12010
   size_t memGran = 0;

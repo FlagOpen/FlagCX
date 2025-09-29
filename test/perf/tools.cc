@@ -86,6 +86,7 @@ parser::parser(int argc, char **argv) {
   printBuffer = 0;
   root = -1;
   splitMask = 0;
+  localRegister = 0;
 
   double parsedValue;
   int longIndex;

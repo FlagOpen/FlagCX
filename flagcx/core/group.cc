@@ -185,10 +185,10 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           FLAGCXCHECK(flagcxNetRegisterBuffer(
               comm, p2p->buff, p2p->bytes, peerConns, 1, &op->args.regBufFlag,
               &op->args.regHandle));
-          FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
-          FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
           // we don't use semaphore tracking for device func for the moment
           if (deviceAsyncLoad && deviceAsyncStore) {
+            FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
+            FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             std::vector<void *> argList;
             FLAGCXCHECK(deviceAdaptor->deviceMalloc(
                 (void **)&op->args.dlArgs, sizeof(bool), flagcxMemDevice,
@@ -207,6 +207,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
             argsQueue.push(std::move(argList));
           } else {
             op->args.semaphore = semaphore;
+            op->event = semaphore->getEvent();
+            FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             semaphore->counter++;
             if (semaphore->counter == 1) {
               launchStream = op->stream;
@@ -242,11 +244,11 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           FLAGCXCHECK(flagcxNetRegisterBuffer(
               comm, p2p->buff, p2p->bytes, peerConns, 1, &op->args.regBufFlag,
               &op->args.regHandle));
-          FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
-          FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
           // we don't use semaphore tracking for device func for the moment
           if (deviceAsyncLoad && deviceAsyncStore) {
             std::vector<void *> argList;
+            FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
+            FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             FLAGCXCHECK(deviceAdaptor->deviceMalloc(
                 (void **)&op->args.dlArgs, sizeof(bool), flagcxMemDevice,
                 op->stream));
@@ -264,6 +266,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
             argsQueue.push(std::move(argList));
           } else {
             op->args.semaphore = semaphore;
+            op->event = semaphore->getEvent();
+            FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             semaphore->counter++;
             if (semaphore->counter == 1) {
               launchStream = op->stream;
