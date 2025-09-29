@@ -8,15 +8,6 @@
 #include "param.h"
 #include "timer.h"
 
-// Status of a communicator tracked by a tuner
-enum TunerCommStatus {
-  TunerCommStatusUnset = 0,    // initial state
-  TunerCommStatusActive = 1,   // active and ready to use
-  TunerCommStatusDisabled = 2, // disabled temporarily and can be re-enabled
-  TunerCommStatusError = 3,    // error happened
-  TunerCommStatusDestroyed = 4 // destroyed
-};
-
 // A category of collective operation. the minimal unit for tuning.
 struct TunerCollCategory {
   flagcxCommOp_t collType = flagcxNumCommOps;
@@ -96,7 +87,7 @@ struct TunerProfileKey {
 #define TUNER_WARMUP_COUNT 100
 
 // customized context structure for internal use
-struct TunerContext {
+struct flagcxTunerContext {
   // configure related struct
   std::vector<struct flagcxEnvConfig> configList;
   flagcxDebugLogger_t logger = NULL;
@@ -104,7 +95,6 @@ struct TunerContext {
   int warmupCnt = TUNER_WARMUP_COUNT; // number of warmup collectives before tuning
 
   // runtime related struct
-  std::map<struct flagcxCommTag, TunerCommStatus> commsStatusMap;
   std::vector<int> activeCommList; // List of active communicator. Holds indices of configList
   std::map<struct flagcxCommTag, int> commTagIdxMap; // map from commTag to configList index
   std::map<TunerCollCategory, uint32_t> collSeqMap; // record the sequence number of each collective category
@@ -156,16 +146,15 @@ static flagcxResult_t setEnvConfig(const struct flagcxEnvConfig &cfg,
 
 flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
                               flagcxDebugLogger_t logFunction, void **context) {
-  struct TunerContext* ctx = new struct TunerContext;
+  struct flagcxTunerContext* ctx = new struct flagcxTunerContext;
   ctx->configList.push_back(config1);
   ctx->configList.push_back(config2);
   ctx->logger = logFunction;
   *context = ctx;
 
-  // Initialize commsStatusMap and commTagIdxMap
+  // Initialize commTagIdxMap
   for (size_t i = 0; i < ctx->configList.size(); ++i) {
     const auto & cfg = ctx->configList[i];
-    ctx->commsStatusMap[cfg.commTag] = TunerCommStatusUnset;
     ctx->commTagIdxMap[cfg.commTag] = i;
   }
 
@@ -204,14 +193,14 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
 
 flagcxResult_t flagcxTunerGetCandidateNumber(void *context,
                                              uint32_t *nCandidates) {
-  struct TunerContext *ctx = static_cast<struct TunerContext *>(context);
+  struct flagcxTunerContext *ctx = static_cast<struct flagcxTunerContext *>(context);
   *nCandidates = ctx->configList.size();
   return flagcxSuccess;
 }
 
 flagcxResult_t flagcxTunerSetCandidate(void *context, uint32_t index,
                                        struct flagcxCommTag *commTag) {
-  struct TunerContext *ctx = static_cast<struct TunerContext *>(context);
+  struct flagcxTunerContext *ctx = static_cast<struct flagcxTunerContext *>(context);
   if (index >= ctx->configList.size()) {
     WARN("invalid index, index %u must less than config size %zu.", index,
          ctx->configList.size());
@@ -220,7 +209,6 @@ flagcxResult_t flagcxTunerSetCandidate(void *context, uint32_t index,
   // Set env for that communicator index
   const auto &curCfg = ctx->configList[index];
   FLAGCXCHECK(setEnvConfig(curCfg, FLAGCX_ENV_TYPE_CREATION));
-  ctx->commsStatusMap[curCfg.commTag] = TunerCommStatusActive;
   *commTag = curCfg.commTag;
   ctx->activeCommList.push_back(index);
   return flagcxSuccess;
@@ -228,7 +216,7 @@ flagcxResult_t flagcxTunerSetCandidate(void *context, uint32_t index,
 
 // Given a warmup phase seqId, get the corresponding communicator index in configList.
 // Logic must be consistent with getSeqIdForCommIdx.
-static int getCommIdxFromSeqId(const struct TunerContext* ctx, uint32_t seqId) {
+static int getCommIdxFromSeqId(const struct flagcxTunerContext* ctx, uint32_t seqId) {
   if (ctx->activeCommList.size() == 0) {
     return -1;
   }
@@ -237,7 +225,7 @@ static int getCommIdxFromSeqId(const struct TunerContext* ctx, uint32_t seqId) {
 
 // Given a communicator index in configList, get the corresponding warmup phase seqId for specific round.
 // Logic must be consistent with getCommIdxFromSeqId.
-static int getSeqIdForCommIdx(const struct TunerContext* ctx, int commIdx, uint32_t round) {
+static int getSeqIdForCommIdx(const struct flagcxTunerContext* ctx, int commIdx, uint32_t round) {
   int seqId = round * ctx->activeCommList.size();
   bool found = false;
   for (const auto & idx : ctx->activeCommList) {
@@ -260,13 +248,14 @@ const float tunerProfileFactor = 0.95f;
 // If yes, use that data to calculate the time for that collective category.
 // If no, skip that communicator.
 // Finally, select the communicator with the minimum time as the best communicator.
-static flagcxResult_t findBestComm(struct TunerContext* ctx, const struct TunerCollCategory& cat) {
+static flagcxResult_t findBestComm(struct flagcxTunerContext* ctx, const struct TunerCollCategory& cat) {
   int bestCommIdx = -1; // index of best communicator in configList
   float minTime = FLT_MAX;
   // calculate the best communicator based on profiling data
   for (const auto &idx : ctx->activeCommList) {
     // For now, use round = 2 as the time of that collective category.
-    int seqId = getSeqIdForCommIdx(ctx, idx, 2);
+    const uint32_t kProfileDataRound = 2; // Use data from the 3rd round, as it's likely more stable.
+    int seqId = getSeqIdForCommIdx(ctx, idx, kProfileDataRound);
     TunerProfileKey profileKey(cat.nBytes, static_cast<uint32_t>(cat.collType), static_cast<uint32_t>(seqId), idx);
     struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
     float duration = ctx->timer.getRecord(rkey, true);
@@ -302,7 +291,7 @@ flagcxResult_t flagcxTunerGetCollInfo(void* context, flagcxCommOp_t collType,
                                       size_t nBytes, int numPipeOps,
                                       float **collCostTable, int regBuff,
                                       struct flagcxCommTag *commTag) {
-  struct TunerContext *ctx = static_cast<struct TunerContext *>(context);
+  struct flagcxTunerContext *ctx = static_cast<struct flagcxTunerContext *>(context);
   // Use env comm tag when possible.
   if (ctx->envTagIdx != -1) {
     FLAGCXCHECK(setEnvConfig(ctx->configList[ctx->envTagIdx], FLAGCX_ENV_TYPE_COLL));
@@ -358,7 +347,7 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
                                         size_t nBytes, flagcxStream_t stream,
                                         const struct flagcxCommTag *commTag,
                                         struct flagcxProfileKey *key) {
-  struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
+  struct flagcxTunerContext* ctx = static_cast<struct flagcxTunerContext*>(context);
   struct TunerCollCategory collCat = {collType, nBytes};
 
   auto it = ctx->collSeqMap.find(collCat);
@@ -397,7 +386,7 @@ flagcxResult_t flagcxTunerStartProfiling(void* context, flagcxCommOp_t collType,
 }
 
 flagcxResult_t flagcxTunerStopProfiling(void* context, const struct flagcxProfileKey *key){
-  struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
+  struct flagcxTunerContext* ctx = static_cast<struct flagcxTunerContext*>(context);
   TunerProfileKey profileKey(*key);
   /*
   INFO(FLAGCX_TUNING, "Enter StopProfiling for (commId=%d,coll=%d,size=%zu,seq=%u).",
@@ -416,7 +405,7 @@ flagcxResult_t flagcxTunerStopProfiling(void* context, const struct flagcxProfil
 }
 
 flagcxResult_t flagcxTunerDestroy(void *context) {
-  struct TunerContext* ctx = static_cast<struct TunerContext*>(context);
+  struct flagcxTunerContext* ctx = static_cast<struct flagcxTunerContext*>(context);
   //INFO(FLAGCX_TUNING, "Enter flagcxTunerDestroy.");
 
   // stop timer

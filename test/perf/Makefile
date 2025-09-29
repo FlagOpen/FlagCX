@@ -43,7 +43,7 @@ test-sendrecv: test_sendrecv.cpp
 
 test-allreduce: test_allreduce.cpp
 	@echo "Compiling $@"
-	@$(COMPILER) $(EXTRA_COMPILER_FLAG) -o test_allreduce test_allreduce.cpp $(LIBSRCFILES) -I../../flagcx/include -I../../flagcx/service/ -I$(INCLUDEDIR) -I$(MPI_INCLUDE) -L../../build/lib -L$(MPI_LIB) -lflagcx $(MPI_LINK)
+	@$(COMPILER) $(EXTRA_COMPILER_FLAG) -o test_allreduce test_allreduce.cpp $(LIBSRCFILES) -I../../flagcx/include -I$(INCLUDEDIR) -I$(MPI_INCLUDE) -L../../build/lib -L$(MPI_LIB) -lflagcx $(MPI_LINK)
 
 test-allgather: test_allgather.cpp
 	@echo "Compiling $@"
