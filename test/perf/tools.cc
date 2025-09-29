@@ -190,8 +190,8 @@ parser::parser(int argc, char **argv) {
                "[-R <localregister 0/1>] \n\t"
                "[-h\n",
                basename(argv[0]));
-        printf(
-            "Use default values with -b 1M -e 1G -f 2 -w 5 -n 20 -p 0 -r 0 -m 0 -R 0\n");
+        printf("Use default values with -b 1M -e 1G -f 2 -w 5 -n 20 -p 0 -r 0 "
+               "-m 0 -R 0\n");
         break;
     }
   }

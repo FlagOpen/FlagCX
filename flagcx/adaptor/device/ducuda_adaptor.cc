@@ -329,8 +329,8 @@ struct flagcxDeviceAdaptor ducudaAdaptor {
       NULL, // flagcxResult_t (*dmaSupport)(bool *dmaBufferSupport);
       NULL, // flagcxResult_t (*memGetHandleForAddressRange)(void *handleOut,
             // void *buffer, size_t size, unsigned long long flags);
-      NULL, // flagcxResult_t (*eventElapsedTime)(float *ms, flagcxEvent_t start,
-            // flagcxEvent_t end);
+      NULL, // flagcxResult_t (*eventElapsedTime)(float *ms, flagcxEvent_t
+            // start, flagcxEvent_t end);
 };
 
 #endif // USE_DU_ADAPTOR
