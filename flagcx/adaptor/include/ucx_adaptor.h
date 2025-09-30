@@ -13,12 +13,11 @@
 
 #include "check.h"
 #include "socket.h"
+#include "ib_common.h"
 #include <pthread.h>
 #include <ucp/api/ucp.h>
 
 // UCX Constants
-#define MAX_REQUESTS 16
-#define FLAGCX_NET_IB_MAX_RECVS 16
 
 // UCX Communication State Enum
 enum flagcxUcxCommState {

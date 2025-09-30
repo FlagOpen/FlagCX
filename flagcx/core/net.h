@@ -11,7 +11,6 @@
 #include "comm.h"
 #include "device.h"
 #include "flagcx_net.h"
-#include "ib_common.h"
 #include "register.h"
 #include <socket.h>
 
