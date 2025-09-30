@@ -55,10 +55,7 @@ enum flagcxSocketType {
   flagcxSocketTypeBootstrap = 1,
   flagcxSocketTypeProxy = 2,
   flagcxSocketTypeNetSocket = 3,
-  flagcxSocketTypeNetIb = 4,
-#ifdef USE_IBUC
-  flagcxSocketTypeNetIbuc = 5
-#endif
+  flagcxSocketTypeNetIb = 4
 };
 
 struct flagcxSocket {

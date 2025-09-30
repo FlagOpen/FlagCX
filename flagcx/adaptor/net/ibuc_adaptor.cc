@@ -14,6 +14,7 @@
 #include "param.h"
 #include "socket.h"
 #include "utils.h"
+#include "ib_common.h"
 #include <assert.h>
 #include <poll.h>
 #include <pthread.h>
@@ -32,68 +33,14 @@
 #define FLAGCX_NET_IBUC_MAX_RECVS 8
 #define MAX_REQUESTS (FLAGCX_NET_MAX_REQUESTS * FLAGCX_NET_IBUC_MAX_RECVS)
 
-struct flagcxIbucMergedDev {
-  int ndevs;
-  int devs[FLAGCX_IB_MAX_DEVS_PER_NIC];
-  char devName[MAX_MERGED_DEV_NAME];
-  int speed;
-};
-
-struct flagcxIbucCommStage {
-  void *comm;
-  void *buffer;
-  int offset;
-  int state;
-};
-
-struct flagcxIbucHandle {
-  uint32_t magic;
-  union flagcxSocketAddress connectAddr;
-  struct flagcxIbucCommStage stage;
-};
-
-enum flagcxIbucCommState {
-  flagcxIbucCommStateStart = 0,
-  flagcxIbucCommStateConnect,
-  flagcxIbucCommStateSend,
-  flagcxIbucCommStateConnecting,
-  flagcxIbucCommStateConnected,
-  flagcxIbucCommStateAccept,
-  flagcxIbucCommStateRecv,
-  flagcxIbucCommStatePendingReady
-};
-
-struct flagcxIbucQpInfo {
-  uint32_t qpn;
-  struct ibv_ece ece;
-  int ece_supported;
-  int devIndex;
-};
-
-struct flagcxIbDevInfo {
-  uint32_t lid;
-  uint8_t ib_port;
-  enum ibv_mtu mtu;
-  uint8_t link_layer;
-  uint64_t spn;
-  uint64_t iid;
-  uint32_t fifoRkey;
-  union ibv_gid remoteGid;
-};
-
 struct flagcxIbucConnectionMetadata {
-  struct flagcxIbucQpInfo qpInfo[FLAGCX_IBUC_MAX_QPS];
+  struct flagcxIbQpInfo qpInfo[FLAGCX_IBUC_MAX_QPS];
   struct flagcxIbDevInfo devs[FLAGCX_IB_MAX_DEVS_PER_NIC];
   char devName[MAX_MERGED_DEV_NAME];
   uint64_t fifoAddr;
   int ndevs;
 };
 
-struct flagcxIbucGidInfo {
-  uint8_t link_layer;
-  union ibv_gid localGid;
-  int32_t localGidIndex;
-};
 
 struct flagcxIbucRequest {
   struct flagcxIbucNetCommBase *base;
@@ -120,13 +67,13 @@ struct flagcxIbucNetCommDevBase {
   struct ibv_pd *pd;
   struct ibv_cq *cq;
   uint64_t pad[2];
-  struct flagcxIbucGidInfo gidInfo;
+  struct flagcxIbGidInfo gidInfo;
 };
 
 struct flagcxIbucListenComm {
   int dev;
   struct flagcxSocket sock;
-  struct flagcxIbucCommStage stage;
+  struct flagcxIbCommStage stage;
 };
 
 struct flagcxIbucSendFifo {
@@ -160,9 +107,6 @@ struct flagcxIbucSendCommDev {
   struct ibv_mr *fifoMr;
 };
 
-struct flagcxIbMrHandle {
-  ibv_mr *mrs[FLAGCX_IB_MAX_DEVS_PER_NIC];
-};
 
 struct alignas(32) flagcxIbucNetCommBase {
   int ndevs;
@@ -229,7 +173,7 @@ static union flagcxSocketAddress flagcxIbucIfAddr;
 static int flagcxNMergedIbucDevs = -1;
 static int flagcxNIbucDevs = -1;
 
-struct flagcxIbucMergedDev flagcxIbucMergedDevs[MAX_IB_VDEVS];
+// Global arrays are defined in ibrc_adaptor.cc and declared in ib_common.h
 pthread_mutex_t flagcxIbucLock = PTHREAD_MUTEX_INITIALIZER;
 static int flagcxIbucRelaxedOrderingEnabled = 0;
 
@@ -246,6 +190,7 @@ FLAGCX_PARAM(IbucPciRelaxedOrdering, "IB_PCI_RELAXED_ORDERING", 2);
 FLAGCX_PARAM(IbucAdaptiveRouting, "IB_ADAPTIVE_ROUTING", -2);
 
 pthread_t flagcxIbucAsyncThread;
+// Function will be defined after struct definitions
 
 static sa_family_t envIbucAddrFamily(void) {
   sa_family_t family = AF_INET;
@@ -484,6 +429,8 @@ FLAGCX_PARAM(IbucDisable, "IB_DISABLE", 0);
 FLAGCX_PARAM(IbucMergeVfs, "IB_MERGE_VFS", 1);
 FLAGCX_PARAM(IbucMergeNics, "IB_MERGE_NICS", 1);
 
+// Function will be defined after struct definitions
+
 static int ibvWidths[] = {1, 4, 8, 12, 2};
 static int ibvSpeeds[] = {2500,  /* SDR */
                           5000,  /* DDR */
@@ -554,7 +501,7 @@ flagcxResult_t flagcxIbucDmaBufSupport(int dev) {
     flagcxResult_t res;
     struct ibv_pd *pd;
     struct ibv_context *ctx;
-    struct flagcxIbucMergedDev *mergedDev = flagcxIbucMergedDevs + dev;
+    struct flagcxIbMergedDev *mergedDev = flagcxIbMergedDevs + dev;
 
     // Test each dev
     for (int i = 0; i < mergedDev->ndevs; i++) {
@@ -641,10 +588,10 @@ static flagcxResult_t flagcxIbucGetPciPath(char *devName, char **path,
 // Find matching device function
 int flagcxIbucFindMatchingDev(int dev) {
   for (int i = 0; i < flagcxNMergedIbucDevs; i++) {
-    if (flagcxIbucMergedDevs[i].ndevs < FLAGCX_IB_MAX_DEVS_PER_NIC) {
-      int compareDev = flagcxIbucMergedDevs[i].devs[0];
-      if (strcmp(flagcxIbDevs[dev].pciPath, flagcxIbDevs[compareDev].pciPath) ==
-              0 &&
+    if (flagcxIbMergedDevs[i].ndevs < FLAGCX_IB_MAX_DEVS_PER_NIC) {
+      int compareDev = flagcxIbMergedDevs[i].devs[0];
+      if (strcmp(flagcxIbDevs[dev].pciPath,
+                 flagcxIbDevs[compareDev].pciPath) == 0 &&
           (flagcxIbDevs[dev].guid == flagcxIbDevs[compareDev].guid) &&
           (flagcxIbDevs[dev].link == flagcxIbDevs[compareDev].link)) {
         TRACE(FLAGCX_NET,
@@ -653,8 +600,8 @@ int flagcxIbucFindMatchingDev(int dev) {
               flagcxIbDevs[dev].devName, flagcxIbDevs[dev].pciPath,
               flagcxIbDevs[dev].guid, flagcxIbDevs[dev].link,
               flagcxIbDevs[compareDev].devName,
-              flagcxIbDevs[compareDev].pciPath, flagcxIbDevs[compareDev].guid,
-              flagcxIbDevs[compareDev].link);
+              flagcxIbDevs[compareDev].pciPath,
+              flagcxIbDevs[compareDev].guid, flagcxIbDevs[compareDev].link);
         return i;
       }
     }
@@ -773,7 +720,8 @@ flagcxResult_t flagcxIbucInit() {
           flagcxIbDevs[flagcxNIbucDevs].ar =
               (portAttr.link_layer == IBV_LINK_LAYER_INFINIBAND) ? 1 : 0;
           if (flagcxParamIbucAdaptiveRouting() != -2)
-            flagcxIbDevs[flagcxNIbucDevs].ar = flagcxParamIbucAdaptiveRouting();
+            flagcxIbDevs[flagcxNIbucDevs].ar =
+                flagcxParamIbucAdaptiveRouting();
 
           TRACE(
               FLAGCX_NET,
@@ -801,25 +749,25 @@ flagcxResult_t flagcxIbucInit() {
           // there's only one dev inside)
           if (mergedDev == flagcxNMergedIbucDevs) {
             // Set ndevs to 1, assign first ibucDevN to the current IBUC device
-            flagcxIbucMergedDevs[mergedDev].ndevs = 1;
-            flagcxIbucMergedDevs[mergedDev].devs[0] = flagcxNIbucDevs;
+            flagcxIbMergedDevs[mergedDev].ndevs = 1;
+            flagcxIbMergedDevs[mergedDev].devs[0] = flagcxNIbucDevs;
             flagcxNMergedIbucDevs++;
-            strncpy(flagcxIbucMergedDevs[mergedDev].devName,
+            strncpy(flagcxIbMergedDevs[mergedDev].devName,
                     flagcxIbDevs[flagcxNIbucDevs].devName, MAXNAMESIZE);
             // Matching dev found, edit name
           } else {
             // Set next device in this array to the current IBUC device
-            int ndevs = flagcxIbucMergedDevs[mergedDev].ndevs;
-            flagcxIbucMergedDevs[mergedDev].devs[ndevs] = flagcxNIbucDevs;
-            flagcxIbucMergedDevs[mergedDev].ndevs++;
-            snprintf(flagcxIbucMergedDevs[mergedDev].devName +
-                         strlen(flagcxIbucMergedDevs[mergedDev].devName),
+            int ndevs = flagcxIbMergedDevs[mergedDev].ndevs;
+            flagcxIbMergedDevs[mergedDev].devs[ndevs] = flagcxNIbucDevs;
+            flagcxIbMergedDevs[mergedDev].ndevs++;
+            snprintf(flagcxIbMergedDevs[mergedDev].devName +
+                         strlen(flagcxIbMergedDevs[mergedDev].devName),
                      MAXNAMESIZE + 1, "+%s",
                      flagcxIbDevs[flagcxNIbucDevs].devName);
           }
 
           // Aggregate speed
-          flagcxIbucMergedDevs[mergedDev].speed +=
+          flagcxIbMergedDevs[mergedDev].speed +=
               flagcxIbDevs[flagcxNIbucDevs].speed;
           flagcxNIbucDevs++;
           nPorts++;
@@ -843,14 +791,15 @@ flagcxResult_t flagcxIbucInit() {
       // Determine whether RELAXED_ORDERING is enabled and possible
       flagcxIbucRelaxedOrderingEnabled = flagcxIbucRelaxedOrderingCapable();
       for (int d = 0; d < flagcxNMergedIbucDevs; d++) {
-        struct flagcxIbucMergedDev *mergedDev = flagcxIbucMergedDevs + d;
+        struct flagcxIbMergedDev *mergedDev = flagcxIbMergedDevs + d;
         if (mergedDev->ndevs > 1) {
           // Print out merged dev info
           snprintf(line + strlen(line), 2047 - strlen(line), " [%d]={", d);
           for (int i = 0; i < mergedDev->ndevs; i++) {
             int ibucDev = mergedDev->devs[i];
             snprintf(line + strlen(line), 2047 - strlen(line),
-                     "[%d] %s:%d/%s%s", ibucDev, flagcxIbDevs[ibucDev].devName,
+                     "[%d] %s:%d/%s%s", ibucDev,
+                     flagcxIbDevs[ibucDev].devName,
                      flagcxIbDevs[ibucDev].portNum,
                      flagcxIbDevs[ibucDev].link == IBV_LINK_LAYER_INFINIBAND
                          ? "IB"
@@ -883,13 +832,6 @@ fail:
   return ret;
 }
 
-// Structures already defined above
-
-#define FLAGCX_NET_IBUC_REQ_UNUSED 0
-#define FLAGCX_NET_IBUC_REQ_SEND 1
-#define FLAGCX_NET_IBUC_REQ_RECV 2
-#define FLAGCX_NET_IBUC_REQ_FLUSH 3
-static const char *reqTypeStr[] = {"Unused", "Send", "Recv", "Flush"};
 
 // Structures already defined above
 // The SendFifo needs to be 32-byte aligned and each element needs
@@ -1094,14 +1036,14 @@ flagcxResult_t flagcxIbucListen(int dev, void *opaqueHandle,
                                 void **listenComm) {
   struct flagcxIbucListenComm *comm;
   FLAGCXCHECK(flagcxCalloc(&comm, 1));
-  struct flagcxIbucHandle *handle = (struct flagcxIbucHandle *)opaqueHandle;
-  static_assert(sizeof(struct flagcxIbucHandle) < FLAGCX_NET_HANDLE_MAXSIZE,
-                "flagcxIbucHandle size too large");
-  memset(handle, 0, sizeof(struct flagcxIbucHandle));
+  struct flagcxIbHandle *handle = (struct flagcxIbHandle *)opaqueHandle;
+  static_assert(sizeof(struct flagcxIbHandle) < FLAGCX_NET_HANDLE_MAXSIZE,
+                "flagcxIbHandle size too large");
+  memset(handle, 0, sizeof(struct flagcxIbHandle));
   comm->dev = dev;
-  handle->magic = (uint32_t)FLAGCX_SOCKET_MAGIC;
+  handle->magic = FLAGCX_SOCKET_MAGIC;
   FLAGCXCHECK(flagcxSocketInit(&comm->sock, &flagcxIbucIfAddr, handle->magic,
-                               flagcxSocketTypeNetIbuc, NULL, 1));
+                               flagcxSocketTypeNetIb, NULL, 1));
   FLAGCXCHECK(flagcxSocketListen(&comm->sock));
   FLAGCXCHECK(flagcxSocketGetAddr(&comm->sock, &handle->connectAddr));
   *listenComm = comm;
@@ -1109,21 +1051,21 @@ flagcxResult_t flagcxIbucListen(int dev, void *opaqueHandle,
 }
 
 flagcxResult_t flagcxIbucConnect(int dev, void *opaqueHandle, void **sendComm) {
-  struct flagcxIbucHandle *handle = (struct flagcxIbucHandle *)opaqueHandle;
-  struct flagcxIbucCommStage *stage = &handle->stage;
+  struct flagcxIbHandle *handle = (struct flagcxIbHandle *)opaqueHandle;
+  struct flagcxIbCommStage *stage = &handle->stage;
   struct flagcxIbucSendComm *comm = (struct flagcxIbucSendComm *)stage->comm;
   int ready;
   *sendComm = NULL;
 
-  if (stage->state == flagcxIbucCommStateConnect)
+  if (stage->state == flagcxIbCommStateConnect)
     goto ibuc_connect_check;
-  if (stage->state == flagcxIbucCommStateSend)
+  if (stage->state == flagcxIbCommStateSend)
     goto ibuc_send;
-  if (stage->state == flagcxIbucCommStateConnecting)
+  if (stage->state == flagcxIbCommStateConnecting)
     goto ibuc_connect;
-  if (stage->state == flagcxIbucCommStateConnected)
+  if (stage->state == flagcxIbCommStateConnected)
     goto ibuc_send_ready;
-  if (stage->state != flagcxIbucCommStateStart) {
+  if (stage->state != flagcxIbCommStateStart) {
     WARN("Error: trying to connect already connected sendComm");
     return flagcxInternalError;
   }
@@ -1131,10 +1073,10 @@ flagcxResult_t flagcxIbucConnect(int dev, void *opaqueHandle, void **sendComm) {
   FLAGCXCHECK(
       flagcxIbucMalloc((void **)&comm, sizeof(struct flagcxIbucSendComm)));
   FLAGCXCHECK(flagcxSocketInit(&comm->base.sock, &handle->connectAddr,
-                               handle->magic, flagcxSocketTypeNetIbuc, NULL,
+                               handle->magic, flagcxSocketTypeNetIb, NULL,
                                1));
   stage->comm = comm;
-  stage->state = flagcxIbucCommStateConnect;
+  stage->state = flagcxIbCommStateConnect;
   FLAGCXCHECK(flagcxSocketConnect(&comm->base.sock));
 
 ibuc_connect_check:
@@ -1145,8 +1087,8 @@ ibuc_connect_check:
     return flagcxSuccess;
 
   // IBUC Setup
-  struct flagcxIbucMergedDev *mergedDev;
-  mergedDev = flagcxIbucMergedDevs + dev;
+  struct flagcxIbMergedDev *mergedDev;
+  mergedDev = flagcxIbMergedDevs + dev;
   comm->base.ndevs = mergedDev->ndevs;
   comm->base.nqps = flagcxParamIbucQpsPerConn() *
                     comm->base.ndevs; // We must have at least 1 qp per-device
@@ -1250,7 +1192,7 @@ ibuc_connect_check:
   meta.fifoAddr = (uint64_t)comm->fifo;
   strncpy(meta.devName, mergedDev->devName, MAX_MERGED_DEV_NAME);
 
-  stage->state = flagcxIbucCommStateSend;
+  stage->state = flagcxIbCommStateSend;
   stage->offset = 0;
   FLAGCXCHECK(flagcxIbucMalloc((void **)&stage->buffer, sizeof(meta)));
 
@@ -1263,7 +1205,7 @@ ibuc_send:
   if (stage->offset != sizeof(meta))
     return flagcxSuccess;
 
-  stage->state = flagcxIbucCommStateConnecting;
+  stage->state = flagcxIbCommStateConnecting;
   stage->offset = 0;
   // Clear the staging buffer for re-use
   memset(stage->buffer, 0, sizeof(meta));
@@ -1280,7 +1222,7 @@ ibuc_connect:
 
   comm->base.nRemDevs = remMeta.ndevs;
   if (comm->base.nRemDevs != comm->base.ndevs) {
-    mergedDev = flagcxIbucMergedDevs + dev;
+    mergedDev = flagcxIbMergedDevs + dev;
     WARN(
         "NET/IBUC : Local mergedDev=%s has a different number of devices=%d as "
         "remoteDev=%s nRemDevs=%d",
@@ -1323,7 +1265,7 @@ ibuc_connect:
   comm->base.nRemDevs = remMeta.ndevs;
 
   for (int q = 0; q < comm->base.nqps; q++) {
-    struct flagcxIbucQpInfo *remQpInfo = remMeta.qpInfo + q;
+    struct flagcxIbQpInfo *remQpInfo = remMeta.qpInfo + q;
     struct flagcxIbDevInfo *remDevInfo = remMeta.devs + remQpInfo->devIndex;
 
     // Assign per-QP remDev
@@ -1356,7 +1298,7 @@ ibuc_connect:
   }
 
   comm->base.ready = 1;
-  stage->state = flagcxIbucCommStateConnected;
+  stage->state = flagcxIbCommStateConnected;
   stage->offset = 0;
 
 ibuc_send_ready:
@@ -1367,7 +1309,7 @@ ibuc_send_ready:
     return flagcxSuccess;
 
   free(stage->buffer);
-  stage->state = flagcxIbucCommStateStart;
+  stage->state = flagcxIbCommStateStart;
 
   *sendComm = comm;
   return flagcxSuccess;
@@ -1380,20 +1322,20 @@ FLAGCX_PARAM(IbucGdrFlushDisable, "GDR_FLUSH_DISABLE", 0);
 flagcxResult_t flagcxIbucAccept(void *listenComm, void **recvComm) {
   struct flagcxIbucListenComm *lComm =
       (struct flagcxIbucListenComm *)listenComm;
-  struct flagcxIbucCommStage *stage = &lComm->stage;
+  struct flagcxIbCommStage *stage = &lComm->stage;
   struct flagcxIbucRecvComm *rComm = (struct flagcxIbucRecvComm *)stage->comm;
   int ready;
   *recvComm = NULL;
 
-  if (stage->state == flagcxIbucCommStateAccept)
+  if (stage->state == flagcxIbCommStateAccept)
     goto ib_accept_check;
-  if (stage->state == flagcxIbucCommStateRecv)
+  if (stage->state == flagcxIbCommStateRecv)
     goto ib_recv;
-  if (stage->state == flagcxIbucCommStateSend)
+  if (stage->state == flagcxIbCommStateSend)
     goto ibuc_send;
-  if (stage->state == flagcxIbucCommStatePendingReady)
+  if (stage->state == flagcxIbCommStatePendingReady)
     goto ib_recv_ready;
-  if (stage->state != flagcxIbucCommStateStart) {
+  if (stage->state != flagcxIbCommStateStart) {
     WARN("Listencomm in unknown state %d", stage->state);
     return flagcxInternalError;
   }
@@ -1401,7 +1343,7 @@ flagcxResult_t flagcxIbucAccept(void *listenComm, void **recvComm) {
   FLAGCXCHECK(
       flagcxIbucMalloc((void **)&rComm, sizeof(struct flagcxIbucRecvComm)));
   stage->comm = rComm;
-  stage->state = flagcxIbucCommStateAccept;
+  stage->state = flagcxIbCommStateAccept;
   FLAGCXCHECK(flagcxSocketInit(&rComm->base.sock));
   FLAGCXCHECK(flagcxSocketAccept(&rComm->base.sock, &lComm->sock));
 
@@ -1411,7 +1353,7 @@ ib_accept_check:
     return flagcxSuccess;
 
   struct flagcxIbucConnectionMetadata remMeta;
-  stage->state = flagcxIbucCommStateRecv;
+  stage->state = flagcxIbCommStateRecv;
   stage->offset = 0;
   FLAGCXCHECK(flagcxIbucMalloc((void **)&stage->buffer, sizeof(remMeta)));
 
@@ -1427,14 +1369,14 @@ ib_recv:
 
   // IB setup
   // Pre-declare variables because of goto
-  struct flagcxIbucMergedDev *mergedDev;
+  struct flagcxIbMergedDev *mergedDev;
   struct flagcxIbDev *ibucDev;
   int ibucDevN;
   struct flagcxIbucRecvCommDev *rCommDev;
   struct flagcxIbDevInfo *remDevInfo;
   struct flagcxIbucQp *qp;
 
-  mergedDev = flagcxIbucMergedDevs + lComm->dev;
+  mergedDev = flagcxIbMergedDevs + lComm->dev;
   rComm->base.ndevs = mergedDev->ndevs;
   rComm->base.nqps = flagcxParamIbucQpsPerConn() *
                      rComm->base.ndevs; // We must have at least 1 qp per-device
@@ -1588,7 +1530,7 @@ ib_recv:
   meta.ndevs = rComm->base.ndevs;
   strncpy(meta.devName, mergedDev->devName, MAX_MERGED_DEV_NAME);
 
-  stage->state = flagcxIbucCommStateSend;
+  stage->state = flagcxIbCommStateSend;
   stage->offset = 0;
   if (stage->buffer)
     free(stage->buffer);
@@ -1604,7 +1546,7 @@ ibuc_send:
     return flagcxSuccess;
 
   stage->offset = 0;
-  stage->state = flagcxIbucCommStatePendingReady;
+  stage->state = flagcxIbCommStatePendingReady;
 
 ib_recv_ready:
   FLAGCXCHECK(flagcxSocketProgress(FLAGCX_SOCKET_RECV, &rComm->base.sock,
@@ -1617,7 +1559,7 @@ ib_recv_ready:
   *recvComm = rComm;
 
   /* reset lComm stage */
-  stage->state = flagcxIbucCommStateStart;
+  stage->state = flagcxIbCommStateStart;
   stage->offset = 0;
   stage->comm = NULL;
   stage->buffer = NULL;
@@ -1628,7 +1570,7 @@ flagcxResult_t flagcxIbucGetRequest(struct flagcxIbucNetCommBase *base,
                                     struct flagcxIbucRequest **req) {
   for (int i = 0; i < MAX_REQUESTS; i++) {
     struct flagcxIbucRequest *r = base->reqs + i;
-    if (r->type == FLAGCX_NET_IBUC_REQ_UNUSED) {
+    if (r->type == FLAGCX_NET_IB_REQ_UNUSED) {
       r->base = base;
       r->sock = NULL;
       r->devBases[0] = NULL;
@@ -1644,7 +1586,7 @@ flagcxResult_t flagcxIbucGetRequest(struct flagcxIbucNetCommBase *base,
 }
 
 flagcxResult_t flagcxIbucFreeRequest(struct flagcxIbucRequest *r) {
-  r->type = FLAGCX_NET_IBUC_REQ_UNUSED;
+  r->type = FLAGCX_NET_IB_REQ_UNUSED;
   return flagcxSuccess;
 }
 
@@ -1814,7 +1756,8 @@ returning:
 }
 
 flagcxResult_t flagcxIbucDeregMr(void *comm, void *mhandle) {
-  struct flagcxIbMrHandle *mhandleWrapper = (struct flagcxIbMrHandle *)mhandle;
+  struct flagcxIbMrHandle *mhandleWrapper =
+      (struct flagcxIbMrHandle *)mhandle;
   struct flagcxIbucNetCommBase *base = (struct flagcxIbucNetCommBase *)comm;
   for (int i = 0; i < base->ndevs; i++) {
     struct flagcxIbucNetCommDevBase *devComm =
@@ -1946,7 +1889,8 @@ flagcxResult_t flagcxIbucIsend(void *sendComm, void *data, size_t size, int tag,
     return flagcxSuccess;
   }
 
-  struct flagcxIbMrHandle *mhandleWrapper = (struct flagcxIbMrHandle *)mhandle;
+  struct flagcxIbMrHandle *mhandleWrapper =
+      (struct flagcxIbMrHandle *)mhandle;
 
   // Wait for the receiver to have posted the corresponding receive
   int nreqs = 0;
@@ -1987,7 +1931,7 @@ flagcxResult_t flagcxIbucIsend(void *sendComm, void *data, size_t size, int tag,
 
     struct flagcxIbucRequest *req;
     FLAGCXCHECK(flagcxIbucGetRequest(&comm->base, &req));
-    req->type = FLAGCX_NET_IBUC_REQ_SEND;
+    req->type = FLAGCX_NET_IB_REQ_SEND;
     req->sock = &comm->base.sock;
     req->base = &comm->base;
     req->nreqs = nreqs;
@@ -2147,7 +2091,7 @@ flagcxResult_t flagcxIbucIrecv(void *recvComm, int n, void **data,
 
   struct flagcxIbucRequest *req;
   FLAGCXCHECK(flagcxIbucGetRequest(&comm->base, &req));
-  req->type = FLAGCX_NET_IBUC_REQ_RECV;
+  req->type = FLAGCX_NET_IB_REQ_RECV;
   req->sock = &comm->base.sock;
   req->nreqs = n;
 
@@ -2199,7 +2143,7 @@ flagcxResult_t flagcxIbucIflush(void *recvComm, int n, void **data, int *sizes,
   // Only flush once using the last non-zero receive
   struct flagcxIbucRequest *req;
   FLAGCXCHECK(flagcxIbucGetRequest(&comm->base, &req));
-  req->type = FLAGCX_NET_IBUC_REQ_FLUSH;
+  req->type = FLAGCX_NET_IB_REQ_FLUSH;
   req->sock = &comm->base.sock;
   // struct flagcxIbMrHandle *mhandle = (struct flagcxIbMrHandle
   // *)mhandles[last];
@@ -2213,7 +2157,8 @@ flagcxResult_t flagcxIbucIflush(void *recvComm, int n, void **data, int *sizes,
 
     // Use RDMA_READ for flush operations
     wr.wr.rdma.remote_addr = (uint64_t)data[last];
-    wr.wr.rdma.rkey = ((struct flagcxIbMrHandle *)mhandles[last])->mrs[i]->rkey;
+    wr.wr.rdma.rkey =
+        ((struct flagcxIbMrHandle *)mhandles[last])->mrs[i]->rkey;
     wr.sg_list = &comm->devs[i].gpuFlush.sge;
     wr.num_sge = 1;
     wr.opcode = IBV_WR_RDMA_READ;
@@ -2239,11 +2184,11 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
     if (r->events[0] == 0 && r->events[1] == 0) {
       TRACE(FLAGCX_NET, "r=%p done", r);
       *done = 1;
-      if (sizes && r->type == FLAGCX_NET_IBUC_REQ_RECV) {
+      if (sizes && r->type == FLAGCX_NET_IB_REQ_RECV) {
         for (int i = 0; i < r->nreqs; i++)
           sizes[i] = r->recv.sizes[i];
       }
-      if (sizes && r->type == FLAGCX_NET_IBUC_REQ_SEND) {
+      if (sizes && r->type == FLAGCX_NET_IB_REQ_SEND) {
         sizes[0] = r->send.size;
       }
       FLAGCXCHECK(flagcxIbucFreeRequest(r));
@@ -2307,7 +2252,7 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
                 wc->byte_len, wc->wr_id, req, req->type, req->events[0],
                 req->events[1], i);
 #endif
-          if (req->type == FLAGCX_NET_IBUC_REQ_SEND) {
+          if (req->type == FLAGCX_NET_IB_REQ_SEND) {
             for (int j = 0; j < req->nreqs; j++) {
               struct flagcxIbucRequest *sendReq =
                   r->base->reqs + ((wc->wr_id >> (j * 8)) & 0xff);
@@ -2321,7 +2266,7 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
           } else {
 
             if (req && wc->opcode == IBV_WC_RECV_RDMA_WITH_IMM) {
-              if (req->type != FLAGCX_NET_IBUC_REQ_RECV) {
+              if (req->type != FLAGCX_NET_IB_REQ_RECV) {
                 WARN("NET/IBUC: wc->opcode == IBV_WC_RECV_RDMA_WITH_IMM and "
                      "req->type=%d",
                      req->type);
@@ -2405,7 +2350,7 @@ flagcxResult_t flagcxIbucCloseListen(void *listenComm) {
 
 flagcxResult_t flagcxIbucGetDevFromName(char *name, int *dev) {
   for (int i = 0; i < flagcxNMergedIbucDevs; i++) {
-    if (strcmp(flagcxIbucMergedDevs[i].devName, name) == 0) {
+    if (strcmp(flagcxIbMergedDevs[i].devName, name) == 0) {
       *dev = i;
       return flagcxSuccess;
     }
@@ -2414,7 +2359,7 @@ flagcxResult_t flagcxIbucGetDevFromName(char *name, int *dev) {
 }
 
 flagcxResult_t flagcxIbucGetProperties(int dev, void *props) {
-  struct flagcxIbucMergedDev *mergedDev = flagcxIbucMergedDevs + dev;
+  struct flagcxIbMergedDev *mergedDev = flagcxIbMergedDevs + dev;
   flagcxNetProperties_t *properties = (flagcxNetProperties_t *)props;
 
   properties->name = mergedDev->devName;

@@ -101,6 +101,47 @@ struct flagcxIbMergedDev {
   char devName[MAX_MERGED_DEV_NAME];
 } __attribute__((aligned(64)));
 
+// Common QP info structure (used by both IBRC and IBUC)
+struct flagcxIbQpInfo {
+  uint32_t qpn;
+  struct ibv_ece ece;
+  int ece_supported;
+  int devIndex;
+};
+
+// Common device info structure (used by both IBRC and IBUC)
+struct flagcxIbDevInfo {
+  uint32_t lid;
+  uint8_t ib_port;
+  enum ibv_mtu mtu;
+  uint8_t link_layer;
+  uint64_t spn;
+  uint64_t iid;
+  uint32_t fifoRkey;
+  union ibv_gid remoteGid;
+};
+
+// Common GID info structure (used by both IBRC and IBUC)
+struct flagcxIbGidInfo {
+  uint8_t link_layer;
+  union ibv_gid localGid;
+  int32_t localGidIndex;
+};
+
+// Common MR handle structure (used by both IBRC and IBUC)
+struct flagcxIbMrHandle {
+  ibv_mr *mrs[FLAGCX_IB_MAX_DEVS_PER_NIC];
+};
+
+// Common request type constants (used by both IBRC and IBUC)
+#define FLAGCX_NET_IB_REQ_UNUSED 0
+#define FLAGCX_NET_IB_REQ_SEND 1
+#define FLAGCX_NET_IB_REQ_RECV 2
+#define FLAGCX_NET_IB_REQ_FLUSH 3
+
+// Common request type string array (used by both IBRC and IBUC)
+extern const char *reqTypeStr[];
+
 // Global arrays (declared as extern, defined in adaptor files)
 extern struct flagcxIbDev flagcxIbDevs[MAX_IB_DEVS];
 extern struct flagcxIbMergedDev flagcxIbMergedDevs[MAX_IB_VDEVS];
