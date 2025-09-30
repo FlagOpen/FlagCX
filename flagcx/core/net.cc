@@ -9,23 +9,15 @@
 
 static pthread_mutex_t netLock = PTHREAD_MUTEX_INITIALIZER;
 // Use adaptor system for all network types
-struct flagcxNetAdaptor *flagcxNetAdaptors[4] = {nullptr,
-#ifdef USE_IBUC
-                                                 getUnifiedNetAdaptor(IBUC),
-                                                 getUnifiedNetAdaptor(IBRC),
-#else
-                                                 getUnifiedNetAdaptor(IBRC),
-                                                 nullptr,
-#endif
-                                                 getUnifiedNetAdaptor(SOCKET)};
+struct flagcxNetAdaptor *flagcxNetAdaptors[3] = {
+    nullptr, getUnifiedNetAdaptor(IBRC), getUnifiedNetAdaptor(SOCKET)};
 enum flagcxNetState {
   flagcxNetStateInit = 0,
   flagcxNetStateEnabled = 1,
   flagcxNetStateDisabled = 2
 };
-enum flagcxNetState flagcxNetStates[4] = {
-    flagcxNetStateInit, flagcxNetStateInit, flagcxNetStateInit,
-    flagcxNetStateInit};
+enum flagcxNetState flagcxNetStates[3] = {
+    flagcxNetStateInit, flagcxNetStateInit, flagcxNetStateInit};
 
 flagcxResult_t flagcxNetCheckDeviceVersion(struct flagcxHeteroComm *comm,
                                            struct flagcxNetAdaptor *net,
@@ -90,7 +82,7 @@ flagcxResult_t flagcxNetInit(struct flagcxHeteroComm *comm) {
 
   if (forceSocket) {
     // Force socket network usage
-    for (int i = 3; i >= 0; i--) {
+    for (int i = 2; i >= 0; i--) {
       if (flagcxNetAdaptors[i] == nullptr)
         continue;
       if (flagcxNetAdaptors[i] != getUnifiedNetAdaptor(SOCKET))
@@ -114,7 +106,7 @@ flagcxResult_t flagcxNetInit(struct flagcxHeteroComm *comm) {
   } else {
     // Normal network selection order (IBUC first when enabled, then IBRC, then
     // socket)
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
       if (flagcxNetAdaptors[i] == nullptr)
         continue;
       enum flagcxNetState state;
@@ -268,11 +260,7 @@ flagcxResult_t flagcxProxyRecv(recvNetResources *resources, void *data,
     }
 
     if (args->postFlush < args->transmitted) {
-      if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)
-#ifdef USE_IBUC
-          || resources->netAdaptor == getUnifiedNetAdaptor(IBUC)
-#endif
-      ) {
+      if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
         void *req = NULL;
         resources->netAdaptor->iflush(
             resources->netRecvComm, 1,
