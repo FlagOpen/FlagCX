@@ -12,6 +12,7 @@
 #include "param.h"
 #include "socket.h"
 #include "utils.h"
+#include "ib_common.h"
 #include <assert.h>
 #include <poll.h>
 #include <pthread.h>
@@ -676,32 +677,6 @@ static_assert(MAX_REQUESTS <= 256, "request id are encoded in wr_id and we "
 
 #define FLAGCX_IB_MAX_QPS 128
 
-// Per-QP connection metatdata
-struct flagcxIbQpInfo {
-  uint32_t qpn;
-
-  // Fields needed for ece (enhanced connection establishment)
-  struct ibv_ece ece;
-  int ece_supported;
-  int devIndex;
-};
-
-// Per-Dev connection metadata
-struct flagcxIbDevInfo {
-  uint32_t lid;
-  uint8_t ib_port;
-  enum ibv_mtu mtu;
-  uint8_t link_layer;
-
-  // For RoCE
-  uint64_t spn;
-  uint64_t iid;
-
-  // FIFO RDMA info
-  uint32_t fifoRkey;
-  union ibv_gid remoteGid;
-};
-
 // Struct containing everything needed to establish connections
 struct flagcxIbConnectionMetadata {
   struct flagcxIbQpInfo qpInfo[FLAGCX_IB_MAX_QPS];
@@ -711,17 +686,6 @@ struct flagcxIbConnectionMetadata {
   int ndevs;
 };
 
-// Retain local RoCE address for error logging
-struct flagcxIbGidInfo {
-  uint8_t link_layer;
-  union ibv_gid localGid;
-  int32_t localGidIndex;
-};
-
-#define FLAGCX_NET_IB_REQ_UNUSED 0
-#define FLAGCX_NET_IB_REQ_SEND 1
-#define FLAGCX_NET_IB_REQ_RECV 2
-#define FLAGCX_NET_IB_REQ_FLUSH 3
 const char *reqTypeStr[] = {"Unused", "Send", "Recv", "Flush"};
 
 struct flagcxIbRequest {
@@ -790,10 +754,6 @@ struct alignas(8) flagcxIbSendCommDev {
   struct ibv_mr *fifoMr;
 };
 
-// Wrapper to track an MR per-device, if needed
-struct flagcxIbMrHandle {
-  ibv_mr *mrs[FLAGCX_IB_MAX_DEVS_PER_NIC];
-};
 
 struct alignas(32) flagcxIbNetCommBase {
   int ndevs;
