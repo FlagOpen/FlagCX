@@ -12,7 +12,7 @@
 #include "flagcx_net.h"
 #include "info.h"
 #include "register.h"
-#include "tuner.h" // adaptor/include/tuner.h
+#include "flagcx_tuner.h"
 #include "type.h"
 #include <stdint.h>
 
