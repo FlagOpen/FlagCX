@@ -32,39 +32,6 @@
 #define FLAGCX_NET_IBUC_MAX_RECVS 8
 #define MAX_REQUESTS (FLAGCX_NET_MAX_REQUESTS * FLAGCX_NET_IBUC_MAX_RECVS)
 
-// Structure definitions
-struct flagcxIbucMr {
-  uintptr_t addr;
-  size_t pages;
-  int refs;
-  struct ibv_mr *mr;
-};
-
-struct flagcxIbucMrCache {
-  int capacity;
-  int population;
-  struct flagcxIbucMr *slots;
-};
-
-struct flagcxIbucDev {
-  int device;
-  uint64_t guid;
-  struct ibv_port_attr portAttr;
-  uint8_t portNum;
-  uint8_t link;
-  int speed;
-  struct ibv_context *context;
-  int pdRefs;
-  struct ibv_pd *pd;
-  char devName[MAXNAMESIZE];
-  char *pciPath;
-  int realPort;
-  int maxQp;
-  struct flagcxIbucMrCache mrCache;
-  int ar;
-  pthread_mutex_t lock;
-};
-
 struct flagcxIbucMergedDev {
   int ndevs;
   int devs[FLAGCX_IB_MAX_DEVS_PER_NIC];
@@ -103,7 +70,7 @@ struct flagcxIbucQpInfo {
   int devIndex;
 };
 
-struct flagcxIbucDevInfo {
+struct flagcxIbDevInfo {
   uint32_t lid;
   uint8_t ib_port;
   enum ibv_mtu mtu;
@@ -116,7 +83,7 @@ struct flagcxIbucDevInfo {
 
 struct flagcxIbucConnectionMetadata {
   struct flagcxIbucQpInfo qpInfo[FLAGCX_IBUC_MAX_QPS];
-  struct flagcxIbucDevInfo devs[FLAGCX_IB_MAX_DEVS_PER_NIC];
+  struct flagcxIbDevInfo devs[FLAGCX_IB_MAX_DEVS_PER_NIC];
   char devName[MAX_MERGED_DEV_NAME];
   uint64_t fifoAddr;
   int ndevs;
@@ -193,7 +160,7 @@ struct flagcxIbucSendCommDev {
   struct ibv_mr *fifoMr;
 };
 
-struct flagcxIbucMrHandle {
+struct flagcxIbMrHandle {
   ibv_mr *mrs[FLAGCX_IB_MAX_DEVS_PER_NIC];
 };
 
@@ -203,7 +170,7 @@ struct alignas(32) flagcxIbucNetCommBase {
   struct flagcxSocket sock;
   int ready;
   int nRemDevs;
-  struct flagcxIbucDevInfo remDevs[FLAGCX_IB_MAX_DEVS_PER_NIC];
+  struct flagcxIbDevInfo remDevs[FLAGCX_IB_MAX_DEVS_PER_NIC];
   struct flagcxIbucRequest reqs[MAX_REQUESTS];
   struct flagcxIbucQp qps[FLAGCX_IBUC_MAX_QPS];
   int qpIndex;
@@ -262,35 +229,32 @@ static union flagcxSocketAddress flagcxIbucIfAddr;
 static int flagcxNMergedIbucDevs = -1;
 static int flagcxNIbucDevs = -1;
 
-// Define global arrays after struct definitions
 struct flagcxIbucMergedDev flagcxIbucMergedDevs[MAX_IB_VDEVS];
-struct flagcxIbucDev flagcxIbucDevs[MAX_IB_DEVS];
 pthread_mutex_t flagcxIbucLock = PTHREAD_MUTEX_INITIALIZER;
 static int flagcxIbucRelaxedOrderingEnabled = 0;
 
-FLAGCX_PARAM(IbucGidIndex, "IBUC_GID_INDEX", -1);
-FLAGCX_PARAM(IbucRoceVersionNum, "IBUC_ROCE_VERSION_NUM", 2);
-FLAGCX_PARAM(IbucTimeout, "IBUC_TIMEOUT", 18);
-FLAGCX_PARAM(IbucRetryCnt, "IBUC_RETRY_CNT", 7);
-FLAGCX_PARAM(IbucPkey, "IBUC_PKEY", 0);
-FLAGCX_PARAM(IbucUseInline, "IBUC_USE_INLINE", 0);
-FLAGCX_PARAM(IbucSl, "IBUC_SL", 0);
-FLAGCX_PARAM(IbucTc, "IBUC_TC", 0);
-FLAGCX_PARAM(IbucArThreshold, "IBUC_AR_THRESHOLD", 8192);
-FLAGCX_PARAM(IbucPciRelaxedOrdering, "IBUC_PCI_RELAXED_ORDERING", 2);
-FLAGCX_PARAM(IbucAdaptiveRouting, "IBUC_ADAPTIVE_ROUTING", -2);
+FLAGCX_PARAM(IbucGidIndex, "IB_GID_INDEX", -1);
+FLAGCX_PARAM(IbucRoceVersionNum, "IB_ROCE_VERSION_NUM", 2);
+FLAGCX_PARAM(IbucTimeout, "IB_TIMEOUT", 18);
+FLAGCX_PARAM(IbucRetryCnt, "IB_RETRY_CNT", 7);
+FLAGCX_PARAM(IbucPkey, "IB_PKEY", 0);
+FLAGCX_PARAM(IbucUseInline, "IB_USE_INLINE", 0);
+FLAGCX_PARAM(IbucSl, "IB_SL", 0);
+FLAGCX_PARAM(IbucTc, "IB_TC", 0);
+FLAGCX_PARAM(IbucArThreshold, "IB_AR_THRESHOLD", 8192);
+FLAGCX_PARAM(IbucPciRelaxedOrdering, "IB_PCI_RELAXED_ORDERING", 2);
+FLAGCX_PARAM(IbucAdaptiveRouting, "IB_ADAPTIVE_ROUTING", -2);
 
 pthread_t flagcxIbucAsyncThread;
-// Function will be defined after struct definitions
 
 static sa_family_t envIbucAddrFamily(void) {
   sa_family_t family = AF_INET;
-  const char *env = flagcxGetEnv("FLAGCX_IBUC_ADDR_FAMILY");
+  const char *env = flagcxGetEnv("FLAGCX_IB_ADDR_FAMILY");
   if (env == NULL || strlen(env) == 0) {
     return family;
   }
 
-  INFO(FLAGCX_ENV, "FLAGCX_IBUC_ADDR_FAMILY set by environment to %s", env);
+  INFO(FLAGCX_ENV, "FLAGCX_IB_ADDR_FAMILY set by environment to %s", env);
 
   if (strcmp(env, "AF_INET") == 0) {
     family = AF_INET;
@@ -307,12 +271,12 @@ static void *envIbucAddrRange(sa_family_t af, int *mask) {
   static struct in6_addr addr6;
   void *ret = (af == AF_INET) ? (void *)&addr : (void *)&addr6;
 
-  const char *env = flagcxGetEnv("FLAGCX_IBUC_ADDR_RANGE");
+  const char *env = flagcxGetEnv("FLAGCX_IB_ADDR_RANGE");
   if (NULL == env || strlen(env) == 0) {
     return NULL;
   }
 
-  INFO(FLAGCX_ENV, "FLAGCX_IBUC_ADDR_RANGE set by environment to %s", env);
+  INFO(FLAGCX_ENV, "FLAGCX_IB_ADDR_RANGE set by environment to %s", env);
 
   char addrString[128] = {0};
   snprintf(addrString, 128, "%s", env);
@@ -516,11 +480,9 @@ static flagcxResult_t flagcxIbucGetGidIndex(struct ibv_context *context,
   return flagcxSuccess;
 }
 
-FLAGCX_PARAM(IbucDisable, "IBUC_DISABLE", 0);
-FLAGCX_PARAM(IbucMergeVfs, "IBUC_MERGE_VFS", 1);
-FLAGCX_PARAM(IbucMergeNics, "IBUC_MERGE_NICS", 1);
-
-// Function will be defined after struct definitions
+FLAGCX_PARAM(IbucDisable, "IB_DISABLE", 0);
+FLAGCX_PARAM(IbucMergeVfs, "IB_MERGE_VFS", 1);
+FLAGCX_PARAM(IbucMergeNics, "IB_MERGE_NICS", 1);
 
 static int ibvWidths[] = {1, 4, 8, 12, 2};
 static int ibvSpeeds[] = {2500,  /* SDR */
@@ -555,11 +517,6 @@ static int flagcxIbucRelaxedOrderingCapable(void) {
   }
   return r == flagcxInternalError ? 0 : 1;
 }
-
-// Compare flagcxIbucDev[dev] to all stored mergedIbucDevs
-// Function will be defined after struct definitions
-
-// Function will be defined after struct definitions
 
 flagcxResult_t flagcxIbucDevices(int *ndev) {
   *ndev = flagcxNMergedIbucDevs;
@@ -602,7 +559,7 @@ flagcxResult_t flagcxIbucDmaBufSupport(int dev) {
     // Test each dev
     for (int i = 0; i < mergedDev->ndevs; i++) {
       int ibucDev = mergedDev->devs[i];
-      ctx = flagcxIbucDevs[ibucDev].context;
+      ctx = flagcxIbDevs[ibucDev].context;
       FLAGCXCHECKGOTO(flagcxWrapIbvAllocPd(&pd, ctx), res, failure);
       // Test kernel DMA-BUF support with a dummy call (fd=-1)
       (void)flagcxWrapDirectIbvRegDmabufMr(pd, 0ULL /*offset*/, 0ULL /*len*/,
@@ -636,7 +593,7 @@ static_assert(MAX_REQUESTS <= 256, "request id are encoded in wr_id and we "
 
 // Async thread function
 static void *flagcxIbucAsyncThreadMain(void *args) {
-  struct flagcxIbucDev *dev = (struct flagcxIbucDev *)args;
+  struct flagcxIbDev *dev = (struct flagcxIbDev *)args;
   while (1) {
     struct ibv_async_event event;
     if (flagcxSuccess != flagcxWrapIbvGetAsyncEvent(dev->context, &event)) {
@@ -673,7 +630,7 @@ static flagcxResult_t flagcxIbucGetPciPath(char *devName, char **path,
     // And keep the real port aside (the ibv port is always 1 on recent cards)
     *realPort = 0;
     for (int d = 0; d < flagcxNIbucDevs; d++) {
-      if (strcmp(p, flagcxIbucDevs[d].pciPath) == 0)
+      if (strcmp(p, flagcxIbDevs[d].pciPath) == 0)
         (*realPort)++;
     }
   }
@@ -686,18 +643,18 @@ int flagcxIbucFindMatchingDev(int dev) {
   for (int i = 0; i < flagcxNMergedIbucDevs; i++) {
     if (flagcxIbucMergedDevs[i].ndevs < FLAGCX_IB_MAX_DEVS_PER_NIC) {
       int compareDev = flagcxIbucMergedDevs[i].devs[0];
-      if (strcmp(flagcxIbucDevs[dev].pciPath,
-                 flagcxIbucDevs[compareDev].pciPath) == 0 &&
-          (flagcxIbucDevs[dev].guid == flagcxIbucDevs[compareDev].guid) &&
-          (flagcxIbucDevs[dev].link == flagcxIbucDevs[compareDev].link)) {
+      if (strcmp(flagcxIbDevs[dev].pciPath, flagcxIbDevs[compareDev].pciPath) ==
+              0 &&
+          (flagcxIbDevs[dev].guid == flagcxIbDevs[compareDev].guid) &&
+          (flagcxIbDevs[dev].link == flagcxIbDevs[compareDev].link)) {
         TRACE(FLAGCX_NET,
               "NET/IBUC: Matched name1=%s pciPath1=%s guid1=0x%lx link1=%u "
               "name2=%s pciPath2=%s guid2=0x%lx link2=%u",
-              flagcxIbucDevs[dev].devName, flagcxIbucDevs[dev].pciPath,
-              flagcxIbucDevs[dev].guid, flagcxIbucDevs[dev].link,
-              flagcxIbucDevs[compareDev].devName,
-              flagcxIbucDevs[compareDev].pciPath,
-              flagcxIbucDevs[compareDev].guid, flagcxIbucDevs[compareDev].link);
+              flagcxIbDevs[dev].devName, flagcxIbDevs[dev].pciPath,
+              flagcxIbDevs[dev].guid, flagcxIbDevs[dev].link,
+              flagcxIbDevs[compareDev].devName,
+              flagcxIbDevs[compareDev].pciPath, flagcxIbDevs[compareDev].guid,
+              flagcxIbDevs[compareDev].link);
         return i;
       }
     }
@@ -788,50 +745,49 @@ flagcxResult_t flagcxIbucInit() {
                 searchNot)) {
             continue;
           }
-          pthread_mutex_init(&flagcxIbucDevs[flagcxNIbucDevs].lock, NULL);
-          flagcxIbucDevs[flagcxNIbucDevs].device = d;
-          flagcxIbucDevs[flagcxNIbucDevs].guid = devAttr.sys_image_guid;
-          flagcxIbucDevs[flagcxNIbucDevs].portAttr = portAttr;
-          flagcxIbucDevs[flagcxNIbucDevs].portNum = port_num;
-          flagcxIbucDevs[flagcxNIbucDevs].link = portAttr.link_layer;
-          flagcxIbucDevs[flagcxNIbucDevs].speed =
+          pthread_mutex_init(&flagcxIbDevs[flagcxNIbucDevs].lock, NULL);
+          flagcxIbDevs[flagcxNIbucDevs].device = d;
+          flagcxIbDevs[flagcxNIbucDevs].guid = devAttr.sys_image_guid;
+          flagcxIbDevs[flagcxNIbucDevs].portAttr = portAttr;
+          flagcxIbDevs[flagcxNIbucDevs].portNum = port_num;
+          flagcxIbDevs[flagcxNIbucDevs].link = portAttr.link_layer;
+          flagcxIbDevs[flagcxNIbucDevs].speed =
               flagcxIbucSpeed(portAttr.active_speed) *
               flagcxIbucWidth(portAttr.active_width);
-          flagcxIbucDevs[flagcxNIbucDevs].context = context;
-          flagcxIbucDevs[flagcxNIbucDevs].pdRefs = 0;
-          flagcxIbucDevs[flagcxNIbucDevs].pd = NULL;
-          strncpy(flagcxIbucDevs[flagcxNIbucDevs].devName, devices[d]->name,
+          flagcxIbDevs[flagcxNIbucDevs].context = context;
+          flagcxIbDevs[flagcxNIbucDevs].pdRefs = 0;
+          flagcxIbDevs[flagcxNIbucDevs].pd = NULL;
+          strncpy(flagcxIbDevs[flagcxNIbucDevs].devName, devices[d]->name,
                   MAXNAMESIZE);
           FLAGCXCHECK(
-              flagcxIbucGetPciPath(flagcxIbucDevs[flagcxNIbucDevs].devName,
-                                   &flagcxIbucDevs[flagcxNIbucDevs].pciPath,
-                                   &flagcxIbucDevs[flagcxNIbucDevs].realPort));
-          flagcxIbucDevs[flagcxNIbucDevs].maxQp = devAttr.max_qp;
-          flagcxIbucDevs[flagcxNIbucDevs].mrCache.capacity = 0;
-          flagcxIbucDevs[flagcxNIbucDevs].mrCache.population = 0;
-          flagcxIbucDevs[flagcxNIbucDevs].mrCache.slots = NULL;
+              flagcxIbucGetPciPath(flagcxIbDevs[flagcxNIbucDevs].devName,
+                                   &flagcxIbDevs[flagcxNIbucDevs].pciPath,
+                                   &flagcxIbDevs[flagcxNIbucDevs].realPort));
+          flagcxIbDevs[flagcxNIbucDevs].maxQp = devAttr.max_qp;
+          flagcxIbDevs[flagcxNIbucDevs].mrCache.capacity = 0;
+          flagcxIbDevs[flagcxNIbucDevs].mrCache.population = 0;
+          flagcxIbDevs[flagcxNIbucDevs].mrCache.slots = NULL;
 
           // Enable ADAPTIVE_ROUTING by default on IBUC networks
           // But allow it to be overloaded by an env parameter
-          flagcxIbucDevs[flagcxNIbucDevs].ar =
+          flagcxIbDevs[flagcxNIbucDevs].ar =
               (portAttr.link_layer == IBV_LINK_LAYER_INFINIBAND) ? 1 : 0;
           if (flagcxParamIbucAdaptiveRouting() != -2)
-            flagcxIbucDevs[flagcxNIbucDevs].ar =
-                flagcxParamIbucAdaptiveRouting();
+            flagcxIbDevs[flagcxNIbucDevs].ar = flagcxParamIbucAdaptiveRouting();
 
           TRACE(
               FLAGCX_NET,
               "NET/IBUC: [%d] %s:%s:%d/%s speed=%d context=%p pciPath=%s ar=%d",
               d, devices[d]->name, devices[d]->dev_name,
-              flagcxIbucDevs[flagcxNIbucDevs].portNum,
+              flagcxIbDevs[flagcxNIbucDevs].portNum,
               portAttr.link_layer == IBV_LINK_LAYER_INFINIBAND ? "IB" : "RoCE",
-              flagcxIbucDevs[flagcxNIbucDevs].speed, context,
-              flagcxIbucDevs[flagcxNIbucDevs].pciPath,
-              flagcxIbucDevs[flagcxNIbucDevs].ar);
+              flagcxIbDevs[flagcxNIbucDevs].speed, context,
+              flagcxIbDevs[flagcxNIbucDevs].pciPath,
+              flagcxIbDevs[flagcxNIbucDevs].ar);
 
           pthread_create(&flagcxIbucAsyncThread, NULL,
                          flagcxIbucAsyncThreadMain,
-                         flagcxIbucDevs + flagcxNIbucDevs);
+                         flagcxIbDevs + flagcxNIbucDevs);
           flagcxSetThreadName(flagcxIbucAsyncThread, "FLAGCX IbucAsync %2d",
                               flagcxNIbucDevs);
           pthread_detach(flagcxIbucAsyncThread); // will not be pthread_join()'d
@@ -849,7 +805,7 @@ flagcxResult_t flagcxIbucInit() {
             flagcxIbucMergedDevs[mergedDev].devs[0] = flagcxNIbucDevs;
             flagcxNMergedIbucDevs++;
             strncpy(flagcxIbucMergedDevs[mergedDev].devName,
-                    flagcxIbucDevs[flagcxNIbucDevs].devName, MAXNAMESIZE);
+                    flagcxIbDevs[flagcxNIbucDevs].devName, MAXNAMESIZE);
             // Matching dev found, edit name
           } else {
             // Set next device in this array to the current IBUC device
@@ -859,12 +815,12 @@ flagcxResult_t flagcxIbucInit() {
             snprintf(flagcxIbucMergedDevs[mergedDev].devName +
                          strlen(flagcxIbucMergedDevs[mergedDev].devName),
                      MAXNAMESIZE + 1, "+%s",
-                     flagcxIbucDevs[flagcxNIbucDevs].devName);
+                     flagcxIbDevs[flagcxNIbucDevs].devName);
           }
 
           // Aggregate speed
           flagcxIbucMergedDevs[mergedDev].speed +=
-              flagcxIbucDevs[flagcxNIbucDevs].speed;
+              flagcxIbDevs[flagcxNIbucDevs].speed;
           flagcxNIbucDevs++;
           nPorts++;
         }
@@ -894,10 +850,9 @@ flagcxResult_t flagcxIbucInit() {
           for (int i = 0; i < mergedDev->ndevs; i++) {
             int ibucDev = mergedDev->devs[i];
             snprintf(line + strlen(line), 2047 - strlen(line),
-                     "[%d] %s:%d/%s%s", ibucDev,
-                     flagcxIbucDevs[ibucDev].devName,
-                     flagcxIbucDevs[ibucDev].portNum,
-                     flagcxIbucDevs[ibucDev].link == IBV_LINK_LAYER_INFINIBAND
+                     "[%d] %s:%d/%s%s", ibucDev, flagcxIbDevs[ibucDev].devName,
+                     flagcxIbDevs[ibucDev].portNum,
+                     flagcxIbDevs[ibucDev].link == IBV_LINK_LAYER_INFINIBAND
                          ? "IB"
                          : "RoCE",
                      // Insert comma to delineate
@@ -907,9 +862,9 @@ flagcxResult_t flagcxIbucInit() {
         } else {
           int ibucDev = mergedDev->devs[0];
           snprintf(line + strlen(line), 2047 - strlen(line), " [%d]%s:%d/%s",
-                   ibucDev, flagcxIbucDevs[ibucDev].devName,
-                   flagcxIbucDevs[ibucDev].portNum,
-                   flagcxIbucDevs[ibucDev].link == IBV_LINK_LAYER_INFINIBAND
+                   ibucDev, flagcxIbDevs[ibucDev].devName,
+                   flagcxIbDevs[ibucDev].portNum,
+                   flagcxIbDevs[ibucDev].link == IBV_LINK_LAYER_INFINIBAND
                        ? "IB"
                        : "RoCE");
         }
@@ -967,7 +922,7 @@ flagcxResult_t flagcxIbucCreateQpWithType(uint8_t ib_port,
                                           struct flagcxIbucQp *qp);
 flagcxResult_t flagcxIbucRtrQpWithType(struct ibv_qp *qp, uint8_t sGidIndex,
                                        uint32_t dest_qp_num,
-                                       struct flagcxIbucDevInfo *info,
+                                       struct flagcxIbDevInfo *info,
                                        enum ibv_qp_type qp_type);
 flagcxResult_t flagcxIbucRtsQpWithType(struct ibv_qp *qp,
                                        enum ibv_qp_type qp_type);
@@ -985,7 +940,7 @@ static void flagcxIbucAddEvent(struct flagcxIbucRequest *req, int devIndex,
 flagcxResult_t
 flagcxIbucInitCommDevBase(int ibucDevN, struct flagcxIbucNetCommDevBase *base) {
   base->ibucDevN = ibucDevN;
-  flagcxIbucDev *ibucDev = flagcxIbucDevs + ibucDevN;
+  flagcxIbDev *ibucDev = flagcxIbDevs + ibucDevN;
   pthread_mutex_lock(&ibucDev->lock);
   if (0 == ibucDev->pdRefs++) {
     flagcxResult_t res;
@@ -1013,14 +968,14 @@ flagcxResult_t flagcxIbucDestroyBase(struct flagcxIbucNetCommDevBase *base) {
   flagcxResult_t res;
   FLAGCXCHECK(flagcxWrapIbvDestroyCq(base->cq));
 
-  pthread_mutex_lock(&flagcxIbucDevs[base->ibucDevN].lock);
-  if (0 == --flagcxIbucDevs[base->ibucDevN].pdRefs) {
-    FLAGCXCHECKGOTO(flagcxWrapIbvDeallocPd(flagcxIbucDevs[base->ibucDevN].pd),
+  pthread_mutex_lock(&flagcxIbDevs[base->ibucDevN].lock);
+  if (0 == --flagcxIbDevs[base->ibucDevN].pdRefs) {
+    FLAGCXCHECKGOTO(flagcxWrapIbvDeallocPd(flagcxIbDevs[base->ibucDevN].pd),
                     res, returning);
   }
   res = flagcxSuccess;
 returning:
-  pthread_mutex_unlock(&flagcxIbucDevs[base->ibucDevN].lock);
+  pthread_mutex_unlock(&flagcxIbDevs[base->ibucDevN].lock);
   return res;
 }
 
@@ -1063,13 +1018,13 @@ flagcxResult_t flagcxIbucCreateQpWithType(uint8_t ib_port,
 
 flagcxResult_t flagcxIbucRtrQp(struct ibv_qp *qp, uint8_t sGidIndex,
                                uint32_t dest_qp_num,
-                               struct flagcxIbucDevInfo *info) {
+                               struct flagcxIbDevInfo *info) {
   return flagcxIbucRtrQpWithType(qp, sGidIndex, dest_qp_num, info, IBV_QPT_UC);
 }
 
 flagcxResult_t flagcxIbucRtrQpWithType(struct ibv_qp *qp, uint8_t sGidIndex,
                                        uint32_t dest_qp_num,
-                                       struct flagcxIbucDevInfo *info,
+                                       struct flagcxIbDevInfo *info,
                                        enum ibv_qp_type qp_type) {
   struct ibv_qp_attr qpAttr;
   memset(&qpAttr, 0, sizeof(struct ibv_qp_attr));
@@ -1203,7 +1158,7 @@ ibuc_connect_check:
     int ibucDevN = mergedDev->devs[i];
     FLAGCXCHECK(flagcxIbucInitCommDevBase(ibucDevN, &comm->devs[i].base));
     comm->ar = comm->ar &&
-               flagcxIbucDevs[dev]
+               flagcxIbDevs[dev]
                    .ar; // ADAPTIVE_ROUTING - if all merged devs have it enabled
   }
 
@@ -1215,7 +1170,7 @@ ibuc_connect_check:
   devIndex = 0;
   for (int q = 0; q < comm->base.nqps; q++) {
     flagcxIbucSendCommDev *commDev = comm->devs + devIndex;
-    flagcxIbucDev *ibucDev = flagcxIbucDevs + commDev->base.ibucDevN;
+    flagcxIbDev *ibucDev = flagcxIbDevs + commDev->base.ibucDevN;
     FLAGCXCHECK(flagcxIbucCreateQp(ibucDev->portNum, &commDev->base,
                                    IBV_ACCESS_REMOTE_WRITE,
                                    comm->base.qps + q));
@@ -1231,10 +1186,10 @@ ibuc_connect_check:
 
   for (int i = 0; i < comm->base.ndevs; i++) {
     flagcxIbucSendCommDev *commDev = comm->devs + i;
-    flagcxIbucDev *ibucDev = flagcxIbucDevs + commDev->base.ibucDevN;
+    flagcxIbDev *ibucDev = flagcxIbDevs + commDev->base.ibucDevN;
 
     // Write to the metadata struct via this pointer
-    flagcxIbucDevInfo *devInfo = meta.devs + i;
+    flagcxIbDevInfo *devInfo = meta.devs + i;
     devInfo->ib_port = ibucDev->portNum;
     devInfo->mtu = ibucDev->portAttr.active_mtu;
     devInfo->lid = ibucDev->portAttr.lid;
@@ -1369,7 +1324,7 @@ ibuc_connect:
 
   for (int q = 0; q < comm->base.nqps; q++) {
     struct flagcxIbucQpInfo *remQpInfo = remMeta.qpInfo + q;
-    struct flagcxIbucDevInfo *remDevInfo = remMeta.devs + remQpInfo->devIndex;
+    struct flagcxIbDevInfo *remDevInfo = remMeta.devs + remQpInfo->devIndex;
 
     // Assign per-QP remDev
     comm->base.qps[q].remDevIdx = remQpInfo->devIndex;
@@ -1390,7 +1345,7 @@ ibuc_connect:
     for (int q = 0; q < comm->base.nqps; q++) {
       struct flagcxIbucQp *qp = comm->base.qps + q;
       int ibucDevN = comm->devs[qp->devIndex].base.ibucDevN;
-      struct flagcxIbucDev *ibucDev = flagcxIbucDevs + ibucDevN;
+      struct flagcxIbDev *ibucDev = flagcxIbDevs + ibucDevN;
       INFO(FLAGCX_NET,
            "NET/IBUC: IbucDev %d Port %d qpn %d set_ece={supported=%d, "
            "vendor_id=0x%x, options=0x%x, comp_mask=0x%x}",
@@ -1473,10 +1428,10 @@ ib_recv:
   // IB setup
   // Pre-declare variables because of goto
   struct flagcxIbucMergedDev *mergedDev;
-  struct flagcxIbucDev *ibucDev;
+  struct flagcxIbDev *ibucDev;
   int ibucDevN;
   struct flagcxIbucRecvCommDev *rCommDev;
-  struct flagcxIbucDevInfo *remDevInfo;
+  struct flagcxIbDevInfo *remDevInfo;
   struct flagcxIbucQp *qp;
 
   mergedDev = flagcxIbucMergedDevs + lComm->dev;
@@ -1500,7 +1455,7 @@ ib_recv:
     rCommDev = rComm->devs + i;
     ibucDevN = mergedDev->devs[i];
     FLAGCXCHECK(flagcxIbucInitCommDevBase(ibucDevN, &rCommDev->base));
-    ibucDev = flagcxIbucDevs + ibucDevN;
+    ibucDev = flagcxIbDevs + ibucDevN;
     FLAGCXCHECK(flagcxIbucGetGidIndex(ibucDev->context, ibucDev->portNum,
                                       ibucDev->portAttr.gid_tbl_len,
                                       &rCommDev->base.gidInfo.localGidIndex));
@@ -1532,7 +1487,7 @@ ib_recv:
 
     // Local ibucDevN
     ibucDevN = rComm->devs[devIndex].base.ibucDevN;
-    ibucDev = flagcxIbucDevs + ibucDevN;
+    ibucDev = flagcxIbDevs + ibucDevN;
     FLAGCXCHECK(flagcxIbucCreateQp(ibucDev->portNum, &rCommDev->base,
                                    IBV_ACCESS_REMOTE_WRITE, qp));
     qp->devIndex = devIndex;
@@ -1561,7 +1516,7 @@ ib_recv:
   for (int i = 0; i < mergedDev->ndevs; i++) {
     rCommDev = rComm->devs + i;
     ibucDevN = rCommDev->base.ibucDevN;
-    ibucDev = flagcxIbucDevs + ibucDevN;
+    ibucDev = flagcxIbDevs + ibucDevN;
 
     // Retain remote fifo info and prepare my RDMA ops
     rCommDev->fifoRkey = remMeta.devs[i].fifoRkey;
@@ -1588,7 +1543,7 @@ ib_recv:
           ibucDev->portNum, &rCommDev->base,
           IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ, IBV_QPT_RC,
           &rCommDev->gpuFlush.qp));
-      struct flagcxIbucDevInfo devInfo;
+      struct flagcxIbDevInfo devInfo;
       devInfo.lid = ibucDev->portAttr.lid;
       devInfo.link_layer = ibucDev->portAttr.link_layer;
       devInfo.ib_port = ibucDev->portNum;
@@ -1702,11 +1657,11 @@ flagcxResult_t flagcxIbucRegMrDmaBufInternal(flagcxIbucNetCommDevBase *base,
   static __thread uintptr_t pageSize = 0;
   if (pageSize == 0)
     pageSize = sysconf(_SC_PAGESIZE);
-  struct flagcxIbucMrCache *cache = &flagcxIbucDevs[base->ibucDevN].mrCache;
+  struct flagcxIbMrCache *cache = &flagcxIbDevs[base->ibucDevN].mrCache;
   uintptr_t addr = (uintptr_t)data & -pageSize;
   size_t pages = ((uintptr_t)data + size - addr + pageSize - 1) / pageSize;
   flagcxResult_t res;
-  pthread_mutex_lock(&flagcxIbucDevs[base->ibucDevN].lock);
+  pthread_mutex_lock(&flagcxIbDevs[base->ibucDevN].lock);
   for (int slot = 0; /*true*/; slot++) {
     if (slot == cache->population ||
         addr < cache->slots[slot].addr) {         // didn't find in cache
@@ -1758,7 +1713,7 @@ flagcxResult_t flagcxIbucRegMrDmaBufInternal(flagcxIbucNetCommDevBase *base,
             mr->lkey, fd);
       if (slot != cache->population)
         memmove(cache->slots + slot + 1, cache->slots + slot,
-                (cache->population - slot) * sizeof(struct flagcxIbucMr));
+                (cache->population - slot) * sizeof(struct flagcxIbMr));
       cache->slots[slot].addr = addr;
       cache->slots[slot].pages = pages;
       cache->slots[slot].refs = 1;
@@ -1777,7 +1732,7 @@ flagcxResult_t flagcxIbucRegMrDmaBufInternal(flagcxIbucNetCommDevBase *base,
     }
   }
 returning:
-  pthread_mutex_unlock(&flagcxIbucDevs[base->ibucDevN].lock);
+  pthread_mutex_unlock(&flagcxIbDevs[base->ibucDevN].lock);
   return res;
 }
 
@@ -1798,8 +1753,8 @@ flagcxResult_t flagcxIbucRegMrDmaBuf(void *comm, void *data, size_t size,
                                      void **mhandle) {
   assert(size > 0);
   struct flagcxIbucNetCommBase *base = (struct flagcxIbucNetCommBase *)comm;
-  struct flagcxIbucMrHandle *mhandleWrapper =
-      (struct flagcxIbucMrHandle *)malloc(sizeof(struct flagcxIbucMrHandle));
+  struct flagcxIbMrHandle *mhandleWrapper =
+      (struct flagcxIbMrHandle *)malloc(sizeof(struct flagcxIbMrHandle));
   for (int i = 0; i < base->ndevs; i++) {
     struct flagcxIbucNetCommDevBase *devComm =
         flagcxIbucGetNetCommDevBase(base, i);
@@ -1816,8 +1771,8 @@ flagcxResult_t flagcxIbucRegMr(void *comm, void *data, size_t size, int type,
 
   assert(size > 0);
   struct flagcxIbucNetCommBase *base = (struct flagcxIbucNetCommBase *)comm;
-  struct flagcxIbucMrHandle *mhandleWrapper =
-      (struct flagcxIbucMrHandle *)malloc(sizeof(struct flagcxIbucMrHandle));
+  struct flagcxIbMrHandle *mhandleWrapper =
+      (struct flagcxIbMrHandle *)malloc(sizeof(struct flagcxIbMrHandle));
   for (int i = 0; i < base->ndevs; i++) {
     struct flagcxIbucNetCommDevBase *devComm =
         flagcxIbucGetNetCommDevBase(base, i);
@@ -1831,14 +1786,14 @@ flagcxResult_t flagcxIbucRegMr(void *comm, void *data, size_t size, int type,
 
 flagcxResult_t flagcxIbucDeregMrInternal(flagcxIbucNetCommDevBase *base,
                                          ibv_mr *mhandle) {
-  struct flagcxIbucMrCache *cache = &flagcxIbucDevs[base->ibucDevN].mrCache;
+  struct flagcxIbMrCache *cache = &flagcxIbDevs[base->ibucDevN].mrCache;
   flagcxResult_t res;
-  pthread_mutex_lock(&flagcxIbucDevs[base->ibucDevN].lock);
+  pthread_mutex_lock(&flagcxIbDevs[base->ibucDevN].lock);
   for (int i = 0; i < cache->population; i++) {
     if (mhandle == cache->slots[i].mr) {
       if (0 == --cache->slots[i].refs) {
         memmove(&cache->slots[i], &cache->slots[--cache->population],
-                sizeof(struct flagcxIbucMr));
+                sizeof(struct flagcxIbMr));
         if (cache->population == 0) {
           free(cache->slots);
           cache->slots = NULL;
@@ -1854,13 +1809,12 @@ flagcxResult_t flagcxIbucDeregMrInternal(flagcxIbucNetCommDevBase *base,
        cache->population);
   res = flagcxInternalError;
 returning:
-  pthread_mutex_unlock(&flagcxIbucDevs[base->ibucDevN].lock);
+  pthread_mutex_unlock(&flagcxIbDevs[base->ibucDevN].lock);
   return res;
 }
 
 flagcxResult_t flagcxIbucDeregMr(void *comm, void *mhandle) {
-  struct flagcxIbucMrHandle *mhandleWrapper =
-      (struct flagcxIbucMrHandle *)mhandle;
+  struct flagcxIbMrHandle *mhandleWrapper = (struct flagcxIbMrHandle *)mhandle;
   struct flagcxIbucNetCommBase *base = (struct flagcxIbucNetCommBase *)comm;
   for (int i = 0; i < base->ndevs; i++) {
     struct flagcxIbucNetCommDevBase *devComm =
@@ -1992,8 +1946,7 @@ flagcxResult_t flagcxIbucIsend(void *sendComm, void *data, size_t size, int tag,
     return flagcxSuccess;
   }
 
-  struct flagcxIbucMrHandle *mhandleWrapper =
-      (struct flagcxIbucMrHandle *)mhandle;
+  struct flagcxIbMrHandle *mhandleWrapper = (struct flagcxIbMrHandle *)mhandle;
 
   // Wait for the receiver to have posted the corresponding receive
   int nreqs = 0;
@@ -2110,8 +2063,8 @@ flagcxResult_t flagcxIbucPostFifo(struct flagcxIbucRecvComm *comm, int n,
 
   for (int i = 0; i < n; i++) {
     localElem[i].addr = (uint64_t)data[i];
-    struct flagcxIbucMrHandle *mhandleWrapper =
-        (struct flagcxIbucMrHandle *)mhandles[i];
+    struct flagcxIbMrHandle *mhandleWrapper =
+        (struct flagcxIbMrHandle *)mhandles[i];
 
     // Send all applicable rkeys
     for (int j = 0; j < comm->base.ndevs; j++)
@@ -2248,7 +2201,7 @@ flagcxResult_t flagcxIbucIflush(void *recvComm, int n, void **data, int *sizes,
   FLAGCXCHECK(flagcxIbucGetRequest(&comm->base, &req));
   req->type = FLAGCX_NET_IBUC_REQ_FLUSH;
   req->sock = &comm->base.sock;
-  // struct flagcxIbucMrHandle *mhandle = (struct flagcxIbucMrHandle
+  // struct flagcxIbMrHandle *mhandle = (struct flagcxIbMrHandle
   // *)mhandles[last];
 
   // We don't know which devIndex the recv was on, so we flush on all devices
@@ -2260,8 +2213,7 @@ flagcxResult_t flagcxIbucIflush(void *recvComm, int n, void **data, int *sizes,
 
     // Use RDMA_READ for flush operations
     wr.wr.rdma.remote_addr = (uint64_t)data[last];
-    wr.wr.rdma.rkey =
-        ((struct flagcxIbucMrHandle *)mhandles[last])->mrs[i]->rkey;
+    wr.wr.rdma.rkey = ((struct flagcxIbMrHandle *)mhandles[last])->mrs[i]->rkey;
     wr.sg_list = &comm->devs[i].gpuFlush.sge;
     wr.num_sge = 1;
     wr.opcode = IBV_WR_RDMA_READ;
@@ -2470,7 +2422,7 @@ flagcxResult_t flagcxIbucGetProperties(int dev, void *props) {
 
   // Take the rest of the properties from an arbitrary sub-device (should be the
   // same)
-  struct flagcxIbucDev *ibucDev = flagcxIbucDevs + mergedDev->devs[0];
+  struct flagcxIbDev *ibucDev = flagcxIbDevs + mergedDev->devs[0];
   properties->pciPath = ibucDev->pciPath;
   properties->guid = ibucDev->guid;
   properties->ptrSupport = FLAGCX_PTR_HOST;

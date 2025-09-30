@@ -139,12 +139,11 @@ struct flagcxNetAdaptor *getUnifiedNetAdaptor(int netType) {
 #ifdef USE_UCX
       // When UCX is enabled, use UCX instead of IBRC
       return &flagcxNetUcx;
+#elif USE_IBUC
+      // When IBUC is enabled, use IBUC instead of IBRC
+      return &flagcxNetIbuc;
 #else
       return &flagcxNetIb;
-#endif
-#ifdef USE_IBUC
-    case IBUC:
-      return &flagcxNetIbuc;
 #endif
     case SOCKET:
       return &flagcxNetSocket;
