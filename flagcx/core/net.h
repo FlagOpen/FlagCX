@@ -10,7 +10,6 @@
 #include "check.h"
 #include "comm.h"
 #include "flagcx_net.h"
-#include "ib_common.h"
 #include <socket.h>
 
 typedef char flagcxNetHandle_t[FLAGCX_NET_HANDLE_MAXSIZE];

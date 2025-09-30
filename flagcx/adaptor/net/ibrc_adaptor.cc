@@ -8,11 +8,11 @@
 #include "core.h"
 #include "flagcx_common.h"
 #include "flagcx_net.h"
-#include "ib_common.h"
 #include "ibvwrap.h"
 #include "param.h"
 #include "socket.h"
 #include "utils.h"
+#include "ib_common.h"
 #include <assert.h>
 #include <poll.h>
 #include <pthread.h>
@@ -21,22 +21,15 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#define ENABLE_TIMER 0
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/socket.h>
 #include "ib_common.h"
 #include "net.h"
 #include "timer.h"
 
-static char flagcxIbIfName[MAX_IF_NAME_SIZE + 1];
-static union flagcxSocketAddress flagcxIbIfAddr;
-
-static int flagcxNMergedIbDevs = -1;
-static int flagcxNIbDevs = -1;
-
-// Define global arrays
-struct flagcxIbMergedDev flagcxIbMergedDevs[MAX_IB_VDEVS];
-struct flagcxIbDev flagcxIbDevs[MAX_IB_DEVS];
-pthread_mutex_t flagcxIbLock = PTHREAD_MUTEX_INITIALIZER;
-static int flagcxIbRelaxedOrderingEnabled = 0;
+char flagcxIbIfName[MAX_IF_NAME_SIZE + 1];
+union flagcxSocketAddress flagcxIbIfAddr;
 
 FLAGCX_PARAM(IbGidIndex, "IB_GID_INDEX", -1);
 FLAGCX_PARAM(IbRoceVersionNum, "IB_ROCE_VERSION_NUM", 2);
@@ -49,9 +42,23 @@ FLAGCX_PARAM(IbTc, "IB_TC", 0);
 FLAGCX_PARAM(IbArThreshold, "IB_AR_THRESHOLD", 8192);
 FLAGCX_PARAM(IbPciRelaxedOrdering, "IB_PCI_RELAXED_ORDERING", 2);
 FLAGCX_PARAM(IbAdaptiveRouting, "IB_ADAPTIVE_ROUTING", -2);
+FLAGCX_PARAM(IbDisable, "IB_DISABLE", 0);
+FLAGCX_PARAM(IbMergeVfs, "IB_MERGE_VFS", 1);
+FLAGCX_PARAM(IbMergeNics, "IB_MERGE_NICS", 1);
+FLAGCX_PARAM(IbQpsPerConn, "IB_QPS_PER_CONNECTION", 1);
+
+int flagcxNMergedIbDevs = -1;
+int flagcxNIbDevs = -1;
+
+// Define global arrays
+struct flagcxIbMergedDev flagcxIbMergedDevs[MAX_IB_VDEVS];
+struct flagcxIbDev flagcxIbDevs[MAX_IB_DEVS];
+pthread_mutex_t flagcxIbLock = PTHREAD_MUTEX_INITIALIZER;
+int flagcxIbRelaxedOrderingEnabled = 0;
+
 
 pthread_t flagcxIbAsyncThread;
-static void *flagcxIbAsyncThreadMain(void *args) {
+void *flagcxIbAsyncThreadMain(void *args) {
   struct flagcxIbDev *dev = (struct flagcxIbDev *)args;
   while (1) {
     struct ibv_async_event event;
@@ -72,7 +79,7 @@ static void *flagcxIbAsyncThreadMain(void *args) {
   return NULL;
 }
 
-static sa_family_t envIbAddrFamily(void) {
+sa_family_t envIbAddrFamily(void) {
   sa_family_t family = AF_INET;
   const char *env = flagcxGetEnv("FLAGCX_IB_ADDR_FAMILY");
   if (env == NULL || strlen(env) == 0) {
@@ -90,7 +97,7 @@ static sa_family_t envIbAddrFamily(void) {
   return family;
 }
 
-static void *envIbAddrRange(sa_family_t af, int *mask) {
+void *envIbAddrRange(sa_family_t af, int *mask) {
   *mask = 0;
   static struct in_addr addr;
   static struct in6_addr addr6;
@@ -134,7 +141,7 @@ static void *envIbAddrRange(sa_family_t af, int *mask) {
   return ret;
 }
 
-static sa_family_t getGidAddrFamily(union ibv_gid *gid) {
+sa_family_t getGidAddrFamily(union ibv_gid *gid) {
   const struct in6_addr *a = (struct in6_addr *)gid->raw;
   bool isIpV4Mapped = ((a->s6_addr32[0] | a->s6_addr32[1]) |
                        (a->s6_addr32[2] ^ htonl(0x0000ffff))) == 0UL;
@@ -144,8 +151,8 @@ static sa_family_t getGidAddrFamily(union ibv_gid *gid) {
   return (isIpV4Mapped || isIpV4MappedMulticast) ? AF_INET : AF_INET6;
 }
 
-static bool matchGidAddrPrefix(sa_family_t af, void *prefix, int prefixlen,
-                               union ibv_gid *gid) {
+bool matchGidAddrPrefix(sa_family_t af, void *prefix, int prefixlen,
+                        union ibv_gid *gid) {
   struct in_addr *base = NULL;
   struct in6_addr *base6 = NULL;
   struct in6_addr *addr6 = NULL;
@@ -188,7 +195,7 @@ static bool matchGidAddrPrefix(sa_family_t af, void *prefix, int prefixlen,
   return (prefixlen == 0) ? true : false;
 }
 
-static bool configuredGid(union ibv_gid *gid) {
+bool configuredGid(union ibv_gid *gid) {
   const struct in6_addr *a = (struct in6_addr *)gid->raw;
   int trailer = (a->s6_addr32[1] | a->s6_addr32[2] | a->s6_addr32[3]);
   if (((a->s6_addr32[0] | trailer) == 0UL) ||
@@ -198,7 +205,7 @@ static bool configuredGid(union ibv_gid *gid) {
   return true;
 }
 
-static bool linkLocalGid(union ibv_gid *gid) {
+bool linkLocalGid(union ibv_gid *gid) {
   const struct in6_addr *a = (struct in6_addr *)gid->raw;
   if (a->s6_addr32[0] == htonl(0xfe800000) && a->s6_addr32[1] == 0UL) {
     return true;
@@ -206,13 +213,13 @@ static bool linkLocalGid(union ibv_gid *gid) {
   return false;
 }
 
-static bool validGid(union ibv_gid *gid) {
+bool validGid(union ibv_gid *gid) {
   return (configuredGid(gid) && !linkLocalGid(gid));
 }
 
-static flagcxResult_t flagcxIbRoceGetVersionNum(const char *deviceName,
-                                                int portNum, int gidIndex,
-                                                int *version) {
+flagcxResult_t flagcxIbRoceGetVersionNum(const char *deviceName,
+                                         int portNum, int gidIndex,
+                                         int *version) {
   char gidRoceVerStr[16] = {0};
   char roceTypePath[PATH_MAX] = {0};
   sprintf(roceTypePath, "/sys/class/infiniband/%s/ports/%d/gid_attrs/types/%d",
@@ -241,11 +248,11 @@ static flagcxResult_t flagcxIbRoceGetVersionNum(const char *deviceName,
   return flagcxSuccess;
 }
 
-static flagcxResult_t flagcxUpdateGidIndex(struct ibv_context *context,
-                                           uint8_t portNum, sa_family_t af,
-                                           void *prefix, int prefixlen,
-                                           int roceVer, int gidIndexCandidate,
-                                           int *gidIndex) {
+flagcxResult_t flagcxUpdateGidIndex(struct ibv_context *context,
+                                    uint8_t portNum, sa_family_t af,
+                                    void *prefix, int prefixlen,
+                                    int roceVer, int gidIndexCandidate,
+                                    int *gidIndex) {
   union ibv_gid gid, gidCandidate;
   FLAGCXCHECK(flagcxWrapIbvQueryGid(context, portNum, *gidIndex, &gid));
   FLAGCXCHECK(flagcxWrapIbvQueryGid(context, portNum, gidIndexCandidate,
@@ -281,9 +288,9 @@ static flagcxResult_t flagcxUpdateGidIndex(struct ibv_context *context,
   return flagcxSuccess;
 }
 
-static flagcxResult_t flagcxIbGetGidIndex(struct ibv_context *context,
-                                          uint8_t portNum, int gidTblLen,
-                                          int *gidIndex) {
+flagcxResult_t flagcxIbGetGidIndex(struct ibv_context *context,
+                                   uint8_t portNum, int gidTblLen,
+                                   int *gidIndex) {
   *gidIndex = flagcxParamIbGidIndex();
   if (*gidIndex >= 0) {
     return flagcxSuccess;
@@ -304,12 +311,9 @@ static flagcxResult_t flagcxIbGetGidIndex(struct ibv_context *context,
   return flagcxSuccess;
 }
 
-FLAGCX_PARAM(IbDisable, "IB_DISABLE", 0);
-FLAGCX_PARAM(IbMergeVfs, "IB_MERGE_VFS", 1);
-FLAGCX_PARAM(IbMergeNics, "IB_MERGE_NICS", 1);
 
-static flagcxResult_t flagcxIbGetPciPath(char *devName, char **path,
-                                         int *realPort) {
+flagcxResult_t flagcxIbGetPciPath(char *devName, char **path,
+                                  int *realPort) {
   char devicePath[PATH_MAX];
   snprintf(devicePath, PATH_MAX, "/sys/class/infiniband/%s/device", devName);
   char *p = realpath(devicePath, NULL);
@@ -332,31 +336,30 @@ static flagcxResult_t flagcxIbGetPciPath(char *devName, char **path,
   return flagcxSuccess;
 }
 
-static int ibvWidths[] = {1, 4, 8, 12, 2};
-static int ibvSpeeds[] = {2500,  /* SDR */
-                          5000,  /* DDR */
-                          10000, /* QDR */
-                          10000, /* QDR */
-                          14000, /* FDR */
-                          25000, /* EDR */
-                          50000, /* HDR */
-                          100000 /* NDR */};
+int ibvWidths[] = {1, 4, 8, 12, 2};
+int ibvSpeeds[] = {2500,  /* SDR */
+                   5000,  /* DDR */
+                   10000, /* QDR */
+                   10000, /* QDR */
+                   14000, /* FDR */
+                   25000, /* EDR */
+                   50000, /* HDR */
+                   100000 /* NDR */};
 
-static int firstBitSet(int val, int max) {
+int firstBitSet(int val, int max) {
   int i = 0;
   while (i < max && ((val & (1 << i)) == 0))
     i++;
   return i;
 }
-static int flagcxIbWidth(int width) {
+int flagcxIbWidth(int width) {
   return ibvWidths[firstBitSet(width, sizeof(ibvWidths) / sizeof(int) - 1)];
 }
-static int flagcxIbSpeed(int speed) {
+int flagcxIbSpeed(int speed) {
   return ibvSpeeds[firstBitSet(speed, sizeof(ibvSpeeds) / sizeof(int) - 1)];
 }
 
-// Determine whether RELAXED_ORDERING is enabled and possible
-static int flagcxIbRelaxedOrderingCapable(void) {
+int flagcxIbRelaxedOrderingCapable(void) {
   int roMode = flagcxParamIbPciRelaxedOrdering();
   flagcxResult_t r = flagcxInternalError;
   if (roMode == 1 || roMode == 2) {
@@ -366,7 +369,6 @@ static int flagcxIbRelaxedOrderingCapable(void) {
   return r == flagcxInternalError ? 0 : 1;
 }
 
-// Compare flagcxIbDev[dev] to all stored mergedIbDevs
 int flagcxIbFindMatchingDev(int dev) {
   for (int i = 0; i < flagcxNMergedIbDevs; i++) {
     if (flagcxIbMergedDevs[i].ndevs < FLAGCX_IB_MAX_DEVS_PER_NIC) {
@@ -606,230 +608,8 @@ fail:
   return ret;
 }
 
-flagcxResult_t flagcxIbDevices(int *ndev) {
-  *ndev = flagcxNMergedIbDevs;
-  return flagcxSuccess;
-}
-
-// Detect whether GDR can work on a given NIC with the current CUDA device
-// Returns :
-// flagcxSuccess : GDR works
-// flagcxSystemError : no module or module loaded but not supported by GPU
-flagcxResult_t flagcxIbGdrSupport() {
-  static int moduleLoaded = -1;
-  if (moduleLoaded == -1) {
-    // Check for the nv_peer_mem module being loaded
-    moduleLoaded =
-        ((access("/sys/kernel/mm/memory_peers/nv_mem/version", F_OK) == -1) &&
-         // Also support the new nvidia-peermem module
-         (access("/sys/kernel/mm/memory_peers/nvidia-peermem/version", F_OK) ==
-          -1))
-            ? 0
-            : 1;
-  }
-  if (moduleLoaded == 0)
-    return flagcxSystemError;
-  return flagcxSuccess;
-}
-
-// Detect whether DMA-BUF support is present in the kernel
-// Returns :
-// flagcxSuccess : DMA-BUF support is available
-// flagcxSystemError : DMA-BUF is not supported by the kernel
-flagcxResult_t flagcxIbDmaBufSupport(int dev) {
-  static int dmaBufSupported = -1;
-  if (dmaBufSupported == -1) {
-    flagcxResult_t res;
-    struct ibv_pd *pd;
-    struct ibv_context *ctx;
-    struct flagcxIbMergedDev *mergedDev = flagcxIbMergedDevs + dev;
-
-    // Test each dev
-    for (int i = 0; i < mergedDev->ndevs; i++) {
-      int ibDev = mergedDev->devs[i];
-      ctx = flagcxIbDevs[ibDev].context;
-      FLAGCXCHECKGOTO(flagcxWrapIbvAllocPd(&pd, ctx), res, failure);
-      // Test kernel DMA-BUF support with a dummy call (fd=-1)
-      (void)flagcxWrapDirectIbvRegDmabufMr(pd, 0ULL /*offset*/, 0ULL /*len*/,
-                                           0ULL /*iova*/, -1 /*fd*/,
-                                           0 /*flags*/);
-      // ibv_reg_dmabuf_mr() will fail with EOPNOTSUPP/EPROTONOSUPPORT if not
-      // supported (EBADF otherwise)
-      dmaBufSupported =
-          (errno != EOPNOTSUPP && errno != EPROTONOSUPPORT) ? 1 : 0;
-      FLAGCXCHECKGOTO(flagcxWrapIbvDeallocPd(pd), res, failure);
-    }
-  }
-  if (dmaBufSupported == 0)
-    return flagcxSystemError;
-  return flagcxSuccess;
-failure:
-  dmaBufSupported = 0;
-  return flagcxSystemError;
-}
-
-#define FLAGCX_NET_IB_MAX_RECVS 8
-
-// We need to support FLAGCX_NET_MAX_REQUESTS for each concurrent receive
-#define MAX_REQUESTS (FLAGCX_NET_MAX_REQUESTS * FLAGCX_NET_IB_MAX_RECVS)
-static_assert(MAX_REQUESTS <= 256, "request id are encoded in wr_id and we "
-                                   "need up to 8 requests ids per completion");
-
-#define FLAGCX_IB_MAX_QPS 128
-
-// Struct containing everything needed to establish connections
-struct flagcxIbConnectionMetadata {
-  struct flagcxIbQpInfo qpInfo[FLAGCX_IB_MAX_QPS];
-  struct flagcxIbDevInfo devs[FLAGCX_IB_MAX_DEVS_PER_NIC];
-  char devName[MAX_MERGED_DEV_NAME];
-  uint64_t fifoAddr;
-  int ndevs;
-};
-
 const char *reqTypeStr[] = {"Unused", "Send", "Recv", "Flush"};
 
-struct flagcxIbRequest {
-  struct flagcxIbNetCommBase *base;
-  int type;
-  struct flagcxSocket *sock;
-  int events[FLAGCX_IB_MAX_DEVS_PER_NIC];
-  struct flagcxIbNetCommDevBase *devBases[FLAGCX_IB_MAX_DEVS_PER_NIC];
-  int nreqs;
-  union {
-    struct {
-      int size;
-      void *data;
-      uint32_t lkeys[FLAGCX_IB_MAX_DEVS_PER_NIC];
-      int offset;
-    } send;
-    struct {
-      int *sizes;
-    } recv;
-  };
-};
-
-struct flagcxIbNetCommDevBase {
-  int ibDevN;
-  struct ibv_pd *pd;
-  struct ibv_cq *cq;
-  uint64_t pad[2];
-  struct flagcxIbGidInfo gidInfo;
-};
-
-struct flagcxIbListenComm {
-  int dev;
-  struct flagcxSocket sock;
-  struct flagcxIbCommStage stage;
-};
-
-struct flagcxIbSendFifo {
-  uint64_t addr;
-  size_t size;
-  uint32_t rkeys[FLAGCX_IB_MAX_DEVS_PER_NIC];
-  uint32_t nreqs;
-  uint32_t tag;
-  uint64_t idx;
-  char padding[24];
-};
-
-struct flagcxIbQp {
-  struct ibv_qp *qp;
-  int devIndex;
-  int remDevIdx;
-};
-
-struct flagcxIbRemSizesFifo {
-  int elems[MAX_REQUESTS][FLAGCX_NET_IB_MAX_RECVS];
-  uint64_t fifoTail;
-  uint64_t addr;
-  uint32_t rkeys[FLAGCX_IB_MAX_DEVS_PER_NIC];
-  uint32_t flags;
-  struct ibv_mr *mrs[FLAGCX_IB_MAX_DEVS_PER_NIC];
-  struct ibv_sge sge;
-};
-
-// A per-dev struct for netIbSendComm
-struct alignas(8) flagcxIbSendCommDev {
-  struct flagcxIbNetCommDevBase base;
-  struct ibv_mr *fifoMr;
-};
-
-struct alignas(32) flagcxIbNetCommBase {
-  int ndevs;
-  bool isSend;
-  struct flagcxIbRequest reqs[MAX_REQUESTS];
-  struct flagcxIbQp qps[FLAGCX_IB_MAX_QPS];
-  int nqps;
-  int qpIndex;
-  int devIndex;
-  struct flagcxSocket sock;
-  int ready;
-  // Track necessary remDevInfo here
-  int nRemDevs;
-  struct flagcxIbDevInfo remDevs[FLAGCX_IB_MAX_DEVS_PER_NIC];
-};
-
-struct flagcxIbSendComm {
-  struct flagcxIbNetCommBase base;
-  struct flagcxIbSendFifo fifo[MAX_REQUESTS][FLAGCX_NET_IB_MAX_RECVS];
-  // Each dev correlates to a mergedIbDev
-  struct flagcxIbSendCommDev devs[FLAGCX_IB_MAX_DEVS_PER_NIC];
-  struct flagcxIbRequest *fifoReqs[MAX_REQUESTS][FLAGCX_NET_IB_MAX_RECVS];
-  struct ibv_sge sges[FLAGCX_NET_IB_MAX_RECVS];
-  struct ibv_send_wr wrs[FLAGCX_NET_IB_MAX_RECVS + 1];
-  struct flagcxIbRemSizesFifo remSizesFifo;
-  uint64_t fifoHead;
-  int ar; // Use adaptive routing when all merged devices have it enabled
-};
-// The SendFifo needs to be 32-byte aligned and each element needs
-// to be a 32-byte multiple, so that an entry does not get split and
-// written out of order when IB Relaxed Ordering is enabled
-static_assert((sizeof(struct flagcxIbNetCommBase) % 32) == 0,
-              "flagcxIbNetCommBase size must be 32-byte multiple to ensure "
-              "fifo is at proper offset");
-static_assert((offsetof(struct flagcxIbSendComm, fifo) % 32) == 0,
-              "flagcxIbSendComm fifo must be 32-byte aligned");
-static_assert((sizeof(struct flagcxIbSendFifo) % 32) == 0,
-              "flagcxIbSendFifo element size must be 32-byte multiples");
-static_assert((offsetof(struct flagcxIbSendComm, sges) % 32) == 0,
-              "sges must be 32-byte aligned");
-static_assert((offsetof(struct flagcxIbSendComm, wrs) % 32) == 0,
-              "wrs must be 32-byte aligned");
-
-struct flagcxIbGpuFlush {
-  struct ibv_mr *hostMr;
-  struct ibv_sge sge;
-  struct flagcxIbQp qp;
-};
-
-struct flagcxIbRemFifo {
-  struct flagcxIbSendFifo elems[MAX_REQUESTS][FLAGCX_NET_IB_MAX_RECVS];
-  uint64_t fifoTail;
-  uint64_t addr;
-  uint32_t flags;
-};
-
-struct alignas(16) flagcxIbRecvCommDev {
-  struct flagcxIbNetCommDevBase base;
-  struct flagcxIbGpuFlush gpuFlush;
-  uint32_t fifoRkey;
-  struct ibv_mr *fifoMr;
-  struct ibv_sge fifoSge;
-  struct ibv_mr *sizesFifoMr;
-};
-
-struct flagcxIbRecvComm {
-  struct flagcxIbNetCommBase base;
-  struct flagcxIbRecvCommDev devs[FLAGCX_IB_MAX_DEVS_PER_NIC];
-  struct flagcxIbRemFifo remFifo;
-  int sizesFifo[MAX_REQUESTS][FLAGCX_NET_IB_MAX_RECVS];
-  int gpuFlushHostMem;
-  int flushEnabled;
-};
-static_assert((offsetof(struct flagcxIbRecvComm, remFifo) % 32) == 0,
-              "flagcxIbRecvComm fifo must be 32-byte aligned");
-
-FLAGCX_PARAM(IbQpsPerConn, "IB_QPS_PER_CONNECTION", 1);
 
 static void flagcxIbAddEvent(struct flagcxIbRequest *req, int devIndex,
                              struct flagcxIbNetCommDevBase *base) {
@@ -960,8 +740,6 @@ flagcxResult_t flagcxIbListen(int dev, void *opaqueHandle, void **listenComm) {
   struct flagcxIbListenComm *comm;
   FLAGCXCHECK(flagcxCalloc(&comm, 1));
   struct flagcxIbHandle *handle = (struct flagcxIbHandle *)opaqueHandle;
-  static_assert(sizeof(struct flagcxIbHandle) < FLAGCX_NET_HANDLE_MAXSIZE,
-                "flagcxIbHandle size too large");
   memset(handle, 0, sizeof(struct flagcxIbHandle));
   comm->dev = dev;
   handle->magic = FLAGCX_SOCKET_MAGIC;
@@ -2264,6 +2042,68 @@ flagcxResult_t flagcxIbGetDevFromName(char *name, int *dev) {
     }
   }
   return flagcxSystemError;
+}
+
+// Detect whether GDR can work on a given NIC with the current CUDA device
+// Returns :
+// flagcxSuccess : GDR works
+// flagcxSystemError : no module or module loaded but not supported by GPU
+flagcxResult_t flagcxIbGdrSupport() {
+  static int moduleLoaded = -1;
+  if (moduleLoaded == -1) {
+    // Check for the nv_peer_mem module being loaded
+    moduleLoaded =
+        ((access("/sys/kernel/mm/memory_peers/nv_mem/version", F_OK) == -1) &&
+         // Also support the new nvidia-peermem module
+         (access("/sys/kernel/mm/memory_peers/nvidia-peermem/version", F_OK) ==
+          -1))
+            ? 0
+            : 1;
+  }
+  if (moduleLoaded == 0)
+    return flagcxSystemError;
+  return flagcxSuccess;
+}
+
+// Detect whether DMA-BUF support is present in the kernel
+// Returns :
+// flagcxSuccess : DMA-BUF support is available
+// flagcxSystemError : DMA-BUF is not supported by the kernel
+flagcxResult_t flagcxIbDmaBufSupport(int dev) {
+  static int dmaBufSupported = -1;
+  if (dmaBufSupported == -1) {
+    flagcxResult_t res;
+    struct ibv_pd *pd;
+    struct ibv_context *ctx;
+    struct flagcxIbMergedDev *mergedDev = flagcxIbMergedDevs + dev;
+
+    // Test each dev
+    for (int i = 0; i < mergedDev->ndevs; i++) {
+      int ibDev = mergedDev->devs[i];
+      ctx = flagcxIbDevs[ibDev].context;
+      FLAGCXCHECKGOTO(flagcxWrapIbvAllocPd(&pd, ctx), res, failure);
+      // Test kernel DMA-BUF support with a dummy call (fd=-1)
+      (void)flagcxWrapDirectIbvRegDmabufMr(pd, 0ULL /*offset*/, 0ULL /*len*/,
+                                           0ULL /*iova*/, -1 /*fd*/,
+                                           0 /*flags*/);
+      // ibv_reg_dmabuf_mr() will fail with EOPNOTSUPP/EPROTONOSUPPORT if not
+      // supported (EBADF otherwise)
+      dmaBufSupported =
+          (errno != EOPNOTSUPP && errno != EPROTONOSUPPORT) ? 1 : 0;
+      FLAGCXCHECKGOTO(flagcxWrapIbvDeallocPd(pd), res, failure);
+    }
+  }
+  if (dmaBufSupported == 0)
+    return flagcxSystemError;
+  return flagcxSuccess;
+failure:
+  dmaBufSupported = 0;
+  return flagcxSystemError;
+}
+
+flagcxResult_t flagcxIbDevices(int *ndev) {
+  *ndev = flagcxNMergedIbDevs;
+  return flagcxSuccess;
 }
 
 flagcxResult_t flagcxIbGetProperties(int dev, void *props) {
