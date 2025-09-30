@@ -38,9 +38,7 @@
 // Additional global variables
 static pthread_mutex_t flagcx_p2p_lock = PTHREAD_MUTEX_INITIALIZER;
 static int flagcxIbGdrModuleLoaded = 0;
-static struct {
-  pthread_once_t once;
-} onces[MAX_IB_DEVS];
+static struct { pthread_once_t once; } onces[MAX_IB_DEVS];
 
 flagcxResult_t flagcxIbMakeVDeviceInternal(int *d,
                                            flagcxNetVDeviceProps_t *props,
@@ -212,7 +210,57 @@ flagcxResult_t flagcxP2pIbPciPath(flagcxIbDev *devs, int num_devs,
   return flagcxSuccess;
 }
 
+// TODO
 
+// static void *flagcxIbAsyncThreadMain(void *args) {
+//   struct flagcxIbDev *dev = (struct flagcxIbDev *)args;
+//   while (1) {
+//     struct ibv_async_event event;
+//     if (flagcxSuccess != flagcxWrapIbvGetAsyncEvent(dev->context, &event)) {
+//       break;
+//     }
+//     char *str;
+//     struct ibv_cq *cq __attribute__((unused)) =
+//         event.element.cq; // only valid if CQ error
+//     struct ibv_qp *qp __attribute__((unused)) =
+//         event.element.qp; // only valid if QP error
+//     struct ibv_srq *srq __attribute__((unused)) =
+//         event.element.srq; // only valid if SRQ error
+//     if (flagcxSuccess != flagcxWrapIbvEventTypeStr(&str, event.event_type)) {
+//       break;
+//     }
+//     switch (event.event_type) {
+//       case IBV_EVENT_DEVICE_FATAL:
+//         // the above is device fatal error
+//         WARN("NET/IB : %s:%d async fatal event: %s", dev->devName,
+//         dev->portNum,
+//              str);
+//         flagcxIbDevFatalError(dev);
+//         break;
+//       case IBV_EVENT_PORT_ACTIVE:
+//       case IBV_EVENT_PORT_ERR:
+//         WARN("NET/IB : %s:%d port event: %s", dev->devName, dev->portNum,
+//         str); break;
+//       case IBV_EVENT_CQ_ERR:
+//         WARN("NET/IB : %s:%d CQ event: %s", dev->devName, dev->portNum, str);
+//         break;
+//       case IBV_EVENT_QP_FATAL:
+//       case IBV_EVENT_QP_ACCESS_ERR:
+//         WARN("NET/IB : %s:%d QP event: %s", dev->devName, dev->portNum, str);
+//         break;
+//       case IBV_EVENT_SRQ_ERR:
+//         WARN("NET/IB : %s:%d SRQ event: %s", dev->devName, dev->portNum,
+//         str); break;
+//       default:
+//         WARN("NET/IB : %s:%d unknown event: %s", dev->devName, dev->portNum,
+//              str);
+//     }
+//     if (flagcxSuccess != flagcxWrapIbvAckAsyncEvent(&event)) {
+//       break;
+//     }
+//   }
+//   return NULL;
+// }
 static int flagcxUcxRefCount = 0;
 
 FLAGCX_PARAM(UCXDisable, "UCX_DISABLE", 0);

@@ -55,8 +55,8 @@ struct flagcxTuner {
   //
   flagcxResult_t (*getCollInfo)(void *context, flagcxCommOp_t collType,
                                 size_t nBytes, int numPipeOps,
-                                float** collCostTable, int regBuff,
-                                struct flagcxCommTag* commTag);
+                                float **collCostTable, int regBuff,
+                                struct flagcxCommTag *commTag);
 
   // Start profiling for a specific collective with given parameters.
   // Inputs:
@@ -68,10 +68,10 @@ struct flagcxTuner {
   // Outputs:
   //   - key: profiling key to pair with stopProfiling
   //
-  flagcxResult_t (*startProfiling)(void* context, flagcxCommOp_t collType,
-                                  size_t nBytes, flagcxStream_t stream,
-                                  const struct flagcxCommTag *commTag,
-                                  struct flagcxProfileKey *key);
+  flagcxResult_t (*startProfiling)(void *context, flagcxCommOp_t collType,
+                                   size_t nBytes, flagcxStream_t stream,
+                                   const struct flagcxCommTag *commTag,
+                                   struct flagcxProfileKey *key);
 
   // Stop profiling for a specific collective with given key.
   // Inputs:
@@ -80,7 +80,8 @@ struct flagcxTuner {
   // Outputs:
   //   - None
   //
-  flagcxResult_t (*stopProfiling)(void* context, const struct flagcxProfileKey *key);
+  flagcxResult_t (*stopProfiling)(void *context,
+                                  const struct flagcxProfileKey *key);
 
   // Terminates the tuner and cleans up any resources that the tuner allocated.
   flagcxResult_t (*destroy)(void *context);
@@ -95,25 +96,25 @@ bool operator==(const struct flagcxCommTag &lhs,
 
 extern flagcxTuner_t internalTuner;
 
-#define FLAGCXCALLWITHTUNER(call, comm, commOp, count, datatype, stream)                \
-  do {                                                                                  \
-    comm->tunerInnerComm = nullptr;                                                     \
-    size_t nBytes = count * getFlagcxDataTypeSize(datatype);                            \
-    struct flagcxCommTag tag = {.tag = ""};                                             \
-    FLAGCXCHECK(comm->tuner->getCollInfo(comm->tunerContext, commOp,                    \
-                        nBytes, 0, NULL, 0, &tag));                                     \
-    const auto it = comm->homoCommMap.find(tag);                                        \
-    if (it == comm->homoCommMap.end()) {                                                \
-      WARN("communicator %s was not initialized.", tag.tag);                            \
-      return flagcxInternalError;                                                       \
-    }                                                                                   \
-    comm->tunerInnerComm = it->second;                                                  \
-    flagcxProfileKey pkey;                                                              \
-    FLAGCXCHECK(comm->tuner->startProfiling(comm->tunerContext, commOp,                 \
-                nBytes, stream, &tag, &pkey));                                          \
-    FLAGCXCHECK(call);                                                                  \
-    FLAGCXCHECK(comm->tuner->stopProfiling(comm->tunerContext, &pkey));                 \
-    return flagcxSuccess;                                                               \
+#define FLAGCXCALLWITHTUNER(call, comm, commOp, count, datatype, stream)       \
+  do {                                                                         \
+    comm->tunerInnerComm = nullptr;                                            \
+    size_t nBytes = count * getFlagcxDataTypeSize(datatype);                   \
+    struct flagcxCommTag tag = {.tag = ""};                                    \
+    FLAGCXCHECK(comm->tuner->getCollInfo(comm->tunerContext, commOp, nBytes,   \
+                                         0, NULL, 0, &tag));                   \
+    const auto it = comm->homoCommMap.find(tag);                               \
+    if (it == comm->homoCommMap.end()) {                                       \
+      WARN("communicator %s was not initialized.", tag.tag);                   \
+      return flagcxInternalError;                                              \
+    }                                                                          \
+    comm->tunerInnerComm = it->second;                                         \
+    flagcxProfileKey pkey;                                                     \
+    FLAGCXCHECK(comm->tuner->startProfiling(comm->tunerContext, commOp,        \
+                                            nBytes, stream, &tag, &pkey));     \
+    FLAGCXCHECK(call);                                                         \
+    FLAGCXCHECK(comm->tuner->stopProfiling(comm->tunerContext, &pkey));        \
+    return flagcxSuccess;                                                      \
   } while (0);
 
 #endif // end of FLAGCX_TUNER_H_

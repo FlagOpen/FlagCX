@@ -10,9 +10,9 @@
 #include "bootstrap.h"
 #include "device.h"
 #include "flagcx_net.h"
+#include "flagcx_tuner.h"
 #include "info.h"
 #include "register.h"
-#include "flagcx_tuner.h"
 #include "type.h"
 #include <stdint.h>
 

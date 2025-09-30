@@ -10,11 +10,13 @@
 #include "core.h"
 #include "flagcx_common.h"
 #include "flagcx_net.h"
+#include "ib_common.h"
 #include "ibvwrap.h"
+#include "net.h"
 #include "param.h"
 #include "socket.h"
+#include "timer.h"
 #include "utils.h"
-#include "ib_common.h"
 #include <assert.h>
 #include <poll.h>
 #include <pthread.h>
@@ -23,9 +25,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "ib_common.h"
-#include "net.h"
-#include "timer.h"
 
 // Constants
 // Init function
@@ -127,8 +126,8 @@ flagcxResult_t flagcxIbucInit() {
                   MAXNAMESIZE);
           FLAGCXCHECK(
               flagcxIbGetPciPath(flagcxIbDevs[flagcxNIbDevs].devName,
-                                   &flagcxIbDevs[flagcxNIbDevs].pciPath,
-                                   &flagcxIbDevs[flagcxNIbDevs].realPort));
+                                 &flagcxIbDevs[flagcxNIbDevs].pciPath,
+                                 &flagcxIbDevs[flagcxNIbDevs].realPort));
           flagcxIbDevs[flagcxNIbDevs].maxQp = devAttr.max_qp;
           flagcxIbDevs[flagcxNIbDevs].mrCache.capacity = 0;
           flagcxIbDevs[flagcxNIbDevs].mrCache.population = 0;
@@ -139,8 +138,7 @@ flagcxResult_t flagcxIbucInit() {
           flagcxIbDevs[flagcxNIbDevs].ar =
               (portAttr.link_layer == IBV_LINK_LAYER_INFINIBAND) ? 1 : 0;
           if (flagcxParamIbAdaptiveRouting() != -2)
-            flagcxIbDevs[flagcxNIbDevs].ar =
-                flagcxParamIbAdaptiveRouting();
+            flagcxIbDevs[flagcxNIbDevs].ar = flagcxParamIbAdaptiveRouting();
 
           TRACE(
               FLAGCX_NET,
@@ -152,8 +150,7 @@ flagcxResult_t flagcxIbucInit() {
               flagcxIbDevs[flagcxNIbDevs].pciPath,
               flagcxIbDevs[flagcxNIbDevs].ar);
 
-          pthread_create(&flagcxIbAsyncThread, NULL,
-                         flagcxIbAsyncThreadMain,
+          pthread_create(&flagcxIbAsyncThread, NULL, flagcxIbAsyncThreadMain,
                          flagcxIbDevs + flagcxNIbDevs);
           flagcxSetThreadName(flagcxIbAsyncThread, "FLAGCX IbucAsync %2d",
                               flagcxNIbDevs);
@@ -217,8 +214,7 @@ flagcxResult_t flagcxIbucInit() {
           for (int i = 0; i < mergedDev->ndevs; i++) {
             int ibucDev = mergedDev->devs[i];
             snprintf(line + strlen(line), 2047 - strlen(line),
-                     "[%d] %s:%d/%s%s", ibucDev,
-                     flagcxIbDevs[ibucDev].devName,
+                     "[%d] %s:%d/%s%s", ibucDev, flagcxIbDevs[ibucDev].devName,
                      flagcxIbDevs[ibucDev].portNum,
                      flagcxIbDevs[ibucDev].link == IBV_LINK_LAYER_INFINIBAND
                          ? "IB"
@@ -251,8 +247,6 @@ fail:
   return ret;
 }
 
-
-
 // Function declarations
 flagcxResult_t flagcxIbucMalloc(void **ptr, size_t size);
 flagcxResult_t flagcxIbucCreateQpWithType(uint8_t ib_port,
@@ -277,7 +271,8 @@ static void flagcxIbucAddEvent(struct flagcxIbRequest *req, int devIndex,
   req->devBases[devIndex] = base;
 }
 
-flagcxResult_t flagcxIbucInitCommDevBase(int ibDevN, struct flagcxIbNetCommDevBase *base) {
+flagcxResult_t flagcxIbucInitCommDevBase(int ibDevN,
+                                         struct flagcxIbNetCommDevBase *base) {
   base->ibDevN = ibDevN;
   flagcxIbDev *ibucDev = flagcxIbDevs + ibDevN;
   pthread_mutex_lock(&ibucDev->lock);
@@ -297,8 +292,8 @@ flagcxResult_t flagcxIbucInitCommDevBase(int ibDevN, struct flagcxIbNetCommDevBa
   // Recv requests can generate 2 completions (one for the post FIFO, one for
   // the Recv).
   FLAGCXCHECK(flagcxWrapIbvCreateCq(
-      &base->cq, ibucDev->context,
-      2 * MAX_REQUESTS * flagcxParamIbQpsPerConn(), NULL, NULL, 0));
+      &base->cq, ibucDev->context, 2 * MAX_REQUESTS * flagcxParamIbQpsPerConn(),
+      NULL, NULL, 0));
 
   return flagcxSuccess;
 }
@@ -309,8 +304,8 @@ flagcxResult_t flagcxIbucDestroyBase(struct flagcxIbNetCommDevBase *base) {
 
   pthread_mutex_lock(&flagcxIbDevs[base->ibDevN].lock);
   if (0 == --flagcxIbDevs[base->ibDevN].pdRefs) {
-    FLAGCXCHECKGOTO(flagcxWrapIbvDeallocPd(flagcxIbDevs[base->ibDevN].pd),
-                    res, returning);
+    FLAGCXCHECKGOTO(flagcxWrapIbvDeallocPd(flagcxIbDevs[base->ibDevN].pd), res,
+                    returning);
   }
   res = flagcxSuccess;
 returning:
@@ -468,8 +463,7 @@ flagcxResult_t flagcxIbucConnect(int dev, void *opaqueHandle, void **sendComm) {
   FLAGCXCHECK(
       flagcxIbucMalloc((void **)&comm, sizeof(struct flagcxIbSendComm)));
   FLAGCXCHECK(flagcxSocketInit(&comm->base.sock, &handle->connectAddr,
-                               handle->magic, flagcxSocketTypeNetIb, NULL,
-                               1));
+                               handle->magic, flagcxSocketTypeNetIb, NULL, 1));
   stage->comm = comm;
   stage->state = flagcxIbCommStateConnect;
   FLAGCXCHECK(flagcxSocketConnect(&comm->base.sock));
@@ -545,8 +539,8 @@ ibuc_connect_check:
         ibucDev->portAttr.link_layer;
     if (devInfo->link_layer == IBV_LINK_LAYER_ETHERNET) {
       FLAGCXCHECK(flagcxIbGetGidIndex(ibucDev->context, ibucDev->portNum,
-                                        ibucDev->portAttr.gid_tbl_len,
-                                        &commDev->base.gidInfo.localGidIndex));
+                                      ibucDev->portAttr.gid_tbl_len,
+                                      &commDev->base.gidInfo.localGidIndex));
       FLAGCXCHECK(flagcxWrapIbvQueryGid(ibucDev->context, ibucDev->portNum,
                                         commDev->base.gidInfo.localGidIndex,
                                         &commDev->base.gidInfo.localGid));
@@ -607,9 +601,9 @@ ibuc_send:
 
 ibuc_connect:
   struct flagcxIbConnectionMetadata remMeta;
-  FLAGCXCHECK(flagcxSocketProgress(
-      FLAGCX_SOCKET_RECV, &comm->base.sock, stage->buffer,
-      sizeof(flagcxIbConnectionMetadata), &stage->offset));
+  FLAGCXCHECK(
+      flagcxSocketProgress(FLAGCX_SOCKET_RECV, &comm->base.sock, stage->buffer,
+                           sizeof(flagcxIbConnectionMetadata), &stage->offset));
   if (stage->offset != sizeof(remMeta))
     return flagcxSuccess;
 
@@ -650,12 +644,12 @@ ibuc_connect:
   }
 
   for (int i = 0; i < comm->base.ndevs; i++) {
-    FLAGCXCHECK(flagcxWrapIbvRegMr(
-        comm->remSizesFifo.mrs + i, comm->devs[i].base.pd,
-        &comm->remSizesFifo.elems,
-        sizeof(int) * MAX_REQUESTS * FLAGCX_NET_IB_MAX_RECVS,
-        IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE |
-            IBV_ACCESS_REMOTE_READ));
+    FLAGCXCHECK(
+        flagcxWrapIbvRegMr(comm->remSizesFifo.mrs + i, comm->devs[i].base.pd,
+                           &comm->remSizesFifo.elems,
+                           sizeof(int) * MAX_REQUESTS * FLAGCX_NET_IB_MAX_RECVS,
+                           IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE |
+                               IBV_ACCESS_REMOTE_READ));
   }
   comm->base.nRemDevs = remMeta.ndevs;
 
@@ -712,10 +706,8 @@ ibuc_send_ready:
 
 FLAGCX_PARAM(IbucGdrFlushDisable, "GDR_FLUSH_DISABLE", 0);
 
-
 flagcxResult_t flagcxIbucAccept(void *listenComm, void **recvComm) {
-  struct flagcxIbListenComm *lComm =
-      (struct flagcxIbListenComm *)listenComm;
+  struct flagcxIbListenComm *lComm = (struct flagcxIbListenComm *)listenComm;
   struct flagcxIbCommStage *stage = &lComm->stage;
   struct flagcxIbRecvComm *rComm = (struct flagcxIbRecvComm *)stage->comm;
   int ready;
@@ -793,8 +785,8 @@ ib_recv:
     FLAGCXCHECK(flagcxIbucInitCommDevBase(ibDevN, &rCommDev->base));
     ibucDev = flagcxIbDevs + ibDevN;
     FLAGCXCHECK(flagcxIbGetGidIndex(ibucDev->context, ibucDev->portNum,
-                                      ibucDev->portAttr.gid_tbl_len,
-                                      &rCommDev->base.gidInfo.localGidIndex));
+                                    ibucDev->portAttr.gid_tbl_len,
+                                    &rCommDev->base.gidInfo.localGidIndex));
     FLAGCXCHECK(flagcxWrapIbvQueryGid(ibucDev->context, ibucDev->portNum,
                                       rCommDev->base.gidInfo.localGidIndex,
                                       &rCommDev->base.gidInfo.localGid));
@@ -979,8 +971,6 @@ flagcxResult_t flagcxIbucGetRequest(struct flagcxIbNetCommBase *base,
   return flagcxInternalError;
 }
 
-
-
 flagcxResult_t flagcxIbucRegMrDmaBufInternal(flagcxIbNetCommDevBase *base,
                                              void *data, size_t size, int type,
                                              uint64_t offset, int fd,
@@ -1145,8 +1135,7 @@ returning:
 }
 
 flagcxResult_t flagcxIbucDeregMr(void *comm, void *mhandle) {
-  struct flagcxIbMrHandle *mhandleWrapper =
-      (struct flagcxIbMrHandle *)mhandle;
+  struct flagcxIbMrHandle *mhandleWrapper = (struct flagcxIbMrHandle *)mhandle;
   struct flagcxIbNetCommBase *base = (struct flagcxIbNetCommBase *)comm;
   for (int i = 0; i < base->ndevs; i++) {
     struct flagcxIbNetCommDevBase *devComm =
@@ -1278,8 +1267,7 @@ flagcxResult_t flagcxIbucIsend(void *sendComm, void *data, size_t size, int tag,
     return flagcxSuccess;
   }
 
-  struct flagcxIbMrHandle *mhandleWrapper =
-      (struct flagcxIbMrHandle *)mhandle;
+  struct flagcxIbMrHandle *mhandleWrapper = (struct flagcxIbMrHandle *)mhandle;
 
   // Wait for the receiver to have posted the corresponding receive
   int nreqs = 0;
@@ -1364,8 +1352,7 @@ flagcxResult_t flagcxIbucIsend(void *sendComm, void *data, size_t size, int tag,
     // Clear slots[0]->nreqs, as well as other fields to help debugging and
     // sanity checks
     memset((void *)slots, 0, sizeof(struct flagcxIbSendFifo));
-    memset(reqs, 0,
-           FLAGCX_NET_IB_MAX_RECVS * sizeof(struct flagcxIbRequest *));
+    memset(reqs, 0, FLAGCX_NET_IB_MAX_RECVS * sizeof(struct flagcxIbRequest *));
     comm->fifoHead++;
     TIME_STOP(0);
     return flagcxSuccess;
@@ -1546,8 +1533,7 @@ flagcxResult_t flagcxIbucIflush(void *recvComm, int n, void **data, int *sizes,
 
     // Use RDMA_READ for flush operations
     wr.wr.rdma.remote_addr = (uint64_t)data[last];
-    wr.wr.rdma.rkey =
-        ((struct flagcxIbMrHandle *)mhandles[last])->mrs[i]->rkey;
+    wr.wr.rdma.rkey = ((struct flagcxIbMrHandle *)mhandles[last])->mrs[i]->rkey;
     wr.sg_list = &comm->devs[i].gpuFlush.sge;
     wr.num_sge = 1;
     wr.opcode = IBV_WR_RDMA_READ;

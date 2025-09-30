@@ -12,8 +12,8 @@
 #ifdef USE_UCX
 
 #include "check.h"
-#include "socket.h"
 #include "ib_common.h"
+#include "socket.h"
 #include <pthread.h>
 #include <ucp/api/ucp.h>
 

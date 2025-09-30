@@ -10,8 +10,8 @@
 #define FLAGCX_IB_COMMON_H_
 
 #include "flagcx_net.h"
-#include "net.h"
 #include "ibvcore.h"
+#include "net.h"
 #include <pthread.h>
 #include <stdint.h>
 
@@ -56,7 +56,6 @@ struct flagcxIbMrCache {
 struct flagcxIbStats {
   int fatalErrorCount;
 };
-
 
 struct flagcxIbDev {
   pthread_mutex_t lock;
@@ -274,7 +273,6 @@ extern pthread_mutex_t flagcxIbLock;
 extern int flagcxIbRelaxedOrderingEnabled;
 extern pthread_t flagcxIbAsyncThread;
 
-
 // Parameter functions
 extern int64_t flagcxParamIbGidIndex(void);
 extern int64_t flagcxParamIbRoceVersionNum(void);
@@ -295,14 +293,24 @@ extern int64_t flagcxParamIbQpsPerConn(void);
 extern sa_family_t envIbAddrFamily(void);
 extern void *envIbAddrRange(sa_family_t af, int *mask);
 extern sa_family_t getGidAddrFamily(union ibv_gid *gid);
-extern bool matchGidAddrPrefix(sa_family_t af, void *prefix, int prefixlen, union ibv_gid *gid);
+extern bool matchGidAddrPrefix(sa_family_t af, void *prefix, int prefixlen,
+                               union ibv_gid *gid);
 extern bool configuredGid(union ibv_gid *gid);
 extern bool linkLocalGid(union ibv_gid *gid);
 extern bool validGid(union ibv_gid *gid);
-extern flagcxResult_t flagcxIbRoceGetVersionNum(const char *deviceName, int portNum, int gidIndex, int *version);
-extern flagcxResult_t flagcxUpdateGidIndex(struct ibv_context *context, uint8_t portNum, sa_family_t af, void *prefix, int prefixlen, int roceVer, int gidIndexCandidate, int *gidIndex);
-extern flagcxResult_t flagcxIbGetGidIndex(struct ibv_context *context, uint8_t portNum, int gidTblLen, int *gidIndex);
-extern flagcxResult_t flagcxIbGetPciPath(char *devName, char **path, int *realPort);
+extern flagcxResult_t flagcxIbRoceGetVersionNum(const char *deviceName,
+                                                int portNum, int gidIndex,
+                                                int *version);
+extern flagcxResult_t flagcxUpdateGidIndex(struct ibv_context *context,
+                                           uint8_t portNum, sa_family_t af,
+                                           void *prefix, int prefixlen,
+                                           int roceVer, int gidIndexCandidate,
+                                           int *gidIndex);
+extern flagcxResult_t flagcxIbGetGidIndex(struct ibv_context *context,
+                                          uint8_t portNum, int gidTblLen,
+                                          int *gidIndex);
+extern flagcxResult_t flagcxIbGetPciPath(char *devName, char **path,
+                                         int *realPort);
 extern int flagcxIbWidth(int width);
 extern int flagcxIbSpeed(int speed);
 extern int flagcxIbRelaxedOrderingCapable(void);
@@ -319,7 +327,6 @@ extern flagcxResult_t flagcxIbGdrSupport(void);
 extern flagcxResult_t flagcxIbDmaBufSupport(int dev);
 extern flagcxResult_t flagcxIbFreeRequest(struct flagcxIbRequest *r);
 
-
 static_assert((sizeof(struct flagcxIbNetCommBase) % 32) == 0,
               "flagcxIbNetCommBase size must be 32-byte multiple to ensure "
               "fifo is at proper offset");
@@ -333,9 +340,9 @@ static_assert((offsetof(struct flagcxIbSendComm, wrs) % 32) == 0,
               "wrs must be 32-byte aligned");
 static_assert((offsetof(struct flagcxIbRecvComm, remFifo) % 32) == 0,
               "flagcxIbRecvComm fifo must be 32-byte aligned");
-static_assert(sizeof(struct flagcxIbHandle) < FLAGCX_NET_HANDLE_MAXSIZE,
-              "flagcxIbHandle size must be smaller than FLAGCX_NET_HANDLE_MAXSIZE");
-
+static_assert(
+    sizeof(struct flagcxIbHandle) < FLAGCX_NET_HANDLE_MAXSIZE,
+    "flagcxIbHandle size must be smaller than FLAGCX_NET_HANDLE_MAXSIZE");
 
 static_assert(MAX_REQUESTS <= 256, "request id are encoded in wr_id and we "
                                    "need up to 8 requests ids per completion");

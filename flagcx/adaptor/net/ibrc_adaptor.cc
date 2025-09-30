@@ -8,25 +8,24 @@
 #include "core.h"
 #include "flagcx_common.h"
 #include "flagcx_net.h"
+#include "ib_common.h"
 #include "ibvwrap.h"
+#include "net.h"
 #include "param.h"
 #include "socket.h"
+#include "timer.h"
 #include "utils.h"
-#include "ib_common.h"
 #include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <sys/socket.h>
-#include "ib_common.h"
-#include "net.h"
-#include "timer.h"
 
 char flagcxIbIfName[MAX_IF_NAME_SIZE + 1];
 union flagcxSocketAddress flagcxIbIfAddr;
@@ -55,7 +54,6 @@ struct flagcxIbMergedDev flagcxIbMergedDevs[MAX_IB_VDEVS];
 struct flagcxIbDev flagcxIbDevs[MAX_IB_DEVS];
 pthread_mutex_t flagcxIbLock = PTHREAD_MUTEX_INITIALIZER;
 int flagcxIbRelaxedOrderingEnabled = 0;
-
 
 pthread_t flagcxIbAsyncThread;
 void *flagcxIbAsyncThreadMain(void *args) {
@@ -217,9 +215,8 @@ bool validGid(union ibv_gid *gid) {
   return (configuredGid(gid) && !linkLocalGid(gid));
 }
 
-flagcxResult_t flagcxIbRoceGetVersionNum(const char *deviceName,
-                                         int portNum, int gidIndex,
-                                         int *version) {
+flagcxResult_t flagcxIbRoceGetVersionNum(const char *deviceName, int portNum,
+                                         int gidIndex, int *version) {
   char gidRoceVerStr[16] = {0};
   char roceTypePath[PATH_MAX] = {0};
   sprintf(roceTypePath, "/sys/class/infiniband/%s/ports/%d/gid_attrs/types/%d",
@@ -250,9 +247,8 @@ flagcxResult_t flagcxIbRoceGetVersionNum(const char *deviceName,
 
 flagcxResult_t flagcxUpdateGidIndex(struct ibv_context *context,
                                     uint8_t portNum, sa_family_t af,
-                                    void *prefix, int prefixlen,
-                                    int roceVer, int gidIndexCandidate,
-                                    int *gidIndex) {
+                                    void *prefix, int prefixlen, int roceVer,
+                                    int gidIndexCandidate, int *gidIndex) {
   union ibv_gid gid, gidCandidate;
   FLAGCXCHECK(flagcxWrapIbvQueryGid(context, portNum, *gidIndex, &gid));
   FLAGCXCHECK(flagcxWrapIbvQueryGid(context, portNum, gidIndexCandidate,
@@ -288,9 +284,8 @@ flagcxResult_t flagcxUpdateGidIndex(struct ibv_context *context,
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxIbGetGidIndex(struct ibv_context *context,
-                                   uint8_t portNum, int gidTblLen,
-                                   int *gidIndex) {
+flagcxResult_t flagcxIbGetGidIndex(struct ibv_context *context, uint8_t portNum,
+                                   int gidTblLen, int *gidIndex) {
   *gidIndex = flagcxParamIbGidIndex();
   if (*gidIndex >= 0) {
     return flagcxSuccess;
@@ -311,9 +306,7 @@ flagcxResult_t flagcxIbGetGidIndex(struct ibv_context *context,
   return flagcxSuccess;
 }
 
-
-flagcxResult_t flagcxIbGetPciPath(char *devName, char **path,
-                                  int *realPort) {
+flagcxResult_t flagcxIbGetPciPath(char *devName, char **path, int *realPort) {
   char devicePath[PATH_MAX];
   snprintf(devicePath, PATH_MAX, "/sys/class/infiniband/%s/device", devName);
   char *p = realpath(devicePath, NULL);
@@ -609,7 +602,6 @@ fail:
 }
 
 const char *reqTypeStr[] = {"Unused", "Send", "Recv", "Flush"};
-
 
 static void flagcxIbAddEvent(struct flagcxIbRequest *req, int devIndex,
                              struct flagcxIbNetCommDevBase *base) {
