@@ -8,11 +8,11 @@
 #include "core.h"
 #include "flagcx_common.h"
 #include "flagcx_net.h"
+#include "ib_common.h"
 #include "ibvwrap.h"
 #include "param.h"
 #include "socket.h"
 #include "utils.h"
-#include "ib_common.h"
 #include <assert.h>
 #include <poll.h>
 #include <pthread.h>
@@ -753,7 +753,6 @@ struct alignas(8) flagcxIbSendCommDev {
   struct flagcxIbNetCommDevBase base;
   struct ibv_mr *fifoMr;
 };
-
 
 struct alignas(32) flagcxIbNetCommBase {
   int ndevs;

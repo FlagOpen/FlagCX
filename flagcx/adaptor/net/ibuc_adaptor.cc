@@ -10,11 +10,11 @@
 #include "core.h"
 #include "flagcx_common.h"
 #include "flagcx_net.h"
+#include "ib_common.h"
 #include "ibvwrap.h"
 #include "param.h"
 #include "socket.h"
 #include "utils.h"
-#include "ib_common.h"
 #include <assert.h>
 #include <poll.h>
 #include <pthread.h>
@@ -40,7 +40,6 @@ struct flagcxIbucConnectionMetadata {
   uint64_t fifoAddr;
   int ndevs;
 };
-
 
 struct flagcxIbucRequest {
   struct flagcxIbucNetCommBase *base;
@@ -106,7 +105,6 @@ struct flagcxIbucSendCommDev {
   struct flagcxIbucNetCommDevBase base;
   struct ibv_mr *fifoMr;
 };
-
 
 struct alignas(32) flagcxIbucNetCommBase {
   int ndevs;
@@ -590,8 +588,8 @@ int flagcxIbucFindMatchingDev(int dev) {
   for (int i = 0; i < flagcxNMergedIbucDevs; i++) {
     if (flagcxIbMergedDevs[i].ndevs < FLAGCX_IB_MAX_DEVS_PER_NIC) {
       int compareDev = flagcxIbMergedDevs[i].devs[0];
-      if (strcmp(flagcxIbDevs[dev].pciPath,
-                 flagcxIbDevs[compareDev].pciPath) == 0 &&
+      if (strcmp(flagcxIbDevs[dev].pciPath, flagcxIbDevs[compareDev].pciPath) ==
+              0 &&
           (flagcxIbDevs[dev].guid == flagcxIbDevs[compareDev].guid) &&
           (flagcxIbDevs[dev].link == flagcxIbDevs[compareDev].link)) {
         TRACE(FLAGCX_NET,
@@ -600,8 +598,8 @@ int flagcxIbucFindMatchingDev(int dev) {
               flagcxIbDevs[dev].devName, flagcxIbDevs[dev].pciPath,
               flagcxIbDevs[dev].guid, flagcxIbDevs[dev].link,
               flagcxIbDevs[compareDev].devName,
-              flagcxIbDevs[compareDev].pciPath,
-              flagcxIbDevs[compareDev].guid, flagcxIbDevs[compareDev].link);
+              flagcxIbDevs[compareDev].pciPath, flagcxIbDevs[compareDev].guid,
+              flagcxIbDevs[compareDev].link);
         return i;
       }
     }
@@ -720,8 +718,7 @@ flagcxResult_t flagcxIbucInit() {
           flagcxIbDevs[flagcxNIbucDevs].ar =
               (portAttr.link_layer == IBV_LINK_LAYER_INFINIBAND) ? 1 : 0;
           if (flagcxParamIbucAdaptiveRouting() != -2)
-            flagcxIbDevs[flagcxNIbucDevs].ar =
-                flagcxParamIbucAdaptiveRouting();
+            flagcxIbDevs[flagcxNIbucDevs].ar = flagcxParamIbucAdaptiveRouting();
 
           TRACE(
               FLAGCX_NET,
@@ -798,8 +795,7 @@ flagcxResult_t flagcxIbucInit() {
           for (int i = 0; i < mergedDev->ndevs; i++) {
             int ibucDev = mergedDev->devs[i];
             snprintf(line + strlen(line), 2047 - strlen(line),
-                     "[%d] %s:%d/%s%s", ibucDev,
-                     flagcxIbDevs[ibucDev].devName,
+                     "[%d] %s:%d/%s%s", ibucDev, flagcxIbDevs[ibucDev].devName,
                      flagcxIbDevs[ibucDev].portNum,
                      flagcxIbDevs[ibucDev].link == IBV_LINK_LAYER_INFINIBAND
                          ? "IB"
@@ -831,7 +827,6 @@ fail:
   pthread_mutex_unlock(&flagcxIbucLock);
   return ret;
 }
-
 
 // Structures already defined above
 // The SendFifo needs to be 32-byte aligned and each element needs
@@ -1073,8 +1068,7 @@ flagcxResult_t flagcxIbucConnect(int dev, void *opaqueHandle, void **sendComm) {
   FLAGCXCHECK(
       flagcxIbucMalloc((void **)&comm, sizeof(struct flagcxIbucSendComm)));
   FLAGCXCHECK(flagcxSocketInit(&comm->base.sock, &handle->connectAddr,
-                               handle->magic, flagcxSocketTypeNetIb, NULL,
-                               1));
+                               handle->magic, flagcxSocketTypeNetIb, NULL, 1));
   stage->comm = comm;
   stage->state = flagcxIbCommStateConnect;
   FLAGCXCHECK(flagcxSocketConnect(&comm->base.sock));
@@ -1756,8 +1750,7 @@ returning:
 }
 
 flagcxResult_t flagcxIbucDeregMr(void *comm, void *mhandle) {
-  struct flagcxIbMrHandle *mhandleWrapper =
-      (struct flagcxIbMrHandle *)mhandle;
+  struct flagcxIbMrHandle *mhandleWrapper = (struct flagcxIbMrHandle *)mhandle;
   struct flagcxIbucNetCommBase *base = (struct flagcxIbucNetCommBase *)comm;
   for (int i = 0; i < base->ndevs; i++) {
     struct flagcxIbucNetCommDevBase *devComm =
@@ -1889,8 +1882,7 @@ flagcxResult_t flagcxIbucIsend(void *sendComm, void *data, size_t size, int tag,
     return flagcxSuccess;
   }
 
-  struct flagcxIbMrHandle *mhandleWrapper =
-      (struct flagcxIbMrHandle *)mhandle;
+  struct flagcxIbMrHandle *mhandleWrapper = (struct flagcxIbMrHandle *)mhandle;
 
   // Wait for the receiver to have posted the corresponding receive
   int nreqs = 0;
@@ -2157,8 +2149,7 @@ flagcxResult_t flagcxIbucIflush(void *recvComm, int n, void **data, int *sizes,
 
     // Use RDMA_READ for flush operations
     wr.wr.rdma.remote_addr = (uint64_t)data[last];
-    wr.wr.rdma.rkey =
-        ((struct flagcxIbMrHandle *)mhandles[last])->mrs[i]->rkey;
+    wr.wr.rdma.rkey = ((struct flagcxIbMrHandle *)mhandles[last])->mrs[i]->rkey;
     wr.sg_list = &comm->devs[i].gpuFlush.sge;
     wr.num_sge = 1;
     wr.opcode = IBV_WR_RDMA_READ;
