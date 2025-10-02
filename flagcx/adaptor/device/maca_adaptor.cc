@@ -50,14 +50,14 @@ flagcxResult_t macaAdaptorDeviceMalloc(void **ptr, size_t size,
                                        flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(mcMallocHost(ptr, size));
-  } else if (type == flagcxMemDevice) {
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(mcMallocManaged(ptr, size, mcMemAttachGlobal));
+  } else {
     if (stream == NULL) {
       DEVCHECK(mcMalloc(ptr, size));
     } else {
       DEVCHECK(mcMallocAsync(ptr, size, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(mcMallocManaged(ptr, size, mcMemAttachGlobal));
   }
   return flagcxSuccess;
 }
@@ -66,14 +66,14 @@ flagcxResult_t macaAdaptorDeviceFree(void *ptr, flagcxMemType_t type,
                                      flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(mcFreeHost(ptr));
-  } else if (type == flagcxMemDevice) {
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(mcFree(ptr));
+  } else {
     if (stream == NULL) {
       DEVCHECK(mcFree(ptr));
     } else {
       DEVCHECK(mcFreeAsync(ptr, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(mcFree(ptr));
   }
   return flagcxSuccess;
 }
