@@ -67,9 +67,9 @@ flagcxResult_t mcclAdaptorCommUserRank(const flagcxInnerComm_t comm,
 }
 
 flagcxResult_t mcclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                            flagcxResult_t asyncError) {
+                                            flagcxResult_t *asyncError) {
   return (flagcxResult_t)mcclCommGetAsyncError(comm->base,
-                                               (mcclResult_t *)&asyncError);
+                                               (mcclResult_t *)asyncError);
 }
 
 // TODO: unsupported

@@ -222,7 +222,7 @@ const char *flagcxGetLastError(flagcxComm_t comm);
 
 /* Checks whether the comm has encountered any asynchronous errors */
 flagcxResult_t flagcxCommGetAsyncError(flagcxComm_t comm,
-                                       flagcxResult_t asyncError);
+                                       flagcxResult_t *asyncError);
 
 /* Gets the number of ranks in the communicator clique. */
 flagcxResult_t flagcxCommCount(const flagcxComm_t comm, int *count);

@@ -131,7 +131,7 @@ flagcxResult_t xcclAdaptorMemFree(void *ptr) { return flagcxNotSupported; }
 
 // Unsupported
 flagcxResult_t xcclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                            flagcxResult_t asyncError) {
+                                            flagcxResult_t *asyncError) {
   return flagcxNotSupported;
 }
 

@@ -111,7 +111,7 @@ flagcxResult_t glooAdaptorCommUserRank(const flagcxInnerComm_t comm,
 
 // TODO: unsupported
 flagcxResult_t glooAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                            flagcxResult_t asyncError) {
+                                            flagcxResult_t *asyncError) {
   return flagcxNotSupported;
 }
 

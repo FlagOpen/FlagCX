@@ -66,9 +66,9 @@ flagcxResult_t ncclAdaptorCommUserRank(const flagcxInnerComm_t comm,
 }
 
 flagcxResult_t ncclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                            flagcxResult_t asyncError) {
+                                            flagcxResult_t *asyncError) {
   return (flagcxResult_t)ncclCommGetAsyncError(comm->base,
-                                               (ncclResult_t *)&asyncError);
+                                               (ncclResult_t *)asyncError);
 }
 
 flagcxResult_t ncclAdaptorMemAlloc(void **ptr, size_t size) {

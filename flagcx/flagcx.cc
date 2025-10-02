@@ -694,7 +694,7 @@ flagcxResult_t flagcxCommUserRank(const flagcxComm_t comm, int *rank) {
 }
 
 flagcxResult_t flagcxCommGetAsyncError(flagcxComm_t comm,
-                                       flagcxResult_t asyncError) {
+                                       flagcxResult_t *asyncError) {
   FLAGCXCHECK(flagcxEnsureCommReady(comm));
   if (is_homo_comm(comm)) {
     return cclAdaptors[flagcxCCLAdaptorDevice]->commGetAsyncError(

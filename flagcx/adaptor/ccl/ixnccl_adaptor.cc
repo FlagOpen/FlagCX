@@ -67,9 +67,9 @@ flagcxResult_t ixncclAdaptorCommUserRank(const flagcxInnerComm_t comm,
 }
 
 flagcxResult_t ixncclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                              flagcxResult_t asyncError) {
+                                              flagcxResult_t *asyncError) {
   return (flagcxResult_t)ncclCommGetAsyncError(comm->base,
-                                               (ncclResult_t *)&asyncError);
+                                               (ncclResult_t *)asyncError);
 }
 
 // TODO: unsupported

@@ -50,12 +50,15 @@ jobs:
           apt update -y
           apt-get install clang-format -y
           git fetch --all
-          from_ref=${GITHUB_HEAD_REF}
-          to_ref=${GITHUB_BASE_REF}
-
-          echo "From branch: $from_ref, To branch: $to_ref"
-
-          pre-commit run --from-ref "origin/$from_ref" --to-ref "origin/$to_ref"
+          if [ -n "$GITHUB_HEAD_REF" ] && [ -n "$GITHUB_BASE_REF" ]; then
+            from_ref="origin/$GITHUB_HEAD_REF"
+            to_ref="origin/$GITHUB_BASE_REF"
+          else
+            from_ref="HEAD^"
+            to_ref="HEAD"
+          fi
+          echo "From reference: $from_ref; To reference: $to_ref"
+          pre-commit run --from-ref "$from_ref" --to-ref "$to_ref"
         continue-on-error: false
 
       - name: Build Google Test

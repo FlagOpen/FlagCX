@@ -45,14 +45,14 @@ flagcxResult_t cudaAdaptorDeviceMalloc(void **ptr, size_t size,
                                        flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(cudaHostAlloc(ptr, size, cudaHostAllocMapped));
-  } else if (type == flagcxMemDevice) {
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(cudaMallocManaged(ptr, size, cudaMemAttachGlobal));
+  } else {
     if (stream == NULL) {
       DEVCHECK(cudaMalloc(ptr, size));
     } else {
       DEVCHECK(cudaMallocAsync(ptr, size, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(cudaMallocManaged(ptr, size, cudaMemAttachGlobal));
   }
   return flagcxSuccess;
 }
@@ -61,14 +61,14 @@ flagcxResult_t cudaAdaptorDeviceFree(void *ptr, flagcxMemType_t type,
                                      flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(cudaFreeHost(ptr));
-  } else if (type == flagcxMemDevice) {
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(cudaFree(ptr));
+  } else {
     if (stream == NULL) {
       DEVCHECK(cudaFree(ptr));
     } else {
       DEVCHECK(cudaFreeAsync(ptr, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(cudaFree(ptr));
   }
   return flagcxSuccess;
 }

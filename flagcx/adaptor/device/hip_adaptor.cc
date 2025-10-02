@@ -45,14 +45,14 @@ flagcxResult_t hipAdaptorDeviceMalloc(void **ptr, size_t size,
                                       flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(hipHostMalloc(ptr, size));
-  } else if (type == flagcxMemDevice) {
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(hipMallocManaged(ptr, size, hipMemAttachGlobal));
+  } else {
     if (stream == NULL) {
       DEVCHECK(hipMalloc(ptr, size));
     } else {
       DEVCHECK(hipMallocAsync(ptr, size, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(hipMallocManaged(ptr, size, hipMemAttachGlobal));
   }
   return flagcxSuccess;
 }
@@ -61,14 +61,14 @@ flagcxResult_t hipAdaptorDeviceFree(void *ptr, flagcxMemType_t type,
                                     flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(hipFreeHost(ptr));
-  } else if (type == flagcxMemDevice) {
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(hipFree(ptr));
+  } else {
     if (stream == NULL) {
       DEVCHECK(hipFree(ptr));
     } else {
       DEVCHECK(hipFreeAsync(ptr, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(hipFree(ptr));
   }
   return flagcxSuccess;
 }
