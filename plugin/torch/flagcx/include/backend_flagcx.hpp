@@ -182,7 +182,7 @@ public:
 #elif USE_CAMBRICON_ADAPTOR
     devName = "mlu";
 #elif USE_METAX_ADAPTOR
-    devName = "maca";
+    devName = "cuda";
 #elif USE_MUSA_ADAPTOR
     devName = "musa";
 #elif USE_DU_ADAPTOR
