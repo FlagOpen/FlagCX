@@ -6,10 +6,6 @@
 #include <pthread.h>
 #include <stdlib.h>  // for setenv, getenv
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static void ncclLoadParam(char const* env, int64_t deftVal, int64_t* value) {
   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
   pthread_mutex_lock(&mutex);
@@ -35,8 +31,3 @@ static void ncclLoadParam(char const* env, int64_t deftVal, int64_t* value) {
 // In order to intercept a NCCL environment getter function, add an additional line of NCCL_PRARM here.
 // Below is an example of intercepting NCCL_P2P_NVL_CHUNKSIZE env.
 NCCL_PARAM(P2pNvlChunkSize, "P2P_NVL_CHUNKSIZE", (1 << 19)); /* 512 kB */
-
-
-#ifdef __cplusplus
-}
-#endif
