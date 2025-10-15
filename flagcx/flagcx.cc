@@ -81,6 +81,9 @@ static struct flagcxDeviceHandle globalDeviceHandle {
       deviceAdaptor->eventCreate, deviceAdaptor->eventDestroy,
       deviceAdaptor->eventRecord, deviceAdaptor->eventSynchronize,
       deviceAdaptor->eventQuery,
+      // IpcMemHandle functions (to be removed)
+      deviceAdaptor->ipcMemHandleGet, deviceAdaptor->ipcMemHandleOpen,
+      deviceAdaptor->ipcMemHandleClose,
 };
 
 flagcxResult_t flagcxEnsureCommReady(flagcxComm_t comm) {

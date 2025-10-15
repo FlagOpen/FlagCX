@@ -186,6 +186,13 @@ struct flagcxDeviceAdaptor {
   flagcxResult_t (*eventSynchronize)(flagcxEvent_t event);
   flagcxResult_t (*eventQuery)(flagcxEvent_t event);
 
+  // IpcMemHandle functions
+  flagcxResult_t (*ipcMemHandleGet)(flagcxIpcMemHandle_t *handle, void *devPtr);
+  flagcxResult_t (*ipcMemHandleOpen)(flagcxIpcMemHandle_t handle,
+                                     void **devPtr);
+  flagcxResult_t (*ipcMemHandleClose)(flagcxIpcMemHandle_t handle,
+                                      void *devPtr);
+
   // Kernel launch
   // TODO: verify if we do need these funcs, if so, figure out a way to
   // eliminate overly fine-grained arguments such as block_xxx, grid_xxx, etc.
