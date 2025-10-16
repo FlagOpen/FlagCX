@@ -152,7 +152,8 @@ struct flagcxDeviceHandle {
   flagcxResult_t (*ipcMemHandleGet)(flagcxIpcMemHandle_t *handle, void *devPtr);
   flagcxResult_t (*ipcMemHandleOpen)(flagcxIpcMemHandle_t handle,
                                      void **devPtr);
-  flagcxResult_t (*ipcMemHandleClose)(void *devPtr);
+  flagcxResult_t (*ipcMemHandleClose)(flagcxIpcMemHandle_t handle,
+                                      void *devPtr);
 };
 typedef struct flagcxDeviceHandle *flagcxDeviceHandle_t;
 

@@ -190,7 +190,8 @@ struct flagcxDeviceAdaptor {
   flagcxResult_t (*ipcMemHandleGet)(flagcxIpcMemHandle_t *handle, void *devPtr);
   flagcxResult_t (*ipcMemHandleOpen)(flagcxIpcMemHandle_t handle,
                                      void **devPtr);
-  flagcxResult_t (*ipcMemHandleClose)(void *devPtr);
+  flagcxResult_t (*ipcMemHandleClose)(flagcxIpcMemHandle_t handle,
+                                      void *devPtr);
 
   // Kernel launch
   // TODO: verify if we do need these funcs, if so, figure out a way to
