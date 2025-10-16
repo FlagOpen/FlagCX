@@ -28,6 +28,6 @@ static void ncclLoadParam(char const* env, int64_t deftVal, int64_t* value) {
     return value;				 \
   }
 
-// In order to intercept a NCCL environment getter function, add an additional line of NCCL_PRARM here.
+// In order to intercept a NCCL environment getter function, add an additional line of NCCL_PARAM here.
 // Below is an example of intercepting NCCL_P2P_NVL_CHUNKSIZE env.
 NCCL_PARAM(P2pNvlChunkSize, "P2P_NVL_CHUNKSIZE", (1 << 19)); /* 512 kB */
