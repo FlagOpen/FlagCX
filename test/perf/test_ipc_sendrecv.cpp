@@ -75,13 +75,13 @@ int main(int argc, char *argv[]) {
   flagcxShmIpcDesc_t shmDesc;
   void *shmPtr;
   flagcxShmAllocateShareableBuffer(sizeof(shmDesc), &shmDesc, &shmPtr, NULL);
-  memcpy(shmPtr, &recvIpcHandle, sizeof(recvIpcHandle));
-  printf("proc %d shmPtr %p val %s handle %s suffix %s\n", proc, shmPtr,
+  memcpy(shmPtr, &recvIpcHandle, sizeof(*recvIpcHandle));
+  printf("proc %d shmPtr %p val %s handle %p suffix %s\n", proc, shmPtr,
          (char *)shmPtr, shmDesc.handle, shmDesc.shmSuffix);
 
   // open ipc handle
-  void *peerRecvBuff;
-  devHandle->ipcMemHandleOpen(recvIpcHandle, &peerRecvBuff);
+  // void *peerRecvBuff;
+  // devHandle->ipcMemHandleOpen(recvIpcHandle, &peerRecvBuff);
 
   // // Warm-up for large size
   // for (int i = 0; i < num_warmup_iters; i++) {
@@ -157,7 +157,8 @@ int main(int argc, char *argv[]) {
   }
 
   // close ipc handle
-  devHandle->ipcMemHandleClose(sendIpcHandle, peerRecvBuff);
+  // devHandle->ipcMemHandleClose(sendIpcHandle, peerRecvBuff);
+  devHandle->ipcMemHandleClose(recvIpcHandle, NULL);
 
   // if (local_register) {
   //   // deregister buffer

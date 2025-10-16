@@ -288,24 +288,31 @@ flagcxResult_t cudaAdaptorEventQuery(flagcxEvent_t event) {
 
 flagcxResult_t cudaAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t *handle,
                                           void *devPtr) {
-  if (handle != NULL && devPtr != NULL) {
-    DEVCHECK(cudaIpcGetMemHandle(&(handle->base), devPtr));
+  if (devPtr != NULL) {
+    (*handle) = NULL;
+    flagcxCalloc(handle, 1);
+    DEVCHECK(cudaIpcGetMemHandle(&(*handle)->base, devPtr));
   }
   return flagcxSuccess;
 }
 
 flagcxResult_t cudaAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
                                            void **devPtr) {
-  if (devPtr != NULL) {
-    DEVCHECK(cudaIpcOpenMemHandle(devPtr, handle.base,
+  if (handle != NULL && devPtr != NULL) {
+    DEVCHECK(cudaIpcOpenMemHandle(devPtr, handle->base,
                                   cudaIpcMemLazyEnablePeerAccess));
   }
   return flagcxSuccess;
 }
 
-flagcxResult_t cudaAdaptorIpcMemHandleClose(void *devPtr) {
+flagcxResult_t cudaAdaptorIpcMemHandleClose(flagcxIpcMemHandle_t handle,
+                                            void *devPtr) {
   if (devPtr != NULL) {
     DEVCHECK(cudaIpcCloseMemHandle(devPtr));
+  }
+  if (handle != NULL) {
+    free(handle);
+    handle = NULL;
   }
   return flagcxSuccess;
 }
