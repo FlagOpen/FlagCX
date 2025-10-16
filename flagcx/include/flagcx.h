@@ -108,7 +108,7 @@ typedef struct flagcxStream *flagcxStream_t;
 /* Opaque handle to flagcxEvent */
 typedef struct flagcxEvent *flagcxEvent_t;
 /* Opaque handle to flagcxIpcMemHandle */
-typedef struct flagcxIpcMemHandle *flagcxIpcMemHandle_t;
+typedef struct flagcxIpcMemHandle flagcxIpcMemHandle_t;
 
 /* Func(kernel) arguments */
 typedef struct {
@@ -152,8 +152,7 @@ struct flagcxDeviceHandle {
   flagcxResult_t (*ipcMemHandleGet)(flagcxIpcMemHandle_t *handle, void *devPtr);
   flagcxResult_t (*ipcMemHandleOpen)(flagcxIpcMemHandle_t handle,
                                      void **devPtr);
-  flagcxResult_t (*ipcMemHandleClose)(flagcxIpcMemHandle_t handle,
-                                      void *devPtr);
+  flagcxResult_t (*ipcMemHandleClose)(void *devPtr);
 };
 typedef struct flagcxDeviceHandle *flagcxDeviceHandle_t;
 

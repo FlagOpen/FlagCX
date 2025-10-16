@@ -1,5 +1,5 @@
 #include "flagcx.h"
-#include "ipcsocket.h"
+#include "shmutils.h"
 #include "tools.h"
 #include "utils.h"
 #include <cstring>
@@ -68,29 +68,16 @@ int main(int argc, char *argv[]) {
   // init ipc handle
   flagcxIpcMemHandle_t sendIpcHandle;
   flagcxIpcMemHandle_t recvIpcHandle;
-  devHandle->ipcMemHandleGet(&sendIpcHandle, sendbuff);
-  // devHandle->ipcMemHandleGet(&recvIpcHandle, recvbuff);
+  // devHandle->ipcMemHandleGet(&sendIpcHandle, sendbuff);
+  devHandle->ipcMemHandleGet(&recvIpcHandle, recvbuff);
 
-  // init UDS
-  int fd;
-  void *opId;
-  struct flagcxIpcSocket *ipcSock;
-  flagcxIpcSocketInit(ipcSock, proc, getRandomData(&opId, sizeof(opId)), 0);
-  flagcxIpcSocketGetFd(ipcSock, &fd);
-
-  // exchange fd
-  int recvFd;
-  flagcxIpcSocketSendFd(ipcSock, fd, peerSend, (uint64_t)opId);
-  flagcxIpcSocketRecvFd(ipcSock, &recvFd);
-
-  // exchange ipc handle
-  flagcxIpcSocketSendMsg(ipcSock, (void *)sendIpcHandle, sizeof(*sendIpcHandle),
-                         -1, peerSend, 0);
-  flagcxIpcSocketRecvMsg(ipcSock, (void *)recvIpcHandle, sizeof(*recvIpcHandle),
-                         &recvFd);
-
-  // close UDS
-  flagcxIpcSocketClose(ipcSock);
+  // init shared memory for ipc handle exchange
+  flagcxShmIpcDesc_t shmDesc;
+  void *shmPtr;
+  flagcxShmAllocateShareableBuffer(sizeof(shmDesc), &shmDesc, &shmPtr, NULL);
+  memcpy(shmPtr, &recvIpcHandle, sizeof(recvIpcHandle));
+  printf("proc %d shmPtr %p val %s handle %s suffix %s\n", proc, shmPtr,
+         (char *)shmPtr, shmDesc.handle, shmDesc.shmSuffix);
 
   // open ipc handle
   void *peerRecvBuff;
