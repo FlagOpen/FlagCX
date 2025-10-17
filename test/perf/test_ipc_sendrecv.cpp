@@ -68,8 +68,7 @@ int main(int argc, char *argv[]) {
   // copy myIpcHandle to myShmPtr
   flagcxShmIpcDesc_t myShmDesc;
   void *myShmPtr;
-  flagcxShmAllocateShareableBuffer(proc, handleSize, &myShmDesc, &myShmPtr,
-                                   NULL);
+  flagcxShmAllocateShareableBuffer(handleSize, &myShmDesc, &myShmPtr, NULL);
   memcpy(myShmPtr, (void *)myIpcHandle, handleSize);
   printf("proc %d myIpcHandle %s shmPtr %p val %s suffix %s\n", proc,
          (char *)myIpcHandle, myShmPtr, (char *)myShmPtr, myShmDesc.shmSuffix);
@@ -85,23 +84,21 @@ int main(int argc, char *argv[]) {
   void *peerShmPtr;
   flagcxShmImportShareableBuffer((flagcxShmIpcDesc_t *)allHandles + peerSend,
                                  &peerShmPtr, NULL, &peerShmDesc);
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // create peerIpcHandle
+  flagcxIpcMemHandle_t peerIpcHandle;
+  devHandle->ipcMemHandleCreate(&peerIpcHandle, NULL);
+  // copy peerShmPtr to peerIpcHandle
+  memcpy((void *)peerIpcHandle, peerShmPtr, handleSize);
   printf("proc %d peerIpcHandle %s shmPtr %p val %s suffix %s\n", proc,
          (char *)peerIpcHandle, peerShmPtr, (char *)peerShmPtr,
          peerShmDesc.shmSuffix);
   MPI_Barrier(MPI_COMM_WORLD);
 
-  // create peerIpcHandle
-  flagcxIpcMemHandle_t peerIpcHandle;
-  devHandle->ipcMemHandleCreate(&peerIpcHandle);
-  // copy peerShmPtr to peerIpcHandle
-  memcpy((void *)peerIpcHandle, peerShmPtr, handleSize);
-  flagcxShmIpcClose(&shmDesc);
-  MPI_Barrier(MPI_COMM_WORLD);
-
   // open peerIpcHandle
   void *peerbuff;
   devHandle->ipcMemHandleOpen(peerIpcHandle, &peerbuff);
-  free(allHandles);
 
   // // Warm-up for large size
   // for (int i = 0; i < num_warmup_iters; i++) {
@@ -176,7 +173,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // close ipc handle
+  // cleanup
+  flagcxShmIpcClose(&myShmDesc);
+  free(allHandles);
   devHandle->ipcMemHandleClose(recvbuff);
   devHandle->ipcMemHandleClose(peerbuff);
   devHandle->ipcMemHandleFree(myIpcHandle);
