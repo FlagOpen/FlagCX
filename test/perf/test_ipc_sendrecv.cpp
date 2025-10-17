@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
   // void *sendHandle, *recvHandle;
   timer tim;
   int peerSend = (proc + 1) % totalProcs;
-  int peerRecv = (proc - 1 + totalProcs) % totalProcs;
+  // int peerRecv = (proc - 1 + totalProcs) % totalProcs;
 
   // if (local_register) {
   //   // allocate buffer
@@ -100,23 +100,19 @@ int main(int argc, char *argv[]) {
   void *peerbuff;
   devHandle->ipcMemHandleOpen(peerIpcHandle, &peerbuff);
 
-  // // Warm-up for large size
-  // for (int i = 0; i < num_warmup_iters; i++) {
-  //   flagcxHeteroGroupStart();
-  //   flagcxHeteroSend(sendbuff, max_bytes, flagcxChar, peerSend, comm,
-  //   stream); flagcxHeteroRecv(recvbuff, max_bytes, flagcxChar, peerRecv,
-  //   comm, stream); flagcxHeteroGroupEnd();
-  // }
-  // devHandle->streamSynchronize(stream);
+  // Warm-up for large size
+  for (int i = 0; i < num_warmup_iters; i++) {
+    devHandle->deviceMemcpy(sendbuff, sendbuff, max_bytes,
+                            flagcxMemcpyDeviceToDevice, stream);
+  }
+  devHandle->streamSynchronize(stream);
 
-  // // Warm-up for small size
-  // for (int i = 0; i < num_warmup_iters; i++) {
-  //   flagcxHeteroGroupStart();
-  //   flagcxHeteroSend(sendbuff, min_bytes, flagcxChar, peerSend, comm,
-  //   stream); flagcxHeteroRecv(recvbuff, min_bytes, flagcxChar, peerRecv,
-  //   comm, stream); flagcxHeteroGroupEnd();
-  // }
-  // devHandle->streamSynchronize(stream);
+  // Warm-up for small size
+  for (int i = 0; i < num_warmup_iters; i++) {
+    devHandle->deviceMemcpy(sendbuff, sendbuff, min_bytes,
+                            flagcxMemcpyDeviceToDevice, stream);
+  }
+  devHandle->streamSynchronize(stream);
 
   for (size_t size = min_bytes; size <= max_bytes; size *= step_factor) {
 
