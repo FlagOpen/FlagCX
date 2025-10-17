@@ -60,6 +60,10 @@ struct flagcxIbvSymbols {
   const char *(*ibv_internal_event_type_str)(enum ibv_event_type event);
   int (*ibv_internal_query_ece)(struct ibv_qp *qp, struct ibv_ece *ece);
   int (*ibv_internal_set_ece)(struct ibv_qp *qp, struct ibv_ece *ece);
+  /* SRQ support */
+  struct ibv_srq *(*ibv_internal_create_srq)(
+      struct ibv_pd *pd, struct ibv_srq_init_attr *srq_init_attr);
+  int (*ibv_internal_destroy_srq)(struct ibv_srq *srq);
 };
 
 /* Constructs IB verbs symbols per rdma-core linking or dynamic loading mode */
