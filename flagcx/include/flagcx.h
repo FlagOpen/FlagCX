@@ -149,11 +149,12 @@ struct flagcxDeviceHandle {
   flagcxResult_t (*eventSynchronize)(flagcxEvent_t event);
   flagcxResult_t (*eventQuery)(flagcxEvent_t event);
   // IpcMemHandle functions (to be removed)
-  flagcxResult_t (*ipcMemHandleGet)(flagcxIpcMemHandle_t *handle, void *devPtr);
+  flagcxResult_t (*ipcMemHandleCreate)(flagcxIpcMemHandle_t *handle);
+  flagcxResult_t (*ipcMemHandleGet)(flagcxIpcMemHandle_t handle, void *devPtr);
   flagcxResult_t (*ipcMemHandleOpen)(flagcxIpcMemHandle_t handle,
                                      void **devPtr);
-  flagcxResult_t (*ipcMemHandleClose)(flagcxIpcMemHandle_t handle,
-                                      void *devPtr);
+  flagcxResult_t (*ipcMemHandleClose)(void *devPtr);
+  flagcxResult_t (*ipcMemHandleFree)(flagcxIpcMemHandle_t handle);
 };
 typedef struct flagcxDeviceHandle *flagcxDeviceHandle_t;
 
