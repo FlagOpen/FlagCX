@@ -187,7 +187,8 @@ struct flagcxDeviceAdaptor {
   flagcxResult_t (*eventQuery)(flagcxEvent_t event);
 
   // IpcMemHandle functions
-  flagcxResult_t (*ipcMemHandleCreate)(flagcxIpcMemHandle_t *handle);
+  flagcxResult_t (*ipcMemHandleCreate)(flagcxIpcMemHandle_t *handle,
+                                       size_t *size);
   flagcxResult_t (*ipcMemHandleGet)(flagcxIpcMemHandle_t handle, void *devPtr);
   flagcxResult_t (*ipcMemHandleOpen)(flagcxIpcMemHandle_t handle,
                                      void **devPtr);

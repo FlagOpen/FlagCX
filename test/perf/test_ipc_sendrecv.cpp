@@ -35,14 +35,6 @@ int main(int argc, char *argv[]) {
   devHandle->getDeviceCount(&nGpu);
   devHandle->setDevice(worldRank % nGpu);
 
-  // if (proc == 0)
-  //   flagcxHeteroGetUniqueId(uniqueId);
-  // MPI_Bcast((void *)uniqueId, sizeof(flagcxUniqueId), MPI_BYTE, 0,
-  // splitComm); MPI_Barrier(MPI_COMM_WORLD);
-
-  // flagcxHeteroComm_t comm;
-  // flagcxHeteroCommInitRank(&comm, totalProcs, *uniqueId, proc);
-
   flagcxStream_t stream;
   devHandle->streamCreate(&stream);
 
@@ -66,44 +58,50 @@ int main(int argc, char *argv[]) {
   hello = malloc(max_bytes);
   memset(hello, 0, max_bytes);
 
-  // init ipc handle
-  flagcxIpcMemHandle_t recvIpcHandle;
-  devHandle->ipcMemHandleCreate(&recvIpcHandle);
-  devHandle->ipcMemHandleGet(recvIpcHandle, recvbuff);
+  // get myIpcHandle from recvbuff
+  size_t handleSize;
+  flagcxIpcMemHandle_t myIpcHandle;
+  devHandle->ipcMemHandleCreate(&myIpcHandle, &handleSize);
+  devHandle->ipcMemHandleGet(myIpcHandle, recvbuff);
 
-  // init shared memory for ipc handle exchange
-  flagcxShmIpcDesc_t shmDesc;
-  void *shmPtr;
-  flagcxShmAllocateShareableBuffer(proc, 128, &shmDesc, &shmPtr, NULL);
-  memcpy(shmPtr, (void *)recvIpcHandle, 128);
-  printf("proc %d shmPtr %p val %s handle %p suffix %s\n", proc, shmPtr,
-         (char *)shmPtr, shmDesc.handle, shmDesc.shmSuffix);
+  // init myShmDesc and myShmPtr
+  // copy myIpcHandle to myShmPtr
+  flagcxShmIpcDesc_t myShmDesc;
+  void *myShmPtr;
+  flagcxShmAllocateShareableBuffer(proc, handleSize, &myShmDesc, &myShmPtr,
+                                   NULL);
+  memcpy(myShmPtr, (void *)myIpcHandle, handleSize);
+  printf("proc %d myIpcHandle %s shmPtr %p val %s suffix %s\n", proc,
+         (char *)myIpcHandle, myShmPtr, (char *)myShmPtr, myShmDesc.shmSuffix);
   MPI_Barrier(MPI_COMM_WORLD);
 
+  // use MPI_Allgather to collect all shmDescs
+  void *allHandles = malloc(sizeof(flagcxShmIpcDesc_t) * totalProcs);
+  MPI_Allgather(&myShmDesc, sizeof(flagcxShmIpcDesc_t), MPI_BYTE, allHandles,
+                sizeof(flagcxShmIpcDesc_t), MPI_BYTE, MPI_COMM_WORLD);
+
+  // import to peerShmDesc and peerShmPtr
   flagcxShmIpcDesc_t peerShmDesc;
   void *peerShmPtr;
-  flagcxShmImportShareableBuffer(peerSend, 128, NULL, &peerShmPtr, NULL,
-                                 &peerShmDesc);
-  printf("proc %d peerShmPtr %p val %s handle %p suffix %s\n", proc, peerShmPtr,
-         (char *)peerShmPtr, peerShmDesc.handle, peerShmDesc.shmSuffix);
+  flagcxShmImportShareableBuffer((flagcxShmIpcDesc_t *)allHandles + peerSend,
+                                 &peerShmPtr, NULL, &peerShmDesc);
+  printf("proc %d peerIpcHandle %s shmPtr %p val %s suffix %s\n", proc,
+         (char *)peerIpcHandle, peerShmPtr, (char *)peerShmPtr,
+         peerShmDesc.shmSuffix);
   MPI_Barrier(MPI_COMM_WORLD);
 
-  flagcxIpcMemHandle_t peerRecvIpcHandle;
-  devHandle->ipcMemHandleCreate(&peerRecvIpcHandle);
-  printf("BP1\n");
-  MPI_Barrier(MPI_COMM_WORLD);
-  memcpy((void *)peerRecvIpcHandle, peerShmPtr, 128);
-  printf("BP2\n");
-  MPI_Barrier(MPI_COMM_WORLD);
-
-  flagcxShmIpcClose(&peerShmDesc);
+  // create peerIpcHandle
+  flagcxIpcMemHandle_t peerIpcHandle;
+  devHandle->ipcMemHandleCreate(&peerIpcHandle);
+  // copy peerShmPtr to peerIpcHandle
+  memcpy((void *)peerIpcHandle, peerShmPtr, handleSize);
   flagcxShmIpcClose(&shmDesc);
-  printf("BP3\n");
+  MPI_Barrier(MPI_COMM_WORLD);
 
-  // open ipc handle
-  void *peerRecvBuff;
-  devHandle->ipcMemHandleOpen(peerRecvIpcHandle, &peerRecvBuff);
-  printf("BP4\n");
+  // open peerIpcHandle
+  void *peerbuff;
+  devHandle->ipcMemHandleOpen(peerIpcHandle, &peerbuff);
+  free(allHandles);
 
   // // Warm-up for large size
   // for (int i = 0; i < num_warmup_iters; i++) {
@@ -144,7 +142,7 @@ int main(int argc, char *argv[]) {
 
     tim.reset();
     for (int i = 0; i < num_iters; i++) {
-      devHandle->deviceMemcpy(peerRecvBuff, sendbuff, size,
+      devHandle->deviceMemcpy(peerbuff, sendbuff, size,
                               flagcxMemcpyDeviceToDevice, stream);
     }
     devHandle->streamSynchronize(stream);
@@ -180,9 +178,9 @@ int main(int argc, char *argv[]) {
 
   // close ipc handle
   devHandle->ipcMemHandleClose(recvbuff);
-  devHandle->ipcMemHandleFree(recvIpcHandle);
-  devHandle->ipcMemHandleClose(peerRecvBuff);
-  devHandle->ipcMemHandleClose(peerRecvIpcHandle);
+  devHandle->ipcMemHandleClose(peerbuff);
+  devHandle->ipcMemHandleFree(myIpcHandle);
+  devHandle->ipcMemHandleFree(peerIpcHandle);
 
   // if (local_register) {
   //   // deregister buffer
@@ -196,7 +194,6 @@ int main(int argc, char *argv[]) {
   devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
   // }
   free(hello);
-  // flagcxHeteroCommDestroy(comm);
   devHandle->streamDestroy(stream);
   flagcxHandleFree(handler);
 

@@ -286,9 +286,13 @@ flagcxResult_t cudaAdaptorEventQuery(flagcxEvent_t event) {
   return res;
 }
 
-flagcxResult_t cudaAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle) {
+flagcxResult_t cudaAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
+                                             size_t *size) {
   (*handle) = NULL;
   flagcxCalloc(handle, 1);
+  if (size != NULL) {
+    *size = sizeof(cudaIpcMemHandle_t);
+  }
   return flagcxSuccess;
 }
 
@@ -302,7 +306,10 @@ flagcxResult_t cudaAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
 
 flagcxResult_t cudaAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
                                            void **devPtr) {
-  if (handle != NULL && devPtr != NULL) {
+  if (handle != NULL) {
+    if (*devPtr != NULL) {
+      return flagcxInvalidArgument;
+    }
     DEVCHECK(cudaIpcOpenMemHandle(devPtr, handle->base,
                                   cudaIpcMemLazyEnablePeerAccess));
   }
