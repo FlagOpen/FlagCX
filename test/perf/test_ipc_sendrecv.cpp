@@ -120,20 +120,20 @@ int main(int argc, char *argv[]) {
 
   for (size_t size = min_bytes; size <= max_bytes; size *= step_factor) {
 
-    for (size_t i = 0; i + 13 <= size; i += 13) {
-      strcpy((char *)hello + i, std::to_string(i / (13)).c_str());
-    }
+    strcpy((char *)hello, "_0x1234");
+    strcpy((char *)hello + size / 3, "_0x5678");
+    strcpy((char *)hello + size / 3 * 2, "_0x9abc");
 
     devHandle->deviceMemcpy(sendbuff, hello, size, flagcxMemcpyHostToDevice,
                             NULL);
 
     if (proc == 0 && color == 0 && print_buffer) {
       printf("sendbuff = ");
-      for (size_t i = 0; i + 13 <= 50; i += 13) {
-        printf("%c", ((char *)hello)[i]);
-      }
-      printf("\n");
+      printf("%s", (const char *)((char *)hello));
+      printf("%s", (const char *)((char *)hello + size / 3));
+      printf("%s\n", (const char *)((char *)hello + size / 3 * 2));
     }
+    memset(hello, 0, max_bytes);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
@@ -166,10 +166,9 @@ int main(int argc, char *argv[]) {
                             NULL);
     if (proc == 0 && color == 0 && print_buffer) {
       printf("recvbuff = ");
-      for (size_t i = 0; i + 13 <= 50; i += 13) {
-        printf("%c", ((char *)hello)[i]);
-      }
-      printf("\n");
+      printf("%s", (const char *)((char *)hello));
+      printf("%s", (const char *)((char *)hello + size / 3));
+      printf("%s\n", (const char *)((char *)hello + size / 3 * 2));
     }
   }
 
