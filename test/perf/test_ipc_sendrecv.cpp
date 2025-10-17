@@ -1,3 +1,4 @@
+#include "alloc.h"
 #include "flagcx.h"
 #include "shmutils.h"
 #include "tools.h"
@@ -66,22 +67,43 @@ int main(int argc, char *argv[]) {
   memset(hello, 0, max_bytes);
 
   // init ipc handle
-  flagcxIpcMemHandle_t sendIpcHandle;
   flagcxIpcMemHandle_t recvIpcHandle;
-  // devHandle->ipcMemHandleGet(&sendIpcHandle, sendbuff);
-  devHandle->ipcMemHandleGet(&recvIpcHandle, recvbuff);
+  devHandle->ipcMemHandleCreate(&recvIpcHandle);
+  devHandle->ipcMemHandleGet(recvIpcHandle, recvbuff);
 
   // init shared memory for ipc handle exchange
   flagcxShmIpcDesc_t shmDesc;
   void *shmPtr;
-  flagcxShmAllocateShareableBuffer(sizeof(shmDesc), &shmDesc, &shmPtr, NULL);
-  memcpy(shmPtr, &recvIpcHandle, sizeof(*recvIpcHandle));
+  flagcxShmAllocateShareableBuffer(proc, 128, &shmDesc, &shmPtr, NULL);
+  memcpy(shmPtr, (void *)recvIpcHandle, 128);
   printf("proc %d shmPtr %p val %s handle %p suffix %s\n", proc, shmPtr,
          (char *)shmPtr, shmDesc.handle, shmDesc.shmSuffix);
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  flagcxShmIpcDesc_t peerShmDesc;
+  void *peerShmPtr;
+  flagcxShmImportShareableBuffer(peerSend, 128, NULL, &peerShmPtr, NULL,
+                                 &peerShmDesc);
+  printf("proc %d peerShmPtr %p val %s handle %p suffix %s\n", proc, peerShmPtr,
+         (char *)peerShmPtr, peerShmDesc.handle, peerShmDesc.shmSuffix);
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  flagcxIpcMemHandle_t peerRecvIpcHandle;
+  devHandle->ipcMemHandleCreate(&peerRecvIpcHandle);
+  printf("BP1\n");
+  MPI_Barrier(MPI_COMM_WORLD);
+  memcpy((void *)peerRecvIpcHandle, peerShmPtr, 128);
+  printf("BP2\n");
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  flagcxShmIpcClose(&peerShmDesc);
+  flagcxShmIpcClose(&shmDesc);
+  printf("BP3\n");
 
   // open ipc handle
-  // void *peerRecvBuff;
-  // devHandle->ipcMemHandleOpen(recvIpcHandle, &peerRecvBuff);
+  void *peerRecvBuff;
+  devHandle->ipcMemHandleOpen(peerRecvIpcHandle, &peerRecvBuff);
+  printf("BP4\n");
 
   // // Warm-up for large size
   // for (int i = 0; i < num_warmup_iters; i++) {
@@ -122,7 +144,7 @@ int main(int argc, char *argv[]) {
 
     tim.reset();
     for (int i = 0; i < num_iters; i++) {
-      devHandle->deviceMemcpy(recvbuff, peerRecvBuff, size,
+      devHandle->deviceMemcpy(peerRecvBuff, sendbuff, size,
                               flagcxMemcpyDeviceToDevice, stream);
     }
     devHandle->streamSynchronize(stream);
@@ -157,8 +179,10 @@ int main(int argc, char *argv[]) {
   }
 
   // close ipc handle
-  // devHandle->ipcMemHandleClose(sendIpcHandle, peerRecvBuff);
-  devHandle->ipcMemHandleClose(recvIpcHandle, NULL);
+  devHandle->ipcMemHandleClose(recvbuff);
+  devHandle->ipcMemHandleFree(recvIpcHandle);
+  devHandle->ipcMemHandleClose(peerRecvBuff);
+  devHandle->ipcMemHandleClose(peerRecvIpcHandle);
 
   // if (local_register) {
   //   // deregister buffer
