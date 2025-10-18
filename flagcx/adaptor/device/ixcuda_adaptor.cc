@@ -229,6 +229,51 @@ flagcxResult_t ixcudaAdaptorEventQuery(flagcxEvent_t event) {
   return res;
 }
 
+flagcxResult_t ixcudaAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
+                                               size_t *size) {
+  (*handle) = NULL;
+  flagcxCalloc(handle, 1);
+  if (size != NULL) {
+    *size = sizeof(cudaIpcMemHandle_t);
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t ixcudaAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
+                                            void *devPtr) {
+  if (devPtr != NULL) {
+    DEVCHECK(cudaIpcGetMemHandle(&handle->base, devPtr));
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t ixcudaAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
+                                             void **devPtr) {
+  if (handle != NULL) {
+    if (*devPtr != NULL) {
+      return flagcxInvalidArgument;
+    }
+    DEVCHECK(cudaIpcOpenMemHandle(devPtr, handle->base,
+                                  cudaIpcMemLazyEnablePeerAccess));
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t ixcudaAdaptorIpcMemHandleClose(void *devPtr) {
+  if (devPtr != NULL) {
+    DEVCHECK(cudaIpcCloseMemHandle(devPtr));
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t ixcudaAdaptorIpcMemHandleFree(flagcxIpcMemHandle_t handle) {
+  if (handle != NULL) {
+    free(handle);
+    handle = NULL;
+  }
+  return flagcxSuccess;
+}
+
 flagcxResult_t ixcudaAdaptorLaunchHostFunc(flagcxStream_t stream,
                                            void (*fn)(void *), void *args) {
   if (stream != NULL) {
@@ -301,6 +346,10 @@ struct flagcxDeviceAdaptor ixcudaAdaptor {
       ixcudaAdaptorEventCreate, ixcudaAdaptorEventDestroy,
       ixcudaAdaptorEventRecord, ixcudaAdaptorEventSynchronize,
       ixcudaAdaptorEventQuery,
+      // IpcMemHandle functions
+      ixcudaAdaptorIpcMemHandleCreate, ixcudaAdaptorIpcMemHandleGet,
+      ixcudaAdaptorIpcMemHandleOpen, ixcudaAdaptorIpcMemHandleClose,
+      ixcudaAdaptorIpcMemHandleFree,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,

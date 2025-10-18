@@ -235,6 +235,34 @@ flagcxResult_t musaAdaptorEventQuery(flagcxEvent_t event) {
   return res;
 }
 
+flagcxResult_t musaAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
+                                             size_t *size) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t musaAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
+                                          void *devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t musaAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
+                                           void **devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t musaAdaptorIpcMemHandleClose(void *devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t musaAdaptorIpcMemHandleFree(flagcxIpcMemHandle_t handle) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
 flagcxResult_t musaAdaptorLaunchHostFunc(flagcxStream_t stream,
                                          void (*fn)(void *), void *args) {
   if (stream != NULL) {
@@ -303,6 +331,10 @@ struct flagcxDeviceAdaptor musaAdaptor {
       // Event functions
       musaAdaptorEventCreate, musaAdaptorEventDestroy, musaAdaptorEventRecord,
       musaAdaptorEventSynchronize, musaAdaptorEventQuery,
+      // IpcMemHandle functions
+      musaAdaptorIpcMemHandleCreate, musaAdaptorIpcMemHandleGet,
+      musaAdaptorIpcMemHandleOpen, musaAdaptorIpcMemHandleClose,
+      musaAdaptorIpcMemHandleFree,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,

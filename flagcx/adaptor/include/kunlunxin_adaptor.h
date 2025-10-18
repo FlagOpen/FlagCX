@@ -28,6 +28,10 @@ struct flagcxEvent {
   cudaEvent_t base;
 };
 
+struct flagcxIpcMemHandle {
+  char *base; // to be implemented
+};
+
 namespace baidu {
 namespace xpu {
 namespace bkcl {

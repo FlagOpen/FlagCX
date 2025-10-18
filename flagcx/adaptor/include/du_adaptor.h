@@ -20,6 +20,10 @@ struct flagcxEvent {
   cudaEvent_t base;
 };
 
+struct flagcxIpcMemHandle {
+  cudaIpcMemHandle_t base;
+};
+
 #define DEVCHECK(func)                                                         \
   {                                                                            \
     int ret = func;                                                            \

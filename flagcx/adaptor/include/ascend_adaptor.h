@@ -18,6 +18,10 @@ struct flagcxEvent {
   aclrtEvent base;
 };
 
+struct flagcxIpcMemHandle {
+  char *base; // to be implemented
+};
+
 #define DEVCHECK(func)                                                         \
   {                                                                            \
     int ret = func;                                                            \

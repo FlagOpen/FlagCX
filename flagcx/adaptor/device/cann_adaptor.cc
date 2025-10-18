@@ -214,6 +214,34 @@ flagcxResult_t cannAdaptorEventQuery(flagcxEvent_t event) {
   return res;
 }
 
+flagcxResult_t cannAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
+                                             size_t *size) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t cannAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
+                                          void *devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t cannAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
+                                           void **devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t cannAdaptorIpcMemHandleClose(void *devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t cannAdaptorIpcMemHandleFree(flagcxIpcMemHandle_t handle) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
 flagcxResult_t cannAdaptorLaunchHostFunc(flagcxStream_t stream,
                                          void (*fn)(void *), void *args) {
   if (stream != NULL) {
@@ -247,6 +275,10 @@ struct flagcxDeviceAdaptor cannAdaptor {
       // Event functions
       cannAdaptorEventCreate, cannAdaptorEventDestroy, cannAdaptorEventRecord,
       cannAdaptorEventSynchronize, cannAdaptorEventQuery,
+      // IpcMemHandle functions
+      cannAdaptorIpcMemHandleCreate, cannAdaptorIpcMemHandleGet,
+      cannAdaptorIpcMemHandleOpen, cannAdaptorIpcMemHandleClose,
+      cannAdaptorIpcMemHandleFree,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,

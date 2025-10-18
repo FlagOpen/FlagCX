@@ -20,6 +20,10 @@ struct flagcxEvent {
   musaEvent_t base;
 };
 
+struct flagcxIpcMemHandle {
+  char *base; // to be implemented
+};
+
 #define DEVCHECK(func)                                                         \
   {                                                                            \
     int ret = func;                                                            \

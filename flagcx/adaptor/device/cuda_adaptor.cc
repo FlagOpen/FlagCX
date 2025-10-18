@@ -286,6 +286,51 @@ flagcxResult_t cudaAdaptorEventQuery(flagcxEvent_t event) {
   return res;
 }
 
+flagcxResult_t cudaAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
+                                             size_t *size) {
+  (*handle) = NULL;
+  flagcxCalloc(handle, 1);
+  if (size != NULL) {
+    *size = sizeof(cudaIpcMemHandle_t);
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
+                                          void *devPtr) {
+  if (devPtr != NULL) {
+    DEVCHECK(cudaIpcGetMemHandle(&handle->base, devPtr));
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
+                                           void **devPtr) {
+  if (handle != NULL) {
+    if (*devPtr != NULL) {
+      return flagcxInvalidArgument;
+    }
+    DEVCHECK(cudaIpcOpenMemHandle(devPtr, handle->base,
+                                  cudaIpcMemLazyEnablePeerAccess));
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorIpcMemHandleClose(void *devPtr) {
+  if (devPtr != NULL) {
+    DEVCHECK(cudaIpcCloseMemHandle(devPtr));
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorIpcMemHandleFree(flagcxIpcMemHandle_t handle) {
+  if (handle != NULL) {
+    free(handle);
+    handle = NULL;
+  }
+  return flagcxSuccess;
+}
+
 flagcxResult_t cudaAdaptorLaunchHostFunc(flagcxStream_t stream,
                                          void (*fn)(void *), void *args) {
   if (stream != NULL) {
@@ -428,6 +473,10 @@ struct flagcxDeviceAdaptor cudaAdaptor {
       // Event functions
       cudaAdaptorEventCreate, cudaAdaptorEventDestroy, cudaAdaptorEventRecord,
       cudaAdaptorEventSynchronize, cudaAdaptorEventQuery,
+      // IpcMemHandle functions
+      cudaAdaptorIpcMemHandleCreate, cudaAdaptorIpcMemHandleGet,
+      cudaAdaptorIpcMemHandleOpen, cudaAdaptorIpcMemHandleClose,
+      cudaAdaptorIpcMemHandleFree,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,
