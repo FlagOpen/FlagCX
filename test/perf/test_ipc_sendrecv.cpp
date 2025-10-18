@@ -168,7 +168,6 @@ int main(int argc, char *argv[]) {
   // cleanup
   flagcxShmIpcClose(&myShmDesc);
   free(allHandles);
-  devHandle->ipcMemHandleClose(recvbuff);
   devHandle->ipcMemHandleClose(peerbuff);
   devHandle->ipcMemHandleFree(myIpcHandle);
   devHandle->ipcMemHandleFree(peerIpcHandle);

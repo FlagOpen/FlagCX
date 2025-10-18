@@ -23,7 +23,6 @@ struct shmIpcDesc {
   flagcxShmHandle_t handle;
   size_t shmSize;
 };
-
 typedef struct shmIpcDesc flagcxShmIpcDesc_t;
 
 flagcxResult_t flagcxShmAllocateShareableBuffer(size_t size,
