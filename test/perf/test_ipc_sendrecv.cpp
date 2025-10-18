@@ -21,7 +21,6 @@ int main(int argc, char *argv[]) {
 
   flagcxHandlerGroup_t handler;
   flagcxHandleInit(&handler);
-  flagcxUniqueId_t &uniqueId = handler->uniqueId;
   flagcxDeviceHandle_t &devHandle = handler->devHandle;
 
   int color = 0;
@@ -42,7 +41,6 @@ int main(int argc, char *argv[]) {
   // void *sendHandle, *recvHandle;
   timer tim;
   int peerSend = (proc + 1) % totalProcs;
-  // int peerRecv = (proc - 1 + totalProcs) % totalProcs;
 
   // if (local_register) {
   //   // allocate buffer
@@ -129,7 +127,6 @@ int main(int argc, char *argv[]) {
       printf("%s", (const char *)((char *)hello + size / 3));
       printf("%s\n", (const char *)((char *)hello + size / 3 * 2));
     }
-    memset(hello, 0, max_bytes);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
