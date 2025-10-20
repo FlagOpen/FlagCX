@@ -137,7 +137,7 @@ flagcxResult_t hcclAdaptorCommUserRank(const flagcxInnerComm_t comm,
 
 // TODO: unsupported
 flagcxResult_t hcclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                            flagcxResult_t asyncError) {
+                                            flagcxResult_t *asyncError) {
   return flagcxNotSupported;
 }
 

@@ -106,10 +106,9 @@ flagcxResult_t cnclAdaptorCommUserRank(const flagcxInnerComm_t comm,
   return (flagcxResult_t)c2f_ret_map[cnclGetCommRank(rank, comm->base)];
 }
 
-// TODO: change params's type from flagcxResult_t to flagcxResult_t*
 flagcxResult_t cnclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                            flagcxResult_t asyncError) {
-  asyncError = c2f_ret_map[cnclGetCommAsyncError(comm->base)];
+                                            flagcxResult_t *asyncError) {
+  *asyncError = c2f_ret_map[cnclGetCommAsyncError(comm->base)];
   return flagcxSuccess;
 }
 

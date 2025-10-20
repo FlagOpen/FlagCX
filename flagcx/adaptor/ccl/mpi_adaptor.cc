@@ -132,7 +132,7 @@ flagcxResult_t mpiAdaptorCommUserRank(const flagcxInnerComm_t comm, int *rank) {
 }
 
 flagcxResult_t mpiAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                           flagcxResult_t asyncError) {
+                                           flagcxResult_t *asyncError) {
   return flagcxNotSupported;
 }
 

@@ -80,7 +80,7 @@ flagcxResult_t bootstrapAdaptorCommUserRank(const flagcxInnerComm_t comm,
 
 // TODO: unsupported
 flagcxResult_t bootstrapAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                                 flagcxResult_t asyncError) {
+                                                 flagcxResult_t *asyncError) {
   return flagcxNotSupported;
 }
 
