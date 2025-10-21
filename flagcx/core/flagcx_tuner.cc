@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <iostream>
 
 // A category of collective operation. the minimal unit for tuning.
 struct TunerCollCategory {
@@ -142,7 +143,9 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
                                flagcxDebugLogger_t logFunction,
                                void **context) {
   struct flagcxTunerContext *ctx = new struct flagcxTunerContext;
-  FLAGCXCHECK(loadConfigList(ctx->configList));
+  FLAGCXCHECK(generateCandidate(ctx->configList));
+  INFO(FLAGCX_TUNING,
+         "Candidate number: %ld.", ctx->configList.size());
   ctx->logger = logFunction;
   *context = ctx;
 
