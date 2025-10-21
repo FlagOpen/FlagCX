@@ -106,11 +106,29 @@ flagcxResult_t cnclAdaptorCommUserRank(const flagcxInnerComm_t comm,
   return (flagcxResult_t)c2f_ret_map[cnclGetCommRank(rank, comm->base)];
 }
 
-// TODO: change params's type from flagcxResult_t to flagcxResult_t*
 flagcxResult_t cnclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                            flagcxResult_t asyncError) {
-  asyncError = c2f_ret_map[cnclGetCommAsyncError(comm->base)];
+                                            flagcxResult_t *asyncError) {
+  *asyncError = c2f_ret_map[cnclGetCommAsyncError(comm->base)];
   return flagcxSuccess;
+}
+
+// TODO: unsupported
+flagcxResult_t cnclAdaptorMemAlloc(void **ptr, size_t size) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t cnclAdaptorMemFree(void *ptr) { return flagcxNotSupported; }
+
+// TODO: unsupported
+flagcxResult_t cnclAdaptorCommRegister(flagcxInnerComm_t comm, void *buff,
+                                       size_t size, void **handle) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t cnclAdaptorCommDeregister(flagcxInnerComm_t comm, void *handle) {
+  return flagcxNotSupported;
 }
 
 flagcxResult_t cnclAdaptorReduce(const void *sendbuff, void *recvbuff,
@@ -305,7 +323,8 @@ struct flagcxCCLAdaptor cnclAdaptor = {
     cnclAdaptorCommInitRank, cnclAdaptorCommFinalize, cnclAdaptorCommDestroy,
     cnclAdaptorCommAbort, cnclAdaptorCommResume, cnclAdaptorCommSuspend,
     cnclAdaptorCommCount, cnclAdaptorCommCuDevice, cnclAdaptorCommUserRank,
-    cnclAdaptorCommGetAsyncError,
+    cnclAdaptorCommGetAsyncError, cnclAdaptorMemAlloc, cnclAdaptorMemFree,
+    cnclAdaptorCommRegister, cnclAdaptorCommDeregister,
     // Communication functions
     cnclAdaptorReduce, cnclAdaptorGather, cnclAdaptorScatter,
     cnclAdaptorBroadcast, cnclAdaptorAllReduce, cnclAdaptorReduceScatter,

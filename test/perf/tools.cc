@@ -86,6 +86,7 @@ parser::parser(int argc, char **argv) {
   printBuffer = 0;
   root = -1;
   splitMask = 0;
+  localRegister = 0;
 
   double parsedValue;
   int longIndex;
@@ -97,7 +98,8 @@ parser::parser(int argc, char **argv) {
       {"iters", required_argument, 0, 'n'},
       {"print_buffer", required_argument, 0, 'p'},
       {"root", required_argument, 0, 'r'},
-      {"split_mask", required_argument, 0, 'm'},
+      {"split_mask", required_argument, 0, 's'},
+      {"local_register", required_argument, 0, 'R'},
       // {"op", required_argument, 0, 'o'},
       // {"datatype", required_argument, 0, 'd'},
       {"help", no_argument, 0, 'h'},
@@ -105,7 +107,7 @@ parser::parser(int argc, char **argv) {
 
   while (1) {
     int c;
-    c = getopt_long(argc, argv, "b:e:f:w:n:p:r:m:h", longOpts, &longIndex);
+    c = getopt_long(argc, argv, "b:e:f:w:n:p:r:s:R:h", longOpts, &longIndex);
 
     if (c == -1)
       break;
@@ -157,13 +159,21 @@ parser::parser(int argc, char **argv) {
         break;
       case 'r':
         root = (int)strtol(optarg, NULL, 0);
-        if (root < -1) {
+        if (root < 0) {
           fprintf(stderr, "Invalid root value\n");
           exit(1);
         }
         break;
-      case 'm':
+      case 's':
         splitMask = strtoul(optarg, NULL, 0);
+        break;
+      case 'R':
+        localRegister = (int)strtol(optarg, NULL, 0);
+        if (localRegister != 0 && localRegister != 1) {
+          printf("localregister=%d\n", localRegister);
+          fprintf(stderr, "Invalid local register value\n");
+          exit(1);
+        }
         break;
       case 'h':
       default:
@@ -177,11 +187,12 @@ parser::parser(int argc, char **argv) {
                "[-n <iters>] \n\t"
                "[-p <printbuffer 0/1>] \n\t"
                "[-r <root>] \n\t"
-               "[-m <splitmask OCT/DEC/HEX>] \n\t"
+               "[-s <splitmask OCT/DEC/HEX>] \n\t"
+               "[-R <localregister 0/1>] \n\t"
                "[-h\n",
                basename(argv[0]));
-        printf(
-            "Use default values with -b 1M -e 1G -f 2 -w 5 -n 20 -p 0 -m 0\n");
+        printf("Use default values with -b 1M -e 1G -f 2 -w 5 -n 20 -p 0 -r 0 "
+               "-s 0 -R 0\n");
         break;
     }
   }

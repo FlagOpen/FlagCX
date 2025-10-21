@@ -1,6 +1,12 @@
 [<img src="docs/images/flagopen.png">](https://flagopen.baai.ac.cn/)
 
 ## Latest News
+- **[2025/09]** Released [v0.5](https://github.com/FlagOpen/FlagCX/tree/release/v0.5):
+  - Adds AMD support (hipAdaptor and rcclAdaptor).
+  - Introduces flagcxNetAdaptor to unify network backends, currently supporting SOCKET, IBRC, UCX and IBUC (experimently).
+  - Enables zero-copy device-buffer RDMA (user-buffer RDMA) to boost small-message performance.
+  - Supports automatic tuning in homogeneous scenarios via flagcxTuner.
+  - Integrates automated PyTorch API tests into CI/CD.
 - **[2025/08]** Released [v0.4](https://github.com/FlagOpen/FlagCX/tree/release/v0.4):
   - Supports heterogeneous training of ERNIE4.5 on Nvidia and Iluvatar GPUs with Paddle + FlagCX.
   - Enables more robust and flexible deployments with full support of heterogeneous communication across arbitrary NIC configurations (bug fixes). 
@@ -92,7 +98,7 @@ FlagCX also integrates with upper-layer applications such as PyTorch and PaddleP
 2. Build the library with different flags targeting to different platforms:
     ```sh
     cd FlagCX
-    make [USE_NVIDIA/USE_ILUVATAR_COREX/USE_CAMBRICON/USE_GLOO/USE_MPI/USE_METAX/USE_MUSA/USE_KUNLUNXIN/USE_DU/USE_ASCEND]=1
+    make [USE_NVIDIA/USE_ILUVATAR_COREX/USE_CAMBRICON/USE_GLOO/USE_MPI/USE_METAX/USE_MUSA/USE_KUNLUNXIN/USE_DU/USE_ASCEND/USE_AMD]=1
     ```
     The default install path is set to `build/`, you can manually set `BUILDDIR` to specify the build path. You may also define `DEVICE_HOME` and `CCL_HOME` to indicate the install paths of device runtime and communication libraries.
 
@@ -117,6 +123,9 @@ All tests support the same set of arguments:
 * Performance
   * `-w, <warmup iteration count>` number of warmup iterations (not timed). Default: 5.
   * `-n, <iteration count>` number of iterations. Default: 20.
+* Test Operation
+  * `-R, <0/1>` enable local buffer registration on send/recv buffers. Default: 0.
+  * `-s, <OCT/DEC/HEX>` specify MPI communication split mode. Default: 0
 * Utils
   * `-p, <0/1>` print buffer info. Default: 0.
   * `-h` print help message. Default: disabled.

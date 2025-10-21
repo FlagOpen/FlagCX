@@ -72,7 +72,7 @@ typedef enum {
   flagcxCommOpAlltoAll = 9,
   flagcxCommOpAlltoAllv = 10,
   flagcxCommNoOp = 11,
-  flagcxNumCommOps = 11
+  flagcxNumCommOps = 12
 } flagcxCommOp_t;
 
 typedef enum {
@@ -82,7 +82,7 @@ typedef enum {
 } flagcxMemcpyType_t;
 
 typedef enum {
-  flagcxMemHost = 0,
+  flagcxMemHost = 0, // pinned memory
   flagcxMemDevice = 1,
   flagcxMemManaged = 2
 } flagcxMemType_t;
@@ -131,6 +131,7 @@ struct flagcxDeviceHandle {
   flagcxResult_t (*getDevice)(int *dev);
   flagcxResult_t (*getDeviceCount)(int *count);
   flagcxResult_t (*getVendor)(char *vendor);
+  flagcxResult_t (*hostGetDevicePointer)(void **pDevice, void *pHost);
   // Stream functions
   flagcxResult_t (*streamCreate)(flagcxStream_t *stream);
   flagcxResult_t (*streamDestroy)(flagcxStream_t stream);
@@ -159,6 +160,17 @@ typedef struct flagcxHandlerGroup *flagcxHandlerGroup_t;
 flagcxResult_t flagcxHandleInit(flagcxHandlerGroup_t *handler);
 
 flagcxResult_t flagcxHandleFree(flagcxHandlerGroup_t handler);
+
+/* User buffer registration functions. The actual allocated size might
+ * be larger than requested due to granularity requirement. */
+flagcxResult_t flagcxMemAlloc(void **ptr, size_t size,
+                              flagcxComm_t comm = NULL);
+flagcxResult_t flagcxMemFree(void *ptr, flagcxComm_t comm = NULL);
+
+/* Register/Deregister user buffer for zero-copy operation */
+flagcxResult_t flagcxCommRegister(const flagcxComm_t comm, void *buff,
+                                  size_t size, void **handle);
+flagcxResult_t flagcxCommDeregister(const flagcxComm_t comm, void *handle);
 
 /* Check if the FlagCX communicator type is homogeneous or heterogeneous */
 flagcxResult_t flagcxIsHomoComm(flagcxComm_t comm, int *isHomo);
@@ -210,7 +222,7 @@ const char *flagcxGetLastError(flagcxComm_t comm);
 
 /* Checks whether the comm has encountered any asynchronous errors */
 flagcxResult_t flagcxCommGetAsyncError(flagcxComm_t comm,
-                                       flagcxResult_t asyncError);
+                                       flagcxResult_t *asyncError);
 
 /* Gets the number of ranks in the communicator clique. */
 flagcxResult_t flagcxCommCount(const flagcxComm_t comm, int *count);

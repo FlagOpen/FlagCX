@@ -47,3 +47,11 @@ void cpuAsyncLoadWithMaxSpinCount(void *args) {
     spinCount++;
   }
 }
+
+void cpuAsyncKernel(void *args) {
+  flagcxHostSemaphore *semaphore = (flagcxHostSemaphore *)args;
+  semaphore->signalFlag();
+  semaphore->wait();
+  free(semaphore);
+  semaphore = nullptr;
+}

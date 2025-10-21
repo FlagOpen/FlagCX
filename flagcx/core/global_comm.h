@@ -3,7 +3,7 @@
 
 #include "bootstrap.h"
 #include "flagcx.h"
-#include "tuner.h" // adaptor/tuner.h
+#include "flagcx_tuner.h"
 
 #include <map>
 #include <vector>
@@ -51,7 +51,8 @@ struct flagcxComm {
   struct flagcxTuner *tuner;
   void *tunerContext;
   std::map<struct flagcxCommTag, flagcxInnerComm_t>
-      homoCommMap; // key: commTag returned by tuner
+      homoCommMap;                  // key: commTag returned by tuner
+  flagcxInnerComm_t tunerInnerComm; // innerComm selected by tuner
 };
 
 #endif // end include guard

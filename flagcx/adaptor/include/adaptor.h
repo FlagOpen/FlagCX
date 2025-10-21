@@ -9,8 +9,9 @@
 #include "bootstrap.h"
 #include "flagcx.h"
 #include "global_comm.h"
-#include "launch_kernel.h"
 #include "topo.h"
+
+typedef void (*flagcxLaunchFunc_t)(flagcxStream_t, void *);
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,8 +50,11 @@ extern struct flagcxNetAdaptor *netAdaptor;
 
 // Network type enumeration
 enum NetType {
-  IBRC = 1,  // InfiniBand RC (or UCX when USE_UCX=1)
-  SOCKET = 2 // Socket
+  IBRC = 1,   // InfiniBand RC (or UCX when USE_UCX=1)
+  SOCKET = 2, // Socket
+#ifdef USE_IBUC
+  IBUC = 3 // InfiniBand UC
+#endif
 };
 
 // Unified network adaptor function declarations
@@ -80,7 +84,12 @@ struct flagcxCCLAdaptor {
                                         int *device);
   flagcxResult_t (*commUserRank)(const flagcxInnerComm_t comm, int *rank);
   flagcxResult_t (*commGetAsyncError)(flagcxInnerComm_t comm,
-                                      flagcxResult_t asyncError);
+                                      flagcxResult_t *asyncError);
+  flagcxResult_t (*memAlloc)(void **ptr, size_t size);
+  flagcxResult_t (*memFree)(void *ptr);
+  flagcxResult_t (*commRegister)(const flagcxInnerComm_t comm, void *buff,
+                                 size_t size, void **handle);
+  flagcxResult_t (*commDeregister)(const flagcxInnerComm_t comm, void *handle);
 
   // Communication functions
   flagcxResult_t (*reduce)(const void *sendbuff, void *recvbuff, size_t count,
@@ -149,6 +158,7 @@ struct flagcxDeviceAdaptor {
   flagcxResult_t (*getDevice)(int *dev);
   flagcxResult_t (*getDeviceCount)(int *count);
   flagcxResult_t (*getVendor)(char *vendor);
+  flagcxResult_t (*hostGetDevicePointer)(void **pDevice, void *pHost);
 
   // GDR functions
   flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);

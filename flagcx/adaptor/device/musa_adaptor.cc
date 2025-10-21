@@ -45,7 +45,9 @@ flagcxResult_t musaAdaptorDeviceMalloc(void **ptr, size_t size,
                                        flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(musaMallocHost(ptr, size));
-  } else if (type == flagcxMemDevice) {
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(musaMallocManaged(ptr, size, musaMemAttachGlobal));
+  } else {
     if (stream == NULL) {
       DEVCHECK(musaMalloc(ptr, size));
     } else {
@@ -53,8 +55,6 @@ flagcxResult_t musaAdaptorDeviceMalloc(void **ptr, size_t size,
       // MUSA currently does not support async malloc
       // DEVCHECK(musaMallocAsync(ptr, size, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(musaMallocManaged(ptr, size, musaMemAttachGlobal));
   }
   return flagcxSuccess;
 }
@@ -63,15 +63,16 @@ flagcxResult_t musaAdaptorDeviceFree(void *ptr, flagcxMemType_t type,
                                      flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(musaFreeHost(ptr));
-  } else if (type == flagcxMemDevice) {
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(musaFree(ptr));
+  } else {
     if (stream == NULL) {
       DEVCHECK(musaFree(ptr));
     } else {
       DEVCHECK(musaFree(ptr));
-      // return flagcxSuccess;
+      // MUSA currently does not support async malloc
+      // DEVCHECK(musaFreeAsync(ptr, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(musaFree(ptr));
   }
   return flagcxSuccess;
 }
@@ -284,7 +285,7 @@ struct flagcxDeviceAdaptor musaAdaptor {
       musaAdaptorDeviceSynchronize, musaAdaptorDeviceMemcpy,
       musaAdaptorDeviceMemset, musaAdaptorDeviceMalloc, musaAdaptorDeviceFree,
       musaAdaptorSetDevice, musaAdaptorGetDevice, musaAdaptorGetDeviceCount,
-      musaAdaptorGetVendor,
+      musaAdaptorGetVendor, NULL,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);
@@ -325,8 +326,8 @@ struct flagcxDeviceAdaptor musaAdaptor {
       NULL, // flagcxResult_t (*dmaSupport)(bool *dmaBufferSupport);
       NULL, // flagcxResult_t (*memGetHandleForAddressRange)(void *handleOut,
             // void *buffer, size_t size, unsigned long long flags);
-      NULL, // flagcxResult_t (*eventElapsedTime)(float *ms, flagcxEvent_t start,
-            // flagcxEvent_t end);
+      NULL, // flagcxResult_t (*eventElapsedTime)(float *ms, flagcxEvent_t
+            // start, flagcxEvent_t end);
 };
 
 #endif // USE_MUSA_ADAPTOR

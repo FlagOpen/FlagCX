@@ -13,6 +13,7 @@
 #include "ipcsocket.h"
 #include "launch_kernel.h"
 #include "net.h"
+#include "reg_pool.h"
 #include "socket.h"
 #include <pthread.h>
 
@@ -116,11 +117,17 @@ struct flagcxProxyArgs {
 
   /*for launch*/
   int deviceFuncRelaxedOrdering = 0;
+  struct flagcxHostSemaphore *semaphore = nullptr;
+  // only for device func, to be deprecated
   volatile bool eventRecorded = false;
   volatile bool hlArgs = false;
   volatile bool hEventReady = false;
   bool *volatile dlArgs;
   bool *volatile dEventReady;
+
+  // user buffer registration
+  void *regHandle = nullptr;
+  int regBufFlag = 0;
 
   union flagcxProxyOpSpecifics specifics;
 };

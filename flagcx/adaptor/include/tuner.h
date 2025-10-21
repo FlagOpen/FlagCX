@@ -49,66 +49,12 @@ struct flagcxEnvConfigList {
   struct flagcxEnvConfig configList[FLAGCX_ENV_CONFIG_MAX_COUNT];
 };
 
-struct flagcxTuner {
-  // Name of the tuner
-  const char *name;
-
-  // Initializes tuner states.
-  // Inputs:
-  //   - nRanks: number of ranks in current communicator. Each communicator
-  //   initialize its own tuner.
-  //   - nNodes: number of nodes in current communicator.
-  //   - logFunction: a logFunction can be useful to integrate logging together
-  //   with FLAGCX core.
-  // Outputs:
-  //   - context: tuner context object
-  flagcxResult_t (*init)(size_t nRanks, size_t nNodes,
-                         flagcxDebugLogger_t logFunction, void **context);
-
-  // Gets number of candidate communicator env settings available from this
-  // tuner. Inputs:
-  //   - context: tuner context object
-  // Outputs:
-  //   - nCandidates: number of candidate communicator
-  flagcxResult_t (*getCandidateNumber)(void *context, uint32_t *nCandidates);
-
-  // Set appropriate environment variables according to index, and return the
-  // communicator tag. Note that all the env settings are set before returning
-  // from this function. Only env of type FLAGCX_ENV_TYPE_CREATION will be set
-  // in this function. Inputs:
-  //   - context: tuner context object
-  //   - index: index of candidate communicator, range [0, nCandidates)
-  // Outputs:
-  //   - commTag: communicator tag for this particular candidate
-  flagcxResult_t (*setCandidate)(void *context, uint32_t index,
-                                 struct flagcxCommTag *commTag);
-
-  // Select the best communicator candidate for this collective.
-  // All the env of type FLAGCX_ENV_TYPE_COLL and FLAGCX_ENV_TYPE_ONETIME if
-  // necessary will be set before returning from this function. Inputs:
-  //   - context: tuner context object
-  //   - collType: collective type , e.g., allreduce, allgather…
-  //   - nBytes: collective size in bytes
-  //   - numPipeOps: number of operations in the group
-  //   - regBuff: If non-zero, register user buffer is used.
-  // Outputs:
-  //   - commTag: communicator tag, used to select the underlying communicator.
-  //
-  // InOut:
-  //   - collCostTable: collective cost table.  the caller is responsible for
-  //   allocating and
-  //                    deallocating the memory
-  //
-  flagcxResult_t (*getCollInfo)(void *context, flagcxCommOp_t collType,
-                                size_t nBytes, int numPipeOps,
-                                float **collCostTable, int regBuff,
-                                struct flagcxCommTag *commTag);
-
-  // Terminates the tuner and cleans up any resources that the tuner allocated.
-  flagcxResult_t (*destroy)(void *context);
+// Used to pair ProfilingStart()/ProfilingStop() calls
+#define FLAGCX_PROFILE_KEY_MAX_LENGTH 64 // max length of profiling key string
+struct flagcxProfileKey {
+  char key[FLAGCX_PROFILE_KEY_MAX_LENGTH]; // profiling key string
 };
 
-typedef struct flagcxTuner flagcxTuner_t;
 #ifdef __cplusplus
 } // end extern "C"
 #endif

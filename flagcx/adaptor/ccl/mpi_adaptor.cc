@@ -132,7 +132,26 @@ flagcxResult_t mpiAdaptorCommUserRank(const flagcxInnerComm_t comm, int *rank) {
 }
 
 flagcxResult_t mpiAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
-                                           flagcxResult_t asyncError) {
+                                           flagcxResult_t *asyncError) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t mpiAdaptorMemAlloc(void **ptr, size_t size) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t mpiAdaptorMemFree(void *ptr) { return flagcxNotSupported; }
+
+// TODO: unsupported
+flagcxResult_t mpiAdaptorCommRegister(flagcxInnerComm_t comm, void *buff,
+                                      size_t size, void **handle) {
+  return flagcxNotSupported;
+}
+
+// TODO: unsupported
+flagcxResult_t mpiAdaptorCommDeregister(flagcxInnerComm_t comm, void *handle) {
   return flagcxNotSupported;
 }
 
@@ -321,7 +340,8 @@ struct flagcxCCLAdaptor mpiAdaptor = {
     mpiAdaptorCommInitRank, mpiAdaptorCommFinalize, mpiAdaptorCommDestroy,
     mpiAdaptorCommAbort, mpiAdaptorCommResume, mpiAdaptorCommSuspend,
     mpiAdaptorCommCount, mpiAdaptorCommCuDevice, mpiAdaptorCommUserRank,
-    mpiAdaptorCommGetAsyncError,
+    mpiAdaptorCommGetAsyncError, mpiAdaptorMemAlloc, mpiAdaptorMemFree,
+    mpiAdaptorCommRegister, mpiAdaptorCommDeregister,
     // Communication functions
     mpiAdaptorReduce, mpiAdaptorGather, mpiAdaptorScatter, mpiAdaptorBroadcast,
     mpiAdaptorAllReduce, mpiAdaptorReduceScatter, mpiAdaptorAllGather,

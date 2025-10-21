@@ -229,7 +229,7 @@ struct flagcxDeviceAdaptor cannAdaptor {
       cannAdaptorDeviceSynchronize, cannAdaptorDeviceMemcpy,
       cannAdaptorDeviceMemset, cannAdaptorDeviceMalloc, cannAdaptorDeviceFree,
       cannAdaptorSetDevice, cannAdaptorGetDevice, cannAdaptorGetDeviceCount,
-      cannAdaptorGetVendor,
+      cannAdaptorGetVendor, NULL,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);
@@ -269,8 +269,8 @@ struct flagcxDeviceAdaptor cannAdaptor {
       NULL, // flagcxResult_t (*dmaSupport)(bool *dmaBufferSupport);
       NULL, // flagcxResult_t (*memGetHandleForAddressRange)(void *handleOut,
             // void *buffer, size_t size, unsigned long long flags);
-      NULL, // flagcxResult_t (*eventElapsedTime)(float *ms, flagcxEvent_t start,
-            // flagcxEvent_t end);
+      NULL, // flagcxResult_t (*eventElapsedTime)(float *ms, flagcxEvent_t
+            // start, flagcxEvent_t end);
 };
 
 #endif // USE_ASCEND_ADAPTOR

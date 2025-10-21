@@ -47,7 +47,9 @@ flagcxResult_t kunlunAdaptorDeviceMalloc(void **ptr, size_t size,
                                          flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(cudaMallocHost(ptr, size));
-  } else if (type == flagcxMemDevice) {
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(cudaMallocManaged(ptr, size, cudaMemAttachGlobal));
+  } else {
     if (stream == NULL) {
       DEVCHECK(cudaMalloc(ptr, size));
     } else {
@@ -55,8 +57,6 @@ flagcxResult_t kunlunAdaptorDeviceMalloc(void **ptr, size_t size,
       // implementation.
       DEVCHECK(cudaMallocAsync(ptr, size, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(cudaMallocManaged(ptr, size, cudaMemAttachGlobal));
   }
   return flagcxSuccess;
 }
@@ -65,7 +65,9 @@ flagcxResult_t kunlunAdaptorDeviceFree(void *ptr, flagcxMemType_t type,
                                        flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(cudaFreeHost(ptr));
-  } else if (type == flagcxMemDevice) {
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(cudaFree(ptr));
+  } else {
     if (stream == NULL) {
       DEVCHECK(cudaFree(ptr));
     } else {
@@ -73,8 +75,6 @@ flagcxResult_t kunlunAdaptorDeviceFree(void *ptr, flagcxMemType_t type,
       // implementation.
       DEVCHECK(cudaFreeAsync(ptr, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(cudaFree(ptr));
   }
   return flagcxSuccess;
 }
@@ -315,7 +315,7 @@ struct flagcxDeviceAdaptor kunlunAdaptor {
       kunlunAdaptorDeviceSynchronize, kunlunAdaptorDeviceMemcpy,
       kunlunAdaptorDeviceMemset, kunlunAdaptorDeviceMalloc,
       kunlunAdaptorDeviceFree, kunlunAdaptorSetDevice, kunlunAdaptorGetDevice,
-      kunlunAdaptorGetDeviceCount, kunlunAdaptorGetVendor,
+      kunlunAdaptorGetDeviceCount, kunlunAdaptorGetVendor, NULL,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);
@@ -359,8 +359,8 @@ struct flagcxDeviceAdaptor kunlunAdaptor {
       NULL, // flagcxResult_t (*dmaSupport)(bool *dmaBufferSupport);
       NULL, // flagcxResult_t (*memGetHandleForAddressRange)(void *handleOut,
             // void *buffer, size_t size, unsigned long long flags);
-      NULL, // flagcxResult_t (*eventElapsedTime)(float *ms, flagcxEvent_t start,
-            // flagcxEvent_t end);
+      NULL, // flagcxResult_t (*eventElapsedTime)(float *ms, flagcxEvent_t
+            // start, flagcxEvent_t end);
 };
 
 #endif // USE_KUNLUNXIN_ADAPTOR

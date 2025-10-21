@@ -27,6 +27,7 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
         conn->proxyConn.connection->transportResources = (void *)resources;
         resources->netDev = comm->netDev;
         resources->netAdaptor = comm->netAdaptor;
+        resources->commPtr = comm;
         comm->netAdaptor->listen(resources->netDev, (void *)handle,
                                  &resources->netListenComm);
         bootstrapSend(comm->bootstrap, peer, 1001 + c, handle,
@@ -63,6 +64,7 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
         conn->proxyConn.connection->transportResources = (void *)resources;
         resources->netDev = comm->netDev;
         resources->netAdaptor = comm->netAdaptor;
+        resources->commPtr = comm;
         bootstrapRecv(comm->bootstrap, peer, 1001 + c, handle,
                       sizeof(flagcxIbHandle));
         handle->stage.comm = comm;

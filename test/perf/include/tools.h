@@ -26,6 +26,7 @@ public:
   bool isPrintBuffer() const { return printBuffer == 1; }
   int getRootRank() const { return root; }
   uint64_t getSplitMask() const { return splitMask; }
+  int getLocalRegister() const { return localRegister; }
 
   size_t minBytes;
   size_t maxBytes;
@@ -35,4 +36,5 @@ public:
   int printBuffer;
   int root;
   uint64_t splitMask;
+  int localRegister;
 };

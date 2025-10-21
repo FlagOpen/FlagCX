@@ -44,15 +44,15 @@ flagcxResult_t cudaAdaptorDeviceMalloc(void **ptr, size_t size,
                                        flagcxMemType_t type,
                                        flagcxStream_t stream) {
   if (type == flagcxMemHost) {
-    DEVCHECK(cudaMallocHost(ptr, size));
-  } else if (type == flagcxMemDevice) {
+    DEVCHECK(cudaHostAlloc(ptr, size, cudaHostAllocMapped));
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(cudaMallocManaged(ptr, size, cudaMemAttachGlobal));
+  } else {
     if (stream == NULL) {
       DEVCHECK(cudaMalloc(ptr, size));
     } else {
       DEVCHECK(cudaMallocAsync(ptr, size, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(cudaMallocManaged(ptr, size, cudaMemAttachGlobal));
   }
   return flagcxSuccess;
 }
@@ -61,14 +61,14 @@ flagcxResult_t cudaAdaptorDeviceFree(void *ptr, flagcxMemType_t type,
                                      flagcxStream_t stream) {
   if (type == flagcxMemHost) {
     DEVCHECK(cudaFreeHost(ptr));
-  } else if (type == flagcxMemDevice) {
+  } else if (type == flagcxMemManaged) {
+    DEVCHECK(cudaFree(ptr));
+  } else {
     if (stream == NULL) {
       DEVCHECK(cudaFree(ptr));
     } else {
       DEVCHECK(cudaFreeAsync(ptr, stream->base));
     }
-  } else if (type == flagcxMemManaged) {
-    DEVCHECK(cudaFree(ptr));
   }
   return flagcxSuccess;
 }
@@ -93,11 +93,52 @@ flagcxResult_t cudaAdaptorGetVendor(char *vendor) {
   return flagcxSuccess;
 }
 
+flagcxResult_t cudaAdaptorHostGetDevicePointer(void **pDevice, void *pHost) {
+  DEVCHECK(cudaHostGetDevicePointer(pDevice, pHost, 0));
+  return flagcxSuccess;
+}
+
 flagcxResult_t cudaAdaptorGdrMemAlloc(void **ptr, size_t size,
                                       void *memHandle) {
   if (ptr == NULL) {
     return flagcxInvalidArgument;
   }
+#if 0
+#if CUDART_VERSION >= 12010
+  size_t memGran = 0;
+  CUdevice currentDev;
+  CUmemAllocationProp memprop = {};
+  CUmemGenericAllocationHandle handle = (CUmemGenericAllocationHandle)-1;
+  int cudaDev;
+  int flag;
+
+  DEVCHECK(cudaGetDevice(&cudaDev));
+  DEVCHECK(cuDeviceGet(&currentDev, cudaDev));
+
+  size_t handleSize = size;
+  int requestedHandleTypes = CU_MEM_HANDLE_TYPE_POSIX_FILE_DESCRIPTOR;
+  // Query device to see if FABRIC handle support is available
+  flag = 0;
+  DEVCHECK(cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_HANDLE_TYPE_FABRIC_SUPPORTED, currentDev));
+  if (flag) requestedHandleTypes |= CU_MEM_HANDLE_TYPE_FABRIC;
+  memprop.type = CU_MEM_ALLOCATION_TYPE_PINNED;
+  memprop.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
+  memprop.requestedHandleTypes = (CUmemAllocationHandleType) requestedHandleTypes;
+  memprop.location.id = currentDev;
+  // Query device to see if RDMA support is available
+  flag = 0;
+  DEVCHECK(cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_GPU_DIRECT_RDMA_WITH_CUDA_VMM_SUPPORTED, currentDev));
+  if (flag) memprop.allocFlags.gpuDirectRDMACapable = 1;
+  DEVCHECK(cuMemGetAllocationGranularity(&memGran, &memprop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED));
+  ALIGN_SIZE(handleSize, memGran);
+  /* Allocate the physical memory on the device */
+  DEVCHECK(cuMemCreate(&handle, handleSize, &memprop, 0));
+  /* Reserve a virtual address range */
+  DEVCHECK(cuMemAddressReserve((CUdeviceptr*)ptr, handleSize, memGran, 0, 0));
+  /* Map the virtual address range to the physical allocation */
+  DEVCHECK(cuMemMap((CUdeviceptr)*ptr, handleSize, 0, handle, 0));
+#endif
+#endif
   DEVCHECK(cudaMalloc(ptr, size));
   cudaPointerAttributes attrs;
   DEVCHECK(cudaPointerGetAttributes(&attrs, *ptr));
@@ -111,6 +152,20 @@ flagcxResult_t cudaAdaptorGdrMemFree(void *ptr, void *memHandle) {
   if (ptr == NULL) {
     return flagcxSuccess;
   }
+#if 0
+#if CUDART_VERSION >= 12010
+  CUdevice ptrDev = 0;
+  CUmemGenericAllocationHandle handle;
+  size_t size = 0;
+  DEVCHECK(cuPointerGetAttribute((void*)&ptrDev, CU_POINTER_ATTRIBUTE_DEVICE_ORDINAL, (CUdeviceptr)ptr));
+  DEVCHECK(cuMemRetainAllocationHandle(&handle, ptr));
+  DEVCHECK(cuMemRelease(handle));
+  DEVCHECK(cuMemGetAddressRange(NULL, &size, (CUdeviceptr)ptr));
+  DEVCHECK(cuMemUnmap((CUdeviceptr)ptr, size));
+  DEVCHECK(cuMemRelease(handle));
+  DEVCHECK(cuMemAddressFree((CUdeviceptr)ptr, size));
+#endif
+#endif
   DEVCHECK(cudaFree(ptr));
   return flagcxSuccess;
 }
@@ -183,7 +238,7 @@ flagcxResult_t cudaAdaptorEventCreate(flagcxEvent_t *event) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
   DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
-                                    cudaEventDefault));
+                                    cudaEventDisableTiming));
   return flagcxSuccess;
 }
 
@@ -341,13 +396,13 @@ flagcxResult_t cudaAdaptorEventElapsedTime(float *ms, flagcxEvent_t start,
   }
   cudaError_t error = cudaEventElapsedTime(ms, start->base, end->base);
   if (error == cudaSuccess) {
-      return flagcxSuccess;
-    } else if (error == cudaErrorNotReady) {
-      return flagcxInProgress;
-    } else {
-      return flagcxUnhandledDeviceError;
-    }
+    return flagcxSuccess;
+  } else if (error == cudaErrorNotReady) {
+    return flagcxInProgress;
+  } else {
+    return flagcxUnhandledDeviceError;
   }
+}
 
 struct flagcxDeviceAdaptor cudaAdaptor {
   "CUDA",
@@ -355,7 +410,7 @@ struct flagcxDeviceAdaptor cudaAdaptor {
       cudaAdaptorDeviceSynchronize, cudaAdaptorDeviceMemcpy,
       cudaAdaptorDeviceMemset, cudaAdaptorDeviceMalloc, cudaAdaptorDeviceFree,
       cudaAdaptorSetDevice, cudaAdaptorGetDevice, cudaAdaptorGetDeviceCount,
-      cudaAdaptorGetVendor,
+      cudaAdaptorGetVendor, cudaAdaptorHostGetDevicePointer,
       // GDR functions
       NULL, // flagcxResult_t (*memHandleInit)(int dev_id, void **memHandle);
       NULL, // flagcxResult_t (*memHandleDestroy)(int dev, void *memHandle);
