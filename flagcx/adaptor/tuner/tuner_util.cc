@@ -16,4 +16,9 @@ flagcxResult_t loadConfigList(std::vector<struct flagcxEnvConfig> &cfgList) {
   cfgList.push_back(config2);
   return flagcxSuccess;
 }
+#else
+// Default empty implementation
+flagcxResult_t loadConfigList(std::vector<struct flagcxEnvConfig> &cfgList) {
+  return flagcxSuccess;
+}
 #endif
