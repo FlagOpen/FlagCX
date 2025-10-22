@@ -180,7 +180,7 @@ flagcxResult_t hipAdaptorEventCreate(flagcxEvent_t *event,
                                      flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  if (eventType = flagcxEventDefault) {
+  if (eventType == flagcxEventDefault) {
     DEVCHECK(hipEventCreateWithFlags((hipEvent_t *)(*event), hipEventDefault));
   } else {
     DEVCHECK(
