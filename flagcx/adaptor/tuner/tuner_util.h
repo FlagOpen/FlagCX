@@ -47,7 +47,7 @@ static EnvVar minChannel(
 );
 
 static EnvVar chunkSize(
-    "NCCL_P2P_NET_CHUNKSIZE",
+    "NCCL_P2P_NVL_CHUNKSIZE",
     {"1024", "2048"},
     "1024"
 );

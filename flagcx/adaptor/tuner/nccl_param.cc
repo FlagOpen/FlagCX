@@ -29,5 +29,10 @@ static void ncclLoadParam(char const* env, int64_t deftVal, int64_t* value) {
   }
 
 // In order to intercept a NCCL environment getter function, add an additional line of NCCL_PARAM here.
-// Below is an example of intercepting NCCL_P2P_NVL_CHUNKSIZE env.
+// Below is an example of intercepting NCCL_P2P_NVL_CHUNKSIZE / NTHREADS / MIN_NCHANNELS env.
+
+#ifdef USE_NVIDIA_ADAPTOR
 NCCL_PARAM(P2pNvlChunkSize, "P2P_NVL_CHUNKSIZE", (1 << 19)); /* 512 kB */
+NCCL_PARAM(Nthreads, "NTHREADS", (1 << 8)); /*256*/
+NCCL_PARAM(MinNchannels, "MIN_NCHANNELS", (1 << 10)); /*1024*/
+#endif

@@ -436,7 +436,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     for (uint32_t i = 0; i < nConfigs; ++i) {
       struct flagcxCommTag tag = {""};
       FLAGCXCHECK((*comm)->tuner->setCandidate((*comm)->tunerContext, i, &tag));
-      INFO(FLAGCX_INIT, "start to prepare communicator tag=%s(%u/%u)", tag.tag,
+      INFO(FLAGCX_INIT | FLAGCX_TUNING, "start to prepare communicator tag=%s(%u/%u)", tag.tag,
            i, nConfigs);
 
       flagcxInnerComm_t innerComm = NULL;
