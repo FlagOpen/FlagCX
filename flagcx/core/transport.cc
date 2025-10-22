@@ -34,7 +34,8 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
                       sizeof(flagcxIbHandle));
         deviceAdaptor->streamCreate(&resources->cpStream);
         for (int s = 0; s < MAXSTEPS; s++) {
-          deviceAdaptor->eventCreate(&resources->cpEvents[s]);
+          deviceAdaptor->eventCreate(&resources->cpEvents[s],
+                                     flagcxEventDisableTiming);
         }
         resources->buffSizes[0] = REGMRBUFFERSIZE;
         if (comm->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
@@ -70,7 +71,8 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
         handle->stage.comm = comm;
         deviceAdaptor->streamCreate(&resources->cpStream);
         for (int s = 0; s < MAXSTEPS; s++) {
-          deviceAdaptor->eventCreate(&resources->cpEvents[s]);
+          deviceAdaptor->eventCreate(&resources->cpEvents[s],
+                                     flagcxEventDisableTiming);
         }
         resources->buffSizes[0] = REGMRBUFFERSIZE;
         if (comm->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {

@@ -176,11 +176,16 @@ flagcxResult_t hipAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t hipAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t hipAdaptorEventCreate(flagcxEvent_t *event,
+                                     flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(
-      hipEventCreateWithFlags((hipEvent_t *)(*event), hipEventDisableTiming));
+  if (eventType = flagcxEventDefault) {
+    DEVCHECK(hipEventCreateWithFlags((hipEvent_t *)(*event), hipEventDefault));
+  } else {
+    DEVCHECK(
+        hipEventCreateWithFlags((hipEvent_t *)(*event), hipEventDisableTiming));
+  }
   return flagcxSuccess;
 }
 

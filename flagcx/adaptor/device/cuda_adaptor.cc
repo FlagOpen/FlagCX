@@ -234,11 +234,18 @@ flagcxResult_t cudaAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t cudaAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t cudaAdaptorEventCreate(flagcxEvent_t *event,
+                                      flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
-                                    cudaEventDefault));
+  if (eventType == flagcxEventDefault) {
+    DEVCHECK(
+        cudaEventCreateWithFlags((cudaEvent_t *)(*event), cudaEventDefault));
+  } else {
+    DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
+                                      cudaEventDisableTiming));
+  }
+
   return flagcxSuccess;
 }
 

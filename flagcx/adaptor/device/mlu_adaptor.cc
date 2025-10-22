@@ -203,11 +203,17 @@ flagcxResult_t mluAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t mluAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t mluAdaptorEventCreate(flagcxEvent_t *event,
+                                     flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(cnrtNotifierCreateWithFlags((cnrtNotifier_t *)(*event),
-                                       CNRT_NOTIFIER_DISABLE_TIMING_ALL));
+  if (evenType == flagcxEventDefault) {
+    DEVCHECK(cnrtNotifierCreateWithFlags((cnrtNotifier_t *)(*event),
+                                         CNRT_NOTIFIER_DEFAULT));
+  } else {
+    DEVCHECK(cnrtNotifierCreateWithFlags((cnrtNotifier_t *)(*event),
+                                         CNRT_NOTIFIER_DISABLE_TIMING_ALL));
+  }
   return flagcxSuccess;
 }
 

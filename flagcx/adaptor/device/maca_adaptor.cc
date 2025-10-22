@@ -183,10 +183,16 @@ flagcxResult_t macaAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t macaAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t macaAdaptorEventCreate(flagcxEvent_t *event,
+                                      flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(mcEventCreateWithFlags((mcEvent_t *)(*event), mcEventDisableTiming));
+  if (eventType == flagcxEventDefault) {
+    DEVCHECK(mcEventCreateWithFlags((mcEvent_t *)(*event), mcEventDefault));
+  } else {
+    DEVCHECK(
+        mcEventCreateWithFlags((mcEvent_t *)(*event), mcEventDisableTiming));
+  }
   return flagcxSuccess;
 }
 

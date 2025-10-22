@@ -163,7 +163,8 @@ flagcxResult_t cannAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t cannAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t cannAdaptorEventCreate(flagcxEvent_t *event,
+                                      flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
   DEVCHECK(aclrtCreateEventWithFlag((aclrtEvent *)(*event), ACL_EVENT_SYNC));
