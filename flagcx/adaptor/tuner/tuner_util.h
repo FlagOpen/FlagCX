@@ -53,6 +53,9 @@ static EnvVar chunkSize(
 );
 static std::vector<EnvVar> vars = {algo, proto, thread, minChannel, chunkSize};
 
+#else
+static std::vector<EnvVar> vars = {};
+
 #endif
 
 #endif // end include guard

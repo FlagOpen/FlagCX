@@ -1,6 +1,5 @@
 #include "tuner/tuner_util.h"
 
-#ifdef USE_NVIDIA_ADAPTOR
 
 // Safely copy std::string to char buffer, ensuring NUL termination and truncation
 static void safeStrCopy(char *dst, size_t dstSize, const std::string &src) {
@@ -22,7 +21,9 @@ flagcxResult_t generateCandidate(std::vector<struct flagcxEnvConfig> &cfgList) {
     // If the number of variables exceeds the structure capacity, truncate
     if (vars.size() > (size_t)FLAGCX_ENV_LIST_MAX_LENGTH) {
       INFO(FLAGCX_INIT, "The number of environment variables exceeds the maximum length defined by FLAGCX_ENV_LIST_MAX_LENGTH");
-      return flagcxInvalidArgument;
+      vars.resize(FLAGCX_ENV_LIST_MAX_LENGTH); // Truncate the vars vector
+      INFO(FLAGCX_INIT, "The number of environment variables has been truncated to FLAGCX_ENV_LIST_MAX_LENGTH (%d)",FLAGCX_ENV_LIST_MAX_LENGTH);
+      return flagcxSuccess;
     }
 
     // Prepare candidate value lists for each variable (at least one empty string to ensure uniform combination logic)
@@ -83,5 +84,3 @@ flagcxResult_t generateCandidate(std::vector<struct flagcxEnvConfig> &cfgList) {
 
     return flagcxSuccess;
 }
-
-#endif
