@@ -17,7 +17,6 @@ struct EnvVar {
 };
 
 flagcxResult_t generateCandidate(std::vector<struct flagcxEnvConfig> &cfgList);
-std::vector<struct flagcxEnvConfig> generateCandidate(std::vector<EnvVar> vars);
 static void safeStrCopy(char *dst, size_t dstSize, const std::string &src);
 
 #ifdef USE_NVIDIA_ADAPTOR

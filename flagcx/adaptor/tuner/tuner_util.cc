@@ -49,7 +49,12 @@ flagcxResult_t generateCandidate(std::vector<struct flagcxEnvConfig> &cfgList) {
         memset(&cfg, 0, sizeof(cfg)); // this zeroes commTag and all fields; adjust if you want non-zero defaults
         
         std::string tagStr = "Config " + std::to_string(numCandidate);
-        safeStrCopy(cfg.commTag.tag, sizeof(cfg.commTag.tag), tagStr);
+        if (tagStr.size() < sizeof(cfg.commTag.tag)) {
+          safeStrCopy(cfg.commTag.tag, sizeof(cfg.commTag.tag), tagStr);
+        } else {
+          INFO(FLAGCX_INIT, "Tag string too long, potential buffer overflow");
+          // Handle the error appropriately, e.g., truncate the string or skip this candidate
+        }
         cfg.envCount = 0;
 
         // Fill envs
