@@ -167,7 +167,12 @@ flagcxResult_t cannAdaptorEventCreate(flagcxEvent_t *event,
                                       flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(aclrtCreateEventWithFlag((aclrtEvent *)(*event), ACL_EVENT_SYNC));
+  if (eventType == flagcxEventDefault) {
+    DEVCHECK(
+        aclrtCreateEventWithFlag((aclrtEvent *)(*event), ACL_EVENT_TIME_LINE));
+  } else {
+    DEVCHECK(aclrtCreateEventWithFlag((aclrtEvent *)(*event), ACL_EVENT_SYNC));
+  }
   return flagcxSuccess;
 }
 
