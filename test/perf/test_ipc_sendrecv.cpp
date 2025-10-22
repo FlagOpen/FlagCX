@@ -68,8 +68,6 @@ int main(int argc, char *argv[]) {
   void *myShmPtr;
   flagcxShmAllocateShareableBuffer(handleSize, &myShmDesc, &myShmPtr, NULL);
   memcpy(myShmPtr, (void *)myIpcHandle, handleSize);
-  printf("proc %d myIpcHandle %s shmPtr %p val %s suffix %s\n", proc,
-         (char *)myIpcHandle, myShmPtr, (char *)myShmPtr, myShmDesc.shmSuffix);
   MPI_Barrier(MPI_COMM_WORLD);
 
   // use MPI_Allgather to collect all shmDescs
@@ -89,9 +87,6 @@ int main(int argc, char *argv[]) {
   devHandle->ipcMemHandleCreate(&peerIpcHandle, NULL);
   // copy peerShmPtr to peerIpcHandle
   memcpy((void *)peerIpcHandle, peerShmPtr, handleSize);
-  printf("proc %d peerIpcHandle %s shmPtr %p val %s suffix %s\n", proc,
-         (char *)peerIpcHandle, peerShmPtr, (char *)peerShmPtr,
-         peerShmDesc.shmSuffix);
   MPI_Barrier(MPI_COMM_WORLD);
 
   // open peerIpcHandle
@@ -167,6 +162,7 @@ int main(int argc, char *argv[]) {
 
   // cleanup
   flagcxShmIpcClose(&myShmDesc);
+  flagcxShmIpcClose(&peerShmDesc);
   free(allHandles);
   devHandle->ipcMemHandleClose(peerbuff);
   devHandle->ipcMemHandleFree(myIpcHandle);

@@ -236,7 +236,6 @@ flagcxResult_t macaAdaptorEventQuery(flagcxEvent_t event) {
 
 flagcxResult_t macaAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
                                              size_t *size) {
-  (*handle) = NULL;
   flagcxCalloc(handle, 1);
   if (size != NULL) {
     *size = sizeof(mcIpcMemHandle_t);
@@ -246,35 +245,34 @@ flagcxResult_t macaAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
 
 flagcxResult_t macaAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
                                           void *devPtr) {
-  if (devPtr != NULL) {
-    DEVCHECK(mcIpcGetMemHandle(&handle->base, devPtr));
+  if (handle == NULL || devPtr == NULL) {
+    return flagcxInvalidArgument;
   }
+  DEVCHECK(mcIpcGetMemHandle(&handle->base, devPtr));
   return flagcxSuccess;
 }
 
 flagcxResult_t macaAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
                                            void **devPtr) {
-  if (handle != NULL) {
-    if (*devPtr != NULL) {
-      return flagcxInvalidArgument;
-    }
-    DEVCHECK(
-        mcIpcOpenMemHandle(devPtr, handle->base, mcIpcMemLazyEnablePeerAccess));
+  if (handle == NULL || devPtr == NULL || *devPtr != NULL) {
+    return flagcxInvalidArgument;
   }
+  DEVCHECK(
+      mcIpcOpenMemHandle(devPtr, handle->base, mcIpcMemLazyEnablePeerAccess));
   return flagcxSuccess;
 }
 
 flagcxResult_t macaAdaptorIpcMemHandleClose(void *devPtr) {
-  if (devPtr != NULL) {
-    DEVCHECK(mcIpcCloseMemHandle(devPtr));
+  if (devPtr == NULL) {
+    return flagcxInvalidArgument;
   }
+  DEVCHECK(mcIpcCloseMemHandle(devPtr));
   return flagcxSuccess;
 }
 
 flagcxResult_t macaAdaptorIpcMemHandleFree(flagcxIpcMemHandle_t handle) {
   if (handle != NULL) {
     free(handle);
-    handle = NULL;
   }
   return flagcxSuccess;
 }

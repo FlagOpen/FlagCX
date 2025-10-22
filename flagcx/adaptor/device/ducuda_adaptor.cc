@@ -233,7 +233,6 @@ flagcxResult_t ducudaAdaptorEventQuery(flagcxEvent_t event) {
 
 flagcxResult_t ducudaAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
                                                size_t *size) {
-  (*handle) = NULL;
   flagcxCalloc(handle, 1);
   if (size != NULL) {
     *size = sizeof(cudaIpcMemHandle_t);
@@ -243,35 +242,34 @@ flagcxResult_t ducudaAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
 
 flagcxResult_t ducudaAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
                                             void *devPtr) {
-  if (devPtr != NULL) {
-    DEVCHECK(cudaIpcGetMemHandle(&handle->base, devPtr));
+  if (handle == NULL || devPtr == NULL) {
+    return flagcxInvalidArgument;
   }
+  DEVCHECK(cudaIpcGetMemHandle(&handle->base, devPtr));
   return flagcxSuccess;
 }
 
 flagcxResult_t ducudaAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
                                              void **devPtr) {
-  if (handle != NULL) {
-    if (*devPtr != NULL) {
-      return flagcxInvalidArgument;
-    }
-    DEVCHECK(cudaIpcOpenMemHandle(devPtr, handle->base,
-                                  cudaIpcMemLazyEnablePeerAccess));
+  if (handle == NULL || devPtr == NULL || *devPtr != NULL) {
+    return flagcxInvalidArgument;
   }
+  DEVCHECK(cudaIpcOpenMemHandle(devPtr, handle->base,
+                                cudaIpcMemLazyEnablePeerAccess));
   return flagcxSuccess;
 }
 
 flagcxResult_t ducudaAdaptorIpcMemHandleClose(void *devPtr) {
-  if (devPtr != NULL) {
-    DEVCHECK(cudaIpcCloseMemHandle(devPtr));
+  if (devPtr == NULL) {
+    return flagcxInvalidArgument;
   }
+  DEVCHECK(cudaIpcCloseMemHandle(devPtr));
   return flagcxSuccess;
 }
 
 flagcxResult_t ducudaAdaptorIpcMemHandleFree(flagcxIpcMemHandle_t handle) {
   if (handle != NULL) {
     free(handle);
-    handle = NULL;
   }
   return flagcxSuccess;
 }

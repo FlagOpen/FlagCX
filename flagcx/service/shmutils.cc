@@ -56,7 +56,7 @@ flagcxResult_t flagcxShmOpen(char *shmPath, size_t shmPathSize, size_t shmSize,
   void *dptr = NULL;
   flagcxResult_t ret = flagcxSuccess;
   struct shmHandleInternal *tmphandle;
-  bool create = refcount > 0 ? true : false;
+  bool create = refcount > 0;
   const size_t refSize =
       sizeof(int); /* extra sizeof(int) bytes for reference count */
   const size_t realShmSize = shmSize + refSize;
@@ -143,8 +143,9 @@ flagcxResult_t flagcxShmClose(flagcxShmHandle_t handle) {
   if (tmphandle) {
     if (tmphandle->fd >= 0) {
       close(tmphandle->fd);
-      if (tmphandle->shmPath != NULL && tmphandle->refcount != NULL &&
-          *tmphandle->refcount > 0) {
+      if (tmphandle->shmPath != NULL &&
+          (tmphandle->shmPtr == NULL ||
+           (tmphandle->refcount != NULL && *tmphandle->refcount > 0))) {
         if (unlink(tmphandle->shmPath) != 0) {
           WARN("unlink shared memory %s failed, error: %s", tmphandle->shmPath,
                strerror(errno));
