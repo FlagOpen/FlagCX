@@ -1,6 +1,47 @@
 #include "tuner/tuner_util.h"
 
 
+//Environment variables for different hardware
+#ifdef USE_NVIDIA_ADAPTOR
+
+static EnvVar algo(
+    "NCCL_ALGO",
+    {"ring", "tree"},
+    "ring"
+);
+
+static EnvVar proto(
+    "NCCL_PROTO",
+    {"LL", "LL128", "Simple"},
+    "Simple"
+);
+
+static EnvVar thread(
+    "NCCL_NTHREADS",
+    {"128", "256"},
+    "256"
+);
+
+static EnvVar minChannel(
+    "NCCL_MIN_NCHANNELS",
+    {"16", "32"},
+    "16"
+);
+
+static EnvVar chunkSize(
+    "NCCL_P2P_NVL_CHUNKSIZE",
+    {"1024", "2048"},
+    "1024"
+);
+
+std::vector<EnvVar> vars = {algo, proto, thread, minChannel, chunkSize};
+
+#else
+
+std::vector<EnvVar> vars = {};
+
+#endif
+
 // Safely copy std::string to char buffer, ensuring NUL termination and truncation
 static void safeStrCopy(char *dst, size_t dstSize, const std::string &src) {
     if (dstSize == 0) return;

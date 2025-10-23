@@ -19,42 +19,6 @@ struct EnvVar {
 flagcxResult_t generateCandidate(std::vector<struct flagcxEnvConfig> &cfgList);
 static void safeStrCopy(char *dst, size_t dstSize, const std::string &src);
 
-#ifdef USE_NVIDIA_ADAPTOR
-
-static EnvVar algo(
-    "NCCL_ALGO",
-    {"ring", "tree"},
-    "ring"
-);
-
-static EnvVar proto(
-    "NCCL_PROTO",
-    {"LL", "LL128", "Simple"},
-    "Simple"
-);
-
-static EnvVar thread(
-    "NCCL_NTHREADS",
-    {"128", "256"},
-    "256"
-);
-
-static EnvVar minChannel(
-    "NCCL_MIN_NCHANNELS",
-    {"16", "32"},
-    "16"
-);
-
-static EnvVar chunkSize(
-    "NCCL_P2P_NVL_CHUNKSIZE",
-    {"1024", "2048"},
-    "1024"
-);
-static std::vector<EnvVar> vars = {algo, proto, thread, minChannel, chunkSize};
-
-#else
-static std::vector<EnvVar> vars = {};
-
-#endif
+extern std::vector<EnvVar> vars;
 
 #endif // end include guard
