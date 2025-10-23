@@ -18,6 +18,7 @@ flagcxDataType_t = ctypes.c_int
 flagcxRedOp_t = ctypes.c_int
 flagcxMemcpyType_t = ctypes.c_int
 flagcxMemType_t = ctypes.c_int
+flagcxEventType_t = ctypes.c_int
 
 flagcxHandlerGroup_t = ctypes.c_void_p
 flagcxComm_t = ctypes.c_void_p
