@@ -182,13 +182,10 @@ flagcxResult_t ixcudaAdaptorEventCreate(flagcxEvent_t *event,
                                         flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  if (eventType == flagcxEventDefault) {
-    DEVCHECK(
-        cudaEventCreateWithFlags((cudaEvent_t *)(*event), cudaEventDefault));
-  } else {
-    DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
-                                      cudaEventDisableTiming));
-  }
+  const unsigned int flags = (eventType == flagcxEventDefault)
+                                 ? cudaEventDefault
+                                 : cudaEventDisableTiming;
+  DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event), flags));
 
   return flagcxSuccess;
 }

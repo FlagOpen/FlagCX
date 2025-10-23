@@ -187,12 +187,9 @@ flagcxResult_t macaAdaptorEventCreate(flagcxEvent_t *event,
                                       flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  if (eventType == flagcxEventDefault) {
-    DEVCHECK(mcEventCreateWithFlags((mcEvent_t *)(*event), mcEventDefault));
-  } else {
-    DEVCHECK(
-        mcEventCreateWithFlags((mcEvent_t *)(*event), mcEventDisableTiming));
-  }
+  const unsigned int flags =
+      (eventType == flagcxEventDefault) ? mcEventDefault : mcEventDisableTiming;
+  DEVCHECK(mcEventCreateWithFlags((mcEvent_t *)(*event), flags));
   return flagcxSuccess;
 }
 

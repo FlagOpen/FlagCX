@@ -180,12 +180,10 @@ flagcxResult_t hipAdaptorEventCreate(flagcxEvent_t *event,
                                      flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  if (eventType == flagcxEventDefault) {
-    DEVCHECK(hipEventCreateWithFlags((hipEvent_t *)(*event), hipEventDefault));
-  } else {
-    DEVCHECK(
-        hipEventCreateWithFlags((hipEvent_t *)(*event), hipEventDisableTiming));
-  }
+  const unsigned int flags = (eventType == flagcxEventDefault)
+                                 ? hipEventDefault
+                                 : hipEventDisableTiming;
+  DEVCHECK(hipEventCreateWithFlags((hipEvent_t *)(*event), flags));
   return flagcxSuccess;
 }
 

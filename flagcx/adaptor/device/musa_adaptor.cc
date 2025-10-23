@@ -187,13 +187,10 @@ flagcxResult_t musaAdaptorEventCreate(flagcxEvent_t *event,
                                       flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  if (eventType == flagcxEventDefault) {
-    DEVCHECK(
-        musaEventCreateWithFlags((musaEvent_t *)(*event), musaEventDefault));
-  } else {
-    DEVCHECK(musaEventCreateWithFlags((musaEvent_t *)(*event),
-                                      musaEventDisableTiming));
-  }
+  const unsigned int flags = (eventType == flagcxEventDefault)
+                                 ? musaEventDefault
+                                 : musaEventDisableTiming;
+  DEVCHECK(musaEventCreateWithFlags((musaEvent_t *)(*event), flags));
   return flagcxSuccess;
 }
 
