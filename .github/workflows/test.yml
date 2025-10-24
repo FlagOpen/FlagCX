@@ -53,12 +53,9 @@ jobs:
           if [ -n "$GITHUB_HEAD_REF" ] && [ -n "$GITHUB_BASE_REF" ]; then
             from_ref="origin/$GITHUB_HEAD_REF"
             to_ref="origin/$GITHUB_BASE_REF"
-          else
-            from_ref="HEAD^"
-            to_ref="HEAD"
+            echo "From reference: $from_ref; To reference: $to_ref"
+            pre-commit run --from-ref "$from_ref" --to-ref "$to_ref"
           fi
-          echo "From reference: $from_ref; To reference: $to_ref"
-          pre-commit run --from-ref "$from_ref" --to-ref "$to_ref"
         continue-on-error: false
 
       - name: Check the current working directory
