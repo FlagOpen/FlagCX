@@ -11,6 +11,7 @@
 #include "flagcx_common.h"
 #include "flagcx_net.h"
 #include "ib_common.h"
+#include "ibuc_retrans.h"
 #include "ibvwrap.h"
 #include "net.h"
 #include "param.h"
@@ -26,8 +27,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// Constants
-// Init function
 flagcxResult_t flagcxIbucInit() {
   flagcxResult_t ret;
   if (flagcxParamIbDisable()) {
@@ -247,19 +246,23 @@ fail:
   return ret;
 }
 
-// Function declarations
+// Forward declarations
 flagcxResult_t flagcxIbucMalloc(void **ptr, size_t size);
 flagcxResult_t flagcxIbucCreateQpWithType(uint8_t ib_port,
                                           struct flagcxIbNetCommDevBase *base,
                                           int access_flags,
                                           enum ibv_qp_type qp_type,
                                           struct flagcxIbQp *qp);
+flagcxResult_t flagcxIbucCreateQpWithTypeSrq(
+    uint8_t ib_port, struct flagcxIbNetCommDevBase *base, int access_flags,
+    enum ibv_qp_type qp_type, struct flagcxIbQp *qp, struct ibv_srq *srq);
 flagcxResult_t flagcxIbucRtrQpWithType(struct ibv_qp *qp, uint8_t sGidIndex,
                                        uint32_t dest_qp_num,
                                        struct flagcxIbDevInfo *info,
                                        enum ibv_qp_type qp_type);
 flagcxResult_t flagcxIbucRtsQpWithType(struct ibv_qp *qp,
                                        enum ibv_qp_type qp_type);
+
 flagcxResult_t flagcxIbucMalloc(void **ptr, size_t size) {
   *ptr = malloc(size);
   return (*ptr == NULL) ? flagcxInternalError : flagcxSuccess;
@@ -325,19 +328,35 @@ flagcxResult_t flagcxIbucCreateQpWithType(uint8_t ib_port,
                                           int access_flags,
                                           enum ibv_qp_type qp_type,
                                           struct flagcxIbQp *qp) {
+  return flagcxIbucCreateQpWithTypeSrq(ib_port, base, access_flags, qp_type, qp,
+                                       NULL);
+}
+
+flagcxResult_t flagcxIbucCreateQpWithTypeSrq(
+    uint8_t ib_port, struct flagcxIbNetCommDevBase *base, int access_flags,
+    enum ibv_qp_type qp_type, struct flagcxIbQp *qp, struct ibv_srq *srq) {
   struct ibv_qp_init_attr qpInitAttr;
   memset(&qpInitAttr, 0, sizeof(struct ibv_qp_init_attr));
   qpInitAttr.send_cq = base->cq;
   qpInitAttr.recv_cq = base->cq;
   qpInitAttr.qp_type = qp_type;
+
+  if (srq != NULL) {
+    qpInitAttr.srq = srq;
+    qpInitAttr.cap.max_recv_wr = 0;
+    TRACE(FLAGCX_NET, "Creating UC QP with SRQ: srq=%p", srq);
+  } else {
+    qpInitAttr.cap.max_recv_wr = MAX_REQUESTS;
+  }
+
   // We might send 2 messages per send (RDMA and RDMA_WITH_IMM)
   qpInitAttr.cap.max_send_wr = 2 * MAX_REQUESTS;
-  qpInitAttr.cap.max_recv_wr = MAX_REQUESTS;
   qpInitAttr.cap.max_send_sge = 1;
   qpInitAttr.cap.max_recv_sge = 1;
   qpInitAttr.cap.max_inline_data =
       flagcxParamIbUseInline() ? sizeof(struct flagcxIbSendFifo) : 0;
   FLAGCXCHECK(flagcxWrapIbvCreateQp(&qp->qp, base->pd, &qpInitAttr));
+
   struct ibv_qp_attr qpAttr;
   memset(&qpAttr, 0, sizeof(struct ibv_qp_attr));
   qpAttr.qp_state = IBV_QPS_INIT;
@@ -515,6 +534,8 @@ ibuc_connect_check:
     devIndex = (devIndex + 1) % comm->base.ndevs;
   }
 
+  meta.retransEnabled = flagcxParamIbRetransEnable();
+
   for (int i = 0; i < comm->base.ndevs; i++) {
     flagcxIbSendCommDev *commDev = comm->devs + i;
     flagcxIbDev *ibucDev = flagcxIbDevs + commDev->base.ibDevN;
@@ -546,6 +567,30 @@ ibuc_connect_check:
                                         &commDev->base.gidInfo.localGid));
       devInfo->spn = commDev->base.gidInfo.localGid.global.subnet_prefix;
       devInfo->iid = commDev->base.gidInfo.localGid.global.interface_id;
+    } else {
+      commDev->base.gidInfo.localGidIndex = 0;
+      memset(&commDev->base.gidInfo.localGid, 0, sizeof(union ibv_gid));
+    }
+
+    if (meta.retransEnabled) {
+      FLAGCXCHECK(flagcxIbCreateCtrlQp(ibucDev->context, commDev->base.pd,
+                                       ibucDev->portNum, &commDev->ctrlQp));
+      meta.ctrlQpn[i] = commDev->ctrlQp.qp->qp_num;
+      meta.ctrlLid[i] = ibucDev->portAttr.lid;
+      meta.ctrlGid[i] = commDev->base.gidInfo.localGid;
+
+      size_t ack_buf_size = (sizeof(struct flagcxIbAckMsg) + 40) * 64;
+      commDev->ackBuffer = malloc(ack_buf_size);
+      FLAGCXCHECK(flagcxWrapIbvRegMr(&commDev->ackMr, commDev->base.pd,
+                                     commDev->ackBuffer, ack_buf_size,
+                                     IBV_ACCESS_LOCAL_WRITE));
+
+      TRACE(FLAGCX_NET,
+            "Send: Created control QP for dev %d: qpn=%u, link_layer=%d, "
+            "lid=%u, gid=%lx:%lx",
+            i, commDev->ctrlQp.qp->qp_num, devInfo->link_layer, meta.ctrlLid[i],
+            (unsigned long)meta.ctrlGid[i].global.subnet_prefix,
+            (unsigned long)meta.ctrlGid[i].global.interface_id);
     }
 
     if (devInfo->link_layer == IBV_LINK_LAYER_INFINIBAND) { // IB
@@ -686,6 +731,102 @@ ibuc_connect:
     }
   }
 
+  FLAGCXCHECK(flagcxIbRetransInit(&comm->retrans));
+  comm->last_timeout_check_us = 0;
+
+  if (comm->retrans.enabled && !remMeta.retransEnabled) {
+    INFO(FLAGCX_NET,
+         "Receiver disabled retransmission, sender will also disable it");
+    comm->retrans.enabled = 0;
+  }
+
+  if (comm->retrans.enabled) {
+    INFO(FLAGCX_INIT | FLAGCX_NET,
+         "NET/IBUC Sender: Retransmission ENABLED (RTO=%uus, MaxRetry=%d, "
+         "AckInterval=%d)",
+         comm->retrans.min_rto_us, comm->retrans.max_retry,
+         comm->retrans.ack_interval);
+  } else {
+    INFO(FLAGCX_INIT | FLAGCX_NET, "NET/IBUC Sender: Retransmission DISABLED");
+  }
+
+  if (comm->retrans.enabled && remMeta.retransEnabled) {
+    bool all_ah_success = true;
+
+    for (int i = 0; i < comm->base.ndevs; i++) {
+      flagcxIbSendCommDev *commDev = &comm->devs[i];
+      flagcxIbDev *ibucDev = flagcxIbDevs + commDev->base.ibDevN;
+
+      TRACE(FLAGCX_NET,
+            "Send: Setting up control QP conn for dev %d: remote_qpn=%u, "
+            "remote_lid=%u, remote_gid=%lx:%lx, link_layer=%d",
+            i, remMeta.ctrlQpn[i], remMeta.ctrlLid[i],
+            (unsigned long)remMeta.ctrlGid[i].global.subnet_prefix,
+            (unsigned long)remMeta.ctrlGid[i].global.interface_id,
+            ibucDev->portAttr.link_layer);
+
+      flagcxResult_t ah_result = flagcxIbSetupCtrlQpConnection(
+          ibucDev->context, commDev->base.pd, &commDev->ctrlQp,
+          remMeta.ctrlQpn[i], &remMeta.ctrlGid[i], remMeta.ctrlLid[i],
+          ibucDev->portNum, ibucDev->portAttr.link_layer,
+          commDev->base.gidInfo.localGidIndex);
+
+      if (ah_result != flagcxSuccess || !commDev->ctrlQp.ah) {
+        all_ah_success = false;
+        break;
+      }
+
+      size_t buf_entry_size = sizeof(struct flagcxIbAckMsg) + 40;
+      for (int r = 0; r < 32; r++) {
+        struct ibv_sge sge;
+        sge.addr = (uint64_t)((char *)commDev->ackBuffer + r * buf_entry_size);
+        sge.length = buf_entry_size;
+        sge.lkey = commDev->ackMr->lkey;
+
+        struct ibv_recv_wr recv_wr;
+        memset(&recv_wr, 0, sizeof(recv_wr));
+        recv_wr.wr_id = r;
+        recv_wr.next = NULL;
+        recv_wr.sg_list = &sge;
+        recv_wr.num_sge = 1;
+
+        struct ibv_recv_wr *bad_wr;
+        FLAGCXCHECK(
+            flagcxWrapIbvPostRecv(commDev->ctrlQp.qp, &recv_wr, &bad_wr));
+      }
+
+      TRACE(FLAGCX_NET,
+            "Control QP ready for dev %d: local_qpn=%u, remote_qpn=%u, posted "
+            "32 recv WRs",
+            i, commDev->ctrlQp.qp->qp_num, remMeta.ctrlQpn[i]);
+    }
+
+    if (!all_ah_success) {
+      comm->retrans.enabled = 0;
+
+      for (int i = 0; i < comm->base.ndevs; i++) {
+        if (comm->devs[i].ackMr)
+          flagcxWrapIbvDeregMr(comm->devs[i].ackMr);
+        if (comm->devs[i].ackBuffer)
+          free(comm->devs[i].ackBuffer);
+        flagcxIbDestroyCtrlQp(&comm->devs[i].ctrlQp);
+      }
+    }
+
+    if (all_ah_success && comm->retrans.enabled) {
+      FLAGCXCHECK(flagcxWrapIbvRegMr(
+          &comm->retrans_hdr_mr, comm->devs[0].base.pd, comm->retrans_hdr_pool,
+          sizeof(comm->retrans_hdr_pool), IBV_ACCESS_LOCAL_WRITE));
+
+      TRACE(FLAGCX_NET,
+            "Sender: Initialized SEND retransmission (header pool MR created)");
+    }
+  }
+
+  comm->outstanding_sends = 0;
+  comm->outstanding_retrans = 0;
+  comm->max_outstanding = flagcxParamIbMaxOutstanding();
+
   comm->base.ready = 1;
   stage->state = flagcxIbCommStateConnected;
   stage->offset = 0;
@@ -699,7 +840,6 @@ ibuc_send_ready:
 
   free(stage->buffer);
   stage->state = flagcxIbCommStateStart;
-
   *sendComm = comm;
   return flagcxSuccess;
 }
@@ -712,6 +852,17 @@ flagcxResult_t flagcxIbucAccept(void *listenComm, void **recvComm) {
   struct flagcxIbRecvComm *rComm = (struct flagcxIbRecvComm *)stage->comm;
   int ready;
   *recvComm = NULL;
+
+  // Pre-declare ALL variables before any goto to avoid crossing initialization
+  struct flagcxIbMergedDev *mergedDev;
+  struct flagcxIbDev *ibucDev;
+  int ibDevN;
+  struct flagcxIbRecvCommDev *rCommDev;
+  struct flagcxIbDevInfo *remDevInfo;
+  struct flagcxIbQp *qp;
+  struct ibv_srq *srq = NULL;
+  struct flagcxIbConnectionMetadata remMeta;
+  struct flagcxIbConnectionMetadata meta;
 
   if (stage->state == flagcxIbCommStateAccept)
     goto ib_accept_check;
@@ -738,7 +889,7 @@ ib_accept_check:
   if (!ready)
     return flagcxSuccess;
 
-  struct flagcxIbConnectionMetadata remMeta;
+  // remMeta already declared at function start
   stage->state = flagcxIbCommStateRecv;
   stage->offset = 0;
   FLAGCXCHECK(flagcxIbucMalloc((void **)&stage->buffer, sizeof(remMeta)));
@@ -752,15 +903,6 @@ ib_recv:
 
   /* copy back the received info */
   memcpy(&remMeta, stage->buffer, sizeof(struct flagcxIbConnectionMetadata));
-
-  // IB setup
-  // Pre-declare variables because of goto
-  struct flagcxIbMergedDev *mergedDev;
-  struct flagcxIbDev *ibucDev;
-  int ibDevN;
-  struct flagcxIbRecvCommDev *rCommDev;
-  struct flagcxIbDevInfo *remDevInfo;
-  struct flagcxIbQp *qp;
 
   mergedDev = flagcxIbMergedDevs + lComm->dev;
   rComm->base.ndevs = mergedDev->ndevs;
@@ -777,8 +919,6 @@ ib_recv:
         rComm->base.nRemDevs);
   }
 
-  // Metadata to send back to requestor (sender)
-  struct flagcxIbConnectionMetadata meta;
   for (int i = 0; i < rComm->base.ndevs; i++) {
     rCommDev = rComm->devs + i;
     ibDevN = mergedDev->devs[i];
@@ -801,6 +941,32 @@ ib_recv:
         rComm->base.remDevs[i].spn;
   }
 
+  // Create SRQ if retransmission is enabled
+  // Similar to UCCL: all data QPs will use SRQ for receiving both normal and
+  // retrans data
+  srq = NULL;
+  if (remMeta.retransEnabled) {
+    ibDevN = mergedDev->devs[0];
+    ibucDev = flagcxIbDevs + ibDevN;
+
+    flagcxResult_t srq_result = flagcxIbCreateSrq(
+        ibucDev->context, rComm->devs[0].base.pd, &rComm->srqMgr);
+    if (srq_result == flagcxSuccess) {
+      srq = (struct ibv_srq *)rComm->srqMgr.srq;
+      TRACE(FLAGCX_NET, "Receiver: Created SRQ for retransmission: srq=%p",
+            srq);
+    } else {
+      INFO(FLAGCX_NET,
+           "Receiver: Failed to create SRQ (result=%d), disabling "
+           "retransmission",
+           srq_result);
+      remMeta.retransEnabled = 0;
+      meta.retransEnabled = 0;
+      rComm->retrans.enabled = 0;
+      srq = NULL;
+    }
+  }
+
   // Stripe QP creation across merged devs
   // Make sure to get correct remote peer dev and QP info
   int remDevIndex;
@@ -816,8 +982,10 @@ ib_recv:
     // Local ibDevN
     ibDevN = rComm->devs[devIndex].base.ibDevN;
     ibucDev = flagcxIbDevs + ibDevN;
-    FLAGCXCHECK(flagcxIbucCreateQp(ibucDev->portNum, &rCommDev->base,
-                                   IBV_ACCESS_REMOTE_WRITE, qp));
+
+    FLAGCXCHECK(flagcxIbucCreateQpWithTypeSrq(ibucDev->portNum, &rCommDev->base,
+                                              IBV_ACCESS_REMOTE_WRITE,
+                                              IBV_QPT_UC, qp, srq));
     qp->devIndex = devIndex;
     devIndex = (devIndex + 1) % rComm->base.ndevs;
 
@@ -885,6 +1053,57 @@ ib_recv:
           flagcxIbucRtsQpWithType(rCommDev->gpuFlush.qp.qp, IBV_QPT_RC));
     }
 
+    if (remMeta.retransEnabled && meta.retransEnabled) {
+      FLAGCXCHECK(flagcxIbCreateCtrlQp(ibucDev->context, rCommDev->base.pd,
+                                       ibucDev->portNum, &rCommDev->ctrlQp));
+      meta.ctrlQpn[i] = rCommDev->ctrlQp.qp->qp_num;
+      meta.ctrlLid[i] = ibucDev->portAttr.lid;
+      meta.ctrlGid[i] = rCommDev->base.gidInfo.localGid;
+
+      TRACE(FLAGCX_NET,
+            "Receiver: Control QP created for dev %d, qpn=%u, lid=%u", i,
+            meta.ctrlQpn[i], meta.ctrlLid[i]);
+
+      size_t ack_buf_size = (sizeof(struct flagcxIbAckMsg) + 40) * 64;
+      rCommDev->ackBuffer = malloc(ack_buf_size);
+      FLAGCXCHECK(flagcxWrapIbvRegMr(&rCommDev->ackMr, rCommDev->base.pd,
+                                     rCommDev->ackBuffer, ack_buf_size,
+                                     IBV_ACCESS_LOCAL_WRITE));
+
+      TRACE(FLAGCX_NET,
+            "Recv: Setting up control QP conn for dev %d: remote_qpn=%u, "
+            "remote_lid=%u, remote_gid=%lx:%lx, link_layer=%d",
+            i, remMeta.ctrlQpn[i], remMeta.ctrlLid[i],
+            (unsigned long)remMeta.ctrlGid[i].global.subnet_prefix,
+            (unsigned long)remMeta.ctrlGid[i].global.interface_id,
+            ibucDev->portAttr.link_layer);
+
+      flagcxResult_t ah_result = flagcxIbSetupCtrlQpConnection(
+          ibucDev->context, rCommDev->base.pd, &rCommDev->ctrlQp,
+          remMeta.ctrlQpn[i], &remMeta.ctrlGid[i], remMeta.ctrlLid[i],
+          ibucDev->portNum, ibucDev->portAttr.link_layer,
+          rCommDev->base.gidInfo.localGidIndex);
+
+      if (ah_result != flagcxSuccess || !rCommDev->ctrlQp.ah) {
+        INFO(FLAGCX_NET,
+             "Receiver Control QP setup failed for dev %d, disabling "
+             "retransmission",
+             i);
+        rComm->retrans.enabled = 0;
+        meta.retransEnabled = 0;
+
+        if (rCommDev->ackMr)
+          flagcxWrapIbvDeregMr(rCommDev->ackMr);
+        if (rCommDev->ackBuffer)
+          free(rCommDev->ackBuffer);
+        flagcxIbDestroyCtrlQp(&rCommDev->ctrlQp);
+      } else {
+        TRACE(FLAGCX_NET,
+              "Receiver Control QP successfully initialized for dev %d (ah=%p)",
+              i, rCommDev->ctrlQp.ah);
+      }
+    }
+
     // Fill Handle
     meta.devs[i].lid = ibucDev->portAttr.lid;
     meta.devs[i].link_layer = rCommDev->base.gidInfo.link_layer =
@@ -914,6 +1133,7 @@ ib_recv:
   }
 
   meta.ndevs = rComm->base.ndevs;
+  meta.retransEnabled = remMeta.retransEnabled;
   strncpy(meta.devName, mergedDev->devName, MAX_MERGED_DEV_NAME);
 
   stage->state = flagcxIbCommStateSend;
@@ -940,6 +1160,32 @@ ib_recv_ready:
                                    &stage->offset));
   if (stage->offset != sizeof(int))
     return flagcxSuccess;
+
+  FLAGCXCHECK(flagcxIbRetransInit(&rComm->retrans));
+
+  if (meta.retransEnabled == 0 && rComm->retrans.enabled) {
+    INFO(FLAGCX_NET, "Receiver: Remote disabled retransmission, disabling "
+                     "local retransmission");
+    rComm->retrans.enabled = 0;
+  }
+
+  // Initialize SRQ with recv buffers (similar to UCCL)
+  if (rComm->retrans.enabled && rComm->srqMgr.srq != NULL) {
+    rComm->srqMgr.post_srq_count = FLAGCX_IB_SRQ_SIZE;
+
+    // Post in batches until all are posted
+    while (rComm->srqMgr.post_srq_count > 0) {
+      FLAGCXCHECK(flagcxIbSrqPostRecv(&rComm->srqMgr, 64));
+    }
+
+    INFO(FLAGCX_INIT | FLAGCX_NET,
+         "NET/IBUC Receiver: Retransmission ENABLED (Posted %d recv WRs to SRQ "
+         "for retransmission)",
+         FLAGCX_IB_SRQ_SIZE);
+  } else {
+    INFO(FLAGCX_INIT | FLAGCX_NET,
+         "NET/IBUC Receiver: Retransmission DISABLED");
+  }
 
   free(stage->buffer);
   *recvComm = rComm;
@@ -1089,20 +1335,6 @@ flagcxResult_t flagcxIbucRegMrDmaBuf(void *comm, void *data, size_t size,
 flagcxResult_t flagcxIbucRegMr(void *comm, void *data, size_t size, int type,
                                void **mhandle) {
   return flagcxIbucRegMrDmaBuf(comm, data, size, type, 0ULL, -1, mhandle);
-
-  assert(size > 0);
-  struct flagcxIbNetCommBase *base = (struct flagcxIbNetCommBase *)comm;
-  struct flagcxIbMrHandle *mhandleWrapper =
-      (struct flagcxIbMrHandle *)malloc(sizeof(struct flagcxIbMrHandle));
-  for (int i = 0; i < base->ndevs; i++) {
-    struct flagcxIbNetCommDevBase *devComm =
-        flagcxIbucGetNetCommDevBase(base, i);
-    unsigned int flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
-                         IBV_ACCESS_REMOTE_READ;
-    flagcxWrapIbvRegMr(&mhandleWrapper->mrs[i], devComm->pd, data, size, flags);
-  }
-  *mhandle = mhandleWrapper;
-  return flagcxSuccess;
 }
 
 flagcxResult_t flagcxIbucDeregMrInternal(flagcxIbNetCommDevBase *base,
@@ -1172,8 +1404,19 @@ flagcxResult_t flagcxIbucMultiSend(struct flagcxIbSendComm *comm, int slot) {
   // Write size as immediate data. In the case of multi-send, only write
   // 0 or 1 as size to indicate whether there was data sent or received.
   uint32_t immData = 0;
+  uint32_t seq = 0;
+
   if (nreqs == 1) {
-    immData = reqs[0]->send.size;
+    if (comm->retrans.enabled) {
+      seq = comm->retrans.send_seq;
+      comm->retrans.send_seq = (comm->retrans.send_seq + 1) & 0xFFFF;
+      immData = flagcxIbEncodeImmData(seq, reqs[0]->send.size);
+      TRACE(FLAGCX_NET,
+            "Sending packet with SEQ: seq=%u, size=%u, immData=0x%x", seq,
+            reqs[0]->send.size, immData);
+    } else {
+      immData = reqs[0]->send.size;
+    }
   } else {
     int *sizes = comm->remSizesFifo.elems[slot];
     for (int r = 0; r < nreqs; r++)
@@ -1252,6 +1495,15 @@ flagcxResult_t flagcxIbucMultiSend(struct flagcxIbSendComm *comm, int slot) {
     comm->base.qpIndex = (comm->base.qpIndex + 1) % comm->base.nqps;
   }
 
+  if (comm->retrans.enabled && nreqs == 1) {
+    FLAGCXCHECK(flagcxIbRetransAddPacket(
+        &comm->retrans, seq, reqs[0]->send.size, reqs[0]->send.data,
+        slots[0].addr, // remote_addr
+        reqs[0]->send.lkeys, (uint32_t *)slots[0].rkeys));
+  }
+
+  comm->outstanding_sends++;
+
   return flagcxSuccess;
 }
 
@@ -1262,7 +1514,16 @@ flagcxResult_t flagcxIbucIsend(void *sendComm, void *data, size_t size, int tag,
     WARN("NET/IBUC: flagcxIbucIsend() called when comm->base.ready == 0");
     return flagcxInternalError;
   }
-  if (comm->base.ready == 0) {
+
+  // Flow control: Check if we have too many outstanding sends before matching
+  // request This prevents retransmission buffer overflow when ACKs are delayed
+  int total_outstanding = comm->outstanding_sends + comm->outstanding_retrans;
+  if (total_outstanding >= comm->max_outstanding) {
+    TRACE(FLAGCX_NET,
+          "Flow control: outstanding=%d (sends=%d + retrans=%d) >= max=%d, "
+          "deferring send",
+          total_outstanding, comm->outstanding_sends, comm->outstanding_retrans,
+          comm->max_outstanding);
     *request = NULL;
     return flagcxSuccess;
   }
@@ -1458,10 +1719,6 @@ flagcxResult_t flagcxIbucIrecv(void *recvComm, int n, void **data,
     WARN("NET/IBUC: flagcxIbucIrecv() called when comm->base.ready == 0");
     return flagcxInternalError;
   }
-  if (comm->base.ready == 0) {
-    *request = NULL;
-    return flagcxSuccess;
-  }
   if (n > FLAGCX_NET_IB_MAX_RECVS)
     return flagcxInternalError;
 
@@ -1486,13 +1743,24 @@ flagcxResult_t flagcxIbucIrecv(void *recvComm, int n, void **data,
   const int nqps =
       flagcxParamIbucSplitDataOnQps() ? comm->base.nqps : comm->base.ndevs;
 
-  // Post recvs
-  struct ibv_recv_wr *bad_wr;
-  for (int i = 0; i < nqps; i++) {
-    struct flagcxIbQp *qp = comm->base.qps + comm->base.qpIndex;
-    flagcxIbucAddEvent(req, qp->devIndex, &comm->devs[qp->devIndex].base);
-    FLAGCXCHECK(flagcxWrapIbvPostRecv(qp->qp, &wr, &bad_wr));
-    comm->base.qpIndex = (comm->base.qpIndex + 1) % comm->base.nqps;
+  // Post recvs - skip if using SRQ (similar to UCCL)
+  // When using SRQ, all QPs share SRQ for recv, don't post per-request recv
+  if (!comm->retrans.enabled || comm->srqMgr.srq == NULL) {
+    // Normal mode: post recv to each QP
+    struct ibv_recv_wr *bad_wr;
+    for (int i = 0; i < nqps; i++) {
+      struct flagcxIbQp *qp = comm->base.qps + comm->base.qpIndex;
+      flagcxIbucAddEvent(req, qp->devIndex, &comm->devs[qp->devIndex].base);
+      FLAGCXCHECK(flagcxWrapIbvPostRecv(qp->qp, &wr, &bad_wr));
+      comm->base.qpIndex = (comm->base.qpIndex + 1) % comm->base.nqps;
+    }
+  } else {
+    // SRQ mode: don't post recv, but still set up events for completion
+    for (int i = 0; i < nqps; i++) {
+      struct flagcxIbQp *qp = comm->base.qps + comm->base.qpIndex;
+      flagcxIbucAddEvent(req, qp->devIndex, &comm->devs[qp->devIndex].base);
+      comm->base.qpIndex = (comm->base.qpIndex + 1) % comm->base.nqps;
+    }
   }
 
   TIME_STOP(1);
@@ -1554,6 +1822,39 @@ flagcxResult_t flagcxIbucIflush(void *recvComm, int n, void **data, int *sizes,
 
 flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
   struct flagcxIbRequest *r = (struct flagcxIbRequest *)request;
+
+  if (r->type == FLAGCX_NET_IB_REQ_SEND && r->base->isSend) {
+    struct flagcxIbSendComm *sComm = (struct flagcxIbSendComm *)r->base;
+    if (sComm->retrans.enabled) {
+      for (int i = 0; i < sComm->base.ndevs; i++) {
+        for (int p = 0; p < 4; p++) {
+          flagcxResult_t poll_result = flagcxIbRetransRecvAckViaUd(sComm, i);
+          if (poll_result != flagcxSuccess)
+            break;
+        }
+      }
+
+      uint64_t now_us = flagcxIbGetTimeUs();
+      const uint64_t CHECK_INTERVAL_US = 1000; // 1ms
+      if (now_us - sComm->last_timeout_check_us >= CHECK_INTERVAL_US) {
+        FLAGCXCHECK(flagcxIbRetransCheckTimeout(&sComm->retrans, sComm));
+        sComm->last_timeout_check_us = now_us;
+      }
+    }
+  }
+
+  if (r->type == FLAGCX_NET_IB_REQ_RECV && !r->base->isSend) {
+    struct flagcxIbRecvComm *rComm = (struct flagcxIbRecvComm *)r->base;
+    if (rComm->retrans.enabled && rComm->srqMgr.srq != NULL) {
+      // Post to SRQ when we have pending post requests (similar to UCCL's
+      // check_srq)
+      const int kPostThreshold = 16;
+      if (rComm->srqMgr.post_srq_count >= kPostThreshold) {
+        FLAGCXCHECK(flagcxIbSrqPostRecv(&rComm->srqMgr, 64));
+      }
+    }
+  }
+
   *done = 0;
   while (1) {
     if (r->events[0] == 0 && r->events[1] == 0) {
@@ -1616,7 +1917,110 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
 
           union flagcxSocketAddress addr;
           flagcxSocketGetAddr(r->sock, &addr);
-          struct flagcxIbRequest *req = r->base->reqs + (wc->wr_id & 0xff);
+
+          if (wc->wr_id == 0xFFFFFFFEULL) {
+            if (r->base->isSend) {
+              struct flagcxIbSendComm *sComm =
+                  (struct flagcxIbSendComm *)r->base;
+              sComm->outstanding_retrans--;
+              TRACE(FLAGCX_NET,
+                    "SEND retrans completed, outstanding_retrans=%d",
+                    sComm->outstanding_retrans);
+            }
+            continue;
+          }
+
+          // Handle SRQ completions (similar to UCCL)
+          // When using SRQ, wr_id is buffer index, not req_idx
+          if (!r->base->isSend) {
+            struct flagcxIbRecvComm *rComm = (struct flagcxIbRecvComm *)r->base;
+
+            if (rComm->retrans.enabled && rComm->srqMgr.srq != NULL) {
+              // SRQ mode: wr_id is buffer index
+              int buf_idx = (int)wc->wr_id;
+
+              if (buf_idx < 0 || buf_idx >= rComm->srqMgr.buf_count) {
+                WARN("SRQ completion with invalid buffer index: %d (max=%d)",
+                     buf_idx, rComm->srqMgr.buf_count);
+                continue;
+              }
+
+              void *chunk_addr = rComm->srqMgr.bufs[buf_idx].buffer;
+
+              if (wc->opcode == IBV_WC_RECV) {
+                // This is a SEND retransmission
+                struct flagcxIbRetransHdr *hdr =
+                    (struct flagcxIbRetransHdr *)chunk_addr;
+                if (hdr->magic == 0xDEADBEEF) {
+                  uint32_t seq = hdr->seq;
+
+                  struct flagcxIbAckMsg ack_msg = {0};
+                  int should_ack = 0;
+                  FLAGCXCHECK(flagcxIbRetransRecvPacket(&rComm->retrans, seq,
+                                                        &ack_msg, &should_ack));
+
+                  if (should_ack) {
+                    FLAGCXCHECK(
+                        flagcxIbRetransSendAckViaUd(rComm, &ack_msg, 0));
+                  }
+
+                  TRACE(FLAGCX_NET,
+                        "Received SEND retransmission from SRQ: seq=%u", seq);
+                }
+
+                // Return buffer and inc post counter
+                rComm->srqMgr.bufs[buf_idx].in_use = 0;
+                rComm->srqMgr.free_buf_indices[rComm->srqMgr.free_buf_count] =
+                    buf_idx;
+                rComm->srqMgr.free_buf_count++;
+                rComm->srqMgr.post_srq_count++;
+                continue;
+              }
+
+              if (wc->opcode == IBV_WC_RECV_RDMA_WITH_IMM) {
+                // This is normal data from SRQ (similar to UCCL uc_rx_chunk)
+                if (r->type == FLAGCX_NET_IB_REQ_RECV && r->nreqs == 1) {
+                  if (rComm->retrans.enabled &&
+                      rComm->devs[0].ctrlQp.qp != NULL) {
+                    uint32_t seq, size;
+                    flagcxIbDecodeImmData(wc->imm_data, &seq, &size);
+                    r->recv.sizes[0] = size;
+
+                    struct flagcxIbAckMsg ack_msg = {0};
+                    int should_ack = 0;
+                    FLAGCXCHECK(flagcxIbRetransRecvPacket(
+                        &rComm->retrans, seq, &ack_msg, &should_ack));
+
+                    if (should_ack) {
+                      FLAGCXCHECK(
+                          flagcxIbRetransSendAckViaUd(rComm, &ack_msg, 0));
+                    }
+                  } else {
+                    r->recv.sizes[0] = wc->imm_data;
+                  }
+                }
+
+                // Return buffer and inc post counter
+                rComm->srqMgr.bufs[buf_idx].in_use = 0;
+                rComm->srqMgr.free_buf_indices[rComm->srqMgr.free_buf_count] =
+                    buf_idx;
+                rComm->srqMgr.free_buf_count++;
+                rComm->srqMgr.post_srq_count++;
+
+                // Decrement events for the current request
+                r->events[i]--;
+                continue;
+              }
+            }
+          }
+
+          uint8_t req_idx = wc->wr_id & 0xff;
+
+          if (req_idx >= MAX_REQUESTS) {
+            continue;
+          }
+
+          struct flagcxIbRequest *req = r->base->reqs + req_idx;
 
 #ifdef ENABLE_TRACE
           char line[SOCKET_NAME_MAXLEN + 1];
@@ -1638,17 +2042,61 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
               }
               sendReq->events[i]--;
             }
-          } else {
 
+            struct flagcxIbSendComm *sComm =
+                (struct flagcxIbSendComm *)req->base;
+            if (sComm->outstanding_sends > 0) {
+              sComm->outstanding_sends--;
+            }
+          } else {
             if (req && wc->opcode == IBV_WC_RECV_RDMA_WITH_IMM) {
               if (req->type != FLAGCX_NET_IB_REQ_RECV) {
-                WARN("NET/IBUC: wc->opcode == IBV_WC_RECV_RDMA_WITH_IMM and "
-                     "req->type=%d",
-                     req->type);
-                return flagcxInternalError;
+                static int type_mismatch_count = 0;
+                if ((type_mismatch_count++ % 100) == 0) {
+                  WARN("NET/IBUC: Type mismatch for RECV_RDMA_WITH_IMM: "
+                       "req->type=%d (expected RECV=%d), count=%d",
+                       req->type, FLAGCX_NET_IB_REQ_RECV, type_mismatch_count);
+                }
+                continue;
               }
+
+              struct flagcxIbRecvComm *rComm =
+                  (struct flagcxIbRecvComm *)req->base;
+
               if (req->nreqs == 1) {
-                req->recv.sizes[0] = wc->imm_data;
+                if (rComm->retrans.enabled &&
+                    rComm->devs[0].ctrlQp.qp != NULL) {
+                  uint32_t seq, size;
+                  flagcxIbDecodeImmData(wc->imm_data, &seq, &size);
+                  req->recv.sizes[0] = size;
+
+                  TRACE(FLAGCX_NET,
+                        "Received packet: seq=%u, size=%u, immData=0x%x", seq,
+                        size, wc->imm_data);
+
+                  struct flagcxIbAckMsg ack_msg = {0};
+                  int should_ack = 0;
+                  FLAGCXCHECK(flagcxIbRetransRecvPacket(&rComm->retrans, seq,
+                                                        &ack_msg, &should_ack));
+
+                  if (should_ack) {
+                    flagcxResult_t ack_result =
+                        flagcxIbRetransSendAckViaUd(rComm, &ack_msg, 0);
+                    if (ack_result != flagcxSuccess) {
+                      TRACE(FLAGCX_NET,
+                            "Failed to send ACK for seq=%u (result=%d)", seq,
+                            ack_result);
+                    } else {
+                      TRACE(FLAGCX_NET, "Sent ACK for seq=%u, ack_seq=%u", seq,
+                            ack_msg.ack_seq);
+                    }
+                  } else {
+                    TRACE(FLAGCX_NET, "No ACK needed for seq=%u (expect=%u)",
+                          seq, rComm->retrans.recv_seq);
+                  }
+                } else {
+                  req->recv.sizes[0] = wc->imm_data;
+                }
               }
             }
             req->events[i]--;
@@ -1666,6 +2114,18 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
 flagcxResult_t flagcxIbucCloseSend(void *sendComm) {
   struct flagcxIbSendComm *comm = (struct flagcxIbSendComm *)sendComm;
   if (comm) {
+    if (comm->retrans.enabled) {
+      INFO(FLAGCX_INIT | FLAGCX_NET,
+           "Sender Retrans Stats: Sent=%lu, Retrans=%lu, Acked=%lu, "
+           "Timeout=%lu, Pending=%d",
+           (unsigned long)comm->retrans.total_sent,
+           (unsigned long)comm->retrans.total_retrans,
+           (unsigned long)comm->retrans.total_acked,
+           (unsigned long)comm->retrans.total_timeout,
+           comm->retrans.buffer_count);
+      FLAGCXCHECK(flagcxIbRetransDestroy(&comm->retrans));
+    }
+
     FLAGCXCHECK(flagcxSocketClose(&comm->base.sock));
 
     for (int q = 0; q < comm->base.nqps; q++)
@@ -1674,6 +2134,19 @@ flagcxResult_t flagcxIbucCloseSend(void *sendComm) {
 
     for (int i = 0; i < comm->base.ndevs; i++) {
       struct flagcxIbSendCommDev *commDev = comm->devs + i;
+
+      if (comm->retrans.enabled) {
+        FLAGCXCHECK(flagcxIbDestroyCtrlQp(&commDev->ctrlQp));
+        if (commDev->ackMr != NULL)
+          FLAGCXCHECK(flagcxWrapIbvDeregMr(commDev->ackMr));
+        if (commDev->ackBuffer != NULL)
+          free(commDev->ackBuffer);
+      }
+
+      if (i == 0 && comm->retrans_hdr_mr != NULL) {
+        FLAGCXCHECK(flagcxWrapIbvDeregMr(comm->retrans_hdr_mr));
+      }
+
       if (commDev->fifoMr != NULL)
         FLAGCXCHECK(flagcxWrapIbvDeregMr(commDev->fifoMr));
       if (comm->remSizesFifo.mrs[i] != NULL)
@@ -1689,14 +2162,40 @@ flagcxResult_t flagcxIbucCloseSend(void *sendComm) {
 flagcxResult_t flagcxIbucCloseRecv(void *recvComm) {
   struct flagcxIbRecvComm *comm = (struct flagcxIbRecvComm *)recvComm;
   if (comm) {
+    if (comm->retrans.enabled) {
+      INFO(FLAGCX_INIT | FLAGCX_NET,
+           "Receiver Retrans Stats: recv_seq=%u, Sent=%lu, Retrans=%lu, "
+           "Acked=%lu",
+           comm->retrans.recv_seq, (unsigned long)comm->retrans.total_sent,
+           (unsigned long)comm->retrans.total_retrans,
+           (unsigned long)comm->retrans.total_acked);
+      FLAGCXCHECK(flagcxIbRetransDestroy(&comm->retrans));
+    }
+
     FLAGCXCHECK(flagcxSocketClose(&comm->base.sock));
 
+    // Destroy QPs first, before destroying SRQ (avoid "Device or resource
+    // busy")
     for (int q = 0; q < comm->base.nqps; q++)
       if (comm->base.qps[q].qp != NULL)
         FLAGCXCHECK(flagcxWrapIbvDestroyQp(comm->base.qps[q].qp));
 
+    if (comm->srqMgr.srq != NULL) {
+      FLAGCXCHECK(flagcxIbDestroySrq(&comm->srqMgr));
+      TRACE(FLAGCX_NET, "Receiver: Destroyed SRQ");
+    }
+
     for (int i = 0; i < comm->base.ndevs; i++) {
       struct flagcxIbRecvCommDev *commDev = comm->devs + i;
+
+      if (comm->retrans.enabled) {
+        FLAGCXCHECK(flagcxIbDestroyCtrlQp(&commDev->ctrlQp));
+        if (commDev->ackMr != NULL)
+          FLAGCXCHECK(flagcxWrapIbvDeregMr(commDev->ackMr));
+        if (commDev->ackBuffer != NULL)
+          free(commDev->ackBuffer);
+      }
+
       if (comm->flushEnabled) {
         if (commDev->gpuFlush.qp.qp != NULL)
           FLAGCXCHECK(flagcxWrapIbvDestroyQp(commDev->gpuFlush.qp.qp));
