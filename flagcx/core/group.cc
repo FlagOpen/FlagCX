@@ -109,7 +109,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
 
   // Each groupLaunch we create a semaphore to track the p2p ops
   // and a stream to launch host or device func
-  struct flagcxHostSemaphore *semaphore = new flagcxHostSemaphore();
+  std::shared_ptr<flagcxHostSemaphore> semaphore =
+      std::make_shared<flagcxHostSemaphore>();
   flagcxStream_t launchStream = nullptr;
 
   if (groupCommPreconnectHeadMain != nullptr) {
@@ -205,7 +206,6 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           } else {
             op->args.semaphore = semaphore;
             op->event = semaphore->getEvent();
-            op->eventId = semaphore->counter;
             FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             semaphore->counter++;
             if (semaphore->counter == 1) {
@@ -265,7 +265,6 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           } else {
             op->args.semaphore = semaphore;
             op->event = semaphore->getEvent();
-            op->eventId = semaphore->counter;
             FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             semaphore->counter++;
             if (semaphore->counter == 1) {
@@ -311,7 +310,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
     }
   } else {
     FLAGCXCHECK(deviceAdaptor->launchHostFunc(launchStream, cpuAsyncKernel,
-                                              (void *)semaphore));
+                                              (void *)semaphore.get()));
   }
   // deprecated code path for host func, since the previous
   // hang issue may be walked around by using zero copy
