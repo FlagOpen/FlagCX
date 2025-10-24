@@ -36,9 +36,9 @@ void cpuAsyncLoad(void *args);
 void cpuAsyncLoadWithMaxSpinCount(void *args);
 
 struct flagcxHostSemaphore {
-  int start;   // started or not
-  int end;     // ended or not
-  int counter; // total operations to wait for inside the group
+  int start = 0;   // started or not
+  int end = 0;     // ended or not
+  int counter = 0; // total operations to wait for inside the group
   std::vector<flagcxEvent_t> events;
 
   ~flagcxHostSemaphore() {

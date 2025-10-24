@@ -198,9 +198,10 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
             } else {
               if (op->args.done == 1) {
                 // Let the last operation within the group release the semaphore
-                if (op->eventId >= (int)op->args.semaphore->events.size() - 1) {
+                if ((size_t)op->eventId >=
+                    op->args.semaphore->events.size() - 1) {
                   if (op->args.semaphore->pollEnd()) {
-                    free(op->args.semaphore);
+                    delete op->args.semaphore;
                     flagcxIntruQueueDelete(queue, op);
                     free(op);
                   }
@@ -231,9 +232,10 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
             } else {
               if (op->args.done == 1) {
                 // Let the last operation within the group release the semaphore
-                if (op->eventId >= (int)op->args.semaphore->events.size() - 1) {
+                if ((size_t)op->eventId >=
+                    op->args.semaphore->events.size() - 1) {
                   if (op->args.semaphore->pollEnd()) {
-                    free(op->args.semaphore);
+                    delete op->args.semaphore;
                     flagcxIntruQueueDelete(queue, op);
                     free(op);
                   }
