@@ -5,7 +5,7 @@ LDFLAGS = -shared -pthread
 
 
 # Target shared library name
-TARGET = libflagcx_tuner.so
+TARGET = libflagcx_param.so
 
 # Source files
 SOURCES = nccl_param.cc
