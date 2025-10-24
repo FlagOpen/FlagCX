@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <pthread.h>
 #include <stdlib.h>  // for setenv, getenv
+#include <iostream>
 
 static void ncclLoadParam(char const* env, int64_t deftVal, int64_t* value) {
   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -25,6 +26,7 @@ static void ncclLoadParam(char const* env, int64_t deftVal, int64_t* value) {
   int64_t ncclParam##name() {			 \
     int64_t value = INT64_MIN;			 \
     ncclLoadParam("NCCL_" env, deftVal, &value); \
+    std::cout<<"========="<<env<<" is set to "<<value<<std::endl; \
     return value;				 \
   }
 
