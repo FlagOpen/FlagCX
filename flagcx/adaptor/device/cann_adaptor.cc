@@ -169,7 +169,7 @@ flagcxResult_t cannAdaptorEventCreate(flagcxEvent_t *event,
   flagcxCalloc(event, 1);
   const unsigned int flags =
       (eventType == flagcxEventDefault) ? ACL_EVENT_TIME_LINE : ACL_EVENT_SYNC;
-  DEVCHECK(aclrtCreateEventWithFlag((aclrtEvent *)(*event), flags));
+  DEVCHECK(aclrtCreateEventWithFlag(&((*event)->base), flags));
   return flagcxSuccess;
 }
 

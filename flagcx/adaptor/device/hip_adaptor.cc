@@ -183,7 +183,7 @@ flagcxResult_t hipAdaptorEventCreate(flagcxEvent_t *event,
   const unsigned int flags = (eventType == flagcxEventDefault)
                                  ? hipEventDefault
                                  : hipEventDisableTiming;
-  DEVCHECK(hipEventCreateWithFlags((hipEvent_t *)(*event), flags));
+  DEVCHECK(hipEventCreateWithFlags(&((*event)->base), flags));
   return flagcxSuccess;
 }
 

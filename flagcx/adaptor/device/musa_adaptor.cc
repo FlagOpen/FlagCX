@@ -190,7 +190,7 @@ flagcxResult_t musaAdaptorEventCreate(flagcxEvent_t *event,
   const unsigned int flags = (eventType == flagcxEventDefault)
                                  ? musaEventDefault
                                  : musaEventDisableTiming;
-  DEVCHECK(musaEventCreateWithFlags((musaEvent_t *)(*event), flags));
+  DEVCHECK(musaEventCreateWithFlags(&((*event)->base), flags));
   return flagcxSuccess;
 }
 

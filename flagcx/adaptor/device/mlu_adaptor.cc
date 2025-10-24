@@ -210,7 +210,7 @@ flagcxResult_t mluAdaptorEventCreate(flagcxEvent_t *event,
   const unsigned int flags = (eventType == flagcxEventDefault)
                                  ? CNRT_NOTIFIER_DEFAULT
                                  : CNRT_NOTIFIER_DISABLE_TIMING_ALL;
-  DEVCHECK(cnrtNotifierCreateWithFlags((cnrtNotifier_t *)(*event), flags));
+  DEVCHECK(cnrtNotifierCreateWithFlags(&((*event)->base), flags));
   return flagcxSuccess;
 }
 
