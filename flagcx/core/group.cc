@@ -111,7 +111,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
   // and a stream to launch host or device func
   struct flagcxHostSemaphore *semaphore;
   FLAGCXCHECK(flagcxCalloc(&semaphore, 1));
-  semaphore->flag = 0;
+  semaphore->start = 0;
+  semaphore->end = 0;
   semaphore->counter = 0;
   flagcxStream_t launchStream = nullptr;
 
@@ -208,6 +209,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           } else {
             op->args.semaphore = semaphore;
             op->event = semaphore->getEvent();
+            op->eventId = semaphore->counter;
             FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             semaphore->counter++;
             if (semaphore->counter == 1) {
@@ -267,6 +269,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           } else {
             op->args.semaphore = semaphore;
             op->event = semaphore->getEvent();
+            op->eventId = semaphore->counter;
             FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             semaphore->counter++;
             if (semaphore->counter == 1) {

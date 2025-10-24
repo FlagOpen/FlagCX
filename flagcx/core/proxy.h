@@ -170,6 +170,8 @@ struct flagcxProxyOp {
   flagcxProxyArgs args;
   flagcxStream_t stream;
   flagcxEvent_t event; // used to record host/device func
+  int eventId; // The event ID associated with the semaphore in the underlying
+               // group
 };
 
 #define FLAGCX_MAX_NETDEVS 128

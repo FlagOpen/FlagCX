@@ -36,27 +36,32 @@ void cpuAsyncLoad(void *args);
 void cpuAsyncLoadWithMaxSpinCount(void *args);
 
 struct flagcxHostSemaphore {
-  int flag;    // if ready to be triggered
+  int start;   // started or not
+  int end;     // ended or not
   int counter; // total operations to wait for inside the group
   std::vector<flagcxEvent_t> events;
 
+  ~flagcxHostSemaphore() {
+    for (auto event : events) {
+      deviceAdaptor->eventDestroy(event);
+    }
+  }
   flagcxEvent_t getEvent() {
     events.push_back(nullptr);
     auto &event = events.back();
     deviceAdaptor->eventCreate(&event);
     return event;
   }
-  void signalFlag() { __atomic_store_n(&flag, 1, __ATOMIC_RELEASE); }
+  void signalStart() { __atomic_store_n(&start, 1, __ATOMIC_RELEASE); }
+  void signalEnd() { __atomic_store_n(&end, 1, __ATOMIC_RELEASE); }
   void signalCounter(int value) {
     __atomic_fetch_sub(&counter, value, __ATOMIC_RELEASE);
   }
-  int poll() { return __atomic_load_n(&flag, __ATOMIC_ACQUIRE); }
+  int pollStart() { return __atomic_load_n(&start, __ATOMIC_ACQUIRE); }
+  int pollEnd() { return __atomic_load_n(&end, __ATOMIC_ACQUIRE); }
   void wait() {
     while (__atomic_load_n(&counter, __ATOMIC_ACQUIRE) > 0) {
       sched_yield();
-    }
-    for (auto event : events) {
-      deviceAdaptor->eventDestroy(event);
     }
   }
 };
