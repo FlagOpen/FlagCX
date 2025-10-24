@@ -537,7 +537,7 @@ flagcxResult_t flagcxGetLocalNetFromGpu(int apu, int *dev,
   }
 
   if (strlen(name) == 0 && enable_topo_detect &&
-      strcmp(enable_topo_detect, "TRUE") == 0) {
+      strcasecmp(enable_topo_detect, "TRUE") == 0) {
     FLAGCXCHECK(flagcxTopoGetLocalNet(comm->topoServer, comm->rank, dev));
   }
 
