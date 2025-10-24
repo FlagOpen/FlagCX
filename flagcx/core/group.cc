@@ -187,7 +187,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
               &op->args.regHandle));
           // we don't use semaphore tracking for device func for the moment
           if (deviceAsyncLoad && deviceAsyncStore) {
-            FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
+            FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event,
+                                                   flagcxEventDisableTiming));
             FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             std::vector<void *> argList;
             FLAGCXCHECK(deviceAdaptor->deviceMalloc(
@@ -247,7 +248,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           // we don't use semaphore tracking for device func for the moment
           if (deviceAsyncLoad && deviceAsyncStore) {
             std::vector<void *> argList;
-            FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
+            FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event,
+                                                   flagcxEventDisableTiming));
             FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             FLAGCXCHECK(deviceAdaptor->deviceMalloc(
                 (void **)&op->args.dlArgs, sizeof(bool), flagcxMemDevice,

@@ -119,8 +119,8 @@ struct flagcxRecord {
 
 template <typename T>
 flagcxRecord<T>::flagcxRecord() : duration(0.0f) {
-  deviceAdaptor->eventCreate(&beginEvent);
-  deviceAdaptor->eventCreate(&endEvent);
+  deviceAdaptor->eventCreate(&beginEvent, flagcxEventDefault);
+  deviceAdaptor->eventCreate(&endEvent, flagcxEventDefault);
 }
 
 template <typename T>

@@ -183,11 +183,14 @@ flagcxResult_t musaAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t musaAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t musaAdaptorEventCreate(flagcxEvent_t *event,
+                                      flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(musaEventCreateWithFlags((musaEvent_t *)(*event),
-                                    musaEventDisableTiming));
+  const unsigned int flags = (eventType == flagcxEventDefault)
+                                 ? musaEventDefault
+                                 : musaEventDisableTiming;
+  DEVCHECK(musaEventCreateWithFlags(&((*event)->base), flags));
   return flagcxSuccess;
 }
 

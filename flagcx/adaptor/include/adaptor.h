@@ -180,7 +180,8 @@ struct flagcxDeviceAdaptor {
   flagcxResult_t (*streamWaitEvent)(flagcxStream_t stream, flagcxEvent_t event);
 
   // Event functions
-  flagcxResult_t (*eventCreate)(flagcxEvent_t *event);
+  flagcxResult_t (*eventCreate)(flagcxEvent_t *event,
+                                flagcxEventType_t eventType);
   flagcxResult_t (*eventDestroy)(flagcxEvent_t event);
   flagcxResult_t (*eventRecord)(flagcxEvent_t event, flagcxStream_t stream);
   flagcxResult_t (*eventSynchronize)(flagcxEvent_t event);
