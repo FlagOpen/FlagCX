@@ -680,7 +680,7 @@ flagcxC2cPlanner::flagcxC2cPlanner(size_t sendCount, size_t recvCount,
   nSeqPostSteps_ = 1;
   // use ring pipeline algo if FLAGCX_C2C_ALGO=RING_PIPELINED
   const char *algorithm = getenv("FLAGCX_C2C_ALGO");
-  if (algorithm != NULL && strcmp(algorithm, "RING_PIPELINED") == 0) {
+  if (algorithm != NULL && strcasecmp(algorithm, "RING_PIPELINED") == 0) {
     // pipeline optimizations for AllGather
     if (commOp_ == flagcxCommOpAllGather) {
       algorithm_ = flagcxAlgoPipeline;
@@ -2094,7 +2094,7 @@ flagcxResult_t flagcxC2cPlanner::execute(const void *sendbuff, void *recvbuff,
 
   int importAlgoFromXmlFile = 0;
   const char *algorithm = getenv("FLAGCX_C2C_ALGO");
-  if (algorithm != NULL && strcmp(algorithm, "XML_INPUT") == 0) {
+  if (algorithm != NULL && strcasecmp(algorithm, "XML_INPUT") == 0) {
     const char *algo_path = getenv("FLAGCX_ALGO_IMPORT_PATH");
     const char *algo_prefix = getenv("FLAGCX_ALGO_IMPORT_PREFIX");
     if (algo_prefix) {
