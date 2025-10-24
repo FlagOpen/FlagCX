@@ -248,7 +248,7 @@ LIBSRCFILES:= \
 	$(wildcard flagcx/adaptor/device/*.cc) \
 	$(wildcard flagcx/adaptor/ccl/*.cc) \
 	$(wildcard flagcx/adaptor/net/*.cc) \
-	$(wildcard flagcx/adaptor/tuner/tuner_util.cc) \
+	$(wildcard flagcx/adaptor/tuner/*.cc) \
 	$(wildcard flagcx/service/*.cc)
 
 LIBOBJ     := $(LIBSRCFILES:%.cc=$(OBJDIR)/%.o)
