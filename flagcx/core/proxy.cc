@@ -10,6 +10,7 @@
 #include "comm.h"
 #include "info.h"
 #include "net.h"
+#include "p2p.h"
 #include "socket.h"
 #include "transport.h"
 #define ENABLE_TIMER 0
@@ -525,9 +526,27 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
   if (op->type == flagcxProxyMsgConnect) {
     TRACE(FLAGCX_PROXY,
           "proxyProgressAsync::flagcxProxyMsgConnect opId=%p op.reqBuff=%p, "
-          "op->reqSize=%d, op->respSize=%d",
-          op->opId, op->reqBuff, op->reqSize, op->respSize);
-    if (op->connection->send) {
+          "op->reqSize=%d, op->respSize=%d, transport=%d",
+          op->opId, op->reqBuff, op->reqSize, op->respSize, op->connection->transport);
+    
+    if (op->connection->transport == TRANSPORT_P2P) {
+      // P2P transport
+      if (op->connection->send) {
+        INFO(FLAGCX_PROXY, "Calling flagcxP2pSendProxyConnect");
+        flagcxP2pSendProxyConnect(op->connection, NULL, 
+                                  op->reqBuff, op->reqSize,
+                                  op->respBuff, op->respSize, &done);
+        INFO(FLAGCX_PROXY, "flagcxP2pSendProxyConnect completed, done=%d", done);
+      } else {
+        INFO(FLAGCX_PROXY, "Calling flagcxP2pRecvProxyConnect");
+        flagcxP2pRecvProxyConnect(op->connection, NULL,
+                                  op->reqBuff, op->reqSize,
+                                  op->respBuff, op->respSize, &done);
+        INFO(FLAGCX_PROXY, "flagcxP2pRecvProxyConnect completed, done=%d", done);
+      }
+    } else if (op->connection->transport == TRANSPORT_NET) {
+      // NET transport (original logic)
+      if (op->connection->send) {
       struct sendNetResources *resources =
           (struct sendNetResources *)op->connection->transportResources;
       if (!resources->netSendComm) {
@@ -559,9 +578,9 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
         }
         done = 1;
       }
-    } else {
-      struct recvNetResources *resources =
-          (struct recvNetResources *)op->connection->transportResources;
+      } else {
+        struct recvNetResources *resources =
+            (struct recvNetResources *)op->connection->transportResources;
       if (!resources->netRecvComm) {
         FLAGCXCHECK(resources->netAdaptor->accept(resources->netListenComm,
                                                   &resources->netRecvComm));
@@ -590,6 +609,10 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
         }
         done = 1;
       }
+      }
+    } else {
+      WARN("Unknown transport type: %d", op->connection->transport);
+      return flagcxInternalError;
     }
   } else if (op->type == flagcxProxyMsgRegister) {
     TRACE(FLAGCX_PROXY,
@@ -659,9 +682,25 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
           resources->netAdaptor->deregMr(resources->netRecvComm, handle));
     }
     done = 1;
-  } else
+  } else if (op->type == flagcxProxyMsgSetup) {
+    if (op->connection->send) {
+      // P2P Send side setup
+      INFO(FLAGCX_PROXY, "Calling flagcxP2pSendProxySetup");
+      flagcxP2pSendProxySetup(op->connection, NULL, 
+                              op->reqBuff, op->reqSize,
+                              op->respBuff, op->respSize, &done);
+      INFO(FLAGCX_PROXY, "flagcxP2pSendProxySetup completed, done=%d", done);
+    } else {
+      // P2P Recv side setup
+      INFO(FLAGCX_PROXY, "Calling flagcxP2pRecvProxySetup");
+      flagcxP2pRecvProxySetup(op->connection, NULL,
+                              op->reqBuff, op->reqSize,
+                              op->respBuff, op->respSize, &done);
+      INFO(FLAGCX_PROXY, "flagcxP2pRecvProxySetup completed, done=%d", done);
+    }
+  } else {
     return flagcxInternalError;
-
+  }
   if (done) {
     INFO(FLAGCX_PROXY,
          "proxyProgressAsync opId=%p op.type=%d op.reqBuff=%p op.respSize=%d "

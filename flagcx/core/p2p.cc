@@ -17,6 +17,9 @@ flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection* connection,
                                         void* reqBuff,  int reqSize,
                                         void* respBuff, int respSize,
                                         int* done) {
+  INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: reqSize=%d respSize=%d expectedRespSize=%zu",
+       reqSize, respSize, sizeof(struct flagcxP2pShmProxyInfo));
+  
   struct flagcxP2pShmProxyInfo* proxyInfo;
   size_t shmSize;
 
@@ -26,26 +29,42 @@ flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection* connection,
 
   // create shared memory segment
   shmSize = sizeof(struct flagcxP2pShm);
+  INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Allocating shared memory size=%zu", shmSize);
   FLAGCXCHECK(flagcxShmAllocateShareableBuffer(shmSize, &proxyInfo->desc, (void**)&proxyInfo->shm, NULL));
+  
+  INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Copying response, shm=%p", proxyInfo->shm);
   memcpy(respBuff, proxyInfo, sizeof(struct flagcxP2pShmProxyInfo));
   *done = 1;
+  
+  INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Completed successfully");
   return flagcxSuccess;
 }
 
-// 需要回过头来再看一下这里的p2pBuff在后面会被强转为 (struct flagcxP2pShmProxyInfo*) 使用，这里只传了一个p2pbuff的地址给自己使用
 flagcxResult_t flagcxP2pRecvProxySetup(struct flagcxProxyConnection* connection,
                                         struct flagcxProxyState* proxyState,
                                         void* reqBuff, int reqSize,
                                         void* respBuff, int respSize,
                                         int* done) {
+  INFO(FLAGCX_INIT, "flagcxP2pRecvProxySetup: reqSize=%d respSize=%d expectedReqSize=%zu expectedRespSize=%zu",
+       reqSize, respSize, sizeof(struct flagcxP2pRequest), sizeof(struct flagcxP2pBuff));
+  
   struct flagcxP2pRequest* req = (struct flagcxP2pRequest*)reqBuff;
-  if (reqSize != sizeof(struct flagcxP2pRequest)) return flagcxInternalError;
+  
+  if (reqSize != sizeof(struct flagcxP2pRequest)) {
+    WARN("flagcxP2pRecvProxySetup: Invalid reqSize %d, expected %zu", 
+         reqSize, sizeof(struct flagcxP2pRequest));
+    return flagcxInternalError;
+  }
+  
   int size = req->size;
   if (respSize != sizeof(struct flagcxP2pBuff)) return flagcxInternalError;
   struct flagcxP2pBuff* p2pBuff = (struct flagcxP2pBuff*)respBuff;
+  INFO(FLAGCX_INIT, "flagcxP2pRecvProxySetup: Allocating shareable buffer size=%d", size);
   FLAGCXCHECK(flagcxP2pAllocateShareableBuffer(size, req->refcount, &p2pBuff->ipcDesc, &p2pBuff->directPtr));
   p2pBuff->size = size;
-  connection->transportResources = p2pBuff->directPtr;
+  struct flagcxP2pShmProxyInfo* proxyInfo;
+  FLAGCXCHECK(flagcxCalloc(&proxyInfo, 1));
+  connection->transportResources = proxyInfo;
   *done = 1;
   return flagcxSuccess; 
 }
@@ -55,7 +74,32 @@ flagcxResult_t flagcxP2pSendProxyConnect(struct flagcxProxyConnection* connectio
                                          void* reqBuff, int reqSize,
                                          void* respBuff, int respSize,
                                          int* done) {
-  ;
+  // Get proxyInfo that was set up in RecvProxySetup
+  struct flagcxP2pShmProxyInfo* proxyInfo = 
+      (struct flagcxP2pShmProxyInfo*)connection->transportResources;
+  
+  if (proxyInfo == NULL) {
+    WARN("flagcxP2pSendProxyConnect: proxyInfo is NULL");
+    return flagcxInternalError;
+  }
+  
+  // Recv sends recvFifo pointer to us
+  if (reqSize != sizeof(void*)) {
+    WARN("flagcxP2pSendProxyConnect: Invalid reqSize %d, expected %zu",
+         reqSize, sizeof(void*));
+    return flagcxInternalError;
+  }
+  
+  proxyInfo->recvFifo = *((char**)reqBuff);
+  
+  // Create CUDA stream and events for data transfers
+  FLAGCXCHECK(deviceAdaptor->streamCreate(&proxyInfo->stream));
+  for (int i = 0; i < MAXSTEPS; i++) {
+    FLAGCXCHECK(deviceAdaptor->eventCreate(&proxyInfo->events[i]));
+  }
+  
+  *done = 1;
+  INFO(FLAGCX_INIT, "flagcxP2pSendProxyConnect: Completed, recvFifo=%p", proxyInfo->recvFifo);
   return flagcxSuccess;
 }
 
@@ -64,7 +108,23 @@ flagcxResult_t flagcxP2pRecvProxyConnect(struct flagcxProxyConnection* connectio
                                          void* reqBuff, int reqSize,
                                          void* respBuff, int respSize,
                                          int* done) {
-  ;
+  // Get proxyInfo that was set up in RecvProxySetup
+  struct flagcxP2pShmProxyInfo* proxyInfo = 
+      (struct flagcxP2pShmProxyInfo*)connection->transportResources;
+  
+  if (proxyInfo == NULL) {
+    WARN("flagcxP2pRecvProxyConnect: proxyInfo is NULL");
+    return flagcxInternalError;
+  }
+  
+  // Create CUDA stream and events for data transfers
+  FLAGCXCHECK(deviceAdaptor->streamCreate(&proxyInfo->stream));
+  for (int i = 0; i < MAXSTEPS; i++) {
+    FLAGCXCHECK(deviceAdaptor->eventCreate(&proxyInfo->events[i]));
+  }
+  
+  *done = 1;
+  INFO(FLAGCX_INIT, "flagcxP2pRecvProxyConnect: Completed");
   return flagcxSuccess;
 }
 
@@ -102,7 +162,15 @@ flagcxResult_t flagcxP2pImportShareableBuffer(struct flagcxHeteroComm *comm,
                                               struct flagcxP2pIpcDesc *ipcDesc, 
                                               void **devMemPtr) {
   *devMemPtr = NULL;
-  deviceAdaptor->ipcMemHandleOpen(ipcDesc->devIpc, devMemPtr);
+  flagcxResult_t res = deviceAdaptor->ipcMemHandleOpen(ipcDesc->devIpc, devMemPtr);
+  if (res != flagcxSuccess) {
+    WARN("Failed to open IPC handle for peer %d: error %d", peer, res);
+    return res;
+  }
+  if (*devMemPtr == NULL) {
+    WARN("IPC handle opened but devMemPtr is NULL for peer %d", peer);
+    return flagcxInternalError;
+  }
   INFO(FLAGCX_P2P, "Imported shareable buffer from peer %d device %d size %zu ptr %p", 
        peer, comm->cudaDev, size, *devMemPtr);
 
