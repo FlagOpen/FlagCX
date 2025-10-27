@@ -202,11 +202,14 @@ flagcxResult_t kunlunAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t kunlunAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t kunlunAdaptorEventCreate(flagcxEvent_t *event,
+                                        flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
-                                    cudaEventDisableTiming));
+  const unsigned int flags = (eventType == flagcxEventDefault)
+                                 ? cudaEventDefault
+                                 : cudaEventDisableTiming;
+  DEVCHECK(cudaEventCreateWithFlags(&((*event)->base), flags));
   return flagcxSuccess;
 }
 

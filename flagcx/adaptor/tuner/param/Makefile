@@ -3,8 +3,9 @@ CXX = g++
 CXXFLAGS = -fPIC -Wall -Wextra -O2 -std=c++11
 LDFLAGS = -shared -pthread
 
+
 # Target shared library name
-TARGET = libnccl_param.so
+TARGET = libflagcx_param.so
 
 # Source files
 SOURCES = nccl_param.cc

@@ -440,8 +440,8 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     for (uint32_t i = 0; i < nConfigs; ++i) {
       struct flagcxCommTag tag = {""};
       FLAGCXCHECK((*comm)->tuner->setCandidate((*comm)->tunerContext, i, &tag));
-      INFO(FLAGCX_INIT, "start to prepare communicator tag=%s(%u/%u)", tag.tag,
-           i, nConfigs);
+      INFO(FLAGCX_INIT | FLAGCX_TUNING,
+           "start to prepare communicator tag=%s(%u/%u)", tag.tag, i, nConfigs);
 
       flagcxInnerComm_t innerComm = NULL;
       FLAGCXCHECK(
@@ -488,9 +488,10 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     struct flagcxNicDistance *nicDistanceData;
     FLAGCXCHECK(flagcxCalloc(&nicDistanceData, nranks));
     const char *enableTopoDetect = flagcxGetEnv("FLAGCX_ENABLE_TOPO_DETECT");
-    if (enableTopoDetect && strcmp(enableTopoDetect, "TRUE") ==
-                                0) { // safety check nic distance is only
-                                     // available after topo detection
+    if (enableTopoDetect && (strcmp(enableTopoDetect, "TRUE") == 0 ||
+                             strcmp(enableTopoDetect, "True") ==
+                                 0)) { // safety check nic distance is only
+                                       // available after topo detection
       FLAGCXCHECK(flagcxGetNicDistance((*comm)->hetero_comm->topoServer, rank,
                                        nicDistanceData + rank));
     } else {

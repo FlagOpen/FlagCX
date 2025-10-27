@@ -4,6 +4,7 @@
 #include "timer.h"
 #include "tuner/tuner_util.h"
 #include <cfloat>
+#include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
@@ -142,7 +143,8 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
                                flagcxDebugLogger_t logFunction,
                                void **context) {
   struct flagcxTunerContext *ctx = new struct flagcxTunerContext;
-  FLAGCXCHECK(loadConfigList(ctx->configList));
+  FLAGCXCHECK(generateCandidate(ctx->configList));
+  INFO(FLAGCX_TUNING, "Candidate number: %ld.", ctx->configList.size());
   ctx->logger = logFunction;
   *context = ctx;
 

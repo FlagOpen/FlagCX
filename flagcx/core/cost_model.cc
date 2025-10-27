@@ -10,7 +10,8 @@ flagcxResult_t flagcxAlgoTimeEstimator::getAlgoTime(float *time) {
   const char *interServerTopoFile =
       flagcxGetEnv("FLAGCX_INTERSERVER_ROUTE_FILE");
   if (enableTopoDetect && interServerTopoFile &&
-      strcmp(enableTopoDetect, "TRUE") == 0) {
+      (strcmp(enableTopoDetect, "TRUE") == 0 ||
+       strcmp(enableTopoDetect, "True") == 0)) {
     // algo time estimator depends on cluster level topology detection
     float preHomoTime, heteroTime, postHomoTime;
     INFO(FLAGCX_GRAPH, "COST_MODEL: getting time for prehomo funcs");
