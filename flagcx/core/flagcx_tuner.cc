@@ -4,11 +4,11 @@
 #include "timer.h"
 #include "tuner/tuner_util.h"
 #include <cfloat>
+#include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <iostream>
 
 // A category of collective operation. the minimal unit for tuning.
 struct TunerCollCategory {
@@ -144,8 +144,7 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
                                void **context) {
   struct flagcxTunerContext *ctx = new struct flagcxTunerContext;
   FLAGCXCHECK(generateCandidate(ctx->configList));
-  INFO(FLAGCX_TUNING,
-         "Candidate number: %ld.", ctx->configList.size());
+  INFO(FLAGCX_TUNING, "Candidate number: %ld.", ctx->configList.size());
   ctx->logger = logFunction;
   *context = ctx;
 

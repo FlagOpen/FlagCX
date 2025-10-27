@@ -2,17 +2,18 @@
 #define FLAGCX_TUNER_UTIL_H_
 
 #include "tuner.h" // struct flagcxEnvConfig
-#include <vector>
 #include <string>
+#include <vector>
 
-// This is a demonstration function that provide a way to load all config list for a specific GPU.
+// This is a demonstration function that provide a way to load all config list
+// for a specific GPU.
 
 struct EnvVar {
-    std::string name;
-    std::vector<std::string> choices;
-    std::string defaultValue;
-    EnvVar(std::string n="") : name(std::move(n)) {}
-    EnvVar(std::string n, std::vector<std::string> c, std::string d = "")
+  std::string name;
+  std::vector<std::string> choices;
+  std::string defaultValue;
+  EnvVar(std::string n = "") : name(std::move(n)) {}
+  EnvVar(std::string n, std::vector<std::string> c, std::string d = "")
       : name(std::move(n)), choices(std::move(c)), defaultValue(std::move(d)) {}
 };
 
