@@ -203,11 +203,14 @@ flagcxResult_t mluAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t mluAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t mluAdaptorEventCreate(flagcxEvent_t *event,
+                                     flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(cnrtNotifierCreateWithFlags((cnrtNotifier_t *)(*event),
-                                       CNRT_NOTIFIER_DISABLE_TIMING_ALL));
+  const unsigned int flags = (eventType == flagcxEventDefault)
+                                 ? CNRT_NOTIFIER_DEFAULT
+                                 : CNRT_NOTIFIER_DISABLE_TIMING_ALL;
+  DEVCHECK(cnrtNotifierCreateWithFlags(&((*event)->base), flags));
   return flagcxSuccess;
 }
 
@@ -253,6 +256,34 @@ flagcxResult_t mluAdaptorEventQuery(flagcxEvent_t event) {
   return res;
 }
 
+flagcxResult_t mluAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
+                                            size_t *size) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t mluAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
+                                         void *devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t mluAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
+                                          void **devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t mluAdaptorIpcMemHandleClose(void *devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t mluAdaptorIpcMemHandleFree(flagcxIpcMemHandle_t handle) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
 struct flagcxDeviceAdaptor mluAdaptor {
   "MLU",
       // Basic functions
@@ -277,6 +308,10 @@ struct flagcxDeviceAdaptor mluAdaptor {
       // Event functions
       mluAdaptorEventCreate, mluAdaptorEventDestroy, mluAdaptorEventRecord,
       mluAdaptorEventSynchronize, mluAdaptorEventQuery,
+      // IpcMemHandle functions
+      mluAdaptorIpcMemHandleCreate, mluAdaptorIpcMemHandleGet,
+      mluAdaptorIpcMemHandleOpen, mluAdaptorIpcMemHandleClose,
+      mluAdaptorIpcMemHandleFree,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,

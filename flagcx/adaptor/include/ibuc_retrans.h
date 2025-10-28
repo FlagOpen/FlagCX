@@ -13,6 +13,10 @@
 #include <stdint.h>
 #include <time.h>
 
+// Retransmission constants
+#define FLAGCX_RETRANS_MAGIC 0xDEADBEEF   // Magic number for retransmission header
+#define FLAGCX_RETRANS_WR_ID 0xFFFFFFFEULL // WR ID for retransmission completions
+
 extern int64_t flagcxParamIbRetransEnable(void);
 extern int64_t flagcxParamIbRetransTimeout(void);
 extern int64_t flagcxParamIbRetransMaxRetry(void);

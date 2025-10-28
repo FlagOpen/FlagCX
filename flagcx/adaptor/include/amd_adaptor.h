@@ -19,6 +19,10 @@ struct flagcxEvent {
   hipEvent_t base;
 };
 
+struct flagcxIpcMemHandle {
+  char *base; // to be implemented
+};
+
 #define DEVCHECK(func)                                                         \
   do {                                                                         \
     int ret = func;                                                            \

@@ -24,6 +24,10 @@ struct flagcxEvent {
   mcEvent_t base;
 };
 
+struct flagcxIpcMemHandle {
+  mcIpcMemHandle_t base;
+};
+
 #define DEVCHECK(func)                                                         \
   {                                                                            \
     int ret = func;                                                            \

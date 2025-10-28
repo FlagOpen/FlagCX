@@ -2,7 +2,9 @@
 #include "check.h"
 #include "param.h"
 #include "timer.h"
+#include "tuner/tuner_util.h"
 #include <cfloat>
+#include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
@@ -113,15 +115,6 @@ struct flagcxTunerContext {
   flagcxTimer<TunerProfileKey> timer;
 };
 
-static struct flagcxEnvConfig config1 = {
-    "defaultConfig1",
-    1,
-    {FLAGCX_ENV_TYPE_COLL, "NCCL_P2P_NVL_CHUNKSIZE", "1024", "524288"}};
-static struct flagcxEnvConfig config2 = {
-    "defaultConfig2",
-    1,
-    {FLAGCX_ENV_TYPE_COLL, "NCCL_P2P_NVL_CHUNKSIZE", "524288", "524288"}};
-
 bool operator<(const struct flagcxCommTag &lhs,
                const struct flagcxCommTag &rhs) {
   return strcmp(lhs.tag, rhs.tag) < 0;
@@ -150,8 +143,8 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
                                flagcxDebugLogger_t logFunction,
                                void **context) {
   struct flagcxTunerContext *ctx = new struct flagcxTunerContext;
-  ctx->configList.push_back(config1);
-  ctx->configList.push_back(config2);
+  FLAGCXCHECK(generateCandidate(ctx->configList));
+  INFO(FLAGCX_TUNING, "Candidate number: %ld.", ctx->configList.size());
   ctx->logger = logFunction;
   *context = ctx;
 

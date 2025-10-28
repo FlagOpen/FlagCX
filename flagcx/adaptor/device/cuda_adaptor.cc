@@ -234,11 +234,14 @@ flagcxResult_t cudaAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t cudaAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t cudaAdaptorEventCreate(flagcxEvent_t *event,
+                                      flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
-                                    cudaEventDisableTiming));
+  const unsigned int flags = (eventType == flagcxEventDefault)
+                                 ? cudaEventDefault
+                                 : cudaEventDisableTiming;
+  DEVCHECK(cudaEventCreateWithFlags(&((*event)->base), flags));
   return flagcxSuccess;
 }
 
@@ -284,6 +287,49 @@ flagcxResult_t cudaAdaptorEventQuery(flagcxEvent_t event) {
     }
   }
   return res;
+}
+
+flagcxResult_t cudaAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
+                                             size_t *size) {
+  flagcxCalloc(handle, 1);
+  if (size != NULL) {
+    *size = sizeof(cudaIpcMemHandle_t);
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
+                                          void *devPtr) {
+  if (handle == NULL || devPtr == NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(cudaIpcGetMemHandle(&handle->base, devPtr));
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
+                                           void **devPtr) {
+  if (handle == NULL || devPtr == NULL || *devPtr != NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(cudaIpcOpenMemHandle(devPtr, handle->base,
+                                cudaIpcMemLazyEnablePeerAccess));
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorIpcMemHandleClose(void *devPtr) {
+  if (devPtr == NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(cudaIpcCloseMemHandle(devPtr));
+  return flagcxSuccess;
+}
+
+flagcxResult_t cudaAdaptorIpcMemHandleFree(flagcxIpcMemHandle_t handle) {
+  if (handle != NULL) {
+    free(handle);
+  }
+  return flagcxSuccess;
 }
 
 flagcxResult_t cudaAdaptorLaunchHostFunc(flagcxStream_t stream,
@@ -428,6 +474,10 @@ struct flagcxDeviceAdaptor cudaAdaptor {
       // Event functions
       cudaAdaptorEventCreate, cudaAdaptorEventDestroy, cudaAdaptorEventRecord,
       cudaAdaptorEventSynchronize, cudaAdaptorEventQuery,
+      // IpcMemHandle functions
+      cudaAdaptorIpcMemHandleCreate, cudaAdaptorIpcMemHandleGet,
+      cudaAdaptorIpcMemHandleOpen, cudaAdaptorIpcMemHandleClose,
+      cudaAdaptorIpcMemHandleFree,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,

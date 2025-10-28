@@ -109,10 +109,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
 
   // Each groupLaunch we create a semaphore to track the p2p ops
   // and a stream to launch host or device func
-  struct flagcxHostSemaphore *semaphore;
-  FLAGCXCHECK(flagcxCalloc(&semaphore, 1));
-  semaphore->flag = 0;
-  semaphore->counter = 0;
+  std::shared_ptr<flagcxHostSemaphore> semaphore =
+      std::make_shared<flagcxHostSemaphore>();
   flagcxStream_t launchStream = nullptr;
 
   if (groupCommPreconnectHeadMain != nullptr) {
@@ -187,7 +185,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
               &op->args.regHandle));
           // we don't use semaphore tracking for device func for the moment
           if (deviceAsyncLoad && deviceAsyncStore) {
-            FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
+            FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event,
+                                                   flagcxEventDisableTiming));
             FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             std::vector<void *> argList;
             FLAGCXCHECK(deviceAdaptor->deviceMalloc(
@@ -247,7 +246,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           // we don't use semaphore tracking for device func for the moment
           if (deviceAsyncLoad && deviceAsyncStore) {
             std::vector<void *> argList;
-            FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event));
+            FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event,
+                                                   flagcxEventDisableTiming));
             FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
             FLAGCXCHECK(deviceAdaptor->deviceMalloc(
                 (void **)&op->args.dlArgs, sizeof(bool), flagcxMemDevice,
@@ -312,7 +312,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
     }
   } else {
     FLAGCXCHECK(deviceAdaptor->launchHostFunc(launchStream, cpuAsyncKernel,
-                                              (void *)semaphore));
+                                              (void *)semaphore.get()));
   }
   // deprecated code path for host func, since the previous
   // hang issue may be walked around by using zero copy

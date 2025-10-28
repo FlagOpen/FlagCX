@@ -202,11 +202,14 @@ flagcxResult_t kunlunAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t kunlunAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t kunlunAdaptorEventCreate(flagcxEvent_t *event,
+                                        flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(cudaEventCreateWithFlags((cudaEvent_t *)(*event),
-                                    cudaEventDisableTiming));
+  const unsigned int flags = (eventType == flagcxEventDefault)
+                                 ? cudaEventDefault
+                                 : cudaEventDisableTiming;
+  DEVCHECK(cudaEventCreateWithFlags(&((*event)->base), flags));
   return flagcxSuccess;
 }
 
@@ -252,6 +255,34 @@ flagcxResult_t kunlunAdaptorEventQuery(flagcxEvent_t event) {
     }
   }
   return res;
+}
+
+flagcxResult_t kunlunAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
+                                               size_t *size) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t kunlunAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
+                                            void *devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t kunlunAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
+                                             void **devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t kunlunAdaptorIpcMemHandleClose(void *devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t kunlunAdaptorIpcMemHandleFree(flagcxIpcMemHandle_t handle) {
+  // to be implemented
+  return flagcxNotSupported;
 }
 
 flagcxResult_t kunlunAdaptorLaunchHostFunc(flagcxStream_t stream,
@@ -336,6 +367,10 @@ struct flagcxDeviceAdaptor kunlunAdaptor {
       kunlunAdaptorEventCreate, kunlunAdaptorEventDestroy,
       kunlunAdaptorEventRecord, kunlunAdaptorEventSynchronize,
       kunlunAdaptorEventQuery,
+      // IpcMemHandle functions
+      kunlunAdaptorIpcMemHandleCreate, kunlunAdaptorIpcMemHandleGet,
+      kunlunAdaptorIpcMemHandleOpen, kunlunAdaptorIpcMemHandleClose,
+      kunlunAdaptorIpcMemHandleFree,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,

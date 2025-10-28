@@ -246,7 +246,6 @@ fail:
   return ret;
 }
 
-// Forward declarations
 flagcxResult_t flagcxIbucMalloc(void **ptr, size_t size);
 flagcxResult_t flagcxIbucCreateQpWithType(uint8_t ib_port,
                                           struct flagcxIbNetCommDevBase *base,
@@ -579,7 +578,7 @@ ibuc_connect_check:
       meta.ctrlLid[i] = ibucDev->portAttr.lid;
       meta.ctrlGid[i] = commDev->base.gidInfo.localGid;
 
-      size_t ack_buf_size = (sizeof(struct flagcxIbAckMsg) + 40) * 64;
+      size_t ack_buf_size = (sizeof(struct flagcxIbAckMsg) + FLAGCX_IB_ACK_BUF_PADDING) * FLAGCX_IB_ACK_BUF_COUNT;
       commDev->ackBuffer = malloc(ack_buf_size);
       FLAGCXCHECK(flagcxWrapIbvRegMr(&commDev->ackMr, commDev->base.pd,
                                      commDev->ackBuffer, ack_buf_size,
@@ -744,8 +743,8 @@ ibuc_connect:
     INFO(FLAGCX_INIT | FLAGCX_NET,
          "NET/IBUC Sender: Retransmission ENABLED (RTO=%uus, MaxRetry=%d, "
          "AckInterval=%d)",
-         comm->retrans.min_rto_us, comm->retrans.max_retry,
-         comm->retrans.ack_interval);
+         comm->retrans.minRtoUs, comm->retrans.maxRetry,
+         comm->retrans.ackInterval);
   } else {
     INFO(FLAGCX_INIT | FLAGCX_NET, "NET/IBUC Sender: Retransmission DISABLED");
   }
@@ -776,7 +775,7 @@ ibuc_connect:
         break;
       }
 
-      size_t buf_entry_size = sizeof(struct flagcxIbAckMsg) + 40;
+      size_t buf_entry_size = sizeof(struct flagcxIbAckMsg) + FLAGCX_IB_ACK_BUF_PADDING;
       for (int r = 0; r < 32; r++) {
         struct ibv_sge sge;
         sge.addr = (uint64_t)((char *)commDev->ackBuffer + r * buf_entry_size);
@@ -969,15 +968,15 @@ ib_recv:
 
   // Stripe QP creation across merged devs
   // Make sure to get correct remote peer dev and QP info
-  int remDevIndex;
+  int remDevIdx;
   int devIndex;
   devIndex = 0;
   for (int q = 0; q < rComm->base.nqps; q++) {
-    remDevIndex = remMeta.qpInfo[q].devIndex;
-    remDevInfo = remMeta.devs + remDevIndex;
+    remDevIdx = remMeta.qpInfo[q].devIndex;
+    remDevInfo = remMeta.devs + remDevIdx;
     qp = rComm->base.qps + q;
     rCommDev = rComm->devs + devIndex;
-    qp->remDevIdx = remDevIndex;
+    qp->remDevIdx = remDevIdx;
 
     // Local ibDevN
     ibDevN = rComm->devs[devIndex].base.ibDevN;
@@ -1064,7 +1063,7 @@ ib_recv:
             "Receiver: Control QP created for dev %d, qpn=%u, lid=%u", i,
             meta.ctrlQpn[i], meta.ctrlLid[i]);
 
-      size_t ack_buf_size = (sizeof(struct flagcxIbAckMsg) + 40) * 64;
+      size_t ack_buf_size = (sizeof(struct flagcxIbAckMsg) + FLAGCX_IB_ACK_BUF_PADDING) * FLAGCX_IB_ACK_BUF_COUNT;
       rCommDev->ackBuffer = malloc(ack_buf_size);
       FLAGCXCHECK(flagcxWrapIbvRegMr(&rCommDev->ackMr, rCommDev->base.pd,
                                      rCommDev->ackBuffer, ack_buf_size,
@@ -1171,11 +1170,11 @@ ib_recv_ready:
 
   // Initialize SRQ with recv buffers (similar to UCCL)
   if (rComm->retrans.enabled && rComm->srqMgr.srq != NULL) {
-    rComm->srqMgr.post_srq_count = FLAGCX_IB_SRQ_SIZE;
+    rComm->srqMgr.postSrqCount = FLAGCX_IB_SRQ_SIZE;
 
     // Post in batches until all are posted
-    while (rComm->srqMgr.post_srq_count > 0) {
-      FLAGCXCHECK(flagcxIbSrqPostRecv(&rComm->srqMgr, 64));
+    while (rComm->srqMgr.postSrqCount > 0) {
+      FLAGCXCHECK(flagcxIbSrqPostRecv(&rComm->srqMgr, FLAGCX_IB_ACK_BUF_COUNT));
     }
 
     INFO(FLAGCX_INIT | FLAGCX_NET,
@@ -1408,8 +1407,8 @@ flagcxResult_t flagcxIbucMultiSend(struct flagcxIbSendComm *comm, int slot) {
 
   if (nreqs == 1) {
     if (comm->retrans.enabled) {
-      seq = comm->retrans.send_seq;
-      comm->retrans.send_seq = (comm->retrans.send_seq + 1) & 0xFFFF;
+      seq = comm->retrans.sendSeq;
+      comm->retrans.sendSeq = (comm->retrans.sendSeq + 1) & 0xFFFF;
       immData = flagcxIbEncodeImmData(seq, reqs[0]->send.size);
       TRACE(FLAGCX_NET,
             "Sending packet with SEQ: seq=%u, size=%u, immData=0x%x", seq,
@@ -1849,8 +1848,8 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
       // Post to SRQ when we have pending post requests (similar to UCCL's
       // check_srq)
       const int kPostThreshold = 16;
-      if (rComm->srqMgr.post_srq_count >= kPostThreshold) {
-        FLAGCXCHECK(flagcxIbSrqPostRecv(&rComm->srqMgr, 64));
+      if (rComm->srqMgr.postSrqCount >= kPostThreshold) {
+        FLAGCXCHECK(flagcxIbSrqPostRecv(&rComm->srqMgr, FLAGCX_IB_ACK_BUF_COUNT));
       }
     }
   }
@@ -1918,7 +1917,7 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
           union flagcxSocketAddress addr;
           flagcxSocketGetAddr(r->sock, &addr);
 
-          if (wc->wr_id == 0xFFFFFFFEULL) {
+          if (wc->wr_id == FLAGCX_RETRANS_WR_ID) {
             if (r->base->isSend) {
               struct flagcxIbSendComm *sComm =
                   (struct flagcxIbSendComm *)r->base;
@@ -1939,9 +1938,9 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
               // SRQ mode: wr_id is buffer index
               int buf_idx = (int)wc->wr_id;
 
-              if (buf_idx < 0 || buf_idx >= rComm->srqMgr.buf_count) {
+              if (buf_idx < 0 || buf_idx >= rComm->srqMgr.bufCount) {
                 WARN("SRQ completion with invalid buffer index: %d (max=%d)",
-                     buf_idx, rComm->srqMgr.buf_count);
+                     buf_idx, rComm->srqMgr.bufCount);
                 continue;
               }
 
@@ -1951,7 +1950,7 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
                 // This is a SEND retransmission
                 struct flagcxIbRetransHdr *hdr =
                     (struct flagcxIbRetransHdr *)chunk_addr;
-                if (hdr->magic == 0xDEADBEEF) {
+                if (hdr->magic == FLAGCX_RETRANS_MAGIC) {
                   uint32_t seq = hdr->seq;
 
                   struct flagcxIbAckMsg ack_msg = {0};
@@ -1969,11 +1968,11 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
                 }
 
                 // Return buffer and inc post counter
-                rComm->srqMgr.bufs[buf_idx].in_use = 0;
-                rComm->srqMgr.free_buf_indices[rComm->srqMgr.free_buf_count] =
+                rComm->srqMgr.bufs[buf_idx].inUse = 0;
+                rComm->srqMgr.freeBufIndices[rComm->srqMgr.freeBufCount] =
                     buf_idx;
-                rComm->srqMgr.free_buf_count++;
-                rComm->srqMgr.post_srq_count++;
+                rComm->srqMgr.freeBufCount++;
+                rComm->srqMgr.postSrqCount++;
                 continue;
               }
 
@@ -2001,11 +2000,11 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
                 }
 
                 // Return buffer and inc post counter
-                rComm->srqMgr.bufs[buf_idx].in_use = 0;
-                rComm->srqMgr.free_buf_indices[rComm->srqMgr.free_buf_count] =
+                rComm->srqMgr.bufs[buf_idx].inUse = 0;
+                rComm->srqMgr.freeBufIndices[rComm->srqMgr.freeBufCount] =
                     buf_idx;
-                rComm->srqMgr.free_buf_count++;
-                rComm->srqMgr.post_srq_count++;
+                rComm->srqMgr.freeBufCount++;
+                rComm->srqMgr.postSrqCount++;
 
                 // Decrement events for the current request
                 r->events[i]--;
@@ -2051,7 +2050,7 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
           } else {
             if (req && wc->opcode == IBV_WC_RECV_RDMA_WITH_IMM) {
               if (req->type != FLAGCX_NET_IB_REQ_RECV) {
-                static int type_mismatch_count = 0;
+                static __thread int type_mismatch_count = 0;
                 if ((type_mismatch_count++ % 100) == 0) {
                   WARN("NET/IBUC: Type mismatch for RECV_RDMA_WITH_IMM: "
                        "req->type=%d (expected RECV=%d), count=%d",
@@ -2088,11 +2087,11 @@ flagcxResult_t flagcxIbucTest(void *request, int *done, int *sizes) {
                             ack_result);
                     } else {
                       TRACE(FLAGCX_NET, "Sent ACK for seq=%u, ack_seq=%u", seq,
-                            ack_msg.ack_seq);
+                            ack_msg.ackSeq);
                     }
                   } else {
                     TRACE(FLAGCX_NET, "No ACK needed for seq=%u (expect=%u)",
-                          seq, rComm->retrans.recv_seq);
+                          seq, rComm->retrans.recvSeq);
                   }
                 } else {
                   req->recv.sizes[0] = wc->imm_data;
@@ -2118,11 +2117,11 @@ flagcxResult_t flagcxIbucCloseSend(void *sendComm) {
       INFO(FLAGCX_INIT | FLAGCX_NET,
            "Sender Retrans Stats: Sent=%lu, Retrans=%lu, Acked=%lu, "
            "Timeout=%lu, Pending=%d",
-           (unsigned long)comm->retrans.total_sent,
-           (unsigned long)comm->retrans.total_retrans,
-           (unsigned long)comm->retrans.total_acked,
-           (unsigned long)comm->retrans.total_timeout,
-           comm->retrans.buffer_count);
+           (unsigned long)comm->retrans.totalSent,
+           (unsigned long)comm->retrans.totalRetrans,
+           (unsigned long)comm->retrans.totalAcked,
+           (unsigned long)comm->retrans.totalTimeout,
+           comm->retrans.bufferCount);
       FLAGCXCHECK(flagcxIbRetransDestroy(&comm->retrans));
     }
 
@@ -2166,9 +2165,9 @@ flagcxResult_t flagcxIbucCloseRecv(void *recvComm) {
       INFO(FLAGCX_INIT | FLAGCX_NET,
            "Receiver Retrans Stats: recv_seq=%u, Sent=%lu, Retrans=%lu, "
            "Acked=%lu",
-           comm->retrans.recv_seq, (unsigned long)comm->retrans.total_sent,
-           (unsigned long)comm->retrans.total_retrans,
-           (unsigned long)comm->retrans.total_acked);
+           comm->retrans.recvSeq, (unsigned long)comm->retrans.totalSent,
+           (unsigned long)comm->retrans.totalRetrans,
+           (unsigned long)comm->retrans.totalAcked);
       FLAGCXCHECK(flagcxIbRetransDestroy(&comm->retrans));
     }
 

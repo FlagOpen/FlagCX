@@ -15,6 +15,7 @@
 #include "net.h"
 #include "reg_pool.h"
 #include "socket.h"
+#include <memory>
 #include <pthread.h>
 
 enum flagcxProxyOpState {
@@ -117,7 +118,7 @@ struct flagcxProxyArgs {
 
   /*for launch*/
   int deviceFuncRelaxedOrdering = 0;
-  struct flagcxHostSemaphore *semaphore = nullptr;
+  std::shared_ptr<flagcxHostSemaphore> semaphore;
   // only for device func, to be deprecated
   volatile bool eventRecorded = false;
   volatile bool hlArgs = false;

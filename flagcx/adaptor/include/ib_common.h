@@ -133,58 +133,62 @@ extern const char *reqTypeStr[];
 #define FLAGCX_IB_RETRANS_MAX_CHUNK_SIZE (8 * 1024 * 1024)
 #define FLAGCX_IB_SRQ_SIZE 1024
 
+
+#define FLAGCX_IB_ACK_BUF_PADDING 40
+#define FLAGCX_IB_ACK_BUF_COUNT 64
+
 struct flagcxIbRetransHdr {
   uint32_t magic;
   uint32_t seq;
   uint32_t size;
   uint32_t rkey;
-  uint64_t remote_addr;
-  uint32_t imm_data;
+  uint64_t remoteAddr;
+  uint32_t immData;
   uint32_t padding;
 } __attribute__((packed));
 
 struct flagcxIbAckMsg {
-  uint16_t peer_id;
-  uint16_t flow_id;
+  uint16_t peerId;
+  uint16_t flowId;
   uint16_t path;
-  uint16_t ack_seq;
-  uint16_t sack_bitmap_count;
+  uint16_t ackSeq;
+  uint16_t sackBitmapCount;
   uint16_t padding;
-  uint64_t timestamp_us;
-  uint64_t sack_bitmap;
+  uint64_t timestampUs;
+  uint64_t sackBitmap;
 } __attribute__((packed));
 
 struct flagcxIbCtrlQp {
   struct ibv_qp *qp;
   struct ibv_cq *cq;
   struct ibv_ah *ah;
-  uint32_t remote_qpn;
-  uint32_t remote_qkey;
+  uint32_t remoteQpn;
+  uint32_t remoteQkey;
 };
 
 struct flagcxIbRetransRecvBuf {
   void *buffer;
   struct ibv_mr *mr;
   size_t size;
-  int in_use;
+  int inUse;
 };
 
 struct flagcxIbSrqMgr {
   void *srq;
   struct ibv_cq *cq;
   struct flagcxIbRetransRecvBuf bufs[FLAGCX_IB_SRQ_SIZE];
-  int buf_count;
+  int bufCount;
   // Buffer management for SRQ (similar to UCCL)
-  int free_buf_indices[FLAGCX_IB_SRQ_SIZE]; // Stack of free buffer indices
-  int free_buf_count;                       // Number of free buffers available
-  int post_srq_count; // Number of recv WRs that need to be posted to SRQ
+  int freeBufIndices[FLAGCX_IB_SRQ_SIZE]; // Stack of free buffer indices
+  int freeBufCount;                       // Number of free buffers available
+  int postSrqCount; // Number of recv WRs that need to be posted to SRQ
 };
 
 struct flagcxIbRetransEntry {
   uint32_t seq;
   uint32_t size;
-  uint64_t send_time_us;
-  uint64_t remote_addr;
+  uint64_t sendTimeUs;
+  uint64_t remoteAddr;
   void *data;
   uint32_t lkeys[FLAGCX_IB_MAX_DEVS_PER_NIC];
   uint32_t rkeys[FLAGCX_IB_MAX_DEVS_PER_NIC];
@@ -193,31 +197,31 @@ struct flagcxIbRetransEntry {
 };
 
 struct flagcxIbRetransState {
-  uint32_t send_seq;
-  uint32_t send_una;
-  uint32_t recv_seq;
+  uint32_t sendSeq;
+  uint32_t sendUna;
+  uint32_t recvSeq;
 
   struct flagcxIbRetransEntry buffer[FLAGCX_IB_RETRANS_MAX_INFLIGHT];
-  int buffer_head;
-  int buffer_tail;
-  int buffer_count;
+  int bufferHead;
+  int bufferTail;
+  int bufferCount;
 
-  uint64_t last_ack_time_us;
-  uint64_t rto_us;
-  uint64_t srtt_us;
-  uint64_t rttvar_us;
+  uint64_t lastAckTimeUs;
+  uint64_t rtoUs;
+  uint64_t srttUs;
+  uint64_t rttvarUs;
 
-  uint64_t total_sent;
-  uint64_t total_retrans;
-  uint64_t total_acked;
-  uint64_t total_timeout;
+  uint64_t totalSent;
+  uint64_t totalRetrans;
+  uint64_t totalAcked;
+  uint64_t totalTimeout;
 
   int enabled;
-  int max_retry;
-  int ack_interval;
-  uint32_t min_rto_us;
-  uint32_t max_rto_us;
-  int retrans_qp_index;
+  int maxRetry;
+  int ackInterval;
+  uint32_t minRtoUs;
+  uint32_t maxRtoUs;
+  int retransQPIndex;
 };
 
 struct flagcxIbQp {
@@ -359,9 +363,7 @@ struct alignas(16) flagcxIbRecvCommDev {
   uint32_t fifoRkey;
   struct ibv_mr *fifoMr;
   struct ibv_sge fifoSge;
-
   struct ibv_mr *sizesFifoMr;
-
   struct flagcxIbCtrlQp ctrlQp;
   struct ibv_mr *ackMr;
   void *ackBuffer;
@@ -380,7 +382,6 @@ struct alignas(32) flagcxIbRecvComm {
   int flushEnabled;
 
   struct flagcxIbRetransState retrans;
-
   struct flagcxIbSrqMgr srqMgr;
 };
 

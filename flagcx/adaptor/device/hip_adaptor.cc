@@ -176,11 +176,14 @@ flagcxResult_t hipAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t hipAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t hipAdaptorEventCreate(flagcxEvent_t *event,
+                                     flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(
-      hipEventCreateWithFlags((hipEvent_t *)(*event), hipEventDisableTiming));
+  const unsigned int flags = (eventType == flagcxEventDefault)
+                                 ? hipEventDefault
+                                 : hipEventDisableTiming;
+  DEVCHECK(hipEventCreateWithFlags(&((*event)->base), flags));
   return flagcxSuccess;
 }
 
@@ -220,6 +223,34 @@ flagcxResult_t hipAdaptorEventQuery(flagcxEvent_t event) {
     }
   }
   return res;
+}
+
+flagcxResult_t hipAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
+                                            size_t *size) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t hipAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
+                                         void *devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t hipAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
+                                          void **devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t hipAdaptorIpcMemHandleClose(void *devPtr) {
+  // to be implemented
+  return flagcxNotSupported;
+}
+
+flagcxResult_t hipAdaptorIpcMemHandleFree(flagcxIpcMemHandle_t handle) {
+  // to be implemented
+  return flagcxNotSupported;
 }
 
 flagcxResult_t hipAdaptorLaunchHostFunc(flagcxStream_t stream,
@@ -306,6 +337,10 @@ struct flagcxDeviceAdaptor hipAdaptor {
       // Event functions
       hipAdaptorEventCreate, hipAdaptorEventDestroy, hipAdaptorEventRecord,
       hipAdaptorEventSynchronize, hipAdaptorEventQuery,
+      // IpcMemHandle functions
+      hipAdaptorIpcMemHandleCreate, hipAdaptorIpcMemHandleGet,
+      hipAdaptorIpcMemHandleOpen, hipAdaptorIpcMemHandleClose,
+      hipAdaptorIpcMemHandleFree,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,

@@ -183,10 +183,13 @@ flagcxResult_t macaAdaptorStreamWaitEvent(flagcxStream_t stream,
   return flagcxSuccess;
 }
 
-flagcxResult_t macaAdaptorEventCreate(flagcxEvent_t *event) {
+flagcxResult_t macaAdaptorEventCreate(flagcxEvent_t *event,
+                                      flagcxEventType_t eventType) {
   (*event) = NULL;
   flagcxCalloc(event, 1);
-  DEVCHECK(mcEventCreateWithFlags((mcEvent_t *)(*event), mcEventDisableTiming));
+  const unsigned int flags =
+      (eventType == flagcxEventDefault) ? mcEventDefault : mcEventDisableTiming;
+  DEVCHECK(mcEventCreateWithFlags(&((*event)->base), flags));
   return flagcxSuccess;
 }
 
@@ -232,6 +235,49 @@ flagcxResult_t macaAdaptorEventQuery(flagcxEvent_t event) {
     }
   }
   return res;
+}
+
+flagcxResult_t macaAdaptorIpcMemHandleCreate(flagcxIpcMemHandle_t *handle,
+                                             size_t *size) {
+  flagcxCalloc(handle, 1);
+  if (size != NULL) {
+    *size = sizeof(mcIpcMemHandle_t);
+  }
+  return flagcxSuccess;
+}
+
+flagcxResult_t macaAdaptorIpcMemHandleGet(flagcxIpcMemHandle_t handle,
+                                          void *devPtr) {
+  if (handle == NULL || devPtr == NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(mcIpcGetMemHandle(&handle->base, devPtr));
+  return flagcxSuccess;
+}
+
+flagcxResult_t macaAdaptorIpcMemHandleOpen(flagcxIpcMemHandle_t handle,
+                                           void **devPtr) {
+  if (handle == NULL || devPtr == NULL || *devPtr != NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(
+      mcIpcOpenMemHandle(devPtr, handle->base, mcIpcMemLazyEnablePeerAccess));
+  return flagcxSuccess;
+}
+
+flagcxResult_t macaAdaptorIpcMemHandleClose(void *devPtr) {
+  if (devPtr == NULL) {
+    return flagcxInvalidArgument;
+  }
+  DEVCHECK(mcIpcCloseMemHandle(devPtr));
+  return flagcxSuccess;
+}
+
+flagcxResult_t macaAdaptorIpcMemHandleFree(flagcxIpcMemHandle_t handle) {
+  if (handle != NULL) {
+    free(handle);
+  }
+  return flagcxSuccess;
 }
 
 flagcxResult_t macaAdaptorLaunchHostFunc(flagcxStream_t stream,
@@ -302,6 +348,10 @@ struct flagcxDeviceAdaptor macaAdaptor {
       // Event functions
       macaAdaptorEventCreate, macaAdaptorEventDestroy, macaAdaptorEventRecord,
       macaAdaptorEventSynchronize, macaAdaptorEventQuery,
+      // IpcMemHandle functions
+      macaAdaptorIpcMemHandleCreate, macaAdaptorIpcMemHandleGet,
+      macaAdaptorIpcMemHandleOpen, macaAdaptorIpcMemHandleClose,
+      macaAdaptorIpcMemHandleFree,
       // Kernel launch
       NULL, // flagcxResult_t (*launchKernel)(void *func, unsigned int block_x,
             // unsigned int block_y, unsigned int block_z, unsigned int grid_x,
