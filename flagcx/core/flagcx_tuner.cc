@@ -293,6 +293,12 @@ static flagcxResult_t findBestComm(struct flagcxTunerContext *ctx,
   }
   INFO(FLAGCX_TUNING, "Find (coll=%d,size=%zu) best CommId=%d.", cat.collType,
        cat.nBytes, bestCommIdx);
+  flagcxEnvConfig bestConfig = ctx->configList[bestCommIdx];
+  //Output the best config
+  for(int i=0;i<bestConfig.envCount;i++){
+      INFO(FLAGCX_TUNING, "Best Env %s=%s, defult=%s", bestConfig.envs[i].name,
+          bestConfig.envs[i].value, bestConfig.envs[i].defaultValue);
+  }
   ctx->collBestCommMap[cat] = bestCommIdx;
   return flagcxSuccess;
 }
