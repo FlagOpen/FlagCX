@@ -547,8 +547,8 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
     } else if (op->connection->transport == TRANSPORT_NET) {
       // NET transport (original logic)
       if (op->connection->send) {
-      struct sendNetResources *resources =
-          (struct sendNetResources *)op->connection->transportResources;
+        struct sendNetResources *resources =
+            (struct sendNetResources *)op->connection->transportResources;
       if (!resources->netSendComm) {
         FLAGCXCHECK(resources->netAdaptor->connect(
             resources->netDev, (void *)op->reqBuff, &resources->netSendComm));
@@ -581,38 +581,35 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
       } else {
         struct recvNetResources *resources =
             (struct recvNetResources *)op->connection->transportResources;
-      if (!resources->netRecvComm) {
-        FLAGCXCHECK(resources->netAdaptor->accept(resources->netListenComm,
-                                                  &resources->netRecvComm));
-      } else {
-        if (dmaBufferSupport) {
-          INFO(FLAGCX_PROXY, "Registering memory region with DMA-BUF support");
-          int dmabuf_fd;
-          FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
-              (void *)&dmabuf_fd, resources->buffers[0],
-              resources->buffSizes[0], 0));
-          FLAGCXCHECK(resources->netAdaptor->regMrDmaBuf(
-              resources->netRecvComm, resources->buffers[0],
-              resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
-              &resources->mhandles[0]));
-          (void)close(dmabuf_fd);
+        if (!resources->netRecvComm) {
+          FLAGCXCHECK(resources->netAdaptor->accept(resources->netListenComm,
+                                                    &resources->netRecvComm));
         } else {
-          if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
-            FLAGCXCHECK(resources->netAdaptor->regMr(
+          if (dmaBufferSupport) {
+            INFO(FLAGCX_PROXY, "Registering memory region with DMA-BUF support");
+            int dmabuf_fd;
+            FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
+                (void *)&dmabuf_fd, resources->buffers[0],
+                resources->buffSizes[0], 0));
+            FLAGCXCHECK(resources->netAdaptor->regMrDmaBuf(
                 resources->netRecvComm, resources->buffers[0],
-                resources->buffSizes[0], 2, &resources->mhandles[0]));
-          } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
-            FLAGCXCHECK(resources->netAdaptor->regMr(
-                resources->netRecvComm, resources->buffers[0],
-                resources->buffSizes[0], 1, &resources->mhandles[0]));
+                resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
+                &resources->mhandles[0]));
+            (void)close(dmabuf_fd);
+          } else {
+            if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+              FLAGCXCHECK(resources->netAdaptor->regMr(
+                  resources->netRecvComm, resources->buffers[0],
+                  resources->buffSizes[0], 2, &resources->mhandles[0]));
+            } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
+              FLAGCXCHECK(resources->netAdaptor->regMr(
+                  resources->netRecvComm, resources->buffers[0],
+                  resources->buffSizes[0], 1, &resources->mhandles[0]));
+            }
           }
+          done = 1;
         }
-        done = 1;
       }
-      }
-    } else {
-      WARN("Unknown transport type: %d", op->connection->transport);
-      return flagcxInternalError;
     }
   } else if (op->type == flagcxProxyMsgRegister) {
     TRACE(FLAGCX_PROXY,
