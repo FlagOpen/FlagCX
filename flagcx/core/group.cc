@@ -371,13 +371,45 @@ fail:
   goto exit;
 }
 
+static flagcxResult_t groupCleanup(struct flagcxAsyncJob *job_) {
+  struct flagcxGroupJob *gjob = (struct flagcxGroupJob *)job_;
+  struct flagcxHeteroComm *groupCommHeadMain = *gjob->groupCommHeadPtr;
+  struct flagcxHeteroComm *groupCommPreconnectHeadMain =
+      *gjob->groupCommPreconnectHeadPtr;
+  struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
+      *asyncJobsMain = gjob->asyncJobsPtr;
+
+  // clean up preconnect comms
+  while (groupCommPreconnectHeadMain != nullptr) {
+    struct flagcxHeteroComm *comm = groupCommPreconnectHeadMain;
+    struct flagcxHeteroComm *next = comm->preconnectNext;
+    comm->preconnectNext = reinterpret_cast<struct flagcxHeteroComm *>(0x1);
+    groupCommPreconnectHeadMain = next;
+  }
+
+  // clean up async jobs
+  while (!flagcxIntruQueueEmpty(asyncJobsMain)) {
+    struct flagcxAsyncJob *job = flagcxIntruQueueDequeue(asyncJobsMain);
+    free(job);
+  }
+
+  // clean up comms
+  while (groupCommHeadMain != nullptr) {
+    struct flagcxHeteroComm *comm = groupCommHeadMain;
+    struct flagcxHeteroComm *next = comm->groupNext;
+    (void)flagcxGroupCommLeave(comm);
+    groupCommHeadMain = next;
+  }
+
+  return flagcxSuccess;
+}
+
 static inline void groupResetJobState() {
   flagcxGroupBlocking = 0;
   flagcxGroupJobMainPtr = NULL;
   flagcxGroupCommPreconnectHead = nullptr;
   flagcxGroupCommHead = nullptr;
   memset(&flagcxGroupJobMain, 0, sizeof(struct flagcxGroupJob));
-  return;
 }
 
 flagcxResult_t flagcxGroupEndInternal() {
@@ -386,19 +418,13 @@ flagcxResult_t flagcxGroupEndInternal() {
   if (flagcxGroupDepth < 0)
     return flagcxSystemError;
   if (flagcxGroupDepth == 0) {
-
-    /**
-     * TODO: do all jobs at Groups
-     **/
     if (flagcxGroupCommPreconnectHead || flagcxGroupCommHead) {
-
       flagcxGroupJobMain.groupCommHeadPtr = &flagcxGroupCommHead;
       flagcxGroupJobMain.groupCommPreconnectHeadPtr =
           &flagcxGroupCommPreconnectHead;
       flagcxGroupJobMain.asyncJobsPtr = &flagcxAsyncJobs;
       flagcxGroupJobMain.initialized = true;
       flagcxGroupJobMainPtr = &flagcxGroupJobMain;
-
       FLAGCXCHECKGOTO(groupLaunch(&flagcxGroupJobMainPtr->base), ret, fail);
       groupResetJobState();
     }
@@ -407,11 +433,7 @@ flagcxResult_t flagcxGroupEndInternal() {
 exit:
   return ret;
 fail:
-  /**
-   * TODO: add groupCleanup()
-   **/
-  // groupCleanup(&flagcxGroupCommHead, &flagcxGroupCommPreconnectHead,
-  // &flagcxAsyncJobs, &flagcxGroupError, &flagcxGroupBlocking,
-  // &flagcxGroupJobAbortFlag, ret);
+  groupCleanup(&flagcxGroupJobMainPtr->base);
+  groupResetJobState();
   goto exit;
 }
