@@ -370,3 +370,48 @@ exit:
 fail:
   goto exit;
 }
+
+static inline void groupResetJobState() {
+  flagcxGroupBlocking = 0;
+  flagcxGroupJobMainPtr = NULL;
+  flagcxGroupCommPreconnectHead = nullptr;
+  flagcxGroupCommHead = nullptr;
+  memset(&flagcxGroupJobMain, 0, sizeof(struct flagcxGroupJob));
+  return;
+}
+
+flagcxResult_t flagcxGroupEndInternal() {
+  flagcxResult_t ret = flagcxSuccess;
+  flagcxGroupDepth--;
+  if (flagcxGroupDepth < 0)
+    return flagcxSystemError;
+  if (flagcxGroupDepth == 0) {
+
+    /**
+     * TODO: do all jobs at Groups
+     **/
+    if (flagcxGroupCommPreconnectHead || flagcxGroupCommHead) {
+
+      flagcxGroupJobMain.groupCommHeadPtr = &flagcxGroupCommHead;
+      flagcxGroupJobMain.groupCommPreconnectHeadPtr =
+          &flagcxGroupCommPreconnectHead;
+      flagcxGroupJobMain.asyncJobsPtr = &flagcxAsyncJobs;
+      flagcxGroupJobMain.initialized = true;
+      flagcxGroupJobMainPtr = &flagcxGroupJobMain;
+
+      FLAGCXCHECKGOTO(groupLaunch(&flagcxGroupJobMainPtr->base), ret, fail);
+      groupResetJobState();
+    }
+  }
+
+exit:
+  return ret;
+fail:
+  /**
+   * TODO: add groupCleanup()
+   **/
+  // groupCleanup(&flagcxGroupCommHead, &flagcxGroupCommPreconnectHead,
+  // &flagcxAsyncJobs, &flagcxGroupError, &flagcxGroupBlocking,
+  // &flagcxGroupJobAbortFlag, ret);
+  goto exit;
+}

@@ -10,13 +10,6 @@
 #include "assert.h"
 #include "comm.h"
 
-flagcxResult_t flagcxGroupErrCheck(flagcxResult_t ret);
-void flagcxGroupCommJoin(struct flagcxHeteroComm *comm);
-void flagcxGroupCommPreconnect(struct flagcxHeteroComm *comm);
-flagcxResult_t flagcxGroupCommLeave(struct flagcxHeteroComm *comm);
-flagcxResult_t flagcxGroupJobAbort(struct flagcxGroupJob *groupJob);
-flagcxResult_t flagcxGroupJobComplete(struct flagcxGroupJob *groupJob);
-
 typedef flagcxResult_t (*flagcxInitFunc_t)(flagcxHeteroComm_t *newcomm,
                                            int ndev, flagcxUniqueId commId,
                                            int myrank, int cudaDev);
@@ -79,68 +72,16 @@ extern __thread struct flagcxIntruQueue<struct flagcxAsyncJob,
                                         &flagcxAsyncJob::next>
     flagcxAsyncJobs;
 
-static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_);
+flagcxResult_t flagcxGroupErrCheck(flagcxResult_t ret);
+void flagcxGroupCommJoin(struct flagcxHeteroComm *comm);
+void flagcxGroupCommPreconnect(struct flagcxHeteroComm *comm);
+flagcxResult_t flagcxGroupCommLeave(struct flagcxHeteroComm *comm);
+// Not implemented
+flagcxResult_t flagcxGroupJobAbort(struct flagcxGroupJob *groupJob);
+// Not implemented
+flagcxResult_t flagcxGroupJobComplete(struct flagcxGroupJob *groupJob);
 flagcxResult_t flagcxHeteroGroupStart();
 flagcxResult_t flagcxHeteroGroupEnd();
-
-static inline void groupResetJobState() {
-  flagcxGroupBlocking = 0;
-  flagcxGroupJobMainPtr = NULL;
-  flagcxGroupCommPreconnectHead = nullptr;
-  flagcxGroupCommHead = nullptr;
-  memset(&flagcxGroupJobMain, 0, sizeof(struct flagcxGroupJob));
-  return;
-}
-
-static inline flagcxResult_t groupJobComplete(struct flagcxGroupJob *job) {
-  flagcxResult_t ret = flagcxSuccess;
-  if (job) {
-    ret = flagcxAsyncJobComplete(&job->base);
-    groupResetJobState();
-  }
-  return ret;
-}
-
-inline flagcxResult_t flagcxGroupStartInternal() {
-  flagcxGroupDepth++;
-  return flagcxSuccess;
-}
-
-inline flagcxResult_t flagcxGroupEndInternal() {
-  flagcxResult_t ret = flagcxSuccess;
-  flagcxGroupDepth--;
-  if (flagcxGroupDepth < 0)
-    return flagcxSystemError;
-  if (flagcxGroupDepth == 0) {
-
-    /**
-     * TODO: do all jobs at Groups
-     **/
-    if (flagcxGroupCommPreconnectHead || flagcxGroupCommHead) {
-
-      flagcxGroupJobMain.groupCommHeadPtr = &flagcxGroupCommHead;
-      flagcxGroupJobMain.groupCommPreconnectHeadPtr =
-          &flagcxGroupCommPreconnectHead;
-      flagcxGroupJobMain.asyncJobsPtr = &flagcxAsyncJobs;
-      flagcxGroupJobMain.initialized = true;
-      flagcxGroupJobMainPtr = &flagcxGroupJobMain;
-
-      FLAGCXCHECKGOTO(groupLaunch(&flagcxGroupJobMainPtr->base), ret, fail);
-      groupResetJobState();
-    }
-  }
-
-exit:
-  return ret;
-fail:
-  /**
-   * TODO: add groupCleanup()
-   **/
-  // groupCleanup(&flagcxGroupCommHead, &flagcxGroupCommPreconnectHead,
-  // &flagcxAsyncJobs, &flagcxGroupError, &flagcxGroupBlocking,
-  // &flagcxGroupJobAbortFlag, ret);
-  goto exit;
-}
 
 inline flagcxResult_t flagcxGroupErrCheck(flagcxResult_t ret) {
   if (flagcxGroupDepth > 0) {
@@ -170,6 +111,11 @@ inline void flagcxGroupCommPreconnect(struct flagcxHeteroComm *comm) {
 // Comm has left group
 inline flagcxResult_t flagcxGroupCommLeave(struct flagcxHeteroComm *comm) {
   comm->groupNext = reinterpret_cast<struct flagcxHeteroComm *>(0x1);
+  return flagcxSuccess;
+}
+
+inline flagcxResult_t flagcxGroupStartInternal() {
+  flagcxGroupDepth++;
   return flagcxSuccess;
 }
 
