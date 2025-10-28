@@ -49,7 +49,13 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
                                               &req, sizeof(req), 
                                               &connectInfo.p2pBuff, sizeof(connectInfo.p2pBuff)));
           printf("Receiver Code run after flagcxProxyMsgSetup\n");
-          resources->recvDevMem = (struct flagcxRecvMem*)connectInfo.p2pBuff.directPtr;
+          
+          // Use the buffer directly without offset
+          char* recvBuffer = (char*)connectInfo.p2pBuff.directPtr;
+          
+          // Set up receiver's buffer
+          conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = recvBuffer;
+          conn->conn.stepSize = comm->buffSizes[FLAGCX_PROTO_SIMPLE] / MAXSTEPS;
           
           FLAGCXCHECK(bootstrapSend(comm->bootstrap, peer, 2000 + c, 
                                     &connectInfo, sizeof(connectInfo)));
@@ -69,7 +75,8 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
                         sizeof(flagcxIbHandle));
           deviceAdaptor->streamCreate(&resources->cpStream);
           for (int s = 0; s < MAXSTEPS; s++) {
-            deviceAdaptor->eventCreate(&resources->cpEvents[s]);
+            deviceAdaptor->eventCreate(&resources->cpEvents[s],
+                                       flagcxEventDisableTiming);
           }
           resources->buffSizes[0] = REGMRBUFFERSIZE;
           if (comm->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
@@ -130,7 +137,8 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           handle->stage.comm = comm;
           deviceAdaptor->streamCreate(&resources->cpStream);
           for (int s = 0; s < MAXSTEPS; s++) {
-            deviceAdaptor->eventCreate(&resources->cpEvents[s]);
+            deviceAdaptor->eventCreate(&resources->cpEvents[s],
+                                       flagcxEventDisableTiming);
           }
           resources->buffSizes[0] = REGMRBUFFERSIZE;
           if (comm->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
@@ -173,6 +181,10 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
                                                     &resources->desc));
           resources->proxyInfo.shm = resources->shm;
           memcpy(&resources->proxyInfo.desc, &resources->desc, sizeof(flagcxShmIpcDesc_t));
+          
+          // Set recvFifo in proxyInfo so proxy can copy data to it
+          resources->proxyInfo.recvFifo = conn->conn.buffs[FLAGCX_PROTO_SIMPLE];
+          
           FLAGCXCHECK(flagcxProxyCallBlocking(comm, &conn->proxyConn,
                                               flagcxProxyMsgConnect,
                                               NULL, 0, NULL, 0));
@@ -200,33 +212,43 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
                                     &connectInfo, sizeof(connectInfo)));
           printf("P2P Send: recv connectInfo from peer %d, directPtr=%p, size=%zu", 
                peer, connectInfo.p2pBuff.directPtr, connectInfo.p2pBuff.size);
+          
+          char* remoteBuffer = NULL;
           if (connectInfo.p2pBuff.directPtr != NULL) {
-            resources->recvDevMem = (struct flagcxRecvMem*)connectInfo.p2pBuff.directPtr;
+            // Same process: use direct pointer
+            remoteBuffer = (char*)connectInfo.p2pBuff.directPtr;
             printf("connectInfo.p2pBuff.directPtr != NULL\n");
           } else {
+            // Different process: import IPC handle
             FLAGCXCHECK(flagcxP2pImportShareableBuffer(
                 comm, peer, connectInfo.p2pBuff.size, 
                 &connectInfo.p2pBuff.ipcDesc, 
-                (void**)&resources->recvDevMem));
-                printf("code run after flagcxP2pImportShareableBuffer\n");
+                (void**)&remoteBuffer));
+            printf("code run after flagcxP2pImportShareableBuffer\n");
           }
-          if (resources->recvDevMem == NULL) {
-            WARN("P2P Send: recvDevMem is NULL after import for peer %d channel %d", peer, c);
+          
+          if (remoteBuffer == NULL) {
+            WARN("P2P Send: remoteBuffer is NULL after import for peer %d channel %d", peer, c);
             return flagcxInternalError;
           }
           
-          conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = (char*)(resources->recvDevMem + 1);
+          // Use the buffer directly without offset
+          conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = remoteBuffer;
           conn->conn.stepSize = comm->buffSizes[FLAGCX_PROTO_SIMPLE] / FLAGCX_STEPS;
           
-          char* recvFifo = conn->conn.buffs[FLAGCX_PROTO_SIMPLE];
+          // Save recvFifo to resources->proxyInfo (for local reference)
+          resources->proxyInfo.recvFifo = remoteBuffer;
+          
+          // Send recvFifo to proxy (proxy will save it in connection->transportResources->recvFifo)
+          char* recvFifo = remoteBuffer;
           FLAGCXCHECK(flagcxProxyCallBlocking(comm, &conn->proxyConn,
                                               flagcxProxyMsgConnect,
                                               &recvFifo, sizeof(recvFifo),
                                               NULL, 0));
           
           comm->channels[c].peers[peer]->send[0].connected = 1;
-          INFO(FLAGCX_INIT, "P2P Send connected: rank %d -> peer %d ch %d, remMem %p", 
-               comm->rank, peer, c, resources->recvDevMem);
+          INFO(FLAGCX_INIT, "P2P Send connected: rank %d -> peer %d ch %d, remoteBuffer %p", 
+               comm->rank, peer, c, remoteBuffer);
         } else {
           while (flagcxPollProxyResponse(comm, NULL, NULL, conn) ==
                  flagcxInProgress)

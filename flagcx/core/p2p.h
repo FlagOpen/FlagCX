@@ -54,22 +54,19 @@ struct flagcxP2pShmProxyInfo {
 };
 
 struct flagcxP2pResources {
-  union {
-    struct flagcxSendMem* sendDevMem;
-    struct flagcxRecvMem* recvDevMem;
-  };
-  void* sendMemIpc;
-  int sendMemSameProc;
-  void* recvMemIpc;
-  int recvMemSameProc;
-  struct flagcxP2pShmProxyInfo proxyInfo;
+  // Shared memory for synchronization
   struct flagcxP2pShm* shm;
   flagcxShmIpcDesc_t desc;
+  
+  // Proxy info for async operations
+  struct flagcxP2pShmProxyInfo proxyInfo;
 };
 
-flagcxResult_t flagcxP2pProxySend(struct flagcxProxyState* proxyState, struct flagcxProxyArgs* args);
+flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *data,
+                                  size_t size, struct flagcxProxyArgs* args);
 
-flagcxResult_t flagcxP2pProxyRecv(struct flagcxProxyState* proxyState, struct flagcxProxyArgs* args);
+flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources* resources, void *data,
+                                  size_t size, struct flagcxProxyArgs* args);
 
 flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection* connection,
                                        struct flagcxProxyState* proxyState,

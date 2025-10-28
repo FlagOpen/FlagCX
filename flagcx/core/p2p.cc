@@ -1,14 +1,124 @@
 #include "p2p.h"
 #include "adaptor.h"
 #include "info.h"
+#include <algorithm>
 
-flagcxResult_t flagcxP2pProxySend(struct flagcxProxyState* proxyState, struct flagcxProxyArgs* args) {
-  ;
+flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *data,
+                                  size_t size, struct flagcxProxyArgs* args) {
+  if (!args->semaphore->pollStart()) return flagcxSuccess;
+  if (args->copied < args->chunkSteps && 
+      args->copied - args->transmitted < MAXSTEPS) {
+    int step = args->copied & args->sendStepMask;
+    volatile uint64_t* recvTail = &resources->proxyInfo.shm->recvMem.tail;
+    
+    if (*recvTail > args->copied) {
+      args->subs[step].stepSize = std::min(args->chunkSize, size - args->totalCopySize);
+      args->subs[step].stepBuff = resources->proxyInfo.recvFifo + (args->chunkSize * step);
+      
+      FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+          args->subs[step].stepBuff, 
+          (char *)data + args->totalCopySize,
+          args->subs[step].stepSize, 
+          flagcxMemcpyDeviceToDevice, 
+          resources->proxyInfo.stream, 
+          NULL));
+      FLAGCXCHECK(deviceAdaptor->eventRecord(
+          resources->proxyInfo.events[step], 
+          resources->proxyInfo.stream));
+      
+      args->totalCopySize += args->subs[step].stepSize;
+      args->copied++;
+    }
+  }
+  
+  if (args->transmitted < args->copied) {
+    int step = args->transmitted & args->sendStepMask;
+    flagcxResult_t res = deviceAdaptor->eventQuery(resources->proxyInfo.events[step]);
+    
+    if (res == flagcxSuccess) {
+      args->transmitted++;
+      volatile uint64_t* sendHead = &resources->proxyInfo.shm->sendMem.head;
+      *sendHead = args->transmitted;
+    }
+  }
+  
+  if (args->transmitted >= args->chunkSteps) {
+    if (args->done != 1) {
+      args->semaphore->signalCounter(1);
+      if (deviceAsyncLoad && deviceAsyncStore) {
+        if (args->deviceFuncRelaxedOrdering == 1) {
+          FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+              args->dlArgs, (void *)&args->hlArgs, sizeof(bool),
+              flagcxMemcpyHostToDevice, resources->proxyInfo.stream, NULL));
+        }
+      }
+      args->done = 1;
+    }
+  }
+
   return flagcxSuccess;
 }
 
-flagcxResult_t flagcxP2pProxyRecv(struct flagcxProxyState* proxyState, struct flagcxProxyArgs* args) {
-  ;
+flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources* resources, void *data,
+                                  size_t size, struct flagcxProxyArgs* args) {
+  if (!args->semaphore->pollStart()) return flagcxSuccess;
+  
+  // Step 1: Copy data from recvFifo (peer's send buffer in our GPU memory) to user buffer
+  if (args->copied < args->chunkSteps && 
+      args->copied - args->transmitted < MAXSTEPS) {
+    int step = args->copied & args->sendStepMask;
+    volatile uint64_t* sendHead = &resources->proxyInfo.shm->sendMem.head;
+    
+    // Check if sender has sent enough data (flow control)
+    if (*sendHead > args->copied) {
+      args->subs[step].stepSize = std::min(args->chunkSize, size - args->totalCopySize);
+      args->subs[step].stepBuff = resources->proxyInfo.recvFifo + (args->chunkSize * step);
+      
+      FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+          (char *)data + args->totalCopySize,
+          args->subs[step].stepBuff,
+          args->subs[step].stepSize,
+          flagcxMemcpyDeviceToDevice,
+          resources->proxyInfo.stream,
+          NULL));
+      FLAGCXCHECK(deviceAdaptor->eventRecord(
+          resources->proxyInfo.events[step],
+          resources->proxyInfo.stream));
+      
+      args->totalCopySize += args->subs[step].stepSize;
+      args->copied++;
+    }
+  }
+  
+  // Step 2: Check if copy events have completed and notify sender
+  if (args->transmitted < args->copied) {
+    int step = args->transmitted & args->sendStepMask;
+    flagcxResult_t res = deviceAdaptor->eventQuery(resources->proxyInfo.events[step]);
+    
+    if (res == flagcxSuccess) {
+      args->transmitted++;
+      // Update recvMem.tail to notify sender we consumed data
+      // Add MAXSTEPS for flow control window
+      volatile uint64_t* recvTail = &resources->proxyInfo.shm->recvMem.tail;
+      *recvTail = args->transmitted + MAXSTEPS;
+    }
+  }
+  
+  // Step 3: Mark as done when all chunks received (same as NET recv logic)
+  if (args->transmitted >= args->chunkSteps) {
+    if (args->done != 1) {
+      args->semaphore->signalCounter(1);
+      if (deviceAsyncLoad && deviceAsyncStore) {
+        if (args->deviceFuncRelaxedOrdering == 1) {
+          FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+              args->dlArgs, (void *)&args->hlArgs, sizeof(bool),
+              flagcxMemcpyHostToDevice, resources->proxyInfo.stream, NULL));
+        }
+      }
+      args->done = 1;
+    }
+  }
+
   return flagcxSuccess;
 }
 
@@ -20,20 +130,27 @@ flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection* connection,
   INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: reqSize=%d respSize=%d expectedRespSize=%zu",
        reqSize, respSize, sizeof(struct flagcxP2pShmProxyInfo));
   
-  struct flagcxP2pShmProxyInfo* proxyInfo;
-  size_t shmSize;
-
   if (respSize != sizeof(struct flagcxP2pShmProxyInfo)) return flagcxInternalError;
-  FLAGCXCHECK(flagcxCalloc(&proxyInfo, 1));
-  connection->transportResources = proxyInfo;
-
-  // create shared memory segment
-  shmSize = sizeof(struct flagcxP2pShm);
-  INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Allocating shared memory size=%zu", shmSize);
-  FLAGCXCHECK(flagcxShmAllocateShareableBuffer(shmSize, &proxyInfo->desc, (void**)&proxyInfo->shm, NULL));
   
-  INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Copying response, shm=%p", proxyInfo->shm);
-  memcpy(respBuff, proxyInfo, sizeof(struct flagcxP2pShmProxyInfo));
+  // Use the resources that was already allocated by transport.cc
+  struct flagcxP2pResources* resources = (struct flagcxP2pResources*)connection->transportResources;
+  if (resources == NULL) {
+    WARN("flagcxP2pSendProxySetup: transportResources is NULL");
+    return flagcxInternalError;
+  }
+  
+  // Allocate shared memory and store in resources->proxyInfo
+  size_t shmSize = sizeof(struct flagcxP2pShm);
+  INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Allocating shared memory size=%zu", shmSize);
+  FLAGCXCHECK(flagcxShmAllocateShareableBuffer(shmSize, &resources->proxyInfo.desc, 
+                                              (void**)&resources->proxyInfo.shm, NULL));
+  
+  // Initialize shared memory synchronization variables
+  resources->proxyInfo.shm->sendMem.head = 0;
+  resources->proxyInfo.shm->recvMem.tail = MAXSTEPS;
+  
+  INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Copying response, shm=%p", resources->proxyInfo.shm);
+  memcpy(respBuff, &resources->proxyInfo, sizeof(struct flagcxP2pShmProxyInfo));
   *done = 1;
   
   INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Completed successfully");
@@ -62,9 +179,8 @@ flagcxResult_t flagcxP2pRecvProxySetup(struct flagcxProxyConnection* connection,
   INFO(FLAGCX_INIT, "flagcxP2pRecvProxySetup: Allocating shareable buffer size=%d", size);
   FLAGCXCHECK(flagcxP2pAllocateShareableBuffer(size, req->refcount, &p2pBuff->ipcDesc, &p2pBuff->directPtr));
   p2pBuff->size = size;
-  struct flagcxP2pShmProxyInfo* proxyInfo;
-  FLAGCXCHECK(flagcxCalloc(&proxyInfo, 1));
-  connection->transportResources = proxyInfo;
+  
+  // transportResources is already set by transport.cc, no need to modify it
   *done = 1;
   return flagcxSuccess; 
 }
@@ -74,12 +190,11 @@ flagcxResult_t flagcxP2pSendProxyConnect(struct flagcxProxyConnection* connectio
                                          void* reqBuff, int reqSize,
                                          void* respBuff, int respSize,
                                          int* done) {
-  // Get proxyInfo that was set up in RecvProxySetup
-  struct flagcxP2pShmProxyInfo* proxyInfo = 
-      (struct flagcxP2pShmProxyInfo*)connection->transportResources;
+  // Use the resources that was already allocated by transport.cc
+  struct flagcxP2pResources* resources = (struct flagcxP2pResources*)connection->transportResources;
   
-  if (proxyInfo == NULL) {
-    WARN("flagcxP2pSendProxyConnect: proxyInfo is NULL");
+  if (resources == NULL) {
+    WARN("flagcxP2pSendProxyConnect: transportResources is NULL");
     return flagcxInternalError;
   }
   
@@ -90,16 +205,16 @@ flagcxResult_t flagcxP2pSendProxyConnect(struct flagcxProxyConnection* connectio
     return flagcxInternalError;
   }
   
-  proxyInfo->recvFifo = *((char**)reqBuff);
+  resources->proxyInfo.recvFifo = *((char**)reqBuff);
   
   // Create CUDA stream and events for data transfers
-  FLAGCXCHECK(deviceAdaptor->streamCreate(&proxyInfo->stream));
+  FLAGCXCHECK(deviceAdaptor->streamCreate(&resources->proxyInfo.stream));
   for (int i = 0; i < MAXSTEPS; i++) {
-    FLAGCXCHECK(deviceAdaptor->eventCreate(&proxyInfo->events[i]));
+    FLAGCXCHECK(deviceAdaptor->eventCreate(&resources->proxyInfo.events[i], flagcxEventDisableTiming));
   }
   
   *done = 1;
-  INFO(FLAGCX_INIT, "flagcxP2pSendProxyConnect: Completed, recvFifo=%p", proxyInfo->recvFifo);
+  INFO(FLAGCX_INIT, "flagcxP2pSendProxyConnect: Completed, recvFifo=%p", resources->proxyInfo.recvFifo);
   return flagcxSuccess;
 }
 
@@ -108,19 +223,18 @@ flagcxResult_t flagcxP2pRecvProxyConnect(struct flagcxProxyConnection* connectio
                                          void* reqBuff, int reqSize,
                                          void* respBuff, int respSize,
                                          int* done) {
-  // Get proxyInfo that was set up in RecvProxySetup
-  struct flagcxP2pShmProxyInfo* proxyInfo = 
-      (struct flagcxP2pShmProxyInfo*)connection->transportResources;
+  // Use the resources that was already allocated by transport.cc
+  struct flagcxP2pResources* resources = (struct flagcxP2pResources*)connection->transportResources;
   
-  if (proxyInfo == NULL) {
-    WARN("flagcxP2pRecvProxyConnect: proxyInfo is NULL");
+  if (resources == NULL) {
+    WARN("flagcxP2pRecvProxyConnect: transportResources is NULL");
     return flagcxInternalError;
   }
   
   // Create CUDA stream and events for data transfers
-  FLAGCXCHECK(deviceAdaptor->streamCreate(&proxyInfo->stream));
+  FLAGCXCHECK(deviceAdaptor->streamCreate(&resources->proxyInfo.stream));
   for (int i = 0; i < MAXSTEPS; i++) {
-    FLAGCXCHECK(deviceAdaptor->eventCreate(&proxyInfo->events[i]));
+    FLAGCXCHECK(deviceAdaptor->eventCreate(&resources->proxyInfo.events[i], flagcxEventDisableTiming));
   }
   
   *done = 1;
