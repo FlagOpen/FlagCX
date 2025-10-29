@@ -1008,17 +1008,31 @@ flagcxResult_t flagcxProxyFree(struct flagcxHeteroComm *comm) {
     for (int c = 0; c < MAXCHANNELS; c++) {
       if (comm->channels[c].peers[peer]->recv[0].connected == 1) {
         struct flagcxConnector *conn = comm->channels[c].peers[peer]->recv;
-        struct recvNetResources *resources =
-            (struct recvNetResources *)
-                conn->proxyConn.connection->transportResources;
-        flagcxRecvProxyFree(resources);
+        int transport = conn->proxyConn.connection->transport;
+        
+        if (transport == TRANSPORT_NET) {
+          struct recvNetResources *resources =
+              (struct recvNetResources *)conn->proxyConn.connection->transportResources;
+          flagcxRecvProxyFree(resources);
+        } else if (transport == TRANSPORT_P2P) {
+          struct flagcxP2pResources *resources =
+              (struct flagcxP2pResources *)conn->proxyConn.connection->transportResources;
+          flagcxP2pRecvProxyFree(resources);
+        }
       }
       if (comm->channels[c].peers[peer]->send[0].connected == 1) {
         struct flagcxConnector *conn = comm->channels[c].peers[peer]->send;
-        struct sendNetResources *resources =
-            (struct sendNetResources *)
-                conn->proxyConn.connection->transportResources;
-        flagcxSendProxyFree(resources);
+        int transport = conn->proxyConn.connection->transport;
+        
+        if (transport == TRANSPORT_NET) {
+          struct sendNetResources *resources =
+              (struct sendNetResources *)conn->proxyConn.connection->transportResources;
+          flagcxSendProxyFree(resources);
+        } else if (transport == TRANSPORT_P2P) {
+          struct flagcxP2pResources *resources =
+              (struct flagcxP2pResources *)conn->proxyConn.connection->transportResources;
+          flagcxP2pSendProxyFree(resources);
+        }
       }
     }
   }

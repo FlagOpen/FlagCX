@@ -32,7 +32,6 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
         struct flagcxConnector *conn =
             comm->channels[c].peers[peer]->recv + connIndex;
         if (sameNode) {
-          printf("Code run into sameNode\n");
           FLAGCXCHECK(flagcxCalloc(&conn->proxyConn.connection, 1));
           struct flagcxP2pResources* resources;
           FLAGCXCHECK(flagcxCalloc(&resources, 1));
@@ -48,8 +47,6 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           FLAGCXCHECK(flagcxProxyCallBlocking(comm, &conn->proxyConn, flagcxProxyMsgSetup,
                                               &req, sizeof(req), 
                                               &connectInfo.p2pBuff, sizeof(connectInfo.p2pBuff)));
-          printf("Receiver Code run after flagcxProxyMsgSetup\n");
-          
           // Use the buffer directly without offset， it's equal to nccl p2pMap function
           char* recvBuffer = (char*)connectInfo.p2pBuff.directPtr;
           
@@ -111,7 +108,6 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           struct flagcxP2pConnectInfo connectInfo = {0};
           FLAGCXCHECK(flagcxProxyCallBlocking(comm, &conn->proxyConn, flagcxProxyMsgSetup,
                                               NULL, 0, &resources->proxyInfo, sizeof(struct flagcxP2pShmProxyInfo)));
-          printf("Sender Code run after flagcxProxyMsgSetup\n");
           memcpy(&connectInfo.desc, &resources->proxyInfo.desc, sizeof(flagcxShmIpcDesc_t));
 
           INFO(FLAGCX_INIT, "Send: Sending shmDesc to peer %d, shmSuffix=%s shmSize=%zu",
@@ -210,22 +206,11 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           struct flagcxP2pConnectInfo connectInfo = {0};
           FLAGCXCHECK(bootstrapRecv(comm->bootstrap, peer, 2000 + c, 
                                     &connectInfo, sizeof(connectInfo)));
-          printf("P2P Send: recv connectInfo from peer %d, directPtr=%p, size=%zu", 
-               peer, connectInfo.p2pBuff.directPtr, connectInfo.p2pBuff.size);
-          
           char* remoteBuffer = NULL;
-          if (connectInfo.p2pBuff.directPtr != NULL) {
-            // Same process: use direct pointer
-            remoteBuffer = (char*)connectInfo.p2pBuff.directPtr;
-            printf("connectInfo.p2pBuff.directPtr != NULL\n");
-          } else {
-            // Different process: import IPC handle
-            FLAGCXCHECK(flagcxP2pImportShareableBuffer(
-                comm, peer, connectInfo.p2pBuff.size, 
-                &connectInfo.p2pBuff.ipcDesc, 
-                (void**)&remoteBuffer));
-            printf("code run after flagcxP2pImportShareableBuffer\n");
-          }
+          FLAGCXCHECK(flagcxP2pImportShareableBuffer(
+              comm, peer, connectInfo.p2pBuff.size,
+              &connectInfo.p2pBuff.ipcDesc,
+              (void**)&remoteBuffer));
           
           if (remoteBuffer == NULL) {
             WARN("P2P Send: remoteBuffer is NULL after import for peer %d channel %d", peer, c);

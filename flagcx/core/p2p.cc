@@ -2,6 +2,7 @@
 #include "adaptor.h"
 #include "info.h"
 #include <algorithm>
+#include <string.h>  // for memcpy
 
 flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *data,
                                   size_t size, struct flagcxProxyArgs* args) {
@@ -14,7 +15,7 @@ flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *da
     
     if (*recvTail > args->copied) {
       args->subs[step].stepSize = std::min(args->chunkSize, size - args->totalCopySize);
-      args->subs[step].stepBuff = resources->proxyInfo.recvFifo + (args->chunkSize * step);
+      args->subs[step].stepBuff = resources->proxyInfo.recvFifo + (args->stepSize * step);
       
       FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
           args->subs[step].stepBuff, 
@@ -71,7 +72,7 @@ flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources* resources, void *da
     
     if (*sendHead > args->copied) {
       args->subs[step].stepSize = std::min(args->chunkSize, size - args->totalCopySize);
-      args->subs[step].stepBuff = resources->proxyInfo.recvFifo + (args->chunkSize * step);
+      args->subs[step].stepBuff = resources->proxyInfo.recvFifo + (args->stepSize * step);
       
       FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
           (char *)data + args->totalCopySize,
@@ -238,26 +239,29 @@ flagcxResult_t flagcxP2pAllocateShareableBuffer(size_t size, int directMap,
                                                 void **ptr) {
   FLAGCXCHECK(deviceAdaptor->deviceMalloc(ptr, size, flagcxMemDevice, NULL));
   size_t ipcSize = 0;
-  flagcxResult_t res = deviceAdaptor->ipcMemHandleCreate(&ipcDesc->devIpc, &ipcSize);
+  flagcxIpcMemHandle_t handlePtr = NULL;
+  flagcxResult_t res = deviceAdaptor->ipcMemHandleCreate(&handlePtr, &ipcSize);
   if (res != flagcxSuccess) {
     WARN("deviceAdaptor->ipcMemHandleCreate failed");
     deviceAdaptor->deviceFree(*ptr, flagcxMemDevice, NULL);
     *ptr = NULL;
     return res;
   }
-  res = deviceAdaptor->ipcMemHandleGet(ipcDesc->devIpc, *ptr);
+  
+  // Get the actual IPC handle data (fills handlePtr->base for CUDA)
+  res = deviceAdaptor->ipcMemHandleGet(handlePtr, *ptr);
   if (res != flagcxSuccess) {
     WARN("deviceAdaptor->ipcMemHandleGet failed for ptr %p size %zu", *ptr, size);
-    deviceAdaptor->ipcMemHandleFree(ipcDesc->devIpc);
+    deviceAdaptor->ipcMemHandleFree(handlePtr);
     deviceAdaptor->deviceFree(*ptr, flagcxMemDevice, NULL);
     *ptr = NULL;
     return res;
   }
-  printf("Allocated shareable buffer size %zu ptr %p\n", size, *ptr);
-  return flagcxSuccess;
-}
-
-flagcxResult_t flagcxP2pFreeShareableBuffer(struct flagcxP2pIpcDesc *ipcDesc) {
+  memcpy(&ipcDesc->handleData, handlePtr, sizeof(flagcxIpcHandleData));
+  ipcDesc->size = size;
+  
+  // Free the temporary handle wrapper
+  deviceAdaptor->ipcMemHandleFree(handlePtr);
   return flagcxSuccess;
 }
 
@@ -266,7 +270,12 @@ flagcxResult_t flagcxP2pImportShareableBuffer(struct flagcxHeteroComm *comm,
                                               struct flagcxP2pIpcDesc *ipcDesc, 
                                               void **devMemPtr) {
   *devMemPtr = NULL;
-  flagcxResult_t res = deviceAdaptor->ipcMemHandleOpen(ipcDesc->devIpc, devMemPtr);
+  
+  // CRITICAL: Set device context before opening IPC handle
+  FLAGCXCHECK(deviceAdaptor->setDevice(comm->cudaDev));
+  flagcxIpcMemHandle_t handlePtr = (flagcxIpcMemHandle_t)&ipcDesc->handleData;
+  
+  flagcxResult_t res = deviceAdaptor->ipcMemHandleOpen(handlePtr, devMemPtr);
   if (res != flagcxSuccess) {
     WARN("Failed to open IPC handle for peer %d: error %d", peer, res);
     return res;
@@ -278,5 +287,53 @@ flagcxResult_t flagcxP2pImportShareableBuffer(struct flagcxHeteroComm *comm,
   INFO(FLAGCX_P2P, "Imported shareable buffer from peer %d device %d size %zu ptr %p", 
        peer, comm->cudaDev, size, *devMemPtr);
 
+  return flagcxSuccess;
+}
+
+flagcxResult_t flagcxP2pSendProxyFree(struct flagcxP2pResources* resources) {
+  if (resources == NULL) return flagcxSuccess;
+  
+  // Destroy CUDA events
+  for (int s = 0; s < MAXSTEPS; s++) {
+    if (resources->proxyInfo.events[s] != NULL) {
+      FLAGCXCHECK(deviceAdaptor->eventDestroy(resources->proxyInfo.events[s]));
+    }
+  }
+  
+  // Destroy CUDA stream
+  if (resources->proxyInfo.stream != NULL) {
+    FLAGCXCHECK(deviceAdaptor->streamDestroy(resources->proxyInfo.stream));
+  }
+  
+  // Close shared memory
+  if (resources->shm != NULL) {
+    FLAGCXCHECK(flagcxShmIpcClose(&resources->desc));
+  }
+  
+  INFO(FLAGCX_P2P, "P2P Send proxy resources freed");
+  return flagcxSuccess;
+}
+
+flagcxResult_t flagcxP2pRecvProxyFree(struct flagcxP2pResources* resources) {
+  if (resources == NULL) return flagcxSuccess;
+  
+  // Destroy CUDA events
+  for (int s = 0; s < MAXSTEPS; s++) {
+    if (resources->proxyInfo.events[s] != NULL) {
+      FLAGCXCHECK(deviceAdaptor->eventDestroy(resources->proxyInfo.events[s]));
+    }
+  }
+  
+  // Destroy CUDA stream
+  if (resources->proxyInfo.stream != NULL) {
+    FLAGCXCHECK(deviceAdaptor->streamDestroy(resources->proxyInfo.stream));
+  }
+  
+  // Close shared memory (if not already closed)
+  if (resources->shm != NULL) {
+    FLAGCXCHECK(flagcxShmIpcClose(&resources->desc));
+  }
+  
+  INFO(FLAGCX_P2P, "P2P Recv proxy resources freed");
   return flagcxSuccess;
 }

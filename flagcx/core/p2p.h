@@ -18,8 +18,16 @@ struct flagcxP2pRequest {
   int refcount;
 };
 
+// IPC descriptor - stores the actual IPC handle data (not pointer)
+// This union contains the actual 64-byte IPC handle that gets transferred via bootstrap
+// Similar to NCCL's ncclIpcDesc design
+typedef union {
+  char reserved[64];  // Generic 64-byte buffer (same size as cudaIpcMemHandle_t)
+  // Device-specific handles can be added here if needed in the future
+} flagcxIpcHandleData;
+
 struct flagcxP2pIpcDesc {
-  flagcxIpcMemHandle_t devIpc;
+  flagcxIpcHandleData handleData;  // Actual IPC handle data (64 bytes)
   size_t size;
 };
 
@@ -101,9 +109,9 @@ flagcxResult_t flagcxP2pImportShareableBuffer(struct flagcxHeteroComm *comm,
                                               struct flagcxP2pIpcDesc *ipcDesc, 
                                               void **devMemPtr);
 
-flagcxResult_t flagcxP2pFreeShareableBuffer(struct flagcxP2pIpcDesc *ipcDesc, void *ptr);
+flagcxResult_t flagcxP2pSendProxyFree(struct flagcxP2pResources* resources);
 
-flagcxResult_t flagcxP2pCloseImportedBuffer(void *devMemPtr);
+flagcxResult_t flagcxP2pRecvProxyFree(struct flagcxP2pResources* resources);
 
 #ifdef __cplusplus
 }
