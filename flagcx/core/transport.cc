@@ -39,7 +39,7 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           conn->proxyConn.connection->send = 0;
           conn->proxyConn.connection->transportResources = (void *)resources;
           
-          struct flagcxP2pRequest req = {(size_t(REGMRBUFFERSIZE)), 0};
+          struct flagcxP2pRequest req = {(size_t(FLAGCX_P2P_BUFFERSIZE)), 0};
           struct flagcxP2pConnectInfo connectInfo = {0};
           connectInfo.rank = comm->rank;
           connectInfo.read = 0;
@@ -50,10 +50,7 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           // Use the buffer directly without offset， it's equal to nccl p2pMap function
           char* recvBuffer = (char*)connectInfo.p2pBuff.directPtr;
           
-          // Set up receiver's buffer
           conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = recvBuffer;
-          conn->conn.stepSize = comm->buffSizes[FLAGCX_PROTO_SIMPLE] / MAXSTEPS;
-          
           FLAGCXCHECK(bootstrapSend(comm->bootstrap, peer, 2000 + c, 
                                     &connectInfo, sizeof(connectInfo)));
         } else {
@@ -217,14 +214,9 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
             return flagcxInternalError;
           }
           
-          // Use the buffer directly without offset
           conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = remoteBuffer;
-          conn->conn.stepSize = comm->buffSizes[FLAGCX_PROTO_SIMPLE] / MAXSTEPS;
-          
-          // Save recvFifo to resources->proxyInfo (for local reference)
           resources->proxyInfo.recvFifo = remoteBuffer;
           
-          // Send recvFifo to proxy (proxy will save it in connection->transportResources->recvFifo)
           char* recvFifo = remoteBuffer;
           FLAGCXCHECK(flagcxProxyCallBlocking(comm, &conn->proxyConn,
                                               flagcxProxyMsgConnect,

@@ -8,6 +8,9 @@
 #include "transport.h"
 #include "shmutils.h"
 #include "check.h"
+#define FLAGCX_P2P_BUFFERSIZE (64ULL * 1024 * 1024)  // 64MB buffer for P2P transfers
+#define FLAGCX_P2P_CHUNKSIZE (4ULL * 1024 * 1024)    // 4MB chunk size
+#define FLAGCX_P2P_STEPS (FLAGCX_P2P_BUFFERSIZE / FLAGCX_P2P_CHUNKSIZE)  // 16 steps
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,12 +21,8 @@ struct flagcxP2pRequest {
   int refcount;
 };
 
-// IPC descriptor - stores the actual IPC handle data (not pointer)
-// This union contains the actual 64-byte IPC handle that gets transferred via bootstrap
-// Similar to NCCL's ncclIpcDesc design
 typedef union {
   char reserved[64];  // Generic 64-byte buffer (same size as cudaIpcMemHandle_t)
-  // Device-specific handles can be added here if needed in the future
 } flagcxIpcHandleData;
 
 struct flagcxP2pIpcDesc {
@@ -58,7 +57,7 @@ struct flagcxP2pShmProxyInfo {
   // GPU side
   char* recvFifo;
   flagcxStream_t stream;
-  flagcxEvent_t events[MAXSTEPS];
+  flagcxEvent_t events[FLAGCX_P2P_STEPS];
 };
 
 struct flagcxP2pResources {
