@@ -8,6 +8,7 @@ flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *da
                                   size_t size, struct flagcxProxyArgs* args) {
   if (!args->semaphore->pollStart()) return flagcxSuccess;
   if (args->transmitted < args->chunkSteps) {
+    int stepMask = args->sendStepMask;
     if (args->copied < args->chunkSteps && 
         args->copied - args->transmitted < FLAGCX_P2P_STEPS) {
       int step = args->copied & args->sendStepMask;
