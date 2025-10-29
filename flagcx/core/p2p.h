@@ -11,6 +11,7 @@
 #define FLAGCX_P2P_BUFFERSIZE (64ULL * 1024 * 1024)  // 64MB buffer for P2P transfers
 #define FLAGCX_P2P_CHUNKSIZE (4ULL * 1024 * 1024)    // 4MB chunk size
 #define FLAGCX_P2P_STEPS (FLAGCX_P2P_BUFFERSIZE / FLAGCX_P2P_CHUNKSIZE)  // 16 steps
+#define FLAGCX_P2P_MAX_OPS 32  // Maximum number of concurrent P2P operation pairs
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,9 +44,17 @@ struct flagcxP2pConnectInfo {
   flagcxShmIpcDesc_t desc;
 };
 
+// Synchronization structure for a single P2P operation pair
+struct flagcxP2pSyncSlot {
+  uint64_t sendHead;
+  char pad1[56];  // Padding to avoid false sharing (64 bytes total)
+  uint64_t recvTail;
+  char pad2[56];  // Padding to avoid false sharing (64 bytes total)
+};
+
 struct flagcxP2pShm {
-  struct flagcxSendMem sendMem;
-  struct flagcxRecvMem recvMem;
+  // Array of synchronization slots for multiple concurrent operations
+  struct flagcxP2pSyncSlot slots[FLAGCX_P2P_MAX_OPS];
 };
 
 // need to make sure this matches flagcxP2pShmProxyInfo in p2p.cc

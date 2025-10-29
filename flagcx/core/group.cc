@@ -11,6 +11,7 @@
 #include "debug.h"
 #include "launch_kernel.h"
 #include "net.h"
+#include "p2p.h"
 #include "transport.h"
 #include "type.h"
 #include <pthread.h>
@@ -154,9 +155,11 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
   if (groupCommHeadMain != nullptr) {
     struct flagcxHeteroComm *comm = groupCommHeadMain;
     // post all send/recv tasks
+    static int p2pSlotCounter = 0;
     do {
       flagcxTasks *tasks = &comm->tasks;
       for (int i = 0; i < tasks->p2pOrderSteps; i++) {
+        int slotIndex = (p2pSlotCounter++) % FLAGCX_P2P_MAX_OPS;
         int peer = tasks->p2pOrder[i];
         while (!flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue)) {
           flagcxTaskP2p *p2p =
@@ -177,6 +180,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.sendStepMask = MAXSTEPS - 1;
           op->args.deviceFuncRelaxedOrdering = deviceFuncRelaxedOrdering;
           op->stream = p2p->stream;
+          // Assign the slot index for this operation pair
+          op->args.p2pSyncSlot = slotIndex;
           // launch proxyRegister op if not yet registered
           flagcxConnector *peerConns[] = {
               comm->channels[op->channelId].peers[peer]->send};
@@ -237,6 +242,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.sendStepMask = MAXSTEPS - 1;
           op->args.deviceFuncRelaxedOrdering = deviceFuncRelaxedOrdering;
           op->stream = p2p->stream;
+          op->args.p2pSyncSlot = slotIndex;
           // launch proxyRegister op if not yet registered
           flagcxConnector *peerConns[] = {
               comm->channels[op->channelId].peers[peer]->recv};

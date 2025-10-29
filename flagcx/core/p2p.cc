@@ -8,11 +8,12 @@ flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *da
                                   size_t size, struct flagcxProxyArgs* args) {
   if (!args->semaphore->pollStart()) return flagcxSuccess;
   if (args->transmitted < args->chunkSteps) {
-    int stepMask = args->sendStepMask;
     if (args->copied < args->chunkSteps && 
         args->copied - args->transmitted < FLAGCX_P2P_STEPS) {
       int step = args->copied & args->sendStepMask;
-      volatile uint64_t* recvTail = &resources->proxyInfo.shm->recvMem.tail;
+      
+      int slot = args->p2pSyncSlot;
+      volatile uint64_t* recvTail = &resources->proxyInfo.shm->slots[slot].recvTail;
       
       if (*recvTail > args->copied) {
         args->subs[step].stepSize = std::min(args->chunkSize, size - args->totalCopySize);
@@ -39,7 +40,9 @@ flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *da
       
       if (res == flagcxSuccess) {
         args->transmitted++;
-        volatile uint64_t* sendHead = &resources->proxyInfo.shm->sendMem.head;
+        // Update sendHead in the dedicated slot
+        int slot = args->p2pSyncSlot;
+        volatile uint64_t* sendHead = &resources->proxyInfo.shm->slots[slot].sendHead;
         *sendHead = args->transmitted;
       }
     }
@@ -66,7 +69,9 @@ flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources* resources, void *da
     if (args->copied < args->chunkSteps && 
         args->copied - args->transmitted < FLAGCX_P2P_STEPS) {
       int step = args->copied & args->sendStepMask;
-      volatile uint64_t* sendHead = &resources->proxyInfo.shm->sendMem.head;
+      // Use the dedicated slot for this operation pair
+      int slot = args->p2pSyncSlot;
+      volatile uint64_t* sendHead = &resources->proxyInfo.shm->slots[slot].sendHead;
       
       if (*sendHead > args->copied) {
         args->subs[step].stepSize = std::min(args->chunkSize, size - args->totalCopySize);
@@ -94,7 +99,9 @@ flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources* resources, void *da
       
       if (res == flagcxSuccess) {
         args->transmitted++;
-        volatile uint64_t* recvTail = &resources->proxyInfo.shm->recvMem.tail;
+        // Update recvTail in the dedicated slot
+        int slot = args->p2pSyncSlot;
+        volatile uint64_t* recvTail = &resources->proxyInfo.shm->slots[slot].recvTail;
         *recvTail = args->transmitted + FLAGCX_P2P_STEPS;
       }
     }
@@ -134,9 +141,11 @@ flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection* connection,
   FLAGCXCHECK(flagcxShmAllocateShareableBuffer(shmSize, &resources->proxyInfo.desc, 
                                               (void**)&resources->proxyInfo.shm, NULL));
   
-  // Initialize shared memory synchronization variables
-  resources->proxyInfo.shm->sendMem.head = 0;
-  resources->proxyInfo.shm->recvMem.tail = FLAGCX_P2P_STEPS;
+  // Initialize all synchronization slots
+  for (int i = 0; i < FLAGCX_P2P_MAX_OPS; i++) {
+    resources->proxyInfo.shm->slots[i].sendHead = 0;
+    resources->proxyInfo.shm->slots[i].recvTail = FLAGCX_P2P_STEPS;
+  }
   
   INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Copying response, shm=%p", resources->proxyInfo.shm);
   memcpy(respBuff, &resources->proxyInfo, sizeof(struct flagcxP2pShmProxyInfo));

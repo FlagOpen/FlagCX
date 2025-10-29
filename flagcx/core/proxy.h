@@ -130,6 +130,10 @@ struct flagcxProxyArgs {
   void *regHandle = nullptr;
   int regBufFlag = 0;
 
+  // P2P operation slot index in shared memory
+  // Each operation pair uses a unique slot to avoid race conditions
+  int p2pSyncSlot;
+
   union flagcxProxyOpSpecifics specifics;
 };
 
