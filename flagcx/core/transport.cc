@@ -50,7 +50,7 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
                                               &connectInfo.p2pBuff, sizeof(connectInfo.p2pBuff)));
           printf("Receiver Code run after flagcxProxyMsgSetup\n");
           
-          // Use the buffer directly without offset
+          // Use the buffer directly without offset， it's equal to nccl p2pMap function
           char* recvBuffer = (char*)connectInfo.p2pBuff.directPtr;
           
           // Set up receiver's buffer
@@ -234,7 +234,7 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           
           // Use the buffer directly without offset
           conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = remoteBuffer;
-          conn->conn.stepSize = comm->buffSizes[FLAGCX_PROTO_SIMPLE] / FLAGCX_STEPS;
+          conn->conn.stepSize = comm->buffSizes[FLAGCX_PROTO_SIMPLE] / MAXSTEPS;
           
           // Save recvFifo to resources->proxyInfo (for local reference)
           resources->proxyInfo.recvFifo = remoteBuffer;

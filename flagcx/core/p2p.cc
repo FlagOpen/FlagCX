@@ -6,8 +6,9 @@
 flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *data,
                                   size_t size, struct flagcxProxyArgs* args) {
   if (!args->semaphore->pollStart()) return flagcxSuccess;
+  
   if (args->copied < args->chunkSteps && 
-      args->copied - args->transmitted < MAXSTEPS) {
+      args->copied - args->transmitted <= args->sendStepMask) {
     int step = args->copied & args->sendStepMask;
     volatile uint64_t* recvTail = &resources->proxyInfo.shm->recvMem.tail;
     
@@ -63,13 +64,11 @@ flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources* resources, void *da
                                   size_t size, struct flagcxProxyArgs* args) {
   if (!args->semaphore->pollStart()) return flagcxSuccess;
   
-  // Step 1: Copy data from recvFifo (peer's send buffer in our GPU memory) to user buffer
   if (args->copied < args->chunkSteps && 
-      args->copied - args->transmitted < MAXSTEPS) {
+      args->copied - args->transmitted <= args->sendStepMask) {
     int step = args->copied & args->sendStepMask;
     volatile uint64_t* sendHead = &resources->proxyInfo.shm->sendMem.head;
     
-    // Check if sender has sent enough data (flow control)
     if (*sendHead > args->copied) {
       args->subs[step].stepSize = std::min(args->chunkSize, size - args->totalCopySize);
       args->subs[step].stepBuff = resources->proxyInfo.recvFifo + (args->chunkSize * step);
@@ -90,21 +89,17 @@ flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources* resources, void *da
     }
   }
   
-  // Step 2: Check if copy events have completed and notify sender
   if (args->transmitted < args->copied) {
     int step = args->transmitted & args->sendStepMask;
     flagcxResult_t res = deviceAdaptor->eventQuery(resources->proxyInfo.events[step]);
     
     if (res == flagcxSuccess) {
       args->transmitted++;
-      // Update recvMem.tail to notify sender we consumed data
-      // Add MAXSTEPS for flow control window
       volatile uint64_t* recvTail = &resources->proxyInfo.shm->recvMem.tail;
       *recvTail = args->transmitted + MAXSTEPS;
     }
   }
   
-  // Step 3: Mark as done when all chunks received (same as NET recv logic)
   if (args->transmitted >= args->chunkSteps) {
     if (args->done != 1) {
       args->semaphore->signalCounter(1);
@@ -127,9 +122,6 @@ flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection* connection,
                                         void* reqBuff,  int reqSize,
                                         void* respBuff, int respSize,
                                         int* done) {
-  INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: reqSize=%d respSize=%d expectedRespSize=%zu",
-       reqSize, respSize, sizeof(struct flagcxP2pShmProxyInfo));
-  
   if (respSize != sizeof(struct flagcxP2pShmProxyInfo)) return flagcxInternalError;
   
   // Use the resources that was already allocated by transport.cc
@@ -176,7 +168,6 @@ flagcxResult_t flagcxP2pRecvProxySetup(struct flagcxProxyConnection* connection,
   int size = req->size;
   if (respSize != sizeof(struct flagcxP2pBuff)) return flagcxInternalError;
   struct flagcxP2pBuff* p2pBuff = (struct flagcxP2pBuff*)respBuff;
-  INFO(FLAGCX_INIT, "flagcxP2pRecvProxySetup: Allocating shareable buffer size=%d", size);
   FLAGCXCHECK(flagcxP2pAllocateShareableBuffer(size, req->refcount, &p2pBuff->ipcDesc, &p2pBuff->directPtr));
   p2pBuff->size = size;
   
@@ -262,8 +253,7 @@ flagcxResult_t flagcxP2pAllocateShareableBuffer(size_t size, int directMap,
     *ptr = NULL;
     return res;
   }
-  INFO(FLAGCX_P2P | FLAGCX_ALLOC, "Allocated shareable buffer size %zu ptr %p", size, *ptr);
-
+  printf("Allocated shareable buffer size %zu ptr %p\n", size, *ptr);
   return flagcxSuccess;
 }
 
