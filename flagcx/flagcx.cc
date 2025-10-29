@@ -426,6 +426,9 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
   INFO(FLAGCX_INIT, "Flagcx USE_TUNER flag set to %d", useTuner);
   if (useTuner) {
     (*comm)->tuner = &internalTuner;
+    (*comm)->tuner->bootstrap = state;
+    (*comm)->tuner->rank = rank;
+    (*comm)->tuner->nranks = nranks;
     FLAGCXCHECK((*comm)->tuner->init((*comm)->nranks, 0, flagcxDebugLog,
                                      &((*comm)->tunerContext)));
     uint32_t nConfigs = 0;
