@@ -9,7 +9,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
 // A category of collective operation. the minimal unit for tuning.
 struct TunerCollCategory {
   flagcxCommOp_t collType = flagcxNumCommOps;
