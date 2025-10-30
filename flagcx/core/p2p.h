@@ -47,9 +47,10 @@ struct flagcxP2pConnectInfo {
 // Synchronization structure for a single P2P operation pair
 struct flagcxP2pSyncSlot {
   uint64_t sendHead;
-  char pad1[56];  // Padding to avoid false sharing (64 bytes total)
   uint64_t recvTail;
-  char pad2[56];  // Padding to avoid false sharing (64 bytes total)
+  uint64_t opHash;    // Hash identifying which operation owns this slot
+  uint64_t done;      // 1 = slot is free, 0 = slot is in use
+  char pad[32];       // Padding to 64 bytes total
 };
 
 struct flagcxP2pShm {

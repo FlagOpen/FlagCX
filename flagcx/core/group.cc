@@ -29,6 +29,9 @@ __thread int flagcxGroupBlocking = 1; /* default mode */
 __thread struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
     flagcxAsyncJobs;
 
+// P2P operation counter for unique slot allocation (per-thread to avoid races)
+__thread uint64_t p2pOpCounter = 0;
+
 FLAGCX_PARAM(FuncNloops, "FUNC_NLOOPS", 1);
 static int64_t funcNloops = flagcxParamFuncNloops();
 
@@ -155,11 +158,9 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
   if (groupCommHeadMain != nullptr) {
     struct flagcxHeteroComm *comm = groupCommHeadMain;
     // post all send/recv tasks
-    static int p2pSlotCounter = 0;
     do {
       flagcxTasks *tasks = &comm->tasks;
       for (int i = 0; i < tasks->p2pOrderSteps; i++) {
-        int slotIndex = (p2pSlotCounter++) % FLAGCX_P2P_MAX_OPS;
         int peer = tasks->p2pOrder[i];
         while (!flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue)) {
           flagcxTaskP2p *p2p =
@@ -180,8 +181,12 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.sendStepMask = MAXSTEPS - 1;
           op->args.deviceFuncRelaxedOrdering = deviceFuncRelaxedOrdering;
           op->stream = p2p->stream;
-          // Assign the slot index for this operation pair
-          op->args.p2pSyncSlot = slotIndex;
+          uint64_t opCount = p2pOpCounter++;
+          int minRank = (comm->rank < peer) ? comm->rank : peer;
+          int maxRank = (comm->rank < peer) ? peer : comm->rank;
+          op->args.p2pOpHash = ((((uint64_t)minRank * 31 + maxRank) * 31 + p2p->bytes) * 31 + opCount);
+          op->args.p2pSyncSlot = -1;  // Will be allocated in proxy
+          
           // launch proxyRegister op if not yet registered
           flagcxConnector *peerConns[] = {
               comm->channels[op->channelId].peers[peer]->send};
@@ -242,7 +247,15 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           op->args.sendStepMask = MAXSTEPS - 1;
           op->args.deviceFuncRelaxedOrdering = deviceFuncRelaxedOrdering;
           op->stream = p2p->stream;
-          op->args.p2pSyncSlot = slotIndex;
+          
+          // Initialize P2P slot management
+          // Use same hash as corresponding Send (opCount-1)
+          uint64_t opCount = p2pOpCounter - 1;
+          int minRank = (comm->rank < peer) ? comm->rank : peer;
+          int maxRank = (comm->rank < peer) ? peer : comm->rank;
+          op->args.p2pOpHash = ((((uint64_t)minRank * 31 + maxRank) * 31 + p2p->bytes) * 31 + opCount);
+          op->args.p2pSyncSlot = -1;  // Will be allocated in proxy
+          
           // launch proxyRegister op if not yet registered
           flagcxConnector *peerConns[] = {
               comm->channels[op->channelId].peers[peer]->recv};

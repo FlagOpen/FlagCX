@@ -4,15 +4,54 @@
 #include <algorithm>
 #include <string.h>  // for memcpy
 
+// Find or allocate a slot for a P2P operation pair
+// Returns slot index on success, -1 if all slots are occupied
+static int flagcxP2pFindSlot(struct flagcxP2pShm* shm, uint64_t opHash, bool allocate) {
+  // First pass: look for existing slot with matching opHash
+  for (int i = 0; i < FLAGCX_P2P_MAX_OPS; i++) {
+    if (shm->slots[i].opHash == opHash && shm->slots[i].done == 0) { //
+      return i;  // Found existing slot
+    }
+  }
+  
+  // Second pass: if allocating, find a free slot (done == 1)
+  if (allocate) {
+    for (int i = 0; i < FLAGCX_P2P_MAX_OPS; i++) {
+      if (shm->slots[i].done == 1) {
+        // Claim this slot
+        shm->slots[i].opHash = opHash;
+        shm->slots[i].done = 0;
+        shm->slots[i].sendHead = 0;
+        shm->slots[i].recvTail = FLAGCX_P2P_STEPS;
+        return i;
+      }
+    }
+  }
+  
+  return -1;  // No slot available
+}
+
 flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *data,
                                   size_t size, struct flagcxProxyArgs* args) {
   if (!args->semaphore->pollStart()) return flagcxSuccess;
+  
+  // Find or allocate slot on first call
+  if (args->p2pSyncSlot < 0) {
+    args->p2pSyncSlot = flagcxP2pFindSlot(resources->proxyInfo.shm, args->p2pOpHash, true);
+    if (args->p2pSyncSlot < 0) {
+      // All slots occupied, retry later
+      return flagcxSuccess;
+    }
+    INFO(FLAGCX_P2P, "Send: Allocated slot %d for opHash 0x%lx", args->p2pSyncSlot, args->p2pOpHash);
+  }
+  
+  int slot = args->p2pSyncSlot;
+  
   if (args->transmitted < args->chunkSteps) {
     if (args->copied < args->chunkSteps && 
         args->copied - args->transmitted < FLAGCX_P2P_STEPS) {
       int step = args->copied & args->sendStepMask;
       
-      int slot = args->p2pSyncSlot;
       volatile uint64_t* recvTail = &resources->proxyInfo.shm->slots[slot].recvTail;
       
       if (*recvTail > args->copied) {
@@ -40,14 +79,20 @@ flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *da
       
       if (res == flagcxSuccess) {
         args->transmitted++;
-        // Update sendHead in the dedicated slot
-        int slot = args->p2pSyncSlot;
+        // Update sendHead in the shared slot
         volatile uint64_t* sendHead = &resources->proxyInfo.shm->slots[slot].sendHead;
         *sendHead = args->transmitted;
       }
     }
   } else {
     if (args->done != 1) {
+      // Mark slot as done/free and clear opHash to avoid confusion
+      resources->proxyInfo.shm->slots[slot].opHash = 0;
+      __atomic_thread_fence(__ATOMIC_RELEASE);  // Ensure opHash cleared before done=1
+      resources->proxyInfo.shm->slots[slot].done = 1;
+      // volatile uint64_t* recvTail = &resources->proxyInfo.shm->slots[slot].recvTail;
+      // *recvTail = FLAGCX_P2P_STEPS;
+      
       args->semaphore->signalCounter(1);
       if (deviceAsyncLoad && deviceAsyncStore) {
         if (args->deviceFuncRelaxedOrdering == 1) {
@@ -57,6 +102,7 @@ flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *da
         }
       }
       args->done = 1;
+      INFO(FLAGCX_P2P, "Send: Released slot %d for opHash 0x%lx", slot, args->p2pOpHash);
     }
   }
   return flagcxSuccess;
@@ -65,12 +111,23 @@ flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *da
 flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources* resources, void *data,
                                   size_t size, struct flagcxProxyArgs* args) {
   if (!args->semaphore->pollStart()) return flagcxSuccess;
+  
+  // Find or allocate slot on first call (should already exist from Send)
+  if (args->p2pSyncSlot < 0) {
+    args->p2pSyncSlot = flagcxP2pFindSlot(resources->proxyInfo.shm, args->p2pOpHash, true);
+    if (args->p2pSyncSlot < 0) {
+      // All slots occupied, retry later
+      return flagcxSuccess;
+    }
+    INFO(FLAGCX_P2P, "Recv: Found/Allocated slot %d for opHash 0x%lx", args->p2pSyncSlot, args->p2pOpHash);
+  }
+  
+  int slot = args->p2pSyncSlot;
+  
   if (args->transmitted < args->chunkSteps) {
     if (args->copied < args->chunkSteps && 
         args->copied - args->transmitted < FLAGCX_P2P_STEPS) {
       int step = args->copied & args->sendStepMask;
-      // Use the dedicated slot for this operation pair
-      int slot = args->p2pSyncSlot;
       volatile uint64_t* sendHead = &resources->proxyInfo.shm->slots[slot].sendHead;
       
       if (*sendHead > args->copied) {
@@ -99,14 +156,18 @@ flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources* resources, void *da
       
       if (res == flagcxSuccess) {
         args->transmitted++;
-        // Update recvTail in the dedicated slot
-        int slot = args->p2pSyncSlot;
+        // Update recvTail in the shared slot
         volatile uint64_t* recvTail = &resources->proxyInfo.shm->slots[slot].recvTail;
         *recvTail = args->transmitted + FLAGCX_P2P_STEPS;
       }
     }
   } else {
     if (args->done != 1) {
+      // Mark slot as done/free and clear opHash to avoid confusion
+      resources->proxyInfo.shm->slots[slot].opHash = 0;
+      __atomic_thread_fence(__ATOMIC_RELEASE);  // Ensure opHash cleared before done=1
+      resources->proxyInfo.shm->slots[slot].done = 1;
+      
       args->semaphore->signalCounter(1);
       if (deviceAsyncLoad && deviceAsyncStore) {
         if (args->deviceFuncRelaxedOrdering == 1) {
@@ -145,6 +206,8 @@ flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection* connection,
   for (int i = 0; i < FLAGCX_P2P_MAX_OPS; i++) {
     resources->proxyInfo.shm->slots[i].sendHead = 0;
     resources->proxyInfo.shm->slots[i].recvTail = FLAGCX_P2P_STEPS;
+    resources->proxyInfo.shm->slots[i].opHash = 0;
+    resources->proxyInfo.shm->slots[i].done = 1;  // 1 = slot is free
   }
   
   INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Copying response, shm=%p", resources->proxyInfo.shm);
