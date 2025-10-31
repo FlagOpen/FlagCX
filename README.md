@@ -87,7 +87,7 @@ FlagCX also integrates with upper-layer applications such as PyTorch and PaddleP
 | all_to_all_single                 | ✓                            |✓             |
 | barrier                           | ✓                            |✓             |
 
-FlagCX has been tested across various communication backends and PyTorch versions, as listed below.These tests cover a wide range of hardware platforms and software environments, aiming to verify the compatibility and performance of FlagCX in multi-chip and multi-framework scenarios. Through systematic testing, FlagCX ensures efficient and stable communication support across major deep learning frameworks and hardware acceleration platforms, providing a reliable foundation for distributed training and cross-chip collaborative computing.
+FlagCX has been tested across various communication backends and PyTorch versions, as listed below. These tests cover a wide range of hardware platforms and software environments, aiming to verify the compatibility and performance of FlagCX in multi-chip and multi-framework scenarios. Through systematic testing, FlagCX ensures efficient and stable communication support across major deep learning frameworks and hardware acceleration platforms, providing a reliable foundation for distributed training and cross-chip collaborative computing.
 
 | FlagCX Backend         | NCCL | IXCCL | CNCL | MCCL | XCCL | DUCCL | HCCL | MUSACCL | RCCL |
 | ---------------------- | ---- | ----- | ---- | ---- | ---- | ----- | ---- | ------- | ---- |
