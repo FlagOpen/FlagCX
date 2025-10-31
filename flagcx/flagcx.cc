@@ -703,14 +703,11 @@ flagcxResult_t flagcxCommUserRank(const flagcxComm_t comm, int *rank) {
 }
 
 flagcxResult_t flagcxCommFifoBuffer(const flagcxComm_t comm, void **buffer) {
-  flagcxResult_t ret = flagcxSuccess;
   if (comm->hetero_comm->fifoBuffer == NULL) {
-    ret = deviceAdaptor->hostGetDevicePointer(
-        &comm->hetero_comm->fifoBuffer,
-        (void *)comm->hetero_comm->proxyState->kernelState.fifo->buffer);
+    return flagcxInvalidUsage;
   }
   *buffer = comm->hetero_comm->fifoBuffer;
-  return ret;
+  return flagcxSuccess;
 }
 
 flagcxResult_t flagcxCommGetAsyncError(flagcxComm_t comm,

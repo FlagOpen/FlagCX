@@ -67,7 +67,6 @@ FLAGCX_DEVICE_DECORATOR flagcxResult_t flagcxDeviceTerm(void *fifoBuffer) {
 FLAGCX_DEVICE_DECORATOR flagcxResult_t flagcxDeviceWait(void *fifoBuffer) {
   enqueue(fifoBuffer, 0, 0, 0, 0, flagcxDevicePrimWait);
   unsigned long long int *buffer = (unsigned long long int *)fifoBuffer;
-  int capacity = buffer[0];
   int distance = buffer[2] - buffer[1];
   int iter = 0;
   while (distance > 0) {
@@ -75,7 +74,6 @@ FLAGCX_DEVICE_DECORATOR flagcxResult_t flagcxDeviceWait(void *fifoBuffer) {
     iter++;
     FLAGCX_DEVICE_THREAD_FENCE();
     distance = buffer[2] - buffer[1];
-    // printf("flagcxDeviceWait spinning... curr_c=%d, curr_p=%d, iter=%d\n", buffer[1], buffer[2], iter);
   }
   return flagcxSuccess;
 }
@@ -86,7 +84,6 @@ FLAGCX_DEVICE_DECORATOR flagcxResult_t enqueue(void *fifoBuffer, uint64_t addr, 
   int capacity = buffer[0];
   int distance = buffer[2] - buffer[1];
   int iter = 0;
-  // printf("Enter Enqueue capacity=%d, consumed=%d, produced=%d\n", capacity, (int)buffer[1], (int)buffer[2]);
   while (distance >= capacity) {
     spin_backoff(iter);
     iter++;
@@ -95,13 +92,13 @@ FLAGCX_DEVICE_DECORATOR flagcxResult_t enqueue(void *fifoBuffer, uint64_t addr, 
   }
   idx = buffer[2] % capacity;
   buffer[2] = buffer[2] + 1;
-  *(buffer + 3 + 5 * idx) = addr;
-  *(buffer + 3 + 5 * idx + 1) = count;
-  *(buffer + 3 + 5 * idx + 2) = peerRank;
-  *(buffer + 3 + 5 * idx + 3) = datatype;
-  *(buffer + 3 + 5 * idx + 4) = type;
+  flagcxDeviceTrigger* trigger = ((flagcxDeviceTrigger*)(buffer + 3)) + idx;
+  trigger->addr = addr;
+  trigger->count = count;
+  trigger->peerRank = peerRank;
+  trigger->datatype = datatype;
+  trigger->type = type;
   FLAGCX_DEVICE_THREAD_FENCE();
-  // printf("Enqueue capacity=%d, consumed=%d, produced=%d\n", capacity, (int)buffer[1], (int)buffer[2]);
   return flagcxSuccess;
 }
 
@@ -120,7 +117,6 @@ FLAGCX_HOST_DECORATOR flagcxResult_t dequeue(void *fifoBuffer, flagcxDeviceTrigg
   } else {
     memset((void *)trigger, 0, sizeof(flagcxDeviceTrigger));
   }
-  // printf("Dequeue capacity=%d, consumed=%d, produced=%d\n", capacity, (int)buffer[1], (int)buffer[2]);
   return flagcxSuccess;
 }
 

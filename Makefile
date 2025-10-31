@@ -267,7 +267,7 @@ DEVSRCFILES:= \
 	$(wildcard flagcx/kernels/*.$(DEVICE_FILE_EXTENSION))
 
 LIBOBJ:= $(LIBSRCFILES:%.cc=$(OBJDIR)/%.o)
-DEVOBJ:= $(DEVSRCFILES:%.cu=$(OBJDIR)/%.o)
+DEVOBJ:= $(DEVSRCFILES:%.$(DEVICE_FILE_EXTENSION)=$(OBJDIR)/%.o)
 
 TARGET = libflagcx.so
 all: $(LIBDIR)/$(TARGET)
