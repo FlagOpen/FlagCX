@@ -20,6 +20,7 @@ flagcxResult_t flagcxHeteroSend(const void *sendbuff, size_t count,
   p2p->buff = (void *)sendbuff;
   p2p->bytes = count * getFlagcxDataTypeSize(datatype);
   p2p->chunk = 0;
+  p2p->dtype = datatype;
   p2p->stream = stream;
   if (flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue))
     tasks->p2pOrder[tasks->p2pOrderSteps++] = peer;
@@ -47,6 +48,7 @@ flagcxResult_t flagcxHeteroRecv(void *recvbuff, size_t count,
   p2p->buff = (void *)recvbuff;
   p2p->bytes = count * getFlagcxDataTypeSize(datatype);
   p2p->chunk = 0;
+  p2p->dtype = datatype;
   p2p->stream = stream;
   if (flagcxIntruQueueEmpty(&tasks->peers[peer].recvQueue))
     tasks->p2pOrder[tasks->p2pOrderSteps++] = peer;

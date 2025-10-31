@@ -1,17 +1,21 @@
 #ifndef FLAGCX_INT_P2P_H_
 #define FLAGCX_INT_P2P_H_
 
-#include <stddef.h>
+#include "adaptor.h"
+#include "check.h"
 #include "comm.h"
 #include "device.h"
-#include "adaptor.h"
-#include "transport.h"
 #include "shmutils.h"
-#include "check.h"
-#define FLAGCX_P2P_BUFFERSIZE (64ULL * 1024 * 1024)  // 64MB buffer for P2P transfers
-#define FLAGCX_P2P_CHUNKSIZE (4ULL * 1024 * 1024)    // 4MB chunk size
-#define FLAGCX_P2P_STEPS (FLAGCX_P2P_BUFFERSIZE / FLAGCX_P2P_CHUNKSIZE)  // 16 steps
-#define FLAGCX_P2P_MAX_OPS 32  // Maximum number of concurrent P2P operation pairs
+#include "transport.h"
+#include <stddef.h>
+#define FLAGCX_P2P_BUFFERSIZE                                                  \
+  (64ULL * 1024 * 1024) // 64MB buffer for P2P transfers
+#define FLAGCX_P2P_CHUNKSIZE (4ULL * 1024 * 1024) // 4MB chunk size
+#define FLAGCX_P2P_STEPS                                                       \
+  (FLAGCX_P2P_BUFFERSIZE / FLAGCX_P2P_CHUNKSIZE) // 16 steps
+#define FLAGCX_P2P_MAX_OPS                                                     \
+  32 // Maximum number of concurrent P2P operation pairs
+#define FLAGCX_P2P_IPC_HANDLE_SIZE 64
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,16 +27,17 @@ struct flagcxP2pRequest {
 };
 
 typedef union {
-  char reserved[64];  // Generic 64-byte buffer (same size as cudaIpcMemHandle_t)
+  char reserved[FLAGCX_P2P_IPC_HANDLE_SIZE]; // Generic 64-byte buffer, may
+                                             // differ on different devices
 } flagcxIpcHandleData;
 
 struct flagcxP2pIpcDesc {
-  flagcxIpcHandleData handleData;  // Actual IPC handle data (64 bytes)
+  flagcxIpcHandleData handleData; // Actual IPC handle data
   size_t size;
 };
 
 struct flagcxP2pBuff {
-  void* directPtr;
+  void *directPtr;
   size_t size;
   flagcxP2pIpcDesc ipcDesc;
 };
@@ -48,9 +53,9 @@ struct flagcxP2pConnectInfo {
 struct flagcxP2pSyncSlot {
   uint64_t sendHead;
   uint64_t recvTail;
-  uint64_t opHash;    // Hash identifying which operation owns this slot
-  uint64_t done;      // 1 = slot is free, 0 = slot is in use
-  char pad[32];       // Padding to 64 bytes total
+  int opHash;   // Hash identifying which operation owns this slot
+  int done;     // 1 = slot is free, 0 = slot is in use
+  int peerDone; // 1 = slot is free, 0 = slot is in use
 };
 
 struct flagcxP2pShm {
@@ -61,66 +66,67 @@ struct flagcxP2pShm {
 // need to make sure this matches flagcxP2pShmProxyInfo in p2p.cc
 struct flagcxP2pShmProxyInfo {
   // CPU side
-  struct flagcxP2pShm* shm;
+  struct flagcxP2pShm *shm;
   flagcxShmIpcDesc_t desc;
 
-  // GPU side
-  char* recvFifo;
+  // Device side
+  char *recvFifo;
   flagcxStream_t stream;
   flagcxEvent_t events[FLAGCX_P2P_STEPS];
 };
 
 struct flagcxP2pResources {
   // Shared memory for synchronization
-  struct flagcxP2pShm* shm;
+  struct flagcxP2pShm *shm;
   flagcxShmIpcDesc_t desc;
-  
+
   // Proxy info for async operations
   struct flagcxP2pShmProxyInfo proxyInfo;
 };
 
-flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources* resources, void *data,
-                                  size_t size, struct flagcxProxyArgs* args);
+flagcxResult_t flagcxP2pProxySend(struct flagcxP2pResources *resources,
+                                  void *data, size_t size,
+                                  struct flagcxProxyArgs *args);
 
-flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources* resources, void *data,
-                                  size_t size, struct flagcxProxyArgs* args);
+flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources *resources,
+                                  void *data, size_t size,
+                                  struct flagcxProxyArgs *args);
 
-flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection* connection,
-                                       struct flagcxProxyState* proxyState,
-                                       void* reqBuff,  int reqSize,
-                                       void* respBuff, int respSize,
-                                       int* done);
+flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection *connection,
+                                       struct flagcxProxyState *proxyState,
+                                       void *reqBuff, int reqSize,
+                                       void *respBuff, int respSize, int *done);
 
-flagcxResult_t flagcxP2pRecvProxySetup(struct flagcxProxyConnection* connection,
-                                       struct flagcxProxyState* proxyState,
-                                       void* reqBuff, int reqSize,
-                                       void* respBuff, int respSize,
-                                       int* done);
+flagcxResult_t flagcxP2pRecvProxySetup(struct flagcxProxyConnection *connection,
+                                       struct flagcxProxyState *proxyState,
+                                       void *reqBuff, int reqSize,
+                                       void *respBuff, int respSize, int *done);
 
-flagcxResult_t flagcxP2pSendProxyConnect(struct flagcxProxyConnection* connection,
-                                         struct flagcxProxyState* proxyState,
-                                         void* reqBuff, int reqSize,
-                                         void* respBuff, int respSize,
-                                         int* done);
+flagcxResult_t
+flagcxP2pSendProxyConnect(struct flagcxProxyConnection *connection,
+                          struct flagcxProxyState *proxyState, void *reqBuff,
+                          int reqSize, void *respBuff, int respSize, int *done);
 
-flagcxResult_t flagcxP2pRecvProxyConnect(struct flagcxProxyConnection* connection,
-                                         struct flagcxProxyState* proxyState,
-                                         void* reqBuff, int reqSize,
-                                         void* respBuff, int respSize,
-                                         int* done);
+flagcxResult_t
+flagcxP2pRecvProxyConnect(struct flagcxProxyConnection *connection,
+                          struct flagcxProxyState *proxyState, void *reqBuff,
+                          int reqSize, void *respBuff, int respSize, int *done);
 
-flagcxResult_t flagcxP2pAllocateShareableBuffer(size_t size, int directMap, 
-                                                struct flagcxP2pIpcDesc *ipcDesc, 
-                                                void **ptr);
+flagcxResult_t
+flagcxP2pAllocateShareableBuffer(size_t size, int directMap,
+                                 struct flagcxP2pIpcDesc *ipcDesc, void **ptr);
 
-flagcxResult_t flagcxP2pImportShareableBuffer(struct flagcxHeteroComm *comm, 
-                                              int peer, size_t size, 
-                                              struct flagcxP2pIpcDesc *ipcDesc, 
+flagcxResult_t flagcxP2pImportShareableBuffer(struct flagcxHeteroComm *comm,
+                                              int peer, size_t size,
+                                              struct flagcxP2pIpcDesc *ipcDesc,
                                               void **devMemPtr);
 
-flagcxResult_t flagcxP2pSendProxyFree(struct flagcxP2pResources* resources);
+flagcxResult_t flagcxP2pSendProxyFree(struct flagcxP2pResources *resources);
 
-flagcxResult_t flagcxP2pRecvProxyFree(struct flagcxP2pResources* resources);
+flagcxResult_t flagcxP2pRecvProxyFree(struct flagcxP2pResources *resources);
+
+void setP2pSlotInfo(int rank, int peerRank, size_t size, flagcxDataType_t dtype,
+                    int isRecv, int *opHash, size_t *slotIdx);
 
 #ifdef __cplusplus
 }

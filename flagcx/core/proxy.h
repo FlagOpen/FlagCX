@@ -131,9 +131,10 @@ struct flagcxProxyArgs {
   int regBufFlag = 0;
 
   // P2P operation slot management
-  // Each send/recv operation pair uses a shared slot to avoid race conditions
-  int p2pSyncSlot;       // Slot index in shared memory (0 to FLAGCX_P2P_MAX_OPS-1)
-  uint64_t p2pOpHash;    // Hash identifying this operation pair
+  int p2pOpHash = -1;
+  int p2pPeerOpHash = -1;
+  size_t p2pSlotIdx = 0;
+  size_t p2pPeerSlotIdx = 0;
 
   union flagcxProxyOpSpecifics specifics;
 };
