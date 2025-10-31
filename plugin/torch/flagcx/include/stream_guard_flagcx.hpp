@@ -72,7 +72,7 @@ public:
             at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId))
 #elif USE_MUSA_ADAPTOR
         guard_(
-            at::musa::getStreamFromExternal(*(musaStream_t *)stream, deviceId))
+            c10::musa::getStreamFromExternal(*(musaStream_t *)stream, deviceId))
 #elif USE_DU_ADAPTOR
         guard_(
             at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId))
@@ -111,7 +111,7 @@ public:
         at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId_));
 #elif USE_MUSA_ADAPTOR
     guard_.reset_stream(
-        at::musa::getStreamFromExternal(*(musaStream_t *)stream, deviceId_));
+        c10::musa::getStreamFromExternal(*(musaStream_t *)stream, deviceId_));
 #elif USE_DU_ADAPTOR
     guard_.reset_stream(
         at::cuda::getStreamFromExternal(*(cudaStream_t *)stream, deviceId_));

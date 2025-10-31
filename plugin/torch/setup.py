@@ -68,9 +68,13 @@ elif adaptor_flag == "-DUSE_METAX_ADAPTOR":
     library_dirs += ["/opt/maca/lib64"]
     libs += ["cuda", "cudart", "c10_cuda", "torch_cuda"]
 elif adaptor_flag == "-DUSE_MUSA_ADAPTOR":
-    include_dirs += ["/usr/local/musa/include"]
-    library_dirs += ["/usr/local/musa/lib64"]
-    libs += ["musa", "mudart", "c10_musa", "torch_musa"]
+    import torch
+    pytorch_install_path = os.path.dirname(os.path.abspath(torch.__file__))
+    pytorch_library_path = os.path.join(pytorch_install_path, "../torch_musa")
+    include_dirs += [os.path.join(pytorch_install_path, "include")]
+    include_dirs += [os.path.join(pytorch_install_path, "../")]
+    include_dirs += [os.path.join(pytorch_install_path, "../torch_musa/share/generated_cuda_compatible/include")]
+    #libs += ["musa", "mudart", "c10_musa", "torch_musa"]
 elif adaptor_flag == "-DUSE_DU_ADAPTOR":
     include_dirs += ["${CUDA_PATH}/include"]
     library_dirs += ["${CUDA_PATH}/lib64"]
