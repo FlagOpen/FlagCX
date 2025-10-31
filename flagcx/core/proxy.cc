@@ -991,6 +991,31 @@ out:
   pthread_mutex_unlock(&comm->proxyState->mutex);
   pthread_join(comm->proxyState->progressState.thread, nullptr);
 
+  // Free P2P resources in proxy thread (CUDA resources must be freed in the
+  // same thread where they were created)
+  for (int peer = 0; peer < comm->nRanks; peer++) {
+    for (int c = 0; c < MAXCHANNELS; c++) {
+      if (comm->channels[c].peers[peer]->recv[0].connected == 1) {
+        struct flagcxConnector *conn = comm->channels[c].peers[peer]->recv;
+        if (conn->proxyConn.connection->transport == TRANSPORT_P2P) {
+          struct flagcxP2pResources *resources =
+              (struct flagcxP2pResources *)
+                  conn->proxyConn.connection->transportResources;
+          flagcxP2pRecvProxyFree(resources);
+        }
+      }
+      if (comm->channels[c].peers[peer]->send[0].connected == 1) {
+        struct flagcxConnector *conn = comm->channels[c].peers[peer]->send;
+        if (conn->proxyConn.connection->transport == TRANSPORT_P2P) {
+          struct flagcxP2pResources *resources =
+              (struct flagcxP2pResources *)
+                  conn->proxyConn.connection->transportResources;
+          flagcxP2pSendProxyFree(resources);
+        }
+      }
+    }
+  }
+
   // Close sockets
   flagcxSocketClose(&sock);
   flagcxSocketClose(&comm->proxyState->listenSock);
@@ -1020,11 +1045,6 @@ flagcxResult_t flagcxProxyFree(struct flagcxHeteroComm *comm) {
               (struct recvNetResources *)
                   conn->proxyConn.connection->transportResources;
           flagcxRecvProxyFree(resources);
-        } else if (transport == TRANSPORT_P2P) {
-          struct flagcxP2pResources *resources =
-              (struct flagcxP2pResources *)
-                  conn->proxyConn.connection->transportResources;
-          flagcxP2pRecvProxyFree(resources);
         }
       }
       if (comm->channels[c].peers[peer]->send[0].connected == 1) {
@@ -1036,11 +1056,6 @@ flagcxResult_t flagcxProxyFree(struct flagcxHeteroComm *comm) {
               (struct sendNetResources *)
                   conn->proxyConn.connection->transportResources;
           flagcxSendProxyFree(resources);
-        } else if (transport == TRANSPORT_P2P) {
-          struct flagcxP2pResources *resources =
-              (struct flagcxP2pResources *)
-                  conn->proxyConn.connection->transportResources;
-          flagcxP2pSendProxyFree(resources);
         }
       }
     }

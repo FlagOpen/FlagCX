@@ -299,8 +299,6 @@ flagcxResult_t flagcxP2pRecvProxySetup(struct flagcxProxyConnection *connection,
   FLAGCXCHECK(flagcxP2pAllocateShareableBuffer(
       size, req->refcount, &p2pBuff->ipcDesc, &p2pBuff->directPtr));
   p2pBuff->size = size;
-
-  // transportResources is already set by transport.cc, no need to modify it
   *done = 1;
   return flagcxSuccess;
 }
@@ -370,6 +368,7 @@ flagcxP2pRecvProxyConnect(struct flagcxProxyConnection *connection,
 flagcxResult_t
 flagcxP2pAllocateShareableBuffer(size_t size, int directMap,
                                  struct flagcxP2pIpcDesc *ipcDesc, void **ptr) {
+  // 'directMap' parameter is reserved for future cuMem (direct mapping)
   FLAGCXCHECK(deviceAdaptor->deviceMalloc(ptr, size, flagcxMemDevice, NULL));
   size_t ipcSize = 0;
   flagcxIpcMemHandle_t handlePtr = NULL;
@@ -429,24 +428,19 @@ flagcxResult_t flagcxP2pSendProxyFree(struct flagcxP2pResources *resources) {
   if (resources == NULL)
     return flagcxSuccess;
 
-  // Destroy events
   for (int s = 0; s < FLAGCX_P2P_STEPS; s++) {
     if (resources->proxyInfo.events[s] != NULL) {
       FLAGCXCHECK(deviceAdaptor->eventDestroy(resources->proxyInfo.events[s]));
     }
   }
 
-  // Destroy stream
   if (resources->proxyInfo.stream != NULL) {
     FLAGCXCHECK(deviceAdaptor->streamDestroy(resources->proxyInfo.stream));
   }
 
-  // Close shared memory
-  if (resources->shm != NULL) {
-    FLAGCXCHECK(flagcxShmIpcClose(&resources->desc));
+  if (resources->proxyInfo.shm != NULL) {
+    FLAGCXCHECK(flagcxShmIpcClose(&resources->proxyInfo.desc));
   }
-
-  INFO(FLAGCX_P2P, "P2P Send proxy resources freed");
   return flagcxSuccess;
 }
 
@@ -465,12 +459,5 @@ flagcxResult_t flagcxP2pRecvProxyFree(struct flagcxP2pResources *resources) {
   if (resources->proxyInfo.stream != NULL) {
     FLAGCXCHECK(deviceAdaptor->streamDestroy(resources->proxyInfo.stream));
   }
-
-  // Close shared memory (if not already closed)
-  if (resources->shm != NULL) {
-    FLAGCXCHECK(flagcxShmIpcClose(&resources->desc));
-  }
-
-  INFO(FLAGCX_P2P, "P2P Recv proxy resources freed");
   return flagcxSuccess;
 }
