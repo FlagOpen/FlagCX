@@ -207,7 +207,8 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
             } else if (op->connection->transport == TRANSPORT_P2P) {
               struct flagcxP2pResources *resources =
                   (flagcxP2pResources *)op->connection->transportResources;
-              flagcxP2pProxySend(resources, op->recvbuff, op->nbytes, &op->args);
+              flagcxP2pProxySend(resources, op->recvbuff, op->nbytes,
+                                 &op->args);
               if (deviceAsyncLoad && deviceAsyncStore) {
                 if (op->args.done == 1 && op->args.eventRecorded) {
                   if (deviceAdaptor->eventQuery(op->event) == flagcxSuccess) {
@@ -254,7 +255,8 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
             } else if (op->connection->transport == TRANSPORT_P2P) {
               struct flagcxP2pResources *resources =
                   (flagcxP2pResources *)op->connection->transportResources;
-              flagcxP2pProxyRecv(resources, op->recvbuff, op->nbytes, &op->args);
+              flagcxP2pProxyRecv(resources, op->recvbuff, op->nbytes,
+                                 &op->args);
               if (deviceAsyncLoad && deviceAsyncStore) {
                 if (op->args.done == 1 && op->args.eventRecorded) {
                   // The P2P object should not be destroyed until the associated
@@ -572,57 +574,61 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
     TRACE(FLAGCX_PROXY,
           "proxyProgressAsync::flagcxProxyMsgConnect opId=%p op.reqBuff=%p, "
           "op->reqSize=%d, op->respSize=%d, transport=%d",
-          op->opId, op->reqBuff, op->reqSize, op->respSize, op->connection->transport);
-    
+          op->opId, op->reqBuff, op->reqSize, op->respSize,
+          op->connection->transport);
+
     if (op->connection->transport == TRANSPORT_P2P) {
       // P2P transport
       if (op->connection->send) {
         INFO(FLAGCX_PROXY, "Calling flagcxP2pSendProxyConnect");
-        flagcxP2pSendProxyConnect(op->connection, NULL, 
-                                  op->reqBuff, op->reqSize,
-                                  op->respBuff, op->respSize, &done);
-        INFO(FLAGCX_PROXY, "flagcxP2pSendProxyConnect completed, done=%d", done);
+        flagcxP2pSendProxyConnect(op->connection, NULL, op->reqBuff,
+                                  op->reqSize, op->respBuff, op->respSize,
+                                  &done);
+        INFO(FLAGCX_PROXY, "flagcxP2pSendProxyConnect completed, done=%d",
+             done);
       } else {
         INFO(FLAGCX_PROXY, "Calling flagcxP2pRecvProxyConnect");
-        flagcxP2pRecvProxyConnect(op->connection, NULL,
-                                  op->reqBuff, op->reqSize,
-                                  op->respBuff, op->respSize, &done);
-        INFO(FLAGCX_PROXY, "flagcxP2pRecvProxyConnect completed, done=%d", done);
+        flagcxP2pRecvProxyConnect(op->connection, NULL, op->reqBuff,
+                                  op->reqSize, op->respBuff, op->respSize,
+                                  &done);
+        INFO(FLAGCX_PROXY, "flagcxP2pRecvProxyConnect completed, done=%d",
+             done);
       }
     } else if (op->connection->transport == TRANSPORT_NET) {
       // NET transport (original logic)
       if (op->connection->send) {
         struct sendNetResources *resources =
             (struct sendNetResources *)op->connection->transportResources;
-      if (!resources->netSendComm) {
-        FLAGCXCHECK(resources->netAdaptor->connect(
-            resources->netDev, (void *)op->reqBuff, &resources->netSendComm));
-      } else {
-        if (dmaBufferSupport &&
-            resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
-          INFO(FLAGCX_PROXY, "Registering memory region with DMA-BUF support");
-          int dmabuf_fd;
-          FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
-              (void *)&dmabuf_fd, resources->buffers[0],
-              resources->buffSizes[0], 0));
-          FLAGCXCHECK(resources->netAdaptor->regMrDmaBuf(
-              resources->netSendComm, resources->buffers[0],
-              resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
-              &resources->mhandles[0]));
-          (void)close(dmabuf_fd);
+        if (!resources->netSendComm) {
+          FLAGCXCHECK(resources->netAdaptor->connect(
+              resources->netDev, (void *)op->reqBuff, &resources->netSendComm));
         } else {
-          if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
-            FLAGCXCHECK(resources->netAdaptor->regMr(
+          if (dmaBufferSupport &&
+              resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+            INFO(FLAGCX_PROXY,
+                 "Registering memory region with DMA-BUF support");
+            int dmabuf_fd;
+            FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
+                (void *)&dmabuf_fd, resources->buffers[0],
+                resources->buffSizes[0], 0));
+            FLAGCXCHECK(resources->netAdaptor->regMrDmaBuf(
                 resources->netSendComm, resources->buffers[0],
-                resources->buffSizes[0], 2, &resources->mhandles[0]));
-          } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
-            FLAGCXCHECK(resources->netAdaptor->regMr(
-                resources->netSendComm, resources->buffers[0],
-                resources->buffSizes[0], 1, &resources->mhandles[0]));
+                resources->buffSizes[0], 2, 0ULL, dmabuf_fd,
+                &resources->mhandles[0]));
+            (void)close(dmabuf_fd);
+          } else {
+            if (resources->netAdaptor == getUnifiedNetAdaptor(IBRC)) {
+              FLAGCXCHECK(resources->netAdaptor->regMr(
+                  resources->netSendComm, resources->buffers[0],
+                  resources->buffSizes[0], 2, &resources->mhandles[0]));
+            } else if (resources->netAdaptor == getUnifiedNetAdaptor(SOCKET)) {
+              FLAGCXCHECK(resources->netAdaptor->regMr(
+                  resources->netSendComm, resources->buffers[0],
+                  resources->buffSizes[0], 1, &resources->mhandles[0]));
+            }
           }
+          done = 1;
         }
-        done = 1;
-      }
       } else {
         struct recvNetResources *resources =
             (struct recvNetResources *)op->connection->transportResources;
@@ -631,7 +637,8 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
                                                     &resources->netRecvComm));
         } else {
           if (dmaBufferSupport) {
-            INFO(FLAGCX_PROXY, "Registering memory region with DMA-BUF support");
+            INFO(FLAGCX_PROXY,
+                 "Registering memory region with DMA-BUF support");
             int dmabuf_fd;
             FLAGCXCHECK(deviceAdaptor->getHandleForAddressRange(
                 (void *)&dmabuf_fd, resources->buffers[0],
@@ -728,15 +735,13 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
     if (op->connection->send) {
       // P2P Send side setup
       INFO(FLAGCX_PROXY, "Calling flagcxP2pSendProxySetup");
-      flagcxP2pSendProxySetup(op->connection, NULL, 
-                              op->reqBuff, op->reqSize,
+      flagcxP2pSendProxySetup(op->connection, NULL, op->reqBuff, op->reqSize,
                               op->respBuff, op->respSize, &done);
       INFO(FLAGCX_PROXY, "flagcxP2pSendProxySetup completed, done=%d", done);
     } else {
       // P2P Recv side setup
       INFO(FLAGCX_PROXY, "Calling flagcxP2pRecvProxySetup");
-      flagcxP2pRecvProxySetup(op->connection, NULL,
-                              op->reqBuff, op->reqSize,
+      flagcxP2pRecvProxySetup(op->connection, NULL, op->reqBuff, op->reqSize,
                               op->respBuff, op->respSize, &done);
       INFO(FLAGCX_PROXY, "flagcxP2pRecvProxySetup completed, done=%d", done);
     }
@@ -1009,28 +1014,32 @@ flagcxResult_t flagcxProxyFree(struct flagcxHeteroComm *comm) {
       if (comm->channels[c].peers[peer]->recv[0].connected == 1) {
         struct flagcxConnector *conn = comm->channels[c].peers[peer]->recv;
         int transport = conn->proxyConn.connection->transport;
-        
+
         if (transport == TRANSPORT_NET) {
           struct recvNetResources *resources =
-              (struct recvNetResources *)conn->proxyConn.connection->transportResources;
+              (struct recvNetResources *)
+                  conn->proxyConn.connection->transportResources;
           flagcxRecvProxyFree(resources);
         } else if (transport == TRANSPORT_P2P) {
           struct flagcxP2pResources *resources =
-              (struct flagcxP2pResources *)conn->proxyConn.connection->transportResources;
+              (struct flagcxP2pResources *)
+                  conn->proxyConn.connection->transportResources;
           flagcxP2pRecvProxyFree(resources);
         }
       }
       if (comm->channels[c].peers[peer]->send[0].connected == 1) {
         struct flagcxConnector *conn = comm->channels[c].peers[peer]->send;
         int transport = conn->proxyConn.connection->transport;
-        
+
         if (transport == TRANSPORT_NET) {
           struct sendNetResources *resources =
-              (struct sendNetResources *)conn->proxyConn.connection->transportResources;
+              (struct sendNetResources *)
+                  conn->proxyConn.connection->transportResources;
           flagcxSendProxyFree(resources);
         } else if (transport == TRANSPORT_P2P) {
           struct flagcxP2pResources *resources =
-              (struct flagcxP2pResources *)conn->proxyConn.connection->transportResources;
+              (struct flagcxP2pResources *)
+                  conn->proxyConn.connection->transportResources;
           flagcxP2pSendProxyFree(resources);
         }
       }

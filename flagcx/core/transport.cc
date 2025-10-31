@@ -5,8 +5,8 @@
 #include "net.h"
 #include "p2p.h"
 #include "proxy.h"
-#include "topo.h"
 #include "shmutils.h"
+#include "topo.h"
 #define ENABLE_TIMER 0
 #include "timer.h"
 
@@ -25,7 +25,8 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
   flagcxIbHandle *handle = NULL;
 
   for (int peer = 0; peer < comm->nRanks; peer++) {
-    if (peer == comm->rank) continue;
+    if (peer == comm->rank)
+      continue;
     bool sameNode = isSameNode(comm, peer);
     for (int c = 0; c < MAXCHANNELS; c++) {
       if (comm->connectRecv[peer] & (1UL << c)) {
@@ -33,25 +34,26 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
             comm->channels[c].peers[peer]->recv + connIndex;
         if (sameNode) {
           FLAGCXCHECK(flagcxCalloc(&conn->proxyConn.connection, 1));
-          struct flagcxP2pResources* resources;
+          struct flagcxP2pResources *resources;
           FLAGCXCHECK(flagcxCalloc(&resources, 1));
           conn->proxyConn.connection->transport = TRANSPORT_P2P;
           conn->proxyConn.connection->send = 0;
           conn->proxyConn.connection->transportResources = (void *)resources;
-          
+
           struct flagcxP2pRequest req = {(size_t(FLAGCX_P2P_BUFFERSIZE)), 0};
           struct flagcxP2pConnectInfo connectInfo = {0};
           connectInfo.rank = comm->rank;
           connectInfo.read = 0;
 
-          FLAGCXCHECK(flagcxProxyCallBlocking(comm, &conn->proxyConn, flagcxProxyMsgSetup,
-                                              &req, sizeof(req), 
-                                              &connectInfo.p2pBuff, sizeof(connectInfo.p2pBuff)));
-          // Use the buffer directly without offset， it's equal to nccl p2pMap function
-          char* recvBuffer = (char*)connectInfo.p2pBuff.directPtr;
-          
+          FLAGCXCHECK(flagcxProxyCallBlocking(
+              comm, &conn->proxyConn, flagcxProxyMsgSetup, &req, sizeof(req),
+              &connectInfo.p2pBuff, sizeof(connectInfo.p2pBuff)));
+          // Use the buffer directly without offset， it's equal to nccl p2pMap
+          // function
+          char *recvBuffer = (char *)connectInfo.p2pBuff.directPtr;
+
           conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = recvBuffer;
-          FLAGCXCHECK(bootstrapSend(comm->bootstrap, peer, 2000 + c, 
+          FLAGCXCHECK(bootstrapSend(comm->bootstrap, peer, 2000 + c,
                                     &connectInfo, sizeof(connectInfo)));
         } else {
           FLAGCXCHECK(flagcxCalloc(&conn->proxyConn.connection, 1));
@@ -92,30 +94,35 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
       if (comm->connectSend[peer] & (1UL << c)) {
         struct flagcxConnector *conn =
             comm->channels[c].peers[peer]->send + connIndex;
-        
+
         if (sameNode) {
           FLAGCXCHECK(flagcxCalloc(&conn->proxyConn.connection, 1));
           struct flagcxP2pResources *resources;
           FLAGCXCHECK(flagcxCalloc(&resources, 1));
-          
+
           conn->proxyConn.connection->transport = TRANSPORT_P2P;
           conn->proxyConn.connection->send = 1;
           conn->proxyConn.connection->transportResources = (void *)resources;
-          
-          struct flagcxP2pConnectInfo connectInfo = {0};
-          FLAGCXCHECK(flagcxProxyCallBlocking(comm, &conn->proxyConn, flagcxProxyMsgSetup,
-                                              NULL, 0, &resources->proxyInfo, sizeof(struct flagcxP2pShmProxyInfo)));
-          memcpy(&connectInfo.desc, &resources->proxyInfo.desc, sizeof(flagcxShmIpcDesc_t));
 
-          INFO(FLAGCX_INIT, "Send: Sending shmDesc to peer %d, shmSuffix=%s shmSize=%zu",
+          struct flagcxP2pConnectInfo connectInfo = {0};
+          FLAGCXCHECK(flagcxProxyCallBlocking(
+              comm, &conn->proxyConn, flagcxProxyMsgSetup, NULL, 0,
+              &resources->proxyInfo, sizeof(struct flagcxP2pShmProxyInfo)));
+          memcpy(&connectInfo.desc, &resources->proxyInfo.desc,
+                 sizeof(flagcxShmIpcDesc_t));
+
+          INFO(FLAGCX_INIT,
+               "Send: Sending shmDesc to peer %d, shmSuffix=%s shmSize=%zu",
                peer, connectInfo.desc.shmSuffix, connectInfo.desc.shmSize);
 
-          FLAGCXCHECK(bootstrapSend(comm->bootstrap, peer, 3000 + c, 
-                                    &connectInfo.desc, sizeof(flagcxShmIpcDesc_t)));
+          FLAGCXCHECK(bootstrapSend(comm->bootstrap, peer, 3000 + c,
+                                    &connectInfo.desc,
+                                    sizeof(flagcxShmIpcDesc_t)));
         } else {
-          INFO(FLAGCX_INIT, "NET Send setup: rank %d -> peer %d channel %d (different node)", 
+          INFO(FLAGCX_INIT,
+               "NET Send setup: rank %d -> peer %d channel %d (different node)",
                comm->rank, peer, c);
-               
+
           FLAGCXCHECK(flagcxCalloc(&conn->proxyConn.connection, 1));
           struct sendNetResources *resources;
           FLAGCXCHECK(flagcxCalloc(&resources, 1));
@@ -153,35 +160,35 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
   }
 
   for (int peer = 0; peer < comm->nRanks; peer++) {
-    if (peer == comm->rank) continue;    
+    if (peer == comm->rank)
+      continue;
     bool sameNode = isSameNode(comm, peer);
-    
+
     for (int c = 0; c < MAXCHANNELS; c++) {
       if (comm->connectRecv[peer] & (1UL << c)) {
         struct flagcxConnector *conn =
             comm->channels[c].peers[peer]->recv + connIndex;
-        
+
         if (sameNode) {
-          struct flagcxP2pResources *resources = 
-              (struct flagcxP2pResources*)conn->proxyConn.connection->transportResources;
-          
+          struct flagcxP2pResources *resources =
+              (struct flagcxP2pResources *)
+                  conn->proxyConn.connection->transportResources;
+
           flagcxShmIpcDesc_t shmDesc = {0};
-          FLAGCXCHECK(bootstrapRecv(comm->bootstrap, peer, 3000 + c, 
-                                    &shmDesc, sizeof(flagcxShmIpcDesc_t)));
-          FLAGCXCHECK(flagcxShmImportShareableBuffer(&shmDesc,
-                                                    (void**)&resources->shm,
-                                                    NULL,
-                                                    &resources->desc));
+          FLAGCXCHECK(bootstrapRecv(comm->bootstrap, peer, 3000 + c, &shmDesc,
+                                    sizeof(flagcxShmIpcDesc_t)));
+          FLAGCXCHECK(flagcxShmImportShareableBuffer(
+              &shmDesc, (void **)&resources->shm, NULL, &resources->desc));
           resources->proxyInfo.shm = resources->shm;
-          memcpy(&resources->proxyInfo.desc, &resources->desc, sizeof(flagcxShmIpcDesc_t));
-          
+          memcpy(&resources->proxyInfo.desc, &resources->desc,
+                 sizeof(flagcxShmIpcDesc_t));
+
           // Set recvFifo in proxyInfo so proxy can copy data to it
           resources->proxyInfo.recvFifo = conn->conn.buffs[FLAGCX_PROTO_SIMPLE];
-          
-          FLAGCXCHECK(flagcxProxyCallBlocking(comm, &conn->proxyConn,
-                                              flagcxProxyMsgConnect,
-                                              NULL, 0, NULL, 0));
-          
+
+          FLAGCXCHECK(flagcxProxyCallBlocking(
+              comm, &conn->proxyConn, flagcxProxyMsgConnect, NULL, 0, NULL, 0));
+
           comm->channels[c].peers[peer]->recv[0].connected = 1;
         } else {
           while (flagcxPollProxyResponse(comm, NULL, NULL, conn) ==
@@ -197,34 +204,36 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
             comm->channels[c].peers[peer]->send + connIndex;
 
         if (sameNode) {
-          struct flagcxP2pResources *resources = 
-              (struct flagcxP2pResources*)conn->proxyConn.connection->transportResources;
-          
+          struct flagcxP2pResources *resources =
+              (struct flagcxP2pResources *)
+                  conn->proxyConn.connection->transportResources;
+
           struct flagcxP2pConnectInfo connectInfo = {0};
-          FLAGCXCHECK(bootstrapRecv(comm->bootstrap, peer, 2000 + c, 
+          FLAGCXCHECK(bootstrapRecv(comm->bootstrap, peer, 2000 + c,
                                     &connectInfo, sizeof(connectInfo)));
-          char* remoteBuffer = NULL;
+          char *remoteBuffer = NULL;
           FLAGCXCHECK(flagcxP2pImportShareableBuffer(
               comm, peer, connectInfo.p2pBuff.size,
-              &connectInfo.p2pBuff.ipcDesc,
-              (void**)&remoteBuffer));
-          
+              &connectInfo.p2pBuff.ipcDesc, (void **)&remoteBuffer));
+
           if (remoteBuffer == NULL) {
-            WARN("P2P Send: remoteBuffer is NULL after import for peer %d channel %d", peer, c);
+            WARN("P2P Send: remoteBuffer is NULL after import for peer %d "
+                 "channel %d",
+                 peer, c);
             return flagcxInternalError;
           }
-          
+
           conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = remoteBuffer;
           resources->proxyInfo.recvFifo = remoteBuffer;
-          
-          char* recvFifo = remoteBuffer;
+
+          char *recvFifo = remoteBuffer;
           FLAGCXCHECK(flagcxProxyCallBlocking(comm, &conn->proxyConn,
-                                              flagcxProxyMsgConnect,
-                                              &recvFifo, sizeof(recvFifo),
-                                              NULL, 0));
-          
+                                              flagcxProxyMsgConnect, &recvFifo,
+                                              sizeof(recvFifo), NULL, 0));
+
           comm->channels[c].peers[peer]->send[0].connected = 1;
-          INFO(FLAGCX_INIT, "P2P Send connected: rank %d -> peer %d ch %d, remoteBuffer %p", 
+          INFO(FLAGCX_INIT,
+               "P2P Send connected: rank %d -> peer %d ch %d, remoteBuffer %p",
                comm->rank, peer, c, remoteBuffer);
         } else {
           while (flagcxPollProxyResponse(comm, NULL, NULL, conn) ==
