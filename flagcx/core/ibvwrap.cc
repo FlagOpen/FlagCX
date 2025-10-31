@@ -316,6 +316,19 @@ flagcxResult_t flagcxWrapIbvSetEce(
                                    "ibv_set_ece", supported);
 }
 
+/* SRQ support */
+flagcxResult_t flagcxWrapIbvCreateSrq(struct ibv_srq **ret, struct ibv_pd *pd,
+                                      struct ibv_srq_init_attr *srq_init_attr) {
+  IBV_PTR_CHECK_ERRNO(ibvSymbols, ibv_internal_create_srq,
+                      ibv_internal_create_srq(pd, srq_init_attr), *ret, NULL,
+                      "ibv_create_srq");
+}
+
+flagcxResult_t flagcxWrapIbvDestroySrq(struct ibv_srq *srq) {
+  IBV_INT_CHECK_RET_ERRNO(ibvSymbols, ibv_internal_destroy_srq,
+                          ibv_internal_destroy_srq(srq), 0, "ibv_destroy_srq");
+}
+
 flagcxResult_t flagcxWrapIbvEventTypeStr(char **ret,
                                          enum ibv_event_type event) {
   *ret = (char *)ibvSymbols.ibv_internal_event_type_str(event);

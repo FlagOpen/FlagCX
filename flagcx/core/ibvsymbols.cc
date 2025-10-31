@@ -56,6 +56,9 @@ flagcxResult_t buildIbvSymbols(struct flagcxIbvSymbols *ibvSymbols) {
   ASSIGN_SYM(ibvSymbols, ibv_query_ece, ibv_internal_query_ece);
   ASSIGN_SYM(ibvSymbols, ibv_set_ece, ibv_internal_set_ece);
 
+  ASSIGN_SYM(ibvSymbols, ibv_create_srq, ibv_internal_create_srq);
+  ASSIGN_SYM(ibvSymbols, ibv_destroy_srq, ibv_internal_destroy_srq);
+
   ibvSymbols->ibv_internal_reg_mr = &ibv_internal_reg_mr;
   ibvSymbols->ibv_internal_query_port = &ibv_internal_query_port;
 
@@ -146,6 +149,10 @@ flagcxResult_t buildIbvSymbols(struct flagcxIbvSymbols *ibvSymbols) {
   LOAD_SYM_VERSION(ibvhandle, "ibv_set_ece", ibvSymbols->ibv_internal_set_ece,
                    "IBVERBS_1.10");
 
+  // SRQ support - available in IBVERBS_1.1 and later
+  LOAD_SYM(ibvhandle, "ibv_create_srq", ibvSymbols->ibv_internal_create_srq);
+  LOAD_SYM(ibvhandle, "ibv_destroy_srq", ibvSymbols->ibv_internal_destroy_srq);
+
   return flagcxSuccess;
 
 teardown:
@@ -175,6 +182,8 @@ teardown:
   ibvSymbols->ibv_internal_event_type_str = NULL;
   ibvSymbols->ibv_internal_query_ece = NULL;
   ibvSymbols->ibv_internal_set_ece = NULL;
+  ibvSymbols->ibv_internal_create_srq = NULL;
+  ibvSymbols->ibv_internal_destroy_srq = NULL;
 
   if (ibvhandle != NULL)
     dlclose(ibvhandle);
