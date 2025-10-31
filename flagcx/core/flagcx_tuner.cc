@@ -310,18 +310,19 @@ static flagcxResult_t findBestComm(struct flagcxTunerContext *ctx,
     return flagcxInternalError;
   }
 
-  const flagcxEnvConfig& bestConfig = ctx->configList[bestCommIdx];
+  const flagcxEnvConfig &bestConfig = ctx->configList[bestCommIdx];
   std::stringstream msg;
   msg << "Best Envs: ";
   for (int i = 0; i < bestConfig.envCount; i++) {
-      msg << bestConfig.envs[i].name << "=" << bestConfig.envs[i].value
-          << "(default=" << bestConfig.envs[i].defaultValue << ")";
-      if (i < bestConfig.envCount - 1) msg << "  ";
+    msg << bestConfig.envs[i].name << "=" << bestConfig.envs[i].value
+        << "(default=" << bestConfig.envs[i].defaultValue << ")";
+    if (i < bestConfig.envCount - 1)
+      msg << "  ";
   }
   // Output the best config
-  INFO(FLAGCX_TUNING, "Find (coll=%d,size=%zu) best CommId=%d. %s", cat.collType,
-       cat.nBytes, bestCommIdx, msg.str().c_str());
-  
+  INFO(FLAGCX_TUNING, "Find (coll=%d,size=%zu) best CommId=%d. %s",
+       cat.collType, cat.nBytes, bestCommIdx, msg.str().c_str());
+
   ctx->collBestCommMap[cat] = bestCommIdx;
   return flagcxSuccess;
 }
