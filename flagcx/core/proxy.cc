@@ -791,7 +791,13 @@ flagcxResult_t flagcxProxyInit(struct flagcxHeteroComm *comm) {
   // Check if kernel proxy is enabled
   const char *kernelProxyEnv = flagcxGetEnv("FLAGCX_KERNEL_PROXY");
   if (kernelProxyEnv) {
-    comm->proxyState->enableProxyKernel = (std::stoi(kernelProxyEnv) == 1);
+    try {
+      comm->proxyState->enableProxyKernel = (std::stoi(kernelProxyEnv) == 1);
+    } catch (const std::exception &e) {
+      WARN("Invalid value for FLAGCX_KERNEL_PROXY: '%s', defaulting to false.",
+           kernelProxyEnv);
+      comm->proxyState->enableProxyKernel = 0;
+    }
   }
   INFO(FLAGCX_INIT, "Flagcx KERNEL_PROXY flag set to %d",
        (int)comm->proxyState->enableProxyKernel);
@@ -966,13 +972,6 @@ void *flagcxProxyKernelService(void *args) {
   while (true) {
     if (comm->proxyState->kernelState.stop == 1)
       break;
-    if (groupCount == 0) {
-      res = flagcxHeteroGroupStart();
-      TRACE(FLAGCX_P2P,
-            "rank=%d flagcxHeteroGroupStart called by proxyKernelService.",
-            comm->rank);
-      groupCount++;
-    }
     dequeue(fifo->buffer, ptr);
     if ((ptr->type == flagcxDevicePrimSend ||
          ptr->type == flagcxDevicePrimRecv) &&
@@ -982,6 +981,13 @@ void *flagcxProxyKernelService(void *args) {
     }
     switch (ptr->type) {
       case flagcxDevicePrimSend:
+        if (groupCount == 0) {
+          res = flagcxHeteroGroupStart();
+          TRACE(FLAGCX_P2P,
+                "rank=%d flagcxHeteroGroupStart called by proxyKernelService.",
+                comm->rank);
+          groupCount++;
+        }
         TRACE(FLAGCX_P2P,
               "rank=%d flagcxDevicePrimSend called by proxyKernelService.",
               comm->rank);
@@ -990,6 +996,13 @@ void *flagcxProxyKernelService(void *args) {
                                comm, stream);
         break;
       case flagcxDevicePrimRecv:
+        if (groupCount == 0) {
+          res = flagcxHeteroGroupStart();
+          TRACE(FLAGCX_P2P,
+                "rank=%d flagcxHeteroGroupStart called by proxyKernelService.",
+                comm->rank);
+          groupCount++;
+        }
         TRACE(FLAGCX_P2P,
               "rank=%d flagcxDevicePrimRecv called by proxyKernelService.",
               comm->rank);
@@ -1001,15 +1014,15 @@ void *flagcxProxyKernelService(void *args) {
         TRACE(FLAGCX_P2P,
               "rank=%d flagcxHeteroGroupEnd called by proxyKernelService.",
               comm->rank);
-        res = flagcxHeteroGroupEnd();
-        groupCount--;
+        if (groupCount > 0) {
+          res = flagcxHeteroGroupEnd();
+          groupCount--;
+        }
         break;
       case flagcxDevicePrimWait:
         TRACE(FLAGCX_P2P,
               "rank=%d flagcxDevicePrimWait called by proxyKernelService.",
               comm->rank);
-        res = flagcxHeteroGroupEnd();
-        groupCount--;
         deviceAdaptor->streamSynchronize(stream);
         break;
       default:

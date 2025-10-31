@@ -113,7 +113,7 @@ FLAGCX_HOST_DECORATOR flagcxResult_t dequeue(void *fifoBuffer, flagcxDeviceTrigg
     __sync_synchronize();
   }
   if (idx > -1) {
-    memcpy((void *)trigger, (void *)(buffer + 3 + 5 * idx), sizeof(flagcxDeviceTrigger));
+    memcpy((void *)trigger, (void *)(buffer + 3 + sizeof(flagcxDeviceTrigger) / sizeof(unsigned long long int) * idx), sizeof(flagcxDeviceTrigger));
   } else {
     memset((void *)trigger, 0, sizeof(flagcxDeviceTrigger));
   }
