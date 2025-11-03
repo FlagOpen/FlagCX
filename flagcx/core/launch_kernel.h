@@ -36,6 +36,7 @@ struct flagcxSemaphore {
   virtual flagcxEvent_t getEvent() = 0;
   virtual void signalStart() = 0;
   virtual void signalEnd() = 0;
+  virtual void *getSignals() = 0;
   virtual void subCounter(int value) = 0;
   virtual void addCounter(int value) = 0;
   virtual int getCounter() = 0;
@@ -46,16 +47,12 @@ struct flagcxSemaphore {
 
 // Host semaphore derived class
 struct flagcxHostSemaphore : public flagcxSemaphore {
-  int start;
-  int end;
-  int counter;
+  int start;   // started or not
+  int end;     // ended or not
+  int counter; // total operations to wait for inside the group
   std::vector<flagcxEvent_t> events;
 
-  flagcxHostSemaphore() {
-    start = 0;   // started or not
-    end = 0;     // ended or not
-    counter = 0; // total operations to wait for inside the group
-  }
+  flagcxHostSemaphore() : start(0), end(0), counter(0) {}
   ~flagcxHostSemaphore() override {
     for (auto event : events) {
       deviceAdaptor->eventDestroy(event);
@@ -69,10 +66,13 @@ struct flagcxHostSemaphore : public flagcxSemaphore {
   }
   void signalStart() override { __atomic_store_n(&start, 1, __ATOMIC_RELEASE); }
   void signalEnd() override { __atomic_store_n(&end, 1, __ATOMIC_RELEASE); }
+  void *getSignals() override { return nullptr; }
   void subCounter(int value) override {
     __atomic_fetch_sub(&counter, value, __ATOMIC_RELEASE);
   }
-  void addCounter(int value) override { counter += value; }
+  void addCounter(int value) override {
+    __atomic_fetch_add(&counter, value, __ATOMIC_RELEASE);
+  }
   int getCounter() override { return counter; }
   int pollStart() override { return __atomic_load_n(&start, __ATOMIC_ACQUIRE); }
   int pollEnd() override { return __atomic_load_n(&end, __ATOMIC_ACQUIRE); }
@@ -113,10 +113,13 @@ struct flagcxDeviceSemaphore : public flagcxSemaphore {
   // for now, we implement them outside
   void signalStart() override {}
   void signalEnd() override {}
+  void *getSignals() override { return dSignals; }
   void subCounter(int value) override {
     __atomic_fetch_sub(signals + 2, value, __ATOMIC_RELEASE);
   }
-  void addCounter(int value) override { signals[2] += value; }
+  void addCounter(int value) override {
+    __atomic_fetch_add(signals + 2, value, __ATOMIC_RELEASE);
+  }
   int getCounter() override { return signals[2]; }
   int pollStart() override {
     return __atomic_load_n(signals, __ATOMIC_ACQUIRE);
