@@ -196,7 +196,8 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
                 }
               }
             } else {
-              if (op->args.done == 1) {
+              if (op->args.done == 1 && op->args.semaphore->pollEnd()) {
+                op->args.semaphore.reset();
                 flagcxIntruQueueDelete(queue, op);
                 free(op);
               }
@@ -220,7 +221,9 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
                 }
               }
             } else {
-              if (op->args.done == 1) {
+              if (op->args.done == 1 && op->args.semaphore->pollEnd()) {
+                // update refcount and delete semaphore when refcount = 0
+                op->args.semaphore.reset();
                 flagcxIntruQueueDelete(queue, op);
                 free(op);
               }
