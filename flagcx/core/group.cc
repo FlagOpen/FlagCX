@@ -114,6 +114,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
     semaphore = std::make_shared<flagcxHostSemaphore>();
   }
   flagcxStream_t launchStream = nullptr;
+  flagcxEvent_t launchEvent = nullptr;
 
   if (groupCommPreconnectHeadMain != nullptr) {
     struct flagcxHeteroComm *comm = groupCommPreconnectHeadMain;
@@ -224,12 +225,15 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           // } else {
           op->args.semaphore = semaphore;
           op->event = semaphore->getEvent();
-          FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
           semaphore->addCounter(1);
           if (semaphore->getCounter() == 1) {
             launchStream = op->stream;
+            launchEvent = op->event;
+          } else {
+            FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
+            FLAGCXCHECK(
+                deviceAdaptor->streamWaitEvent(launchStream, op->event));
           }
-          FLAGCXCHECK(deviceAdaptor->streamWaitEvent(launchStream, op->event));
           // }
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));
           free(p2p);
@@ -298,12 +302,15 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           // } else {
           op->args.semaphore = semaphore;
           op->event = semaphore->getEvent();
-          FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
           semaphore->addCounter(1);
           if (semaphore->getCounter() == 1) {
             launchStream = op->stream;
+            launchEvent = op->event;
+          } else {
+            FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
+            FLAGCXCHECK(
+                deviceAdaptor->streamWaitEvent(launchStream, op->event));
           }
-          FLAGCXCHECK(deviceAdaptor->streamWaitEvent(launchStream, op->event));
           // }
           FLAGCXCHECK(flagcxProxySaveOp(comm, op));
           free(p2p);
@@ -349,6 +356,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
     FLAGCXCHECK(deviceAdaptor->launchHostFunc(launchStream, cpuAsyncKernel,
                                               (void *)semaphore.get()));
   }
+  FLAGCXCHECK(deviceAdaptor->eventRecord(launchEvent, launchStream));
   // deprecated code path for host func, since the previous
   // hang issue may be walked around by using zero copy
   // else {
