@@ -68,13 +68,11 @@ elif adaptor_flag == "-DUSE_METAX_ADAPTOR":
     library_dirs += ["/opt/maca/lib64"]
     libs += ["cuda", "cudart", "c10_cuda", "torch_cuda"]
 elif adaptor_flag == "-DUSE_MUSA_ADAPTOR":
-    import torch
-    pytorch_install_path = os.path.dirname(os.path.abspath(torch.__file__))
-    pytorch_library_path = os.path.join(pytorch_install_path, "../torch_musa")
-    include_dirs += [os.path.join(pytorch_install_path, "include")]
-    include_dirs += [os.path.join(pytorch_install_path, "../")]
-    include_dirs += [os.path.join(pytorch_install_path, "../torch_musa/share/generated_cuda_compatible/include")]
-    #libs += ["musa", "mudart", "c10_musa", "torch_musa"]
+    import torch_musa
+    pytorch_musa_install_path = os.path.dirname(os.path.abspath(torch_musa.__file__))
+    pytorch_library_path = os.path.join(pytorch_musa_install_path, "lib")
+    library_dirs += ['/usr/local/musa/lib/',pytorch_library_path]
+    libs += ["musa","musart"]
 elif adaptor_flag == "-DUSE_DU_ADAPTOR":
     include_dirs += ["${CUDA_PATH}/include"]
     library_dirs += ["${CUDA_PATH}/lib64"]
@@ -94,23 +92,45 @@ elif adaptor_flag == "-DUSE_AMD_ADAPTOR":
     include_dirs += ["/opt/rocm/include"]
     library_dirs += ["/opt/rocm/lib"]
     libs += ["hiprtc", "c10_hip", "torch_hip"]
-module = cpp_extension.CppExtension(
-    name='flagcx._C',
-    sources=sources,
-    include_dirs=include_dirs,
-    extra_compile_args={
-        'cxx': [adaptor_flag]
-    },
-    extra_link_args=["-Wl,-rpath,"+f"{os.path.dirname(os.path.abspath(__file__))}/../../build/lib"],
-    library_dirs=library_dirs,
-    libraries=libs,
-)
 
-setup(
-    name="flagcx",
-    version="0.1.0",
-    ext_modules=[module],
-    cmdclass={'build_ext': cpp_extension.BuildExtension},
-    packages=find_packages(),
-    entry_points={"torch.backends": ["flagcx = flagcx:init"]},
-)
+if adaptor_flag == "-DUSE_MUSA_ADAPTOR":
+    from torch_musa.utils.musa_extension import MUSAExtension, BuildExtension
+    module = MUSAExtension(
+        name='flagcx._C',
+        sources=sources,
+        include_dirs=include_dirs,
+        extra_compile_args={
+            'cxx': [adaptor_flag]
+        },
+        extra_link_args=["-Wl,-rpath,"+f"{os.path.dirname(os.path.abspath(__file__))}/../../build/lib"],
+        library_dirs=library_dirs,
+        libraries=libs,
+    )
+    setup(
+        name="flagcx",
+        version="0.1.0",
+        ext_modules=[module],
+        cmdclass={'build_ext': BuildExtension},
+        packages=find_packages(),
+        entry_points={"torch.backends": ["flagcx = flagcx:init"]},
+    )
+else:
+    module = cpp_extension.CppExtension(
+        name='flagcx._C',
+        sources=sources,
+        include_dirs=include_dirs,
+        extra_compile_args={
+            'cxx': [adaptor_flag]
+        },
+        extra_link_args=["-Wl,-rpath,"+f"{os.path.dirname(os.path.abspath(__file__))}/../../build/lib"],
+        library_dirs=library_dirs,
+        libraries=libs,
+    )
+    setup(
+        name="flagcx",
+        version="0.1.0",
+        ext_modules=[module],
+        cmdclass={'build_ext': cpp_extension.BuildExtension},
+        packages=find_packages(),
+        entry_points={"torch.backends": ["flagcx = flagcx:init"]},
+    )

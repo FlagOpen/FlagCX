@@ -22,8 +22,8 @@
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
 #elif USE_MUSA_ADAPTOR
-#include <musa_runtime.h>
-#include <torch_musa/csrc/core/MUSAEvent.h>
+#include "torch_musa/csrc/core/MUSAEvent.h"
+#include "torch_musa/csrc/core/MUSAStream.h"
 #elif USE_DU_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
