@@ -44,11 +44,12 @@ int main(int argc, char *argv[]) {
   flagcxStream_t stream;
   devHandle->streamCreate(&stream);
 
-  void *sendbuff, *recvbuff, *hello;
+  void *sendbuff, *recvbuff, *selfsendbuff, *selfrecvbuff, *hello;
   // void *sendHandle, *recvHandle;
   timer tim;
   int peerSend = (proc + 1) % totalProcs;
   int peerRecv = (proc - 1 + totalProcs) % totalProcs;
+  int selfPeer = proc;
 
   // if (local_register) {
   //   // allocate buffer
@@ -60,6 +61,8 @@ int main(int argc, char *argv[]) {
   // } else {
   devHandle->deviceMalloc(&sendbuff, max_bytes, flagcxMemDevice, NULL);
   devHandle->deviceMalloc(&recvbuff, max_bytes, flagcxMemDevice, NULL);
+  devHandle->deviceMalloc(&selfsendbuff, max_bytes, flagcxMemDevice, NULL);
+  devHandle->deviceMalloc(&selfrecvbuff, max_bytes, flagcxMemDevice, NULL);
   // }
   hello = malloc(max_bytes);
   memset(hello, 0, max_bytes);
@@ -90,9 +93,18 @@ int main(int argc, char *argv[]) {
 
     devHandle->deviceMemcpy(sendbuff, hello, size, flagcxMemcpyHostToDevice,
                             NULL);
+    devHandle->deviceMemcpy(selfsendbuff, hello, size, flagcxMemcpyHostToDevice,
+                            NULL);
 
     if (proc == 0 && color == 0 && print_buffer) {
       printf("sendbuff = ");
+      for (size_t i = 0; i + 13 <= 50; i += 13) {
+        printf("%c", ((char *)hello)[i]);
+      }
+      printf("; selfSendbuff = ");
+      memset(hello, 0, size);
+      devHandle->deviceMemcpy(hello, selfsendbuff, size, flagcxMemcpyDeviceToHost,
+                              NULL);
       for (size_t i = 0; i + 13 <= 50; i += 13) {
         printf("%c", ((char *)hello)[i]);
       }
@@ -106,6 +118,8 @@ int main(int argc, char *argv[]) {
       flagcxHeteroGroupStart();
       flagcxHeteroSend(sendbuff, size, flagcxChar, peerSend, comm, stream);
       flagcxHeteroRecv(recvbuff, size, flagcxChar, peerRecv, comm, stream);
+      flagcxHeteroSend(selfsendbuff, size, flagcxChar, selfPeer, comm, stream);
+      flagcxHeteroRecv(selfrecvbuff, size, flagcxChar, selfPeer, comm, stream);
       flagcxHeteroGroupEnd();
     }
     devHandle->streamSynchronize(stream);
@@ -135,6 +149,13 @@ int main(int argc, char *argv[]) {
       for (size_t i = 0; i + 13 <= 50; i += 13) {
         printf("%c", ((char *)hello)[i]);
       }
+      printf("; selfrecvbuff = ");
+      memset(hello, 0, size);
+      devHandle->deviceMemcpy(hello, selfrecvbuff, size, flagcxMemcpyDeviceToHost,
+                              NULL);
+      for (size_t i = 0; i + 13 <= 50; i += 13) {
+        printf("%c", ((char *)hello)[i]);
+      }
       printf("\n");
     }
   }
@@ -149,6 +170,8 @@ int main(int argc, char *argv[]) {
   // } else {
   devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
   devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
+  devHandle->deviceFree(selfsendbuff, flagcxMemDevice, NULL);
+  devHandle->deviceFree(selfrecvbuff, flagcxMemDevice, NULL);
   // }
   free(hello);
   flagcxHeteroCommDestroy(comm);
