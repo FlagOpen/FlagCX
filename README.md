@@ -1,34 +1,30 @@
 [<img src="docs/images/flagopen.png">](https://flagopen.baai.ac.cn/)
 
 ## Latest News
-- **[2025/10]** Released [v0.6](https://github.com/FlagOpen/FlagCX/tree/release/v0.6):
-  - Supported device-buffer P2P communication to achieve intra-node SendRecv operations.
-  - Introduced Device-initiated, Host-launched device-side primitives, enabling kernel-based communication directly from the device.
-  - Enhanced automatic tuning functionality, achieving up to 50% performance improvement on Metax platforms for the AllReduce operation.
 - **[2025/09]** Released [v0.5](https://github.com/FlagOpen/FlagCX/tree/release/v0.5):
-  - Added AMD support (hipAdaptor and rcclAdaptor).
-  - Introduced flagcxNetAdaptor to unify network backends, currently supporting SOCKET, IBRC, UCX and IBUC (experimently).
-  - Enabled zero-copy device-buffer RDMA (user-buffer RDMA) to boost small-message performance.
-  - Supported automatic tuning in homogeneous scenarios via flagcxTuner.
-  - Integrated automated PyTorch API tests into CI/CD.
+  - Adds AMD support (hipAdaptor and rcclAdaptor).
+  - Introduces flagcxNetAdaptor to unify network backends, currently supporting SOCKET, IBRC, UCX and IBUC (experimently).
+  - Enables zero-copy device-buffer RDMA (user-buffer RDMA) to boost small-message performance.
+  - Supports automatic tuning in homogeneous scenarios via flagcxTuner.
+  - Integrates automated PyTorch API tests into CI/CD.
 - **[2025/08]** Released [v0.4](https://github.com/FlagOpen/FlagCX/tree/release/v0.4):
-  - Supported heterogeneous training of ERNIE4.5 on Nvidia and Iluvatar GPUs with Paddle + FlagCX.
-  - Enabled more robust and flexible deployments with full support of heterogeneous communication across arbitrary NIC configurations (bug fixes). 
-  - Introduced an early experimental net plugin interface extending its support for both IBRC and SOCKET, along with the ability to register device buffers via DMA-BUF.
-  - Added an InterOp-level DSL to allow users designing customized C2C algorithms.
-  - Provided usage documentation under docs/.
+  - Supports heterogeneous training of ERNIE4.5 on Nvidia and Iluvatar GPUs with Paddle + FlagCX.
+  - Enables more robust and flexible deployments with full support of heterogeneous communication across arbitrary NIC configurations (bug fixes). 
+  - Introduces an early experimental net plugin interface extending its support for both IBRC and SOCKET, along with the ability to register device buffers via DMA-BUF.
+  - Adds an InterOp-level DSL to allow users designing customized C2C algorithms.
+  - Provides usage documentation under docs/.
 - **[2025/07]** Released [v0.3](https://github.com/FlagOpen/FlagCX/tree/release/v0.3):
-  - Integrated three additional native communication libraries: HCCL, MUSACCL and MPI.
-  - Enhanced heterogeneous collective communication operations with pipeline optimizations. 
-  - Introduced a device-side function mechanism to enable device-buffer RDMA, complementing the original host-side function mechanism.
-  - Delivered a full-stack open-source solution, FlagScale + FlagCX, for efficient heterogeneous prefilling-decoding disaggregation.
+  - Integrates three additional native communication libraries: HCCL, MUSACCL and MPI.
+  - Enhances heterogeneous collective communication operations with pipeline optimizations. 
+  - Introduces a device-side function mechanism to enable device-buffer RDMA, complementing the original host-side function mechanism.
+  - Delivers a full-stack open-source solution, FlagScale + FlagCX, for efficient heterogeneous prefilling-decoding disaggregation.
 - **[2025/05]** Released [v0.2](https://github.com/FlagOpen/FlagCX/tree/release/v0.2):
-  - Integrated three additional native communications libraries, including MCCL, XCCL and DUCCL.
-  - Improved 11 heterogeneous collective communication operations with automatic topology detection, fully supporting both single-NIC and multi-NIC environments.
+  - Integrates three additional native communications libraries, including MCCL, XCCL and DUCCL.
+  - Improves 11 heterogeneous collective communication operations with automatic topology detection, fully supporting both single-NIC and multi-NIC environments.
 - **[2025/04]** Released [v0.1](https://github.com/FlagOpen/FlagCX/tree/release/v0.1):
-  - Integrated five native communications libraries including NCCL, IXCCL, CNCL, BOOTSTRAP and GLOO.
-  - Supported 11 heterogeneous collective communication operations using the originally proposed C2C (Cluster-to-Cluster) algorithm.
-  - Provided a full-stack open-source solution, FlagScale + FlagCX, for efficient heterogeneous training.
+  - Integrates five native communications libraries including NCCL, IXCCL, CNCL, BOOTSTRAP and GLOO.
+  - Supports 11 heterogeneous collective communication operations using the originally proposed C2C (Cluster-to-Cluster) algorithm.
+  - Provides a full-stack open-source solution, FlagScale + FlagCX, for efficient heterogeneous training.
   - Natively integrated into PaddlePaddle [v3.0.0](https://github.com/PaddlePaddle/Paddle/tree/v3.0.0), with support for both dynamic and static graphs.
 
 ## About
@@ -94,8 +90,8 @@ FlagCX also integrates with upper-layer applications such as PyTorch and PaddleP
 In particular, PyTorch support is enabled via the FlagCX Torch Plugin, which provides native integration with the PyTorch distributed backend. This plugin has undergone comprehensive validation across diverse communication backends and hardware platforms, ensuring robust functionality, consistent performance, and compatibility in heterogeneous multi-chip environments, as summarized below:
 
 | FlagCX Backend   | NCCL | IXCCL | CNCL | MCCL | XCCL | DUCCL | HCCL | MUSACCL | RCCL |
-|:-----------------|:-----|:------|:-----|:-----|:-----|:------|:-----|:--------|:-----|
-| PyTorch Support  | ✓    | ✓     | ✓    | ✓    | ✓    | ✓     | ✓    | ☓       | ✓    |
+| :--------------- | :--- | ----- | ---- | ---- | ---- | ----- | ---- | ------- | ---- |
+| PyTorch  Support | ✓    | ✓     | ✓    | ✓    | ✓    | ✓     | ✓    | ✓       | ✓    |
 
 To enable heterogeneous cross-chip communication using the PyTorch DDP FlagCX backend, it is recommended to use identical PyTorch versions across all nodes. Mismatched versions may lead to initialization failures during process group setup. Further compatibility and performance tests will be conducted in future releases, and we warmly welcome community contributions to help expand and strengthen the validation matrix.
 
