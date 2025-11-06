@@ -17,6 +17,7 @@
 #include <pthread.h>
 #include <queue>
 #include <stdio.h>
+#include <vector>
 
 __thread int flagcxGroupDepth = 0;
 __thread bool flagcxGroupJobAbortFlag = false;
@@ -160,37 +161,40 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
       for (int i = 0; i < tasks->p2pOrderSteps; i++) {
         int peer = tasks->p2pOrder[i];
         if (peer == comm->rank) {
-          while (!flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue) &&
-                 !flagcxIntruQueueEmpty(&tasks->peers[peer].recvQueue)) {
-
-            flagcxTaskP2p *sendTask =
-                flagcxIntruQueueHead(&tasks->peers[peer].sendQueue);
-            flagcxTaskP2p *recvTask =
-                flagcxIntruQueueHead(&tasks->peers[peer].recvQueue);
-
-            if (sendTask->bytes != recvTask->bytes ||
-                sendTask->dtype != recvTask->dtype) {
-              break;
+          std::vector<flagcxTaskP2p*> sendTasks;
+          std::vector<flagcxTaskP2p*> recvTasks;
+          while (!flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue))
+            sendTasks.push_back(
+                flagcxIntruQueueDequeue(&tasks->peers[peer].sendQueue));
+          while (!flagcxIntruQueueEmpty(&tasks->peers[peer].recvQueue))
+            recvTasks.push_back(
+                flagcxIntruQueueDequeue(&tasks->peers[peer].recvQueue));
+          
+          for (size_t i = 0; i < sendTasks.size(); ) {
+            bool matched = false;
+            for (size_t j = 0; j < recvTasks.size(); j++) {
+              if (sendTasks[i]->bytes == recvTasks[j]->bytes &&
+                  sendTasks[i]->dtype == recvTasks[j]->dtype ) {
+                if (sendTasks[i]->buff != recvTasks[j]->buff) {
+                  FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+                      recvTasks[j]->buff, sendTasks[i]->buff, sendTasks[i]->bytes,
+                      flagcxMemcpyDeviceToDevice, sendTasks[i]->stream, NULL));
+                }
+                free(sendTasks[i]);
+                free(recvTasks[j]);
+                
+                sendTasks.erase(sendTasks.begin() + i);
+                recvTasks.erase(recvTasks.begin() + j);
+                matched = true;
+                break;
+              }
             }
-
-            sendTask = flagcxIntruQueueDequeue(&tasks->peers[peer].sendQueue);
-            recvTask = flagcxIntruQueueDequeue(&tasks->peers[peer].recvQueue);
-
-            if (sendTask->buff != recvTask->buff) {
-              FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
-                  recvTask->buff, sendTask->buff, sendTask->bytes,
-                  flagcxMemcpyDeviceToDevice, sendTask->stream, NULL));
-            }
-            free(sendTask);
-            free(recvTask);
+            if (!matched) i++;
           }
-
-          // Check for unpaired tasks
-          if (!flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue) ||
-              !flagcxIntruQueueEmpty(&tasks->peers[peer].recvQueue)) {
-            WARN("Unpaired self-send/recv tasks for rank %d", comm->rank);
-          }
-
+          for (auto* task : sendTasks)
+            flagcxIntruQueueEnqueue(&tasks->peers[peer].sendQueue, task);
+          for (auto* task : recvTasks)
+            flagcxIntruQueueEnqueue(&tasks->peers[peer].recvQueue, task);
         } else {
           // Handle cross-process send/recv: use proxy
           while (!flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue)) {
@@ -347,7 +351,19 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           }
         }
       }
-      comm->tasks.p2pOrderSteps = 0;
+      
+      // Clean up p2pOrder: remove peers with empty queues, keep peers with pending operations
+      int newOrderSteps = 0;
+      for (int i = 0; i < tasks->p2pOrderSteps; i++) {
+        int peer = tasks->p2pOrder[i];
+        // Keep peer in order if it still has pending send or recv operations
+        if (!flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue) ||
+            !flagcxIntruQueueEmpty(&tasks->peers[peer].recvQueue)) {
+          tasks->p2pOrder[newOrderSteps++] = peer;
+        }
+      }
+      tasks->p2pOrderSteps = newOrderSteps;
+      
       comm = comm->groupNext;
     } while (comm != nullptr);
   }
