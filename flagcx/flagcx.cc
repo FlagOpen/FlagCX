@@ -756,8 +756,8 @@ flagcxResult_t flagcxReduce(const void *sendbuff, void *recvbuff, size_t count,
     if (use_host_comm() || comm->has_single_rank_homo_comm) {
       // c2c validation
       if (comm->has_single_rank_homo_comm) {
-        WARN("HOST COMM IS REQUIRED TO PERFORM C2C REDUCE OP WHEN "
-             "COMM->HAS_SINGLE_RANK_HOMO_COMM IS TRUE");
+        WARN("Host comm is required to perform C2C reduce op when "
+             "comm->has_single_rank_homo_comm is True");
       }
       uint64_t timers[TIMERS_COLL_COUNT] = {0};
       timers[TIMER_COLL_TOTAL] = clockNano();

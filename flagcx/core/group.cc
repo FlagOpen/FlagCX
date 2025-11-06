@@ -349,14 +349,16 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
   //     argsQueue.pop();
   //   }
   // } else {
-  if (deviceAsyncKernel) {
-    FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(
-        launchStream, deviceAsyncKernel, (void *)semaphore->getSignals()));
-  } else {
-    FLAGCXCHECK(deviceAdaptor->launchHostFunc(launchStream, cpuAsyncKernel,
-                                              (void *)semaphore.get()));
+  if (launchStream != nullptr && launchEvent != nullptr) {
+    if (deviceAsyncKernel) {
+      FLAGCXCHECK(deviceAdaptor->launchDeviceFunc(
+          launchStream, deviceAsyncKernel, (void *)semaphore->getSignals()));
+    } else {
+      FLAGCXCHECK(deviceAdaptor->launchHostFunc(launchStream, cpuAsyncKernel,
+                                                (void *)semaphore.get()));
+    }
+    FLAGCXCHECK(deviceAdaptor->eventRecord(launchEvent, launchStream));
   }
-  FLAGCXCHECK(deviceAdaptor->eventRecord(launchEvent, launchStream));
   // deprecated code path for host func, since the previous
   // hang issue may be walked around by using zero copy
   // else {
