@@ -81,12 +81,16 @@ int main(int argc, char *argv[]) {
   void *testdata2 = malloc(200);
   memset(testdata1, 0xAA, 100);
   memset(testdata2, 0xBB, 200);
-  devHandle->deviceMemcpy(selfsendbuff1, testdata1, 100, flagcxMemcpyHostToDevice, NULL);
-  devHandle->deviceMemcpy(selfsendbuff2, testdata2, 200, flagcxMemcpyHostToDevice, NULL);
+  devHandle->deviceMemcpy(selfsendbuff1, testdata1, 100,
+                          flagcxMemcpyHostToDevice, NULL);
+  devHandle->deviceMemcpy(selfsendbuff2, testdata2, 200,
+                          flagcxMemcpyHostToDevice, NULL);
   memset(testdata1, 0, 100);
   memset(testdata2, 0, 200);
-  devHandle->deviceMemcpy(selfrecvbuff1, testdata1, 100, flagcxMemcpyHostToDevice, NULL);
-  devHandle->deviceMemcpy(selfrecvbuff2, testdata2, 200, flagcxMemcpyHostToDevice, NULL);
+  devHandle->deviceMemcpy(selfrecvbuff1, testdata1, 100,
+                          flagcxMemcpyHostToDevice, NULL);
+  devHandle->deviceMemcpy(selfrecvbuff2, testdata2, 200,
+                          flagcxMemcpyHostToDevice, NULL);
 
   for (size_t size = min_bytes; size <= max_bytes; size *= step_factor) {
 
@@ -104,17 +108,19 @@ int main(int argc, char *argv[]) {
       }
       printf("\n");
       memset(testdata1, 0, 100);
-      devHandle->deviceMemcpy(testdata1, selfsendbuff1, 100, flagcxMemcpyDeviceToHost, NULL);
+      devHandle->deviceMemcpy(testdata1, selfsendbuff1, 100,
+                              flagcxMemcpyDeviceToHost, NULL);
       printf("selfsendbuff1 = ");
       for (int i = 0; i < 10; i++) {
-        printf("0x%02X ", ((unsigned char*)testdata1)[i]);
+        printf("0x%02X ", ((unsigned char *)testdata1)[i]);
       }
       printf("\n");
       memset(testdata2, 0, 200);
-      devHandle->deviceMemcpy(testdata2, selfsendbuff2, 200, flagcxMemcpyDeviceToHost, NULL);
+      devHandle->deviceMemcpy(testdata2, selfsendbuff2, 200,
+                              flagcxMemcpyDeviceToHost, NULL);
       printf("selfsendbuff2 = ");
       for (int i = 0; i < 10; i++) {
-        printf("0x%02X ", ((unsigned char*)testdata2)[i]);
+        printf("0x%02X ", ((unsigned char *)testdata2)[i]);
       }
       printf("\n");
     }
@@ -134,8 +140,10 @@ int main(int argc, char *argv[]) {
     }
     devHandle->streamSynchronize(stream);
 
-    devHandle->deviceMemcpy(testdata1, selfrecvbuff1, 100, flagcxMemcpyDeviceToHost, NULL);
-    devHandle->deviceMemcpy(testdata2, selfrecvbuff2, 200, flagcxMemcpyDeviceToHost, NULL);
+    devHandle->deviceMemcpy(testdata1, selfrecvbuff1, 100,
+                            flagcxMemcpyDeviceToHost, NULL);
+    devHandle->deviceMemcpy(testdata2, selfrecvbuff2, 200,
+                            flagcxMemcpyDeviceToHost, NULL);
     double elapsed_time = tim.elapsed() / num_iters;
     MPI_Allreduce(MPI_IN_PLACE, (void *)&elapsed_time, 1, MPI_DOUBLE, MPI_SUM,
                   MPI_COMM_WORLD);
@@ -155,24 +163,27 @@ int main(int argc, char *argv[]) {
 
     if (proc == 0 && color == 0 && print_buffer) {
       memset(hello, 0, size);
-      devHandle->deviceMemcpy(hello, recvbuff, size, flagcxMemcpyDeviceToHost, NULL);
+      devHandle->deviceMemcpy(hello, recvbuff, size, flagcxMemcpyDeviceToHost,
+                              NULL);
       printf("recvbuff = ");
       for (size_t i = 0; i + 13 <= 50; i += 13) {
         printf("%c", ((char *)hello)[i]);
       }
       printf("\n");
       memset(testdata1, 0, 100);
-      devHandle->deviceMemcpy(testdata1, selfrecvbuff1, 100, flagcxMemcpyDeviceToHost, NULL);
+      devHandle->deviceMemcpy(testdata1, selfrecvbuff1, 100,
+                              flagcxMemcpyDeviceToHost, NULL);
       printf("selfrecvbuff1 = ");
       for (int i = 0; i < 10; i++) {
-        printf("0x%02X ", ((unsigned char*)testdata1)[i]);
+        printf("0x%02X ", ((unsigned char *)testdata1)[i]);
       }
       printf("\n");
       memset(testdata2, 0, 200);
-      devHandle->deviceMemcpy(testdata2, selfrecvbuff2, 200, flagcxMemcpyDeviceToHost, NULL);
+      devHandle->deviceMemcpy(testdata2, selfrecvbuff2, 200,
+                              flagcxMemcpyDeviceToHost, NULL);
       printf("selfrecvbuff2 = ");
       for (int i = 0; i < 10; i++) {
-        printf("0x%02X ", ((unsigned char*)testdata2)[i]);
+        printf("0x%02X ", ((unsigned char *)testdata2)[i]);
       }
       printf("\n");
     }

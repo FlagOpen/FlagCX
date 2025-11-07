@@ -232,7 +232,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
                 launchStream = op->stream;
                 semaphore->counter++;
               } else {
-                FLAGCXCHECK(deviceAdaptor->streamWaitEvent(launchStream, op->event));
+                FLAGCXCHECK(
+                    deviceAdaptor->streamWaitEvent(launchStream, op->event));
               }
             }
             FLAGCXCHECK(flagcxProxySaveOp(comm, op));
@@ -308,58 +309,64 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
                 launchStream = op->stream;
                 semaphore->counter++;
               } else {
-                FLAGCXCHECK(deviceAdaptor->streamWaitEvent(launchStream, op->event));
+                FLAGCXCHECK(
+                    deviceAdaptor->streamWaitEvent(launchStream, op->event));
               }
             }
             FLAGCXCHECK(flagcxProxySaveOp(comm, op));
             free(p2p);
           }
         } else {
-          std::vector<flagcxTaskP2p*> sendTasks;
-          std::vector<flagcxTaskP2p*> recvTasks;
+          std::vector<flagcxTaskP2p *> sendTasks;
+          std::vector<flagcxTaskP2p *> recvTasks;
           while (!flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue))
             sendTasks.push_back(
                 flagcxIntruQueueDequeue(&tasks->peers[peer].sendQueue));
           while (!flagcxIntruQueueEmpty(&tasks->peers[peer].recvQueue))
             recvTasks.push_back(
                 flagcxIntruQueueDequeue(&tasks->peers[peer].recvQueue));
-          
-          for (size_t i = 0; i < sendTasks.size(); ) {
+
+          for (size_t i = 0; i < sendTasks.size();) {
             bool matched = false;
             for (size_t j = 0; j < recvTasks.size(); j++) {
               if (sendTasks[i]->bytes == recvTasks[j]->bytes &&
                   sendTasks[i]->dtype == recvTasks[j]->dtype) {
                 if (sendTasks[i]->buff != recvTasks[j]->buff) {
                   flagcxEvent_t selfEvent = semaphore->getEvent();
-                  FLAGCXCHECK(deviceAdaptor->eventRecord(selfEvent, sendTasks[i]->stream));
+                  FLAGCXCHECK(deviceAdaptor->eventRecord(selfEvent,
+                                                         sendTasks[i]->stream));
                   if (launchStream == nullptr) {
                     launchStream = sendTasks[i]->stream;
                   } else {
-                    FLAGCXCHECK(deviceAdaptor->streamWaitEvent(launchStream, selfEvent));
+                    FLAGCXCHECK(deviceAdaptor->streamWaitEvent(launchStream,
+                                                               selfEvent));
                   }
-                  
+
                   FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
-                      recvTasks[j]->buff, sendTasks[i]->buff, sendTasks[i]->bytes,
-                      flagcxMemcpyDeviceToDevice, sendTasks[i]->stream, NULL));
+                      recvTasks[j]->buff, sendTasks[i]->buff,
+                      sendTasks[i]->bytes, flagcxMemcpyDeviceToDevice,
+                      sendTasks[i]->stream, NULL));
                 }
                 free(sendTasks[i]);
                 free(recvTasks[j]);
-                
+
                 sendTasks.erase(sendTasks.begin() + i);
                 recvTasks.erase(recvTasks.begin() + j);
                 matched = true;
                 break;
               }
             }
-            if (!matched) i++;
+            if (!matched)
+              i++;
           }
-          for (auto* task : sendTasks)
+          for (auto *task : sendTasks)
             flagcxIntruQueueEnqueue(&tasks->peers[peer].sendQueue, task);
-          for (auto* task : recvTasks)
+          for (auto *task : recvTasks)
             flagcxIntruQueueEnqueue(&tasks->peers[peer].recvQueue, task);
         }
       }
-      // Clean up p2pOrder: remove peers with empty queues, keep peers with pending operations
+      // Clean up p2pOrder: remove peers with empty queues, keep peers with
+      // pending operations
       int newOrderSteps = 0;
       for (int i = 0; i < tasks->p2pOrderSteps; i++) {
         int peer = tasks->p2pOrder[i];
@@ -370,7 +377,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
         }
       }
       tasks->p2pOrderSteps = newOrderSteps;
-      
+
       comm = comm->groupNext;
     } while (comm != nullptr);
   }
