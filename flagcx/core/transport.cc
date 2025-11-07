@@ -33,6 +33,9 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
         struct flagcxConnector *conn =
             comm->channels[c].peers[peer]->recv + connIndex;
         if (sameNode) {
+          INFO(FLAGCX_INIT,
+               "P2P Recv setup: rank %d <- peer %d channel %d (same node)",
+               comm->rank, peer, c);
           FLAGCXCHECK(flagcxCalloc(&conn->proxyConn.connection, 1));
           struct flagcxP2pResources *resources;
           FLAGCXCHECK(flagcxCalloc(&resources, 1));
@@ -56,6 +59,9 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           FLAGCXCHECK(bootstrapSend(comm->bootstrap, peer, 2000 + c,
                                     &connectInfo, sizeof(connectInfo)));
         } else {
+          INFO(FLAGCX_INIT,
+               "NET Recv setup: rank %d <- peer %d channel %d (different node)",
+               comm->rank, peer, c);
           FLAGCXCHECK(flagcxCalloc(&conn->proxyConn.connection, 1));
           struct recvNetResources *resources;
           FLAGCXCHECK(flagcxCalloc(&resources, 1));
@@ -96,6 +102,9 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
             comm->channels[c].peers[peer]->send + connIndex;
 
         if (sameNode) {
+          INFO(FLAGCX_INIT,
+               "P2P Send setup: rank %d -> peer %d channel %d (same node)",
+               comm->rank, peer, c);
           FLAGCXCHECK(flagcxCalloc(&conn->proxyConn.connection, 1));
           struct flagcxP2pResources *resources;
           FLAGCXCHECK(flagcxCalloc(&resources, 1));
@@ -122,7 +131,6 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           INFO(FLAGCX_INIT,
                "NET Send setup: rank %d -> peer %d channel %d (different node)",
                comm->rank, peer, c);
-
           FLAGCXCHECK(flagcxCalloc(&conn->proxyConn.connection, 1));
           struct sendNetResources *resources;
           FLAGCXCHECK(flagcxCalloc(&resources, 1));

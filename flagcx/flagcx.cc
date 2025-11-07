@@ -469,7 +469,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
                                    &((*comm)->homo_comm)));
   }
 
-  if (!isHomoComm(*comm)) {
+  if (!isHomoComm(*comm) || useHeteroComm()) {
     // Reset commId and hetero root rank calls flagcxHeteroGetUniqueId
     memset((void *)commId, 0, sizeof(flagcxUniqueId));
     memset((void *)uniqueIdData, 0, nranks * sizeof(flagcxUniqueId));
@@ -493,7 +493,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     }
   }
 
-  if (!isHomoComm(*comm)) {
+  if (!isHomoComm(*comm) || useHeteroComm()) {
     // Experimental for multi-nic support
     // Collect nic distance to ranks
     (*comm)->clusterInterRankList.resize((*comm)->nclusters);
@@ -1845,7 +1845,6 @@ flagcxResult_t flagcxGroupStart(flagcxComm_t comm) {
     FLAGCXCHECK(flagcxHeteroGroupStart());
   } else if (isHomoComm(comm)) {
     FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->groupStart());
-    FLAGCXCHECK(flagcxHeteroGroupStart());
   } else if (useHostComm()) {
     FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorHost]->groupStart());
   } else {
@@ -1858,7 +1857,7 @@ flagcxResult_t flagcxGroupEnd(flagcxComm_t comm) {
   if (useHeteroComm()) {
     FLAGCXCHECK(flagcxHeteroGroupEnd());
   } else if (isHomoComm(comm)) {
-    FLAGCXCHECK(flagcxHeteroGroupEnd());
+    FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd());
   } else if (useHostComm()) {
     FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorHost]->groupEnd());
   } else {

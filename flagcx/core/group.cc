@@ -227,10 +227,10 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
             } else {
               op->args.semaphore = semaphore;
               op->event = semaphore->getEvent();
+              semaphore->counter++;
               FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
               if (launchStream == nullptr) {
                 launchStream = op->stream;
-                semaphore->counter++;
               } else {
                 FLAGCXCHECK(
                     deviceAdaptor->streamWaitEvent(launchStream, op->event));
@@ -304,10 +304,10 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
             } else {
               op->args.semaphore = semaphore;
               op->event = semaphore->getEvent();
+              semaphore->counter++;
               FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
               if (launchStream == nullptr) {
                 launchStream = op->stream;
-                semaphore->counter++;
               } else {
                 FLAGCXCHECK(
                     deviceAdaptor->streamWaitEvent(launchStream, op->event));
