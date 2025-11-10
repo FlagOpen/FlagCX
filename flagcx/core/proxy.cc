@@ -127,12 +127,13 @@ flagcxResult_t flagcxProxySaveOp(struct flagcxHeteroComm *comm,
         op->selfCopy = 1;
       FLAGCXCHECK(
           SaveProxy(comm, channel, proxySend, op->root, op, 0, justInquire));
-    case flagcxPatternRecv: {
+      break;
+    case flagcxPatternRecv:
       if (op->root == comm->rank)
         return flagcxSuccess;
       FLAGCXCHECK(
           SaveProxy(comm, channel, proxyRecv, op->root, op, 0, justInquire));
-    } break;
+      break;
   }
   return flagcxSuccess;
 }
