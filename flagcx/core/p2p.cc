@@ -11,7 +11,7 @@ static std::map<int, std::pair<int, int>>
 void setP2pSlotInfo(int rank, int peerRank, size_t size, flagcxDataType_t dtype,
                     int isRecv, int *opHash, size_t *slotIdx) {
   // TODO: try a better hash function to reduce collisions
-  int key = rank * 1000 + int(size >> 12) + dtype * 100 + peerRank;
+  int key = rank * 1000 + int(size >> 12) + dtype * 10 + peerRank * 100;
   int opHashCounter;
   auto it = p2pOpHashMap.find(key);
   if (it != p2pOpHashMap.end()) {

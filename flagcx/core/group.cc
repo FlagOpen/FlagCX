@@ -113,7 +113,9 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
   // and a stream to launch host or device func
   std::shared_ptr<flagcxHostSemaphore> semaphore =
       std::make_shared<flagcxHostSemaphore>();
-  flagcxStream_t launchStream = nullptr;
+  flagcxStream_t hostFuncStream = nullptr;
+  flagcxStream_t selfCopyStream = nullptr;
+  flagcxEvent_t selfCopyEvent = nullptr;
 
   if (groupCommPreconnectHeadMain != nullptr) {
     struct flagcxHeteroComm *comm = groupCommPreconnectHeadMain;
@@ -200,9 +202,11 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
             // launch proxyRegister op if not yet registered
             flagcxConnector *peerConns[] = {
                 comm->channels[op->channelId].peers[peer]->send};
-            FLAGCXCHECK(flagcxNetRegisterBuffer(
-                comm, p2p->buff, p2p->bytes, peerConns, 1, &op->args.regBufFlag,
-                &op->args.regHandle));
+            if (op->connection->transport == TRANSPORT_NET) {
+              FLAGCXCHECK(flagcxNetRegisterBuffer(
+                  comm, p2p->buff, p2p->bytes, peerConns, 1,
+                  &op->args.regBufFlag, &op->args.regHandle));
+            }
             // we don't use semaphore tracking for device func for the moment
             if (deviceAsyncLoad && deviceAsyncStore) {
               FLAGCXCHECK(deviceAdaptor->eventCreate(&op->event,
@@ -229,11 +233,11 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
               op->event = semaphore->getEvent();
               semaphore->counter++;
               FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
-              if (launchStream == nullptr) {
-                launchStream = op->stream;
+              if (hostFuncStream == nullptr) {
+                hostFuncStream = op->stream;
               } else {
                 FLAGCXCHECK(
-                    deviceAdaptor->streamWaitEvent(launchStream, op->event));
+                    deviceAdaptor->streamWaitEvent(hostFuncStream, op->event));
               }
             }
             FLAGCXCHECK(flagcxProxySaveOp(comm, op));
@@ -277,9 +281,11 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
             // launch proxyRegister op if not yet registered
             flagcxConnector *peerConns[] = {
                 comm->channels[op->channelId].peers[peer]->recv};
-            FLAGCXCHECK(flagcxNetRegisterBuffer(
-                comm, p2p->buff, p2p->bytes, peerConns, 1, &op->args.regBufFlag,
-                &op->args.regHandle));
+            if (op->connection->transport == TRANSPORT_NET) {
+              FLAGCXCHECK(flagcxNetRegisterBuffer(
+                  comm, p2p->buff, p2p->bytes, peerConns, 1,
+                  &op->args.regBufFlag, &op->args.regHandle));
+            }
             // we don't use semaphore tracking for device func for the moment
             if (deviceAsyncLoad && deviceAsyncStore) {
               std::vector<void *> argList;
@@ -306,11 +312,11 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
               op->event = semaphore->getEvent();
               semaphore->counter++;
               FLAGCXCHECK(deviceAdaptor->eventRecord(op->event, op->stream));
-              if (launchStream == nullptr) {
-                launchStream = op->stream;
+              if (hostFuncStream == nullptr) {
+                hostFuncStream = op->stream;
               } else {
                 FLAGCXCHECK(
-                    deviceAdaptor->streamWaitEvent(launchStream, op->event));
+                    deviceAdaptor->streamWaitEvent(hostFuncStream, op->event));
               }
             }
             FLAGCXCHECK(flagcxProxySaveOp(comm, op));
@@ -332,24 +338,23 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
               if (sendTasks[i]->bytes == recvTasks[j]->bytes &&
                   sendTasks[i]->dtype == recvTasks[j]->dtype) {
                 if (sendTasks[i]->buff != recvTasks[j]->buff) {
-                  flagcxEvent_t selfEvent = semaphore->getEvent();
-                  FLAGCXCHECK(deviceAdaptor->eventRecord(selfEvent,
-                                                         sendTasks[i]->stream));
-                  if (launchStream == nullptr) {
-                    launchStream = sendTasks[i]->stream;
-                  } else {
-                    FLAGCXCHECK(deviceAdaptor->streamWaitEvent(launchStream,
-                                                               selfEvent));
-                  }
-
                   FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
                       recvTasks[j]->buff, sendTasks[i]->buff,
                       sendTasks[i]->bytes, flagcxMemcpyDeviceToDevice,
                       sendTasks[i]->stream, NULL));
+                  flagcxEvent_t selfCopySubEvent = semaphore->getEvent();
+                  if (selfCopyStream == nullptr) {
+                    selfCopyStream = sendTasks[i]->stream;
+                    selfCopyEvent = selfCopySubEvent;
+                  } else {
+                    FLAGCXCHECK(deviceAdaptor->eventRecord(
+                        selfCopySubEvent, sendTasks[i]->stream));
+                    FLAGCXCHECK(deviceAdaptor->streamWaitEvent(
+                        selfCopyStream, selfCopySubEvent));
+                  }
                 }
                 free(sendTasks[i]);
                 free(recvTasks[j]);
-
                 sendTasks.erase(sendTasks.begin() + i);
                 recvTasks.erase(recvTasks.begin() + j);
                 matched = true;
@@ -377,7 +382,6 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
         }
       }
       tasks->p2pOrderSteps = newOrderSteps;
-
       comm = comm->groupNext;
     } while (comm != nullptr);
   }
@@ -409,8 +413,15 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
       argsQueue.pop();
     }
   } else {
-    FLAGCXCHECK(deviceAdaptor->launchHostFunc(launchStream, cpuAsyncKernel,
-                                              (void *)semaphore.get()));
+    if (hostFuncStream != nullptr) {
+      FLAGCXCHECK(deviceAdaptor->launchHostFunc(hostFuncStream, cpuAsyncKernel,
+                                                (void *)semaphore.get()));
+      if (selfCopyStream != nullptr) {
+        FLAGCXCHECK(deviceAdaptor->eventRecord(selfCopyEvent, selfCopyStream));
+        FLAGCXCHECK(
+            deviceAdaptor->streamWaitEvent(hostFuncStream, selfCopyEvent));
+      }
+    }
   }
   // deprecated code path for host func, since the previous
   // hang issue may be walked around by using zero copy
