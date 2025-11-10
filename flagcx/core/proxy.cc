@@ -407,8 +407,10 @@ static flagcxResult_t expectedProxyResponseStore(struct flagcxProxyState *state,
         return flagcxInternalError;
       }
 
-      memcpy(elem->respBuff, respBuff, respSize);
-      free(respBuff);
+      if (respSize > 0 && respBuff != NULL) {
+        memcpy(elem->respBuff, respBuff, respSize);
+        free(respBuff);
+      }
       elem->done = true;
       elem->res = res;
       return flagcxSuccess;
@@ -731,7 +733,8 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
           resources->netAdaptor->deregMr(resources->netRecvComm, handle));
     }
     done = 1;
-  } else if (op->type == flagcxProxyMsgSetup) {
+  } else if (op->type == flagcxProxyMsgSetup &&
+             op->connection->transport == TRANSPORT_P2P) {
     if (op->connection->send) {
       // P2P Send side setup
       INFO(FLAGCX_PROXY, "Calling flagcxP2pSendProxySetup");
@@ -753,8 +756,11 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
          "proxyProgressAsync opId=%p op.type=%d op.reqBuff=%p op.respSize=%d "
          "done",
          op->opId, op->type, op->reqBuff, op->respSize);
-    if (op->type == flagcxProxyMsgConnect)
-      __atomic_store_n(&op->connection->state, connConnected, __ATOMIC_RELEASE);
+    if (op->connection->transport == TRANSPORT_NET) {
+      if (op->type == flagcxProxyMsgConnect)
+        __atomic_store_n(&op->connection->state, connConnected,
+                         __ATOMIC_RELEASE);
+    }
 
     /* if setup or connect is done, we should not return any error at this point
      * since flagcxSocketSend might already send the respBuff to the requester.

@@ -322,7 +322,32 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
             FLAGCXCHECK(flagcxProxySaveOp(comm, op));
             free(p2p);
           }
-        } else {
+        }
+      }
+      // Clean up p2pOrder: remove peers with empty queues, keep peers with
+      // pending operations
+      int newOrderSteps = 0;
+      for (int i = 0; i < tasks->p2pOrderSteps; i++) {
+        int peer = tasks->p2pOrder[i];
+        // Keep peer in order if it still has pending send or recv operations
+        if (!flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue) ||
+            !flagcxIntruQueueEmpty(&tasks->peers[peer].recvQueue)) {
+          tasks->p2pOrder[newOrderSteps++] = peer;
+        }
+      }
+      tasks->p2pOrderSteps = newOrderSteps;
+      comm = comm->groupNext;
+    } while (comm != nullptr);
+  }
+
+  if (groupCommHeadMain != nullptr) {
+    struct flagcxHeteroComm *comm = groupCommHeadMain;
+    // post all send/recv tasks
+    do {
+      flagcxTasks *tasks = &comm->tasks;
+      for (int i = 0; i < tasks->p2pOrderSteps; i++) {
+        int peer = tasks->p2pOrder[i];
+        if (peer == comm->rank) {
           std::vector<flagcxTaskP2p *> sendTasks;
           std::vector<flagcxTaskP2p *> recvTasks;
           while (!flagcxIntruQueueEmpty(&tasks->peers[peer].sendQueue))
