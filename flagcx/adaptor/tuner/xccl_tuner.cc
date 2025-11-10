@@ -13,9 +13,6 @@ static EnvVar treeEnable("BKCL_ENABLE_TREE", {"0", "1"}, "0");
 static EnvVar treeThreshold("BKCL_MULTI_TREE_THRESHOLD", {"1048576", "2097152"},
                             "1048576");
 
-static EnvVar
-
-    std::vector<EnvVar>
-        xcclTunerVars = {xdrEnable, l3Rdma, rdmaVerbs, treeEnable,
-                         treeThreshold};
+std::vector<EnvVar> xcclTunerVars = {xdrEnable, l3Rdma, rdmaVerbs, treeEnable,
+                                     treeThreshold};
 #endif // USE_KUNLUNXIN_ADAPTOR
