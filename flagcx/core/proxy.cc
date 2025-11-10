@@ -122,13 +122,16 @@ flagcxResult_t flagcxProxySaveOp(struct flagcxHeteroComm *comm,
     *justInquire = false;
   switch (op->pattern) {
     case flagcxPatternSend:
+      // Self-copy will be saved as a send operation
+      if (op->root == comm->rank)
+        op->selfCopy = 1;
+      FLAGCXCHECK(
+          SaveProxy(comm, channel, proxySend, op->root, op, 0, justInquire));
     case flagcxPatternRecv: {
       if (op->root == comm->rank)
         return flagcxSuccess;
       FLAGCXCHECK(
-          SaveProxy(comm, channel,
-                    op->pattern == flagcxPatternSend ? proxySend : proxyRecv,
-                    op->root, op, 0, justInquire));
+          SaveProxy(comm, channel, proxyRecv, op->root, op, 0, justInquire));
     } break;
   }
   return flagcxSuccess;
@@ -207,8 +210,13 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
             } else if (op->connection->transport == TRANSPORT_P2P) {
               struct flagcxP2pResources *resources =
                   (flagcxP2pResources *)op->connection->transportResources;
-              flagcxP2pProxySend(resources, op->recvbuff, op->nbytes,
-                                 &op->args);
+              if (op->selfCopy == 0) {
+                flagcxP2pProxySend(resources, op->recvbuff, op->nbytes,
+                                   &op->args);
+              } else {
+                flagcxP2pProxySelfCopy(resources, op->sendbuff, op->recvbuff,
+                                       op->nbytes, &op->args);
+              }
               if (deviceAsyncLoad && deviceAsyncStore) {
                 if (op->args.done == 1 && op->args.eventRecorded) {
                   if (deviceAdaptor->eventQuery(op->event) == flagcxSuccess) {
