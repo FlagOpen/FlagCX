@@ -1168,7 +1168,7 @@ ib_recv_ready:
     rComm->retrans.enabled = 0;
   }
 
-  // Initialize SRQ with recv buffers (similar to UCCL)
+  // Initialize SRQ with recv buffers
   if (rComm->retrans.enabled && rComm->srqMgr.srq != NULL) {
     rComm->srqMgr.postSrqCount = FLAGCX_IB_SRQ_SIZE;
 

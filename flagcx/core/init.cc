@@ -214,6 +214,7 @@ static flagcxResult_t flagcxCommInitRankFunc(struct flagcxAsyncJob *job_) {
       FLAGCXCHECK(flagcxProxyInit(comm));
     }
   }
+
   FLAGCXCHECK(flagcxNetInit(comm));
   INFO(FLAGCX_INIT, "Using network %s", comm->netAdaptor->name);
   if (env && (strcmp(env, "TRUE") == 0 || strcmp(env, "True") == 0)) {

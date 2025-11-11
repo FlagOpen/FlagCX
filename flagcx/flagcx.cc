@@ -11,6 +11,7 @@
 #include "flagcx_tuner.h"
 #include "launch_kernel.h"
 #include "param.h"
+#include "proxy.h"
 #include "reg_pool.h"
 
 #include "timer.h"
@@ -426,6 +427,9 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
   INFO(FLAGCX_INIT, "Flagcx USE_TUNER flag set to %d", useTuner);
   if (useTuner) {
     (*comm)->tuner = &internalTuner;
+    (*comm)->tuner->bootstrap = state;
+    (*comm)->tuner->rank = rank;
+    (*comm)->tuner->nranks = nranks;
     FLAGCXCHECK((*comm)->tuner->init((*comm)->nranks, 0, flagcxDebugLog,
                                      &((*comm)->tunerContext)));
     uint32_t nConfigs = 0;
@@ -696,6 +700,14 @@ flagcxResult_t flagcxCommUserRank(const flagcxComm_t comm, int *rank) {
                                                              rank);
   }
   return flagcxHeteroCommUserRank(comm->hetero_comm, rank);
+}
+
+flagcxResult_t flagcxCommFifoBuffer(const flagcxComm_t comm, void **buffer) {
+  if (comm->hetero_comm->fifoBuffer == NULL) {
+    return flagcxInvalidUsage;
+  }
+  *buffer = comm->hetero_comm->fifoBuffer;
+  return flagcxSuccess;
 }
 
 flagcxResult_t flagcxCommGetAsyncError(flagcxComm_t comm,

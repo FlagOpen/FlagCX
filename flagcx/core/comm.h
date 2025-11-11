@@ -9,6 +9,7 @@
 
 #include "bootstrap.h"
 #include "device.h"
+#include "flagcx_kernel.h"
 #include "flagcx_net.h"
 #include "flagcx_tuner.h"
 #include "info.h"
@@ -342,6 +343,8 @@ struct flagcxHeteroComm {
   struct flagcxRegCache regCache;
   uint64_t groupHash;
   uint64_t endMagic;
+  // Kernel FIFO buffer for device side communication
+  void *fifoBuffer;
 };
 
 typedef struct flagcxHeteroComm *flagcxHeteroComm_t;

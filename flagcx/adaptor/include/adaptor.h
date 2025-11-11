@@ -7,6 +7,7 @@
 #define FLAGCX_ADAPTOR_H_
 
 #include "bootstrap.h"
+#include "device_utils.h"
 #include "flagcx.h"
 #include "global_comm.h"
 #include "topo.h"
