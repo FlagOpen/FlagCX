@@ -15,7 +15,6 @@ int main(int argc, char *argv[]) {
   int num_iters = args.getTestIters();
   int print_buffer = args.isPrintBuffer();
   uint64_t split_mask = args.getSplitMask();
-  // int local_register = args.getLocalRegister();
 
   flagcxHandlerGroup_t handler;
   flagcxHandleInit(&handler);
@@ -45,22 +44,19 @@ int main(int argc, char *argv[]) {
   devHandle->streamCreate(&stream);
 
   void *sendbuff, *recvbuff, *hello;
-  // void *sendHandle, *recvHandle;
+  void *selfsendbuff1, *selfsendbuff2;
+  void *selfrecvbuff1, *selfrecvbuff2;
   timer tim;
   int peerSend = (proc + 1) % totalProcs;
   int peerRecv = (proc - 1 + totalProcs) % totalProcs;
+  int selfPeer = proc;
 
-  // if (local_register) {
-  //   // allocate buffer
-  //   flagcxMemAlloc(&sendbuff, max_bytes);
-  //   flagcxMemAlloc(&recvbuff, max_bytes);
-  //   // register buffer
-  //   flagcxCommRegister(comm, sendbuff, max_bytes, &sendHandle);
-  //   flagcxCommRegister(comm, recvbuff, max_bytes, &recvHandle);
-  // } else {
   devHandle->deviceMalloc(&sendbuff, max_bytes, flagcxMemDevice, NULL);
   devHandle->deviceMalloc(&recvbuff, max_bytes, flagcxMemDevice, NULL);
-  // }
+  devHandle->deviceMalloc(&selfsendbuff1, 100, flagcxMemDevice, NULL);
+  devHandle->deviceMalloc(&selfsendbuff2, 200, flagcxMemDevice, NULL);
+  devHandle->deviceMalloc(&selfrecvbuff1, 100, flagcxMemDevice, NULL);
+  devHandle->deviceMalloc(&selfrecvbuff2, 200, flagcxMemDevice, NULL);
   hello = malloc(max_bytes);
   memset(hello, 0, max_bytes);
 
@@ -81,6 +77,20 @@ int main(int argc, char *argv[]) {
     flagcxHeteroGroupEnd();
   }
   devHandle->streamSynchronize(stream);
+  void *testdata1 = malloc(100);
+  void *testdata2 = malloc(200);
+  memset(testdata1, 0xAA, 100);
+  memset(testdata2, 0xBB, 200);
+  devHandle->deviceMemcpy(selfsendbuff1, testdata1, 100,
+                          flagcxMemcpyHostToDevice, NULL);
+  devHandle->deviceMemcpy(selfsendbuff2, testdata2, 200,
+                          flagcxMemcpyHostToDevice, NULL);
+  memset(testdata1, 0, 100);
+  memset(testdata2, 0, 200);
+  devHandle->deviceMemcpy(selfrecvbuff1, testdata1, 100,
+                          flagcxMemcpyHostToDevice, NULL);
+  devHandle->deviceMemcpy(selfrecvbuff2, testdata2, 200,
+                          flagcxMemcpyHostToDevice, NULL);
 
   for (size_t size = min_bytes; size <= max_bytes; size *= step_factor) {
 
@@ -97,6 +107,22 @@ int main(int argc, char *argv[]) {
         printf("%c", ((char *)hello)[i]);
       }
       printf("\n");
+      memset(testdata1, 0, 100);
+      devHandle->deviceMemcpy(testdata1, selfsendbuff1, 100,
+                              flagcxMemcpyDeviceToHost, NULL);
+      printf("selfsendbuff1 = ");
+      for (int i = 0; i < 10; i++) {
+        printf("0x%02X ", ((unsigned char *)testdata1)[i]);
+      }
+      printf("\n");
+      memset(testdata2, 0, 200);
+      devHandle->deviceMemcpy(testdata2, selfsendbuff2, 200,
+                              flagcxMemcpyDeviceToHost, NULL);
+      printf("selfsendbuff2 = ");
+      for (int i = 0; i < 10; i++) {
+        printf("0x%02X ", ((unsigned char *)testdata2)[i]);
+      }
+      printf("\n");
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -106,10 +132,18 @@ int main(int argc, char *argv[]) {
       flagcxHeteroGroupStart();
       flagcxHeteroSend(sendbuff, size, flagcxChar, peerSend, comm, stream);
       flagcxHeteroRecv(recvbuff, size, flagcxChar, peerRecv, comm, stream);
+      flagcxHeteroSend(selfsendbuff1, 100, flagcxChar, selfPeer, comm, stream);
+      flagcxHeteroSend(selfsendbuff2, 200, flagcxChar, selfPeer, comm, stream);
+      flagcxHeteroRecv(selfrecvbuff2, 200, flagcxChar, selfPeer, comm, stream);
+      flagcxHeteroRecv(selfrecvbuff1, 100, flagcxChar, selfPeer, comm, stream);
       flagcxHeteroGroupEnd();
     }
     devHandle->streamSynchronize(stream);
 
+    devHandle->deviceMemcpy(testdata1, selfrecvbuff1, 100,
+                            flagcxMemcpyDeviceToHost, NULL);
+    devHandle->deviceMemcpy(testdata2, selfrecvbuff2, 200,
+                            flagcxMemcpyDeviceToHost, NULL);
     double elapsed_time = tim.elapsed() / num_iters;
     MPI_Allreduce(MPI_IN_PLACE, (void *)&elapsed_time, 1, MPI_DOUBLE, MPI_SUM,
                   MPI_COMM_WORLD);
@@ -127,13 +161,29 @@ int main(int argc, char *argv[]) {
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    memset(hello, 0, size);
-    devHandle->deviceMemcpy(hello, recvbuff, size, flagcxMemcpyDeviceToHost,
-                            NULL);
     if (proc == 0 && color == 0 && print_buffer) {
+      memset(hello, 0, size);
+      devHandle->deviceMemcpy(hello, recvbuff, size, flagcxMemcpyDeviceToHost,
+                              NULL);
       printf("recvbuff = ");
       for (size_t i = 0; i + 13 <= 50; i += 13) {
         printf("%c", ((char *)hello)[i]);
+      }
+      printf("\n");
+      memset(testdata1, 0, 100);
+      devHandle->deviceMemcpy(testdata1, selfrecvbuff1, 100,
+                              flagcxMemcpyDeviceToHost, NULL);
+      printf("selfrecvbuff1 = ");
+      for (int i = 0; i < 10; i++) {
+        printf("0x%02X ", ((unsigned char *)testdata1)[i]);
+      }
+      printf("\n");
+      memset(testdata2, 0, 200);
+      devHandle->deviceMemcpy(testdata2, selfrecvbuff2, 200,
+                              flagcxMemcpyDeviceToHost, NULL);
+      printf("selfrecvbuff2 = ");
+      for (int i = 0; i < 10; i++) {
+        printf("0x%02X ", ((unsigned char *)testdata2)[i]);
       }
       printf("\n");
     }
@@ -149,8 +199,14 @@ int main(int argc, char *argv[]) {
   // } else {
   devHandle->deviceFree(sendbuff, flagcxMemDevice, NULL);
   devHandle->deviceFree(recvbuff, flagcxMemDevice, NULL);
+  devHandle->deviceFree(selfsendbuff1, flagcxMemDevice, NULL);
+  devHandle->deviceFree(selfsendbuff2, flagcxMemDevice, NULL);
+  devHandle->deviceFree(selfrecvbuff1, flagcxMemDevice, NULL);
+  devHandle->deviceFree(selfrecvbuff2, flagcxMemDevice, NULL);
   // }
   free(hello);
+  free(testdata1);
+  free(testdata2);
   flagcxHeteroCommDestroy(comm);
   devHandle->streamDestroy(stream);
   flagcxHandleFree(handler);
