@@ -3,7 +3,6 @@ import sys
 from setuptools import setup
 # Disable auto load flagcx when setup
 os.environ["TORCH_DEVICE_BACKEND_AUTOLOAD"] = "0"
-from torch.utils import cpp_extension
 from setuptools import setup, find_packages
 
 adaptor_flag = "-DUSE_NVIDIA_ADAPTOR"
@@ -94,43 +93,31 @@ elif adaptor_flag == "-DUSE_AMD_ADAPTOR":
     libs += ["hiprtc", "c10_hip", "torch_hip"]
 
 if adaptor_flag == "-DUSE_MUSA_ADAPTOR":
-    from torch_musa.utils.musa_extension import MUSAExtension, BuildExtension
-    module = MUSAExtension(
-        name='flagcx._C',
-        sources=sources,
-        include_dirs=include_dirs,
-        extra_compile_args={
-            'cxx': [adaptor_flag]
-        },
-        extra_link_args=["-Wl,-rpath,"+f"{os.path.dirname(os.path.abspath(__file__))}/../../build/lib"],
-        library_dirs=library_dirs,
-        libraries=libs,
-    )
-    setup(
-        name="flagcx",
-        version="0.1.0",
-        ext_modules=[module],
-        cmdclass={'build_ext': BuildExtension},
-        packages=find_packages(),
-        entry_points={"torch.backends": ["flagcx = flagcx:init"]},
-    )
+    from torch_musa.utils.musa_extension import MUSAExtension as CppExtension
+    from torch_musa.utils.musa_extension import BuildExtension
 else:
-    module = cpp_extension.CppExtension(
-        name='flagcx._C',
-        sources=sources,
-        include_dirs=include_dirs,
-        extra_compile_args={
-            'cxx': [adaptor_flag]
-        },
-        extra_link_args=["-Wl,-rpath,"+f"{os.path.dirname(os.path.abspath(__file__))}/../../build/lib"],
-        library_dirs=library_dirs,
-        libraries=libs,
-    )
-    setup(
-        name="flagcx",
-        version="0.1.0",
-        ext_modules=[module],
-        cmdclass={'build_ext': cpp_extension.BuildExtension},
-        packages=find_packages(),
-        entry_points={"torch.backends": ["flagcx = flagcx:init"]},
-    )
+    from torch.utils.cpp_extension import CppExtension, BuildExtension
+
+module = CppExtension(
+    name='flagcx._C',
+    sources=sources,
+    include_dirs=include_dirs,
+    extra_compile_args={
+        'cxx': [adaptor_flag]
+    },
+    extra_link_args=["-Wl,-rpath,"+f"{os.path.dirname(os.path.abspath(__file__))}/../../build/lib"],
+    library_dirs=library_dirs,
+    libraries=libs,
+)
+
+setup(
+    name="flagcx",
+    version="0.1.0",
+    ext_modules=[module],
+    cmdclass={'build_ext': BuildExtension},
+    packages=find_packages(),
+    entry_points={"torch.backends": ["flagcx = flagcx:init"]},
+)
+
+
+

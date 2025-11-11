@@ -11,8 +11,11 @@ def _redirect_cuda_to_musa():
 
     # Patch Tensor.cuda() -> Tensor.to("musa")
     def _tensor_cuda(self, device=None, non_blocking=False):
+        if isinstance(device, int):
+            return self.to(f"musa:{device}", non_blocking=non_blocking)
+        if isinstance(device, torch.device) and device.type == 'cuda':
+            return self.to(torch.device('musa', device.index), non_blocking=non_blocking)
         return self.to("musa", non_blocking=non_blocking)
-
     torch.Tensor.cuda = _tensor_cuda
 
 # Apply the patch immediately on import

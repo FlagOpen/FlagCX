@@ -137,19 +137,19 @@ def test_sendrecv():
 
         # Perform send and recv with FLAGCX_GROUP2
         print(f"rank {MY_RANK} before batch_isend_irecv with FLAGCX_GROUP2: x = {x}, y = {y}")
-        op_send = dist.P2POp(dist.isend, x,(MY_RANK + 8) % 16 , group=FLAGCX_GROUP2)
-        op_recv = dist.P2POp(dist.irecv, y, (MY_RANK + 8) % 16, group=FLAGCX_GROUP2)
+        op_send = dist.P2POp(dist.isend, x, NEXT_RANK, group=FLAGCX_GROUP2)
+        op_recv = dist.P2POp(dist.irecv, y, PREV_RANK, group=FLAGCX_GROUP2)
         op_list = [op_send, op_recv]
         reqs = dist.batch_isend_irecv(op_list)
         for req in reqs:
             req.wait()
         print(f"rank {MY_RANK} after batch_isend_irecv with FLAGCX_GROUP2: x = {x}, y = {y}")
-        #if MY_RANK % 2 == 0:
-        #    dist.send(x, NEXT_RANK, group=FLAGCX_GROUP2)
-        #    dist.recv(y, PREV_RANK, group=FLAGCX_GROUP2)
-        #elif MY_RANK % 2 == 1:
-        #    dist.recv(y, PREV_RANK, group=FLAGCX_GROUP2)
-        #    dist.send(x, NEXT_RANK, group=FLAGCX_GROUP2)
+        if MY_RANK % 2 == 0:
+            dist.send(x, NEXT_RANK, group=FLAGCX_GROUP2)
+            dist.recv(y, PREV_RANK, group=FLAGCX_GROUP2)
+        elif MY_RANK % 2 == 1:
+            dist.recv(y, PREV_RANK, group=FLAGCX_GROUP2)
+            dist.send(x, NEXT_RANK, group=FLAGCX_GROUP2)
         handle = dist.barrier(group=FLAGCX_GROUP2, async_op=True)
         handle.wait()
         print(f"rank {MY_RANK} after send/recv with FLAGCX_GROUP2: x = {x}, y = {y}")
