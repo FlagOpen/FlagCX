@@ -101,7 +101,7 @@ struct flagcxProxyArgs {
   int copied = 0;
   int postFlush = 0;
   int flushed = 0;
-  int transmitted;
+  int transmitted = 0;
   int sendStepMask;
   size_t totalCopySize;
   size_t totalPostSize;
