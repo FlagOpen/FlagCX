@@ -38,18 +38,18 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           conn->proxyConn.connection->transport = TRANSPORT_P2P;
           conn->proxyConn.connection->send = 0;
           conn->proxyConn.connection->transportResources = (void *)resources;
-          struct flagcxP2pRequest req = {(size_t(FLAGCX_P2P_BUFFERSIZE)), 0};
-          struct flagcxP2pConnectInfo connectInfo = {0};
-          connectInfo.rank = comm->rank;
-          connectInfo.read = 0;
-          FLAGCXCHECK(flagcxProxyCallBlocking(
-              comm, &conn->proxyConn, flagcxProxyMsgSetup, &req, sizeof(req),
-              &connectInfo.p2pBuff, sizeof(connectInfo.p2pBuff)));
-          // Use the buffer directly without offset， it's equal to nccl p2pMap
-          // function
-          char *recvBuffer = (char *)connectInfo.p2pBuff.directPtr;
-          conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = recvBuffer;
           if (peer != comm->rank) {
+            struct flagcxP2pRequest req = {(size_t(FLAGCX_P2P_BUFFERSIZE)), 0};
+            struct flagcxP2pConnectInfo connectInfo = {0};
+            connectInfo.rank = comm->rank;
+            connectInfo.read = 0;
+            FLAGCXCHECK(flagcxProxyCallBlocking(
+                comm, &conn->proxyConn, flagcxProxyMsgSetup, &req, sizeof(req),
+                &connectInfo.p2pBuff, sizeof(connectInfo.p2pBuff)));
+            // Use the buffer directly without offset， it's equal to nccl
+            // p2pMap function
+            char *recvBuffer = (char *)connectInfo.p2pBuff.directPtr;
+            conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = recvBuffer;
             FLAGCXCHECK(bootstrapSend(comm->bootstrap, peer, 2000 + c,
                                       &connectInfo, sizeof(connectInfo)));
           }
@@ -105,16 +105,16 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
           conn->proxyConn.connection->transport = TRANSPORT_P2P;
           conn->proxyConn.connection->send = 1;
           conn->proxyConn.connection->transportResources = (void *)resources;
-          struct flagcxP2pConnectInfo connectInfo = {0};
-          FLAGCXCHECK(flagcxProxyCallBlocking(
-              comm, &conn->proxyConn, flagcxProxyMsgSetup, NULL, 0,
-              &resources->proxyInfo, sizeof(struct flagcxP2pShmProxyInfo)));
-          memcpy(&connectInfo.desc, &resources->proxyInfo.desc,
-                 sizeof(flagcxShmIpcDesc_t));
-          INFO(FLAGCX_P2P,
-               "Send: Sending shmDesc to peer %d, shmSuffix=%s shmSize=%zu",
-               peer, connectInfo.desc.shmSuffix, connectInfo.desc.shmSize);
           if (peer != comm->rank) {
+            struct flagcxP2pConnectInfo connectInfo = {0};
+            FLAGCXCHECK(flagcxProxyCallBlocking(
+                comm, &conn->proxyConn, flagcxProxyMsgSetup, NULL, 0,
+                &resources->proxyInfo, sizeof(struct flagcxP2pShmProxyInfo)));
+            memcpy(&connectInfo.desc, &resources->proxyInfo.desc,
+                   sizeof(flagcxShmIpcDesc_t));
+            INFO(FLAGCX_P2P,
+                 "Send: Sending shmDesc to peer %d, shmSuffix=%s shmSize=%zu",
+                 peer, connectInfo.desc.shmSuffix, connectInfo.desc.shmSize);
             FLAGCXCHECK(bootstrapSend(comm->bootstrap, peer, 3000 + c,
                                       &connectInfo.desc,
                                       sizeof(flagcxShmIpcDesc_t)));
@@ -182,9 +182,10 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
             resources->proxyInfo.shm = resources->shm;
             memcpy(&resources->proxyInfo.desc, &resources->desc,
                    sizeof(flagcxShmIpcDesc_t));
+            // Set recvFifo in proxyInfo so proxy can copy data to it
+            resources->proxyInfo.recvFifo =
+                conn->conn.buffs[FLAGCX_PROTO_SIMPLE];
           }
-          // Set recvFifo in proxyInfo so proxy can copy data to it
-          resources->proxyInfo.recvFifo = conn->conn.buffs[FLAGCX_PROTO_SIMPLE];
           FLAGCXCHECK(flagcxProxyCallBlocking(
               comm, &conn->proxyConn, flagcxProxyMsgConnect, NULL, 0, NULL, 0));
         } else {
@@ -223,9 +224,9 @@ flagcxResult_t flagcxTransportP2pSetup(struct flagcxHeteroComm *comm,
                    peer, c);
               return flagcxInternalError;
             }
+            conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = remoteBuffer;
+            resources->proxyInfo.recvFifo = remoteBuffer;
           }
-          conn->conn.buffs[FLAGCX_PROTO_SIMPLE] = remoteBuffer;
-          resources->proxyInfo.recvFifo = remoteBuffer;
           char *recvFifo = remoteBuffer;
           FLAGCXCHECK(flagcxProxyCallBlocking(comm, &conn->proxyConn,
                                               flagcxProxyMsgConnect, &recvFifo,
