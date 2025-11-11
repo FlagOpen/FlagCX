@@ -118,6 +118,3 @@ setup(
     packages=find_packages(),
     entry_points={"torch.backends": ["flagcx = flagcx:init"]},
 )
-
-
-
