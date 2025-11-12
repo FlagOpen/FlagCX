@@ -122,14 +122,18 @@ flagcxResult_t flagcxProxySaveOp(struct flagcxHeteroComm *comm,
     *justInquire = false;
   switch (op->pattern) {
     case flagcxPatternSend:
-    case flagcxPatternRecv: {
+      // Self-copy will be saved as a send operation
+      if (op->root == comm->rank)
+        op->selfCopy = 1;
+      FLAGCXCHECK(
+          SaveProxy(comm, channel, proxySend, op->root, op, 0, justInquire));
+      break;
+    case flagcxPatternRecv:
       if (op->root == comm->rank)
         return flagcxSuccess;
       FLAGCXCHECK(
-          SaveProxy(comm, channel,
-                    op->pattern == flagcxPatternSend ? proxySend : proxyRecv,
-                    op->root, op, 0, justInquire));
-    } break;
+          SaveProxy(comm, channel, proxyRecv, op->root, op, 0, justInquire));
+      break;
   }
   return flagcxSuccess;
 }
@@ -207,8 +211,13 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
             } else if (op->connection->transport == TRANSPORT_P2P) {
               struct flagcxP2pResources *resources =
                   (flagcxP2pResources *)op->connection->transportResources;
-              flagcxP2pProxySend(resources, op->recvbuff, op->nbytes,
-                                 &op->args);
+              if (op->selfCopy == 0) {
+                flagcxP2pProxySend(resources, op->recvbuff, op->nbytes,
+                                   &op->args);
+              } else {
+                flagcxP2pProxySelfCopy(resources, op->sendbuff, op->recvbuff,
+                                       op->nbytes, &op->args);
+              }
               if (deviceAsyncLoad && deviceAsyncStore) {
                 if (op->args.done == 1 && op->args.eventRecorded) {
                   if (deviceAdaptor->eventQuery(op->event) == flagcxSuccess) {
@@ -407,8 +416,10 @@ static flagcxResult_t expectedProxyResponseStore(struct flagcxProxyState *state,
         return flagcxInternalError;
       }
 
-      memcpy(elem->respBuff, respBuff, respSize);
-      free(respBuff);
+      if (respSize > 0 && respBuff != NULL) {
+        memcpy(elem->respBuff, respBuff, respSize);
+        free(respBuff);
+      }
       elem->done = true;
       elem->res = res;
       return flagcxSuccess;
@@ -731,7 +742,8 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
           resources->netAdaptor->deregMr(resources->netRecvComm, handle));
     }
     done = 1;
-  } else if (op->type == flagcxProxyMsgSetup) {
+  } else if (op->type == flagcxProxyMsgSetup &&
+             op->connection->transport == TRANSPORT_P2P) {
     if (op->connection->send) {
       // P2P Send side setup
       INFO(FLAGCX_PROXY, "Calling flagcxP2pSendProxySetup");
@@ -753,8 +765,11 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
          "proxyProgressAsync opId=%p op.type=%d op.reqBuff=%p op.respSize=%d "
          "done",
          op->opId, op->type, op->reqBuff, op->respSize);
-    if (op->type == flagcxProxyMsgConnect)
-      __atomic_store_n(&op->connection->state, connConnected, __ATOMIC_RELEASE);
+    if (op->connection->transport == TRANSPORT_NET) {
+      if (op->type == flagcxProxyMsgConnect)
+        __atomic_store_n(&op->connection->state, connConnected,
+                         __ATOMIC_RELEASE);
+    }
 
     /* if setup or connect is done, we should not return any error at this point
      * since flagcxSocketSend might already send the respBuff to the requester.

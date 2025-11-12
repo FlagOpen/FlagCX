@@ -92,6 +92,11 @@ flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources *resources,
                                   void *data, size_t size,
                                   struct flagcxProxyArgs *args);
 
+flagcxResult_t flagcxP2pProxySelfCopy(struct flagcxP2pResources *resources,
+                                      void *sendData, void *recvData,
+                                      size_t size,
+                                      struct flagcxProxyArgs *args);
+
 flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection *connection,
                                        struct flagcxProxyState *proxyState,
                                        void *reqBuff, int reqSize,

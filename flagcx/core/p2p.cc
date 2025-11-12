@@ -11,7 +11,7 @@ static std::map<int, std::pair<int, int>>
 void setP2pSlotInfo(int rank, int peerRank, size_t size, flagcxDataType_t dtype,
                     int isRecv, int *opHash, size_t *slotIdx) {
   // TODO: try a better hash function to reduce collisions
-  int key = rank * 1000 + int(size >> 12) + dtype * 100 + peerRank;
+  int key = rank * 1000 + int(size >> 12) + dtype * 10 + peerRank * 100;
   int opHashCounter;
   auto it = p2pOpHashMap.find(key);
   if (it != p2pOpHashMap.end()) {
@@ -231,6 +231,51 @@ flagcxResult_t flagcxP2pProxyRecv(struct flagcxP2pResources *resources,
   return flagcxSuccess;
 }
 
+flagcxResult_t flagcxP2pProxySelfCopy(struct flagcxP2pResources *resources,
+                                      void *sendData, void *recvData,
+                                      size_t size,
+                                      struct flagcxProxyArgs *args) {
+  // Make sure data is valid
+  if (!args->semaphore->pollStart())
+    return flagcxSuccess;
+
+  if (args->transmitted < args->chunkSteps) {
+    // Perform single copy step
+    if (args->copied < args->chunkSteps) {
+      FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+          recvData, sendData, size, flagcxMemcpyDeviceToDevice,
+          resources->proxyInfo.stream, NULL));
+      FLAGCXCHECK(
+          deviceAdaptor->eventRecord(resources->proxyInfo.events[args->copied],
+                                     resources->proxyInfo.stream));
+      args->copied++;
+    }
+
+    // Check for completed copy step
+    if (args->transmitted < args->copied) {
+      flagcxResult_t res = deviceAdaptor->eventQuery(
+          resources->proxyInfo.events[args->transmitted]);
+      if (res == flagcxSuccess) {
+        args->transmitted++;
+      }
+    }
+  } else {
+    if (args->done != 1) {
+      args->semaphore->signalCounter(1);
+      // Deprecated device func handling
+      if (deviceAsyncLoad && deviceAsyncStore) {
+        if (args->deviceFuncRelaxedOrdering == 1) {
+          FLAGCXCHECK(deviceAdaptor->deviceMemcpy(
+              args->dlArgs, (void *)&args->hlArgs, sizeof(bool),
+              flagcxMemcpyHostToDevice, resources->proxyInfo.stream, NULL));
+        }
+      }
+      args->done = 1;
+    }
+  }
+  return flagcxSuccess;
+}
+
 flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection *connection,
                                        struct flagcxProxyState *proxyState,
                                        void *reqBuff, int reqSize,
@@ -249,8 +294,8 @@ flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection *connection,
 
   // Allocate shared memory and store in resources->proxyInfo
   size_t shmSize = sizeof(struct flagcxP2pShm);
-  INFO(FLAGCX_INIT,
-       "flagcxP2pSendProxySetup: Allocating shared memory size=%zu", shmSize);
+  INFO(FLAGCX_P2P, "flagcxP2pSendProxySetup: Allocating shared memory size=%zu",
+       shmSize);
   FLAGCXCHECK(flagcxShmAllocateShareableBuffer(
       shmSize, &resources->proxyInfo.desc, (void **)&resources->proxyInfo.shm,
       NULL));
@@ -264,12 +309,12 @@ flagcxResult_t flagcxP2pSendProxySetup(struct flagcxProxyConnection *connection,
     resources->proxyInfo.shm->slots[i].peerDone = 1; // 1 = slot is free
   }
 
-  INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Copying response, shm=%p",
+  INFO(FLAGCX_P2P, "flagcxP2pSendProxySetup: Copying response, shm=%p",
        resources->proxyInfo.shm);
   memcpy(respBuff, &resources->proxyInfo, sizeof(struct flagcxP2pShmProxyInfo));
   *done = 1;
 
-  INFO(FLAGCX_INIT, "flagcxP2pSendProxySetup: Completed successfully");
+  INFO(FLAGCX_P2P, "flagcxP2pSendProxySetup: Completed successfully");
   return flagcxSuccess;
 }
 
@@ -278,7 +323,7 @@ flagcxResult_t flagcxP2pRecvProxySetup(struct flagcxProxyConnection *connection,
                                        void *reqBuff, int reqSize,
                                        void *respBuff, int respSize,
                                        int *done) {
-  INFO(FLAGCX_INIT,
+  INFO(FLAGCX_P2P,
        "flagcxP2pRecvProxySetup: reqSize=%d respSize=%d expectedReqSize=%zu "
        "expectedRespSize=%zu",
        reqSize, respSize, sizeof(struct flagcxP2pRequest),
@@ -334,7 +379,7 @@ flagcxP2pSendProxyConnect(struct flagcxProxyConnection *connection,
   }
 
   *done = 1;
-  INFO(FLAGCX_INIT, "flagcxP2pSendProxyConnect: Completed, recvFifo=%p",
+  INFO(FLAGCX_P2P, "flagcxP2pSendProxyConnect: Completed, recvFifo=%p",
        resources->proxyInfo.recvFifo);
   return flagcxSuccess;
 }
@@ -361,7 +406,7 @@ flagcxP2pRecvProxyConnect(struct flagcxProxyConnection *connection,
   }
 
   *done = 1;
-  INFO(FLAGCX_INIT, "flagcxP2pRecvProxyConnect: Completed");
+  INFO(FLAGCX_P2P, "flagcxP2pRecvProxyConnect: Completed");
   return flagcxSuccess;
 }
 
