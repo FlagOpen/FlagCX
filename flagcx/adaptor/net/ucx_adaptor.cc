@@ -1513,6 +1513,9 @@ struct flagcxNetAdaptor flagcxNetUcx = {
     NULL, // read - TODO: Implement
     NULL, // signal - TODO: Implement
 
+    // One-sided extensions
+    NULL, NULL, NULL, NULL, NULL,
+
     // Device name lookup
     flagcxUcxGetDevFromName // getDevFromName
 };

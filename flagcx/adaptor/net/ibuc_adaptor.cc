@@ -1787,6 +1787,9 @@ struct flagcxNetAdaptor flagcxNetIbuc = {
     NULL, // read
     NULL, // signal
 
+    // One-sided extensions
+    NULL, NULL, NULL, NULL, NULL,
+
     // Device name lookup
     flagcxIbucGetDevFromName};
 
