@@ -174,7 +174,8 @@ flagcxResult_t flagcxTunerInit(size_t nRanks, size_t nNodes,
   if (nLoopsEnv != nullptr) {
     try {
       int val = std::stoi(nLoopsEnv);
-      if (val >= 1) {
+      if (val >= 5) { // make sure tuner search loop is at least 5 so that we
+                      // can get stable profiling results
         ctx->searchNLoops = val;
         INFO(FLAGCX_ENV | FLAGCX_TUNING,
              "Tuner search nloops set by environment to %d.",
@@ -246,6 +247,36 @@ static int getSeqIdForCommIdx(const struct flagcxTunerContext *ctx, int commIdx,
   return (found ? seqId : -1);
 }
 
+static float getStableDurationForCommOp(struct flagcxTunerContext *ctx,
+                                        int commIdx,
+                                        const struct TunerCollCategory &cat) {
+  float minTime = FLT_MAX;
+  float maxTime = 0.0f;
+  float totalTime = 0.0f;
+  int seqId = 0;
+  float duration = 0.0f;
+  for (uint32_t i = 0; i < ctx->searchNLoops; i++) {
+    seqId = getSeqIdForCommIdx(ctx, commIdx, i);
+    TunerProfileKey profileKey(cat.nBytes, static_cast<uint32_t>(cat.collType),
+                               static_cast<uint32_t>(seqId), commIdx);
+    struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
+    duration = ctx->timer.getRecord(rkey, true);
+    if (duration <= 0) {
+      // no profiling data for this communicator and collective category
+      return 0.0f;
+    }
+    if (duration < minTime) {
+      minTime = duration;
+    }
+    if (duration > maxTime) {
+      maxTime = duration;
+    }
+    totalTime += duration;
+  }
+  totalTime = totalTime - minTime - maxTime;
+  return totalTime / (ctx->searchNLoops - 2);
+}
+
 // add a small factor to avoid switching between two close communicators caused
 // by measurement noise
 const float tunerProfileFactor = 0.95f;
@@ -262,22 +293,24 @@ static flagcxResult_t findBestComm(struct flagcxTunerContext *ctx,
   float minTime = FLT_MAX;
   // calculate the best communicator based on profiling data
   for (const auto &idx : ctx->activeCommList) {
-    // For now, use round = 2 as the time of that collective category.
-    const uint32_t kProfileDataRound =
-        2; // Use data from the 3rd round, as it's likely more stable.
-    int seqId = getSeqIdForCommIdx(
-        ctx, idx,
-        std::min(kProfileDataRound,
-                 static_cast<uint32_t>(ctx->searchNLoops - 1)));
-    TunerProfileKey profileKey(cat.nBytes, static_cast<uint32_t>(cat.collType),
-                               static_cast<uint32_t>(seqId), idx);
-    struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
-    float duration = ctx->timer.getRecord(rkey, true);
+    // // For now, use round = 2 as the time of that collective category.
+    // const uint32_t kProfileDataRound =
+    //     2; // Use data from the 3rd round, as it's likely more stable.
+    // int seqId = getSeqIdForCommIdx(
+    //     ctx, idx,
+    //     std::min(kProfileDataRound,
+    //              static_cast<uint32_t>(ctx->searchNLoops - 1)));
+    // TunerProfileKey profileKey(cat.nBytes,
+    // static_cast<uint32_t>(cat.collType),
+    //                            static_cast<uint32_t>(seqId), idx);
+    // struct flagcxRecordKey<TunerProfileKey> rkey(profileKey);
+    // float duration = ctx->timer.getRecord(rkey, true);
+    float duration = getStableDurationForCommOp(ctx, idx, cat);
 
     if (duration <= 0) {
       // no profiling data for this communicator and collective category
-      WARN("No profiling data for (commId=%d,coll=%d,size=%zu,seq=%u).", idx,
-           cat.collType, cat.nBytes, seqId);
+      WARN("No profiling data for (commId=%d,coll=%d,size=%zu).", idx,
+           cat.collType, cat.nBytes);
       continue;
     }
 
@@ -296,8 +329,8 @@ static flagcxResult_t findBestComm(struct flagcxTunerContext *ctx,
     duration /= internalTuner.nranks;
 
     INFO(FLAGCX_TUNING,
-         "Profiling data for (commId=%d,coll=%d,size=%zu,seq=%u) is %.3fms.",
-         idx, cat.collType, cat.nBytes, seqId, duration);
+         "Profiling data for (commId=%d,coll=%d,size=%zu) is %.3fms.", idx,
+         cat.collType, cat.nBytes, duration);
 
     if (duration < minTime * tunerProfileFactor) {
       minTime = duration;
