@@ -430,6 +430,9 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
     (*comm)->tuner->bootstrap = state;
     (*comm)->tuner->rank = rank;
     (*comm)->tuner->nranks = nranks;
+    (*comm)->commId = commId;
+    (*comm)->uniqueIdData = uniqueIdData;
+    (*comm)->tunerInnerComm = NULL;
     FLAGCXCHECK((*comm)->tuner->init((*comm)->nranks, 0, flagcxDebugLog,
                                      &((*comm)->tunerContext)));
     uint32_t nConfigs = 0;
@@ -440,21 +443,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
       return flagcxInternalError;
     }
     (*comm)->homoCommMap.clear();
-    // Note: The tuner only support homo comm optimization for now
-    for (uint32_t i = 0; i < nConfigs; ++i) {
-      struct flagcxCommTag tag = {""};
-      FLAGCXCHECK((*comm)->tuner->setCandidate((*comm)->tunerContext, i, &tag));
-      INFO(FLAGCX_INIT | FLAGCX_TUNING,
-           "start to prepare communicator tag=%s(%u/%u)", tag.tag, i, nConfigs);
-
-      flagcxInnerComm_t innerComm = NULL;
-      FLAGCXCHECK(
-          flagcxHomoCommInit(commId, uniqueIdData, state, *comm, &innerComm));
-      // Insert item into homoCommMap
-      (*comm)->homoCommMap[tag] = innerComm;
-      // For backward compatible, also assign homo_comm field.
-      (*comm)->homo_comm = innerComm;
-    }
+    (*comm)->homoBestCommMap.clear();
   } else {
     (*comm)->tuner = NULL;
     FLAGCXCHECK(flagcxHomoCommInit(commId, uniqueIdData, state, *comm,
@@ -593,7 +582,7 @@ flagcxResult_t flagcxCommInitRank(flagcxComm_t *comm, int nranks,
   }
 
   free(clusterInterRankData);
-  free(uniqueIdData);
+  // free(uniqueIdData);
   free(vendorData);
 
   return flagcxSuccess;
@@ -634,8 +623,10 @@ flagcxResult_t flagcxCommDestroy(flagcxComm_t comm) {
   // Destroy homo comms
   if (comm->tuner) {
     for (const auto &item : comm->homoCommMap) {
-      FLAGCXCHECK(
-          cclAdaptors[flagcxCCLAdaptorDevice]->commDestroy(item.second));
+      if (item.second != nullptr) {
+        FLAGCXCHECK(
+            cclAdaptors[flagcxCCLAdaptorDevice]->commDestroy(item.second));
+      }
     }
   } else {
     cclAdaptors[flagcxCCLAdaptorDevice]->commDestroy(comm->homo_comm);
