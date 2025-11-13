@@ -1101,15 +1101,15 @@ ib_recv:
 
   // Stripe QP creation across merged devs
   // Make sure to get correct remote peer dev and QP info
-  int remDevIndex;
+  int remDevIdx;
   int devIndex;
   devIndex = 0;
   for (int q = 0; q < rComm->base.nqps; q++) {
-    remDevIndex = remMeta.qpInfo[q].devIndex;
-    remDevInfo = remMeta.devs + remDevIndex;
+    remDevIdx = remMeta.qpInfo[q].devIndex;
+    remDevInfo = remMeta.devs + remDevIdx;
     qp = rComm->base.qps + q;
     rCommDev = rComm->devs + devIndex;
-    qp->remDevIdx = remDevIndex;
+    qp->remDevIdx = remDevIdx;
 
     // Local ibDevN
     ibDevN = rComm->devs[devIndex].base.ibDevN;
