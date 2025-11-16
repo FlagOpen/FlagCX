@@ -19,6 +19,7 @@ flagcxRedOp_t = ctypes.c_int
 flagcxMemcpyType_t = ctypes.c_int
 flagcxMemType_t = ctypes.c_int
 flagcxEventType_t = ctypes.c_int
+flagcxIpcMemHandle_t = ctypes.c_void_p
 
 flagcxHandlerGroup_t = ctypes.c_void_p
 flagcxComm_t = ctypes.c_void_p
@@ -57,6 +58,7 @@ SET_DEVICE_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.c_int)
 GET_DEVICE_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.POINTER(ctypes.c_int))
 GET_DEVICE_COUNT_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.POINTER(ctypes.c_int))
 GET_VENDOR_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.c_char_p)
+HOST_GET_DEVICE_POINTER_FUNCTYPE =ctypes.CFUNCTYPE(flagcxResult_t, ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p)
 
 STREAM_CREATE_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.POINTER(flagcxStream_t))
 STREAM_DESTROY_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, flagcxStream_t)
@@ -71,6 +73,13 @@ EVENT_DESTROY_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, flagcxEvent_t)
 EVENT_RECORD_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, flagcxEvent_t, flagcxStream_t)
 EVENT_SYNCHRONIZE_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, flagcxEvent_t)
 EVENT_QUERY_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, flagcxEvent_t)
+
+IPC_MEM_HANDLE_CREATE_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.POINTER(flagcxIpcMemHandle_t), ctypes.POINTER(ctypes.c_size_t))
+IPC_MEM_HANDLE_GET_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, flagcxIpcMemHandle_t, ctypes.c_void_p)
+IPC_MEM_HANDLE_OPEN_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, flagcxIpcMemHandle_t, ctypes.POINTER(ctypes.c_void_p))
+IPC_MEM_HANDLE_CLOSE_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.c_void_p)
+IPC_MEM_HANDLE_FREE_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, flagcxIpcMemHandle_t)
+
 class flagcxDeviceHandle(ctypes.Structure):
     _fields_ = [
         # Basic functions
@@ -83,6 +92,7 @@ class flagcxDeviceHandle(ctypes.Structure):
         ("getDevice", GET_DEVICE_FUNCTYPE),
         ("getDeviceCount", GET_DEVICE_COUNT_FUNCTYPE),
         ("getVendor", GET_VENDOR_FUNCTYPE),
+        ("hostGetDevicePointer", HOST_GET_DEVICE_POINTER_FUNCTYPE),
         # Stream functions
         ("streamCreate", STREAM_CREATE_FUNCTYPE),
         ("streamDestroy", STREAM_DESTROY_FUNCTYPE),
@@ -97,6 +107,12 @@ class flagcxDeviceHandle(ctypes.Structure):
         ("eventRecord", EVENT_RECORD_FUNCTYPE),
         ("eventSynchronize", EVENT_SYNCHRONIZE_FUNCTYPE),
         ("eventQuery", EVENT_QUERY_FUNCTYPE),
+        # IpcMemHandle functions
+        ("ipcMemHandleCreate", IPC_MEM_HANDLE_CREATE_FUNCTYPE),
+        ("ipcMemHandleGet", IPC_MEM_HANDLE_GET_FUNCTYPE),
+        ("ipcMemHandleOpen", IPC_MEM_HANDLE_OPEN_FUNCTYPE),
+        ("ipcMemHandleClose", IPC_MEM_HANDLE_CLOSE_FUNCTYPE),
+        ("ipcMemHandleFree", IPC_MEM_HANDLE_FREE_FUNCTYPE),
     ]
 flagcxDeviceHandle_t = ctypes.POINTER(flagcxDeviceHandle)
 
