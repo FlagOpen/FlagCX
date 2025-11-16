@@ -24,19 +24,12 @@ flagcxIpcMemHandle_t = ctypes.c_void_p
 flagcxHandlerGroup_t = ctypes.c_void_p
 flagcxComm_t = ctypes.c_void_p
 flagcxEvent_t = ctypes.c_void_p
-cudaStream_t = ctypes.c_void_p
+flagcxStream_t = ctypes.c_void_p
 buffer_type = ctypes.c_void_p
-
-
-class flagcxStream(ctypes.Structure):
-    _fields_ = [("base", cudaStream_t)]
-flagcxStream_t = ctypes.POINTER(flagcxStream)
-
 
 class flagcxUniqueId(ctypes.Structure):
     _fields_ = [("internal", ctypes.c_byte * 256)]
 flagcxUniqueId_t = ctypes.POINTER(flagcxUniqueId)
-
 
 DEVICE_SYNCHRONIZE_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t)
 DEVICE_MEMCPY_FUNCTYPE = ctypes.CFUNCTYPE(
@@ -417,7 +410,7 @@ class FLAGCXLibrary:
 
     def adaptor_stream_copy(self, old_stream):
         new_stream = flagcxStream_t()
-        self.FLAGCX_CHECK(self.handler.contents.devHandle.contents.streamCopy(ctypes.byref(new_stream), ctypes.byref(cudaStream_t(old_stream.cuda_stream))))
+        self.FLAGCX_CHECK(self.handler.contents.devHandle.contents.streamCopy(ctypes.byref(new_stream), ctypes.byref(ctypes.c_void_p(old_stream.cuda_stream))))
         return new_stream
 
     def adaptor_stream_free(self, stream):
@@ -432,6 +425,6 @@ class FLAGCXLibrary:
 
 __all__ = [
     "FLAGCXLibrary", "flagcxDataTypeEnum", "flagcxRedOpTypeEnum", "flagcxUniqueId",
-    "flagcxHandlerGroup_t", "flagcxComm_t", "flagcxStream_t", "flagcxEvent_t", "buffer_type", "cudaStream_t"
+    "flagcxHandlerGroup_t", "flagcxComm_t", "flagcxStream_t", "flagcxEvent_t", "buffer_type"
 ]
 
