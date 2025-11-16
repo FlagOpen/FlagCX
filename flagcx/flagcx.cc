@@ -1531,8 +1531,8 @@ flagcxResult_t flagcxAlltoAll(const void *sendbuff, void *recvbuff,
     FLAGCXCHECK(flagcxHeteroGroupEnd());
   } else if (isHomoComm(comm)) {
     if (comm->tuner == NULL) {
-      return cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(
-          sendbuff, recvbuff, count, datatype, comm->homo_comm, stream);
+      FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(
+          sendbuff, recvbuff, count, datatype, comm->homo_comm, stream));
     } else {
       FLAGCXCALLWITHTUNER(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(
                               sendbuff, recvbuff, count, datatype,
