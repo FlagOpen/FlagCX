@@ -35,7 +35,7 @@ EXTRA_COMPILER_FLAG = -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -
 INCLUDEDIR := $(abspath include)
 LIBSRCFILES:= $(wildcard *.cc)
 
-all: test-sendrecv test-allreduce test-allgather test-reducescatter test-alltoall test-alltoallv test-broadcast test-gather test-scatter test-reduce test-core-sendrecv test-ipc-sendrecv
+all: test-sendrecv test-allreduce test-allgather test-reducescatter test-alltoall test-alltoallv test-broadcast test-gather test-scatter test-reduce test-core-sendrecv test-ipc-sendrecv test-put
 
 test-sendrecv: test_sendrecv.cpp
 	@echo "Compiling $@"
@@ -85,6 +85,10 @@ test-ipc-sendrecv: test_ipc_sendrecv.cpp
 	@echo "Compiling $@"
 	@$(COMPILER) $(EXTRA_COMPILER_FLAG) -o test_ipc_sendrecv test_ipc_sendrecv.cpp $(LIBSRCFILES) -I../../flagcx/include -I../../flagcx/service -I../../flagcx/core -I$(INCLUDEDIR) -I$(MPI_INCLUDE) -L../../build/lib/ -L$(MPI_LIB) -lflagcx $(MPI_LINK)
 
+test-put: test_put.cpp
+	@echo "Compiling $@"
+	@$(COMPILER) $(EXTRA_COMPILER_FLAG) -o test_put test_put.cpp $(LIBSRCFILES) -I../../ -I../../flagcx/include -I../../flagcx/core -I../../flagcx/service -I../../flagcx/adaptor/include -I$(INCLUDEDIR) -I$(MPI_INCLUDE) -L../../build/lib -L$(MPI_LIB) -lflagcx $(MPI_LINK)
+
 clean:
 	@rm -f test_sendrecv
 	@rm -f test_allreduce
@@ -98,6 +102,7 @@ clean:
 	@rm -f test_reduce
 	@rm -f test_core_sendrecv
 	@rm -f test_ipc_sendrecv
+	@rm -f test_put
 
 run-sendrecv:
 	@mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=ALL ./test_sendrecv
@@ -134,6 +139,9 @@ run-core-sendrecv:
 
 run-ipc-sendrecv:
 	@mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=ALL ./test_ipc_sendrecv
+
+run-put:
+	@mpirun --allow-run-as-root -np 8 -x UCX_POSIX_USE_PROC_LINK=n -x ${DEV}_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=ALL ./test_put
 
 print_var:
 	@echo "INCLUDEDIR: $(INCLUDEDIR)"
