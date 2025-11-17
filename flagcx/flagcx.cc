@@ -1782,7 +1782,8 @@ flagcxResult_t flagcxSend(const void *sendbuff, size_t count,
   } else {
     if (comm->cluster_ids[comm->rank] == comm->cluster_ids[peer]) {
       FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->send(
-          sendbuff, count, datatype, peer, comm->homo_comm, stream));
+          sendbuff, count, datatype, comm->globalrank2homorank[peer],
+          comm->homo_comm, stream));
     } else {
       FLAGCXCHECK(flagcxHeteroSend(sendbuff, count, datatype, peer,
                                    comm->hetero_comm, stream));
@@ -1841,7 +1842,8 @@ flagcxResult_t flagcxRecv(void *recvbuff, size_t count,
   } else {
     if (comm->cluster_ids[comm->rank] == comm->cluster_ids[peer]) {
       FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->recv(
-          recvbuff, count, datatype, peer, comm->homo_comm, stream));
+          recvbuff, count, datatype, comm->globalrank2homorank[peer],
+          comm->homo_comm, stream));
     } else {
       FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, peer,
                                    comm->hetero_comm, stream));
