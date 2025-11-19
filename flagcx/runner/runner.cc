@@ -4,7 +4,6 @@
 
 #include "runner.h"
 
-struct flagcxRunner *flagcxRunners[NRUNNERS] = {&homoRunner, &hostRunner, NULL,
-                                                NULL};
-//  &hybridRunner,
+struct flagcxRunner *flagcxRunners[NRUNNERS] = {&homoRunner, &hostRunner,
+                                                &hybridRunner, NULL};
 //  &uniRunner};
