@@ -254,6 +254,7 @@ OBJDIR := $(BUILDDIR)/obj
 INCLUDEDIR := \
 	$(abspath flagcx/include) \
 	$(abspath flagcx/adaptor/include) \
+	$(abspath flagcx/runner/include) \
 	$(abspath flagcx/core/include) \
 	$(abspath flagcx/service/include)
 
@@ -264,6 +265,7 @@ LIBSRCFILES:= \
 	$(wildcard flagcx/adaptor/ccl/*.cc) \
 	$(wildcard flagcx/adaptor/net/*.cc) \
 	$(wildcard flagcx/adaptor/tuner/*.cc) \
+	$(wildcard flagcx/runner/*.cc) \
 	$(wildcard flagcx/core/*.cc) \
 	$(wildcard flagcx/service/*.cc)
 
