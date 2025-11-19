@@ -192,7 +192,7 @@ int main(int argc, char *argv[]) {
 
   void *mrHandle = nullptr;
   void *globalHandles = nullptr;
-  if (netAdaptor->put == nullptr || netAdaptor->signalValue == nullptr ||
+  if (netAdaptor->put == nullptr || netAdaptor->putSignal == nullptr ||
       netAdaptor->waitValue == nullptr || netAdaptor->test == nullptr ||
       netAdaptor->deregMr == nullptr) {
     fprintf(stderr,
@@ -241,6 +241,11 @@ int main(int argc, char *argv[]) {
   info->base_vas[state->rank] = (uintptr_t)mr->addr;
   info->rkeys[state->rank] = mr->rkey;
   info->lkeys[state->rank] = mr->lkey;
+  
+  printf("[test_put] proc %d: BEFORE allgather - rank %d: base_va=0x%lx rkey=0x%x lkey=0x%x\n",
+         proc, state->rank, info->base_vas[state->rank], info->rkeys[state->rank], info->lkeys[state->rank]);
+  fflush(stdout);
+  
   res = bootstrapAllGather(innerComm->bootstrap, (void *)info->base_vas,
                             sizeof(uintptr_t));
   fatal(res, "bootstrapAllGather failed for base_vas", proc);
@@ -250,6 +255,13 @@ int main(int argc, char *argv[]) {
   res = bootstrapAllGather(innerComm->bootstrap, (void *)info->lkeys,
                            sizeof(uint32_t));
   fatal(res, "bootstrapAllGather failed for lkeys", proc);
+  
+  printf("[test_put] proc %d: AFTER allgather - all ranks:\n", proc);
+  for (int i = 0; i < nranks; ++i) {
+    printf("  rank %d: base_va=0x%lx rkey=0x%x lkey=0x%x\n",
+           i, info->base_vas[i], info->rkeys[i], info->lkeys[i]);
+  }
+  fflush(stdout);
 
   globalHandles = (void *)info;
 
@@ -281,10 +293,10 @@ int main(int argc, char *argv[]) {
         fatal(res, "netAdaptor->put warmup failed", proc);
 
         void *sigReq = nullptr;
-        res = netAdaptor->signalValue(sendComm, signalOffset, senderRank,
-                                      senderRank, receiverRank,
-                                      (void **)globalHandles, &sigReq);
-        fatal(res, "netAdaptor->signalValue warmup failed", proc);
+        res = netAdaptor->putSignal(sendComm, signalOffset, senderRank,
+                                     senderRank, receiverRank,
+                                     (void **)globalHandles, &sigReq);
+        fatal(res, "netAdaptor->putSignal warmup failed", proc);
 
         expectedSignal += 1;
       } else if (isReceiver) {
@@ -314,10 +326,10 @@ int main(int argc, char *argv[]) {
         fatal(res, "netAdaptor->put failed", proc);
 
         void *sigReq = nullptr;
-        res = netAdaptor->signalValue(sendComm, signalOffset, senderRank,
-                                      senderRank, receiverRank,
-                                      (void **)globalHandles, &sigReq);
-        fatal(res, "netAdaptor->signalValue failed", proc);
+        res = netAdaptor->putSignal(sendComm, signalOffset, senderRank,
+                                     senderRank, receiverRank,
+                                     (void **)globalHandles, &sigReq);
+        fatal(res, "netAdaptor->putSignal failed", proc);
 
         expectedSignal += 1;
       } else if (isReceiver) {
