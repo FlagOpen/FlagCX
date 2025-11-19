@@ -136,7 +136,7 @@ flagcxResult_t ixcudaAdaptorStreamCopy(flagcxStream_t *newStream,
                                        void *oldStream) {
   (*newStream) = NULL;
   flagcxCalloc(newStream, 1);
-  memcpy((void *)*newStream, oldStream, sizeof(cudaStream_t));
+  (*newStream)->base = (cudaStream_t)oldStream;
   return flagcxSuccess;
 }
 

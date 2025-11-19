@@ -141,7 +141,7 @@ flagcxResult_t macaAdaptorStreamCopy(flagcxStream_t *newStream,
                                      void *oldStream) {
   (*newStream) = NULL;
   flagcxCalloc(newStream, 1);
-  memcpy((void *)*newStream, oldStream, sizeof(mcStream_t));
+  (*newStream)->base = (mcStream_t)oldStream;
   return flagcxSuccess;
 }
 

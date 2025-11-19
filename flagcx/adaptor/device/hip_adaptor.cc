@@ -135,7 +135,7 @@ flagcxResult_t hipAdaptorStreamCopy(flagcxStream_t *newStream,
                                     void *oldStream) {
   (*newStream) = NULL;
   flagcxCalloc(newStream, 1);
-  memcpy((void *)*newStream, oldStream, sizeof(hipStream_t));
+  (*newStream)->base = (hipStream_t)oldStream;
   return flagcxSuccess;
 }
 

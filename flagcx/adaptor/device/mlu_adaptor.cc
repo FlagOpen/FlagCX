@@ -119,7 +119,7 @@ flagcxResult_t mluAdaptorStreamCopy(flagcxStream_t *newStream,
                                     void *oldStream) {
   (*newStream) = NULL;
   flagcxCalloc(newStream, 1);
-  memcpy((void *)*newStream, oldStream, sizeof(cnrtQueue_t));
+  (*newStream)->base = (cnrtQueue_t)oldStream;
   return flagcxSuccess;
 }
 

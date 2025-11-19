@@ -51,7 +51,7 @@ SET_DEVICE_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.c_int)
 GET_DEVICE_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.POINTER(ctypes.c_int))
 GET_DEVICE_COUNT_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.POINTER(ctypes.c_int))
 GET_VENDOR_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.c_char_p)
-HOST_GET_DEVICE_POINTER_FUNCTYPE =ctypes.CFUNCTYPE(flagcxResult_t, ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p)
+HOST_GET_DEVICE_POINTER_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.POINTER(ctypes.c_void_p), ctypes.c_void_p)
 
 STREAM_CREATE_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, ctypes.POINTER(flagcxStream_t))
 STREAM_DESTROY_FUNCTYPE = ctypes.CFUNCTYPE(flagcxResult_t, flagcxStream_t)
@@ -410,7 +410,7 @@ class FLAGCXLibrary:
 
     def adaptor_stream_copy(self, old_stream):
         new_stream = flagcxStream_t()
-        self.FLAGCX_CHECK(self.handler.contents.devHandle.contents.streamCopy(ctypes.byref(new_stream), ctypes.byref(ctypes.c_void_p(old_stream.cuda_stream))))
+        self.FLAGCX_CHECK(self.handler.contents.devHandle.contents.streamCopy(ctypes.byref(new_stream), ctypes.c_void_p(old_stream.cuda_stream)))
         return new_stream
 
     def adaptor_stream_free(self, stream):
@@ -427,4 +427,3 @@ __all__ = [
     "FLAGCXLibrary", "flagcxDataTypeEnum", "flagcxRedOpTypeEnum", "flagcxUniqueId",
     "flagcxHandlerGroup_t", "flagcxComm_t", "flagcxStream_t", "flagcxEvent_t", "buffer_type"
 ]
-
