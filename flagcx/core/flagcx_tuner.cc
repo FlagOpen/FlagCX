@@ -3,8 +3,12 @@
 #include "check.h"
 #include "param.h"
 #include "timer.h"
+<<<<<<< HEAD
 #include "tuner/tuner_util.h"
 #include "utils.h"
+=======
+#include "tuner_util.h"
+>>>>>>> 3d674f1 (Restructure repo)
 #include <cfloat>
 #include <iostream>
 #include <map>
