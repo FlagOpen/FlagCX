@@ -17,7 +17,7 @@ extern "C" {
 #define flagcxHomoRunner 0
 #define flagcxHostRunner 1
 #define flagcxHybridRunner 2
-#define flagcxUniRunner 2
+#define flagcxUniRunner 3
 
 extern struct flagcxRunner homoRunner;
 extern struct flagcxRunner hostRunner;
