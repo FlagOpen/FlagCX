@@ -204,7 +204,7 @@ T *flagcxIntruQueueMpscAbandon(struct flagcxIntruQueueMpsc<T, next> *me);
 ////////////////////////////////////////////////////////////////////////////////
 
 // Function helps init single homo cluster.
-// return homoComm via homoComm paramter.
+// return homoComm via homoComm parameter.
 flagcxResult_t flagcxHomoCommInit(flagcxUniqueId_t commId,
                                   flagcxUniqueId *uniqueIdData,
                                   struct bootstrapState *state,

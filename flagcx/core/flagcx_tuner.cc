@@ -280,7 +280,7 @@ static flagcxResult_t findBestComm(struct flagcxTunerContext *ctx,
   int bestCommIdx = -1; // index of best communicator in configList
   float minTime = FLT_MAX;
   // calculate the best communicator based on profiling data
-  uint32_t profileDataRound = PROFILE_ROUND;
+  const uint32_t profileDataRound = PROFILE_ROUND;
   for (const auto &idx : ctx->activeCommList) {
     int seqId = getSeqIdForCommIdx(
         ctx, idx,
@@ -429,8 +429,6 @@ flagcxResult_t flagcxTunerGetCollInfo(void *context, flagcxCommOp_t collType,
       WARN("No active communicator found for startup phase seqId=%u.", seqId);
       return flagcxInternalError;
     }
-    const auto &cfg = ctx->configList[cfgIdx];
-    *commTag = cfg.commTag;
     TunerCommTagCounterKey key{nBytes, static_cast<uint32_t>(collType),
                                static_cast<uint32_t>(cfgIdx)};
     auto cit = ctx->configCounterMap.find(key);
@@ -439,18 +437,15 @@ flagcxResult_t flagcxTunerGetCollInfo(void *context, flagcxCommOp_t collType,
       FLAGCXCHECK(
           flagcxCreateOrReplaceHomoComm(comm, ctx, seqId, collCat, false));
       (*comm)->tunerInnerComm = (*comm)->homoCommMap[collCat];
-      const auto &cfg = ctx->configList[cfgIdx];
-      *commTag = cfg.commTag;
-      FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
       ctx->configCounterMap[key] = 1;
     } else {
-      // use old commnicator
+      // use old communicator
       (*comm)->tunerInnerComm = (*comm)->homoCommMap[collCat];
-      const auto &cfg = ctx->configList[cfgIdx];
-      *commTag = cfg.commTag;
-      FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
       ctx->configCounterMap[key]++;
     }
+    const auto &cfg = ctx->configList[cfgIdx];
+    *commTag = cfg.commTag;
+    FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
     return flagcxSuccess;
   }
 
@@ -469,20 +464,19 @@ flagcxResult_t flagcxTunerGetCollInfo(void *context, flagcxCommOp_t collType,
     }
     // If the optimal config has been found, create a communicator of best
     // config
-    uint32_t profileDataRound = PROFILE_ROUND;
+    const uint32_t profileDataRound = PROFILE_ROUND;
     uint32_t bestSeqId = getSeqIdForCommIdx(
         ctx, it2->second,
         std::min(profileDataRound,
                  static_cast<uint32_t>(ctx->searchNLoops - 1)));
     FLAGCXCHECK(
         flagcxCreateOrReplaceHomoComm(comm, ctx, bestSeqId, collCat, true));
-    (*comm)->tunerInnerComm = (*comm)->homoCommMap[collCat];
-    // Store the best commincator of collCat into homoBestCommMap
-    (*comm)->homoBestCommMap[collCat] = (*comm)->homoCommMap[collCat];
-
     auto &cfg = ctx->configList[it2->second];
     FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
     *commTag = cfg.commTag;
+    (*comm)->tunerInnerComm = (*comm)->homoCommMap[collCat];
+    // Store the best communicator of collCat into homoBestCommMap
+    (*comm)->homoBestCommMap[collCat] = (*comm)->homoCommMap[collCat];
   } else {
     // The best communicator has been created
     // get it in collBestCommMap directly
@@ -493,8 +487,8 @@ flagcxResult_t flagcxTunerGetCollInfo(void *context, flagcxCommOp_t collType,
       return flagcxInternalError;
     }
     auto &cfg = ctx->configList[it2->second];
-    *commTag = cfg.commTag;
     FLAGCXCHECK(setEnvConfig(cfg, FLAGCX_ENV_TYPE_COLL));
+    *commTag = cfg.commTag;
     (*comm)->tunerInnerComm = (*comm)->homoBestCommMap[collCat];
     INFO(FLAGCX_TUNING,
          "Use Communicator tag %s based on profile data, seqId=%d.",
