@@ -1,0 +1,8 @@
+*.o
+*_main
+*_test
+*.so
+*log.txt
+*.log
+*.txt
+azure_perm_traffic/permutation_traffic
