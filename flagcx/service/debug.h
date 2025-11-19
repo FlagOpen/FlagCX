@@ -39,6 +39,7 @@ typedef enum {
   FLAGCX_NVLS = 2048,
   FLAGCX_BOOTSTRAP = 4096,
   FLAGCX_REG = 8192,
+  FLAGCX_KERNEL = 16384,
   FLAGCX_ALL = ~0
 } flagcxDebugLogSubSys;
 

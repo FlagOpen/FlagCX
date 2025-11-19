@@ -122,14 +122,18 @@ flagcxResult_t flagcxProxySaveOp(struct flagcxHeteroComm *comm,
     *justInquire = false;
   switch (op->pattern) {
     case flagcxPatternSend:
-    case flagcxPatternRecv: {
+      // Self-copy will be saved as a send operation
+      if (op->root == comm->rank)
+        op->selfCopy = 1;
+      FLAGCXCHECK(
+          SaveProxy(comm, channel, proxySend, op->root, op, 0, justInquire));
+      break;
+    case flagcxPatternRecv:
       if (op->root == comm->rank)
         return flagcxSuccess;
       FLAGCXCHECK(
-          SaveProxy(comm, channel,
-                    op->pattern == flagcxPatternSend ? proxySend : proxyRecv,
-                    op->root, op, 0, justInquire));
-    } break;
+          SaveProxy(comm, channel, proxyRecv, op->root, op, 0, justInquire));
+      break;
   }
   return flagcxSuccess;
 }
@@ -207,8 +211,13 @@ static flagcxResult_t progressOps(struct flagcxProxyState *proxyState,
             } else if (op->connection->transport == TRANSPORT_P2P) {
               struct flagcxP2pResources *resources =
                   (flagcxP2pResources *)op->connection->transportResources;
-              flagcxP2pProxySend(resources, op->recvbuff, op->nbytes,
-                                 &op->args);
+              if (op->selfCopy == 0) {
+                flagcxP2pProxySend(resources, op->recvbuff, op->nbytes,
+                                   &op->args);
+              } else {
+                flagcxP2pProxySelfCopy(resources, op->sendbuff, op->recvbuff,
+                                       op->nbytes, &op->args);
+              }
               if (deviceAsyncLoad && deviceAsyncStore) {
                 if (op->args.done == 1 && op->args.eventRecorded) {
                   if (deviceAdaptor->eventQuery(op->event) == flagcxSuccess) {
@@ -407,8 +416,10 @@ static flagcxResult_t expectedProxyResponseStore(struct flagcxProxyState *state,
         return flagcxInternalError;
       }
 
-      memcpy(elem->respBuff, respBuff, respSize);
-      free(respBuff);
+      if (respSize > 0 && respBuff != NULL) {
+        memcpy(elem->respBuff, respBuff, respSize);
+        free(respBuff);
+      }
       elem->done = true;
       elem->res = res;
       return flagcxSuccess;
@@ -731,7 +742,8 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
           resources->netAdaptor->deregMr(resources->netRecvComm, handle));
     }
     done = 1;
-  } else if (op->type == flagcxProxyMsgSetup) {
+  } else if (op->type == flagcxProxyMsgSetup &&
+             op->connection->transport == TRANSPORT_P2P) {
     if (op->connection->send) {
       // P2P Send side setup
       INFO(FLAGCX_PROXY, "Calling flagcxP2pSendProxySetup");
@@ -753,8 +765,11 @@ static flagcxResult_t proxyProgressAsync(flagcxProxyAsyncOp **opHead,
          "proxyProgressAsync opId=%p op.type=%d op.reqBuff=%p op.respSize=%d "
          "done",
          op->opId, op->type, op->reqBuff, op->respSize);
-    if (op->type == flagcxProxyMsgConnect)
-      __atomic_store_n(&op->connection->state, connConnected, __ATOMIC_RELEASE);
+    if (op->connection->transport == TRANSPORT_NET) {
+      if (op->type == flagcxProxyMsgConnect)
+        __atomic_store_n(&op->connection->state, connConnected,
+                         __ATOMIC_RELEASE);
+    }
 
     /* if setup or connect is done, we should not return any error at this point
      * since flagcxSocketSend might already send the respBuff to the requester.
@@ -1068,29 +1083,34 @@ void *flagcxProxyKernelService(void *args) {
 
   // Create FIFO
   comm->proxyState->kernelState.fifo = new flagcxFifo();
+  FLAGCXCHECKGOTO(comm->proxyState->kernelState.fifo->flagcxFifoInit(), res,
+                  out);
   fifo = comm->proxyState->kernelState.fifo;
   // comm->fifoBuffer = (void *)comm->proxyState->kernelState.fifo->buffer;
-  res = deviceAdaptor->hostGetDevicePointer(
-      &comm->fifoBuffer, (void *)comm->proxyState->kernelState.fifo->buffer);
+  FLAGCXCHECKGOTO(deviceAdaptor->hostGetDevicePointer(
+                      &comm->fifoBuffer,
+                      (void *)comm->proxyState->kernelState.fifo->buffer),
+                  res, out);
 
   // Create a dedicated stream
   flagcxStream_t stream;
-  res = deviceAdaptor->streamCreate(&stream);
+  FLAGCXCHECKGOTO(deviceAdaptor->streamCreate(&stream), res, out);
+  INFO(FLAGCX_P2P, "rank %d p2p stream %lu", comm->rank, (uintptr_t)stream);
 
   // Allocate trigger structure
-  res = flagcxCalloc(&ptr, sizeof(flagcxDeviceTrigger));
+  FLAGCXCHECKGOTO(flagcxCalloc(&ptr, sizeof(flagcxDeviceTrigger)), res, out);
 
   while (true) {
     if (comm->proxyState->kernelState.stop == 1)
       break;
     dequeue(fifo->buffer, ptr);
-    if ((ptr->type == flagcxDevicePrimSend ||
-         ptr->type == flagcxDevicePrimRecv) &&
-        ptr->addr == 0) {
+    if ((ptr->getType() == flagcxDevicePrimSend ||
+         ptr->getType() == flagcxDevicePrimRecv) &&
+        ptr->getAddr() == 0) {
       sched_yield();
       continue;
     }
-    switch (ptr->type) {
+    switch (ptr->getType()) {
       case flagcxDevicePrimSend:
         if (groupCount == 0) {
           res = flagcxHeteroGroupStart();
@@ -1102,9 +1122,10 @@ void *flagcxProxyKernelService(void *args) {
         TRACE(FLAGCX_P2P,
               "rank=%d flagcxDevicePrimSend called by proxyKernelService.",
               comm->rank);
-        res = flagcxHeteroSend((const void *)(uintptr_t)(ptr->addr), ptr->count,
-                               (flagcxDataType_t)(ptr->datatype), ptr->peerRank,
-                               comm, stream);
+        res = flagcxHeteroSend((const void *)(uintptr_t)(ptr->getAddr()),
+                               ptr->getCount(),
+                               (flagcxDataType_t)(ptr->getDatatype()),
+                               ptr->getPeerRank(), comm, stream);
         break;
       case flagcxDevicePrimRecv:
         if (groupCount == 0) {
@@ -1117,16 +1138,20 @@ void *flagcxProxyKernelService(void *args) {
         TRACE(FLAGCX_P2P,
               "rank=%d flagcxDevicePrimRecv called by proxyKernelService.",
               comm->rank);
-        res = flagcxHeteroRecv((void *)(uintptr_t)(ptr->addr), ptr->count,
-                               (flagcxDataType_t)(ptr->datatype), ptr->peerRank,
-                               comm, stream);
+        res = flagcxHeteroRecv((void *)(uintptr_t)(ptr->getAddr()),
+                               ptr->getCount(),
+                               (flagcxDataType_t)(ptr->getDatatype()),
+                               ptr->getPeerRank(), comm, stream);
         break;
       case flagcxDevicePrimTerm:
         TRACE(FLAGCX_P2P,
-              "rank=%d flagcxHeteroGroupEnd called by proxyKernelService.",
+              "rank=%d flagcxDevicePrimTerm called by proxyKernelService.",
               comm->rank);
         if (groupCount > 0) {
           res = flagcxHeteroGroupEnd();
+          TRACE(FLAGCX_P2P,
+                "rank=%d flagcxHeteroGroupEnd called by proxyKernelService.",
+                comm->rank);
           groupCount--;
         }
         break;
@@ -1143,12 +1168,16 @@ void *flagcxProxyKernelService(void *args) {
       break;
   }
   // destroy stream
+  res = deviceAdaptor->streamSynchronize(stream);
   res = deviceAdaptor->streamDestroy(stream);
   // deallocate trigger structure
   free(ptr);
-  // destroy fifo
-  delete comm->proxyState->kernelState.fifo;
+
 out:
+  // destroy fifo
+  res = comm->proxyState->kernelState.fifo->flagcxFifoDestroy();
+  delete comm->proxyState->kernelState.fifo;
+  comm->fifoBuffer = NULL;
   return NULL;
 }
 

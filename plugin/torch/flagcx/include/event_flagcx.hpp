@@ -22,8 +22,8 @@
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
 #elif USE_MUSA_ADAPTOR
-#include <musa_runtime.h>
-#include <torch_musa/csrc/core/MUSAEvent.h>
+#include "torch_musa/csrc/core/MUSAEvent.h"
+#include "torch_musa/csrc/core/MUSAStream.h"
 #elif USE_DU_ADAPTOR
 #include <ATen/cuda/CUDAEvent.h>
 #include <cuda_runtime.h>
@@ -190,21 +190,21 @@ public:
   }
 
   void record(const int device_id) override {
-    musa_event.record(at::musa::getCurrentMUSAStream(device_id));
+    musa_event.record(c10::musa::getCurrentMUSAStream(device_id));
   }
 
   void record(const flagcxStream_t &stream, const int device_id) override {
     musa_event.record(
-        at::musa::getStreamFromExternal(*(musaStream_t *)stream, device_id));
+        c10::musa::getStreamFromExternal(*(musaStream_t *)stream, device_id));
   }
 
   void block(const int device_id) override {
-    musa_event.block(at::musa::getCurrentMUSAStream(device_id));
+    musa_event.block(c10::musa::getCurrentMUSAStream(device_id));
   }
 
   void block(const flagcxStream_t &stream, const int device_id) override {
     musa_event.block(
-        at::musa::getStreamFromExternal(*(musaStream_t *)stream, device_id));
+        c10::musa::getStreamFromExternal(*(musaStream_t *)stream, device_id));
   }
 
 private:
