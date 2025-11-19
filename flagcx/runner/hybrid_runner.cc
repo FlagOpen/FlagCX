@@ -11,15 +11,12 @@ static flagcxLRUCache<size_t, flagcxC2cPlanner>
 
 flagcxResult_t hybridRunnerReduce(const void *sendbuff, void *recvbuff,
                                   size_t count, flagcxDataType_t datatype,
-                                  flagcxRedOp_t op, int root,
-                                  flagcxInnerComm_t comm,
+                                  flagcxRedOp_t op, int root, flagcxComm_t comm,
                                   flagcxStream_t stream) {
-  // cast flagcxInnerComm_t to flagcxComm_t
-  flagcxComm_t hybridComm = reinterpret_cast<flagcxComm_t>(comm);
   // Construct flagcxC2cPlanner and find corresponding strategy
   flagcxC2cPlanner planner;
-  auto hashValue = getC2cCommPatternHash(count, hybridComm->cluster_ids[root],
-                                         flagcxCommOpReduce, op, hybridComm);
+  auto hashValue = getC2cCommPatternHash(count, comm->cluster_ids[root],
+                                         flagcxCommOpReduce, op, comm);
   if (!planCache.get(hashValue, planner)) {
     INFO(FLAGCX_COLL,
          "No available plan is found, create a new one with "
@@ -27,10 +24,10 @@ flagcxResult_t hybridRunnerReduce(const void *sendbuff, void *recvbuff,
          "(count, rootClsuterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         count, hybridComm->cluster_ids[root], flagcxCommOpReduce, op,
-         (size_t)((uintptr_t)hybridComm), hashValue);
-    planner = flagcxC2cPlanner(count, count, root, hybridComm,
-                               flagcxCommOpReduce, op);
+         count, comm->cluster_ids[root], flagcxCommOpReduce, op,
+         (size_t)((uintptr_t)comm), hashValue);
+    planner =
+        flagcxC2cPlanner(count, count, root, comm, flagcxCommOpReduce, op);
     planCache.put(hashValue, planner);
   } else {
     INFO(FLAGCX_COLL,
@@ -38,8 +35,8 @@ flagcxResult_t hybridRunnerReduce(const void *sendbuff, void *recvbuff,
          "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         count, hybridComm->cluster_ids[root], flagcxCommOpReduce, op,
-         (size_t)((uintptr_t)hybridComm), hashValue);
+         count, comm->cluster_ids[root], flagcxCommOpReduce, op,
+         (size_t)((uintptr_t)comm), hashValue);
   }
   FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, root, stream));
   return flagcxSuccess;
@@ -47,14 +44,12 @@ flagcxResult_t hybridRunnerReduce(const void *sendbuff, void *recvbuff,
 
 flagcxResult_t hybridRunnerGather(const void *sendbuff, void *recvbuff,
                                   size_t count, flagcxDataType_t datatype,
-                                  int root, flagcxInnerComm_t comm,
+                                  int root, flagcxComm_t comm,
                                   flagcxStream_t stream) {
-  // cast flagcxInnerComm_t to flagcxComm_t
-  flagcxComm_t hybridComm = reinterpret_cast<flagcxComm_t>(comm);
   // Construct flagcxC2cPlanner and find corresponding strategy
   flagcxC2cPlanner planner;
   auto hashValue = getC2cCommPatternHash(count, root, flagcxCommOpGather,
-                                         flagcxRedNoOp, hybridComm);
+                                         flagcxRedNoOp, comm);
   if (!planCache.get(hashValue, planner)) {
     INFO(FLAGCX_COLL,
          "No available plan is found, create a new one with "
@@ -63,9 +58,9 @@ flagcxResult_t hybridRunnerGather(const void *sendbuff, void *recvbuff,
          "%ld), hashValue = "
          "%ld",
          count, root, flagcxCommOpGather, flagcxRedNoOp,
-         (size_t)((uintptr_t)hybridComm), hashValue);
-    planner = flagcxC2cPlanner(count, count * hybridComm->nranks, root,
-                               hybridComm, flagcxCommOpGather, flagcxRedNoOp);
+         (size_t)((uintptr_t)comm), hashValue);
+    planner = flagcxC2cPlanner(count, count * comm->nranks, root, comm,
+                               flagcxCommOpGather, flagcxRedNoOp);
     planCache.put(hashValue, planner);
   } else {
     INFO(FLAGCX_COLL,
@@ -74,7 +69,7 @@ flagcxResult_t hybridRunnerGather(const void *sendbuff, void *recvbuff,
          "%ld), hashValue = "
          "%ld",
          count, root, flagcxCommOpGather, flagcxRedNoOp,
-         (size_t)((uintptr_t)hybridComm), hashValue);
+         (size_t)((uintptr_t)comm), hashValue);
   }
   FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, root, stream));
   return flagcxSuccess;
@@ -82,14 +77,12 @@ flagcxResult_t hybridRunnerGather(const void *sendbuff, void *recvbuff,
 
 flagcxResult_t hybridRunnerScatter(const void *sendbuff, void *recvbuff,
                                    size_t count, flagcxDataType_t datatype,
-                                   int root, flagcxInnerComm_t comm,
+                                   int root, flagcxComm_t comm,
                                    flagcxStream_t stream) {
-  // cast flagcxInnerComm_t to flagcxComm_t
-  flagcxComm_t hybridComm = reinterpret_cast<flagcxComm_t>(comm);
   // Construct flagcxC2cPlanner and find corresponding strategy
   flagcxC2cPlanner planner;
   auto hashValue = getC2cCommPatternHash(count, root, flagcxCommOpScatter,
-                                         flagcxRedNoOp, hybridComm);
+                                         flagcxRedNoOp, comm);
   if (!planCache.get(hashValue, planner)) {
     INFO(FLAGCX_COLL,
          "No available plan is found, create a new one with "
@@ -98,9 +91,9 @@ flagcxResult_t hybridRunnerScatter(const void *sendbuff, void *recvbuff,
          "%ld), hashValue = "
          "%ld",
          count, root, flagcxCommOpScatter, flagcxRedNoOp,
-         (size_t)((uintptr_t)hybridComm), hashValue);
-    planner = flagcxC2cPlanner(count * hybridComm->nranks, count, root,
-                               hybridComm, flagcxCommOpScatter, flagcxRedNoOp);
+         (size_t)((uintptr_t)comm), hashValue);
+    planner = flagcxC2cPlanner(count * comm->nranks, count, root, comm,
+                               flagcxCommOpScatter, flagcxRedNoOp);
     planCache.put(hashValue, planner);
   } else {
     INFO(FLAGCX_COLL,
@@ -109,7 +102,7 @@ flagcxResult_t hybridRunnerScatter(const void *sendbuff, void *recvbuff,
          "%ld), hashValue = "
          "%ld",
          count, root, flagcxCommOpScatter, flagcxRedNoOp,
-         (size_t)((uintptr_t)hybridComm), hashValue);
+         (size_t)((uintptr_t)comm), hashValue);
   }
   FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, root, stream));
   return flagcxSuccess;
@@ -117,15 +110,13 @@ flagcxResult_t hybridRunnerScatter(const void *sendbuff, void *recvbuff,
 
 flagcxResult_t hybridRunnerBroadcast(const void *sendbuff, void *recvbuff,
                                      size_t count, flagcxDataType_t datatype,
-                                     int root, flagcxInnerComm_t comm,
+                                     int root, flagcxComm_t comm,
                                      flagcxStream_t stream) {
-  // cast flagcxInnerComm_t to flagcxComm_t
-  flagcxComm_t hybridComm = reinterpret_cast<flagcxComm_t>(comm);
   // Construct flagcxC2cPlanner and find corresponding strategy
   flagcxC2cPlanner planner;
   auto hashValue =
-      getC2cCommPatternHash(count, hybridComm->cluster_ids[root],
-                            flagcxCommOpBroadcast, flagcxRedNoOp, hybridComm);
+      getC2cCommPatternHash(count, comm->cluster_ids[root],
+                            flagcxCommOpBroadcast, flagcxRedNoOp, comm);
   if (!planCache.get(hashValue, planner)) {
     INFO(FLAGCX_COLL,
          "No available plan is found, create a new one with "
@@ -133,10 +124,10 @@ flagcxResult_t hybridRunnerBroadcast(const void *sendbuff, void *recvbuff,
          "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         count, hybridComm->cluster_ids[root], flagcxCommOpBroadcast,
-         flagcxRedNoOp, (size_t)((uintptr_t)hybridComm), hashValue);
-    planner = flagcxC2cPlanner(count, count, root, hybridComm,
-                               flagcxCommOpBroadcast, flagcxRedNoOp);
+         count, comm->cluster_ids[root], flagcxCommOpBroadcast, flagcxRedNoOp,
+         (size_t)((uintptr_t)comm), hashValue);
+    planner = flagcxC2cPlanner(count, count, root, comm, flagcxCommOpBroadcast,
+                               flagcxRedNoOp);
     planCache.put(hashValue, planner);
   } else {
     INFO(FLAGCX_COLL,
@@ -144,8 +135,8 @@ flagcxResult_t hybridRunnerBroadcast(const void *sendbuff, void *recvbuff,
          "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         count, hybridComm->cluster_ids[root], flagcxCommOpBroadcast,
-         flagcxRedNoOp, (size_t)((uintptr_t)hybridComm), hashValue);
+         count, comm->cluster_ids[root], flagcxCommOpBroadcast, flagcxRedNoOp,
+         (size_t)((uintptr_t)comm), hashValue);
   }
   FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, root, stream));
   return flagcxSuccess;
@@ -153,15 +144,13 @@ flagcxResult_t hybridRunnerBroadcast(const void *sendbuff, void *recvbuff,
 
 flagcxResult_t hybridRunnerAllReduce(const void *sendbuff, void *recvbuff,
                                      size_t count, flagcxDataType_t datatype,
-                                     flagcxRedOp_t op, flagcxInnerComm_t comm,
+                                     flagcxRedOp_t op, flagcxComm_t comm,
                                      flagcxStream_t stream) {
-  // cast flagcxInnerComm_t to flagcxComm_t
-  flagcxComm_t hybridComm = reinterpret_cast<flagcxComm_t>(comm);
   // Construct flagcxC2cPlanner and find corresponding strategy
   flagcxC2cPlanner planner;
-  auto hashValue = getC2cCommPatternHash(
-      count, hybridComm->nclusters, flagcxCommOpAllReduce, op,
-      hybridComm); // use nclusters as rootClusterId for hash
+  auto hashValue =
+      getC2cCommPatternHash(count, comm->nclusters, flagcxCommOpAllReduce, op,
+                            comm); // use nclusters as rootClusterId for hash
   if (!planCache.get(hashValue, planner)) {
     INFO(FLAGCX_COLL,
          "No available plan is found, create a new one with "
@@ -169,10 +158,10 @@ flagcxResult_t hybridRunnerAllReduce(const void *sendbuff, void *recvbuff,
          "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         count, hybridComm->nclusters, flagcxCommOpAllReduce, op,
-         (size_t)((uintptr_t)hybridComm), hashValue);
-    planner = flagcxC2cPlanner(count, count, -1, hybridComm,
-                               flagcxCommOpAllReduce, op);
+         count, comm->nclusters, flagcxCommOpAllReduce, op,
+         (size_t)((uintptr_t)comm), hashValue);
+    planner =
+        flagcxC2cPlanner(count, count, -1, comm, flagcxCommOpAllReduce, op);
     planCache.put(hashValue, planner);
     // TODO: add estimator part
     // flagcxAlgoTimeEstimator estimator(planner, datatype);
@@ -184,8 +173,8 @@ flagcxResult_t hybridRunnerAllReduce(const void *sendbuff, void *recvbuff,
          "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         count, hybridComm->nclusters, flagcxCommOpAllReduce, op,
-         (size_t)((uintptr_t)hybridComm), hashValue);
+         count, comm->nclusters, flagcxCommOpAllReduce, op,
+         (size_t)((uintptr_t)comm), hashValue);
   }
   FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, -1, stream));
   return flagcxSuccess;
@@ -194,16 +183,13 @@ flagcxResult_t hybridRunnerAllReduce(const void *sendbuff, void *recvbuff,
 flagcxResult_t hybridRunnerReduceScatter(const void *sendbuff, void *recvbuff,
                                          size_t recvcount,
                                          flagcxDataType_t datatype,
-                                         flagcxRedOp_t op,
-                                         flagcxInnerComm_t comm,
+                                         flagcxRedOp_t op, flagcxComm_t comm,
                                          flagcxStream_t stream) {
-  // cast flagcxInnerComm_t to flagcxComm_t
-  flagcxComm_t hybridComm = reinterpret_cast<flagcxComm_t>(comm);
   // Construct flagcxC2cPlanner and find corresponding strategy
   flagcxC2cPlanner planner;
   auto hashValue = getC2cCommPatternHash(
-      recvcount, hybridComm->nclusters, flagcxCommOpReduceScatter, op,
-      hybridComm); // use nclusters as rootClusterId for hash
+      recvcount, comm->nclusters, flagcxCommOpReduceScatter, op,
+      comm); // use nclusters as rootClusterId for hash
   if (!planCache.get(hashValue, planner)) {
     INFO(FLAGCX_COLL,
          "No available plan is found, create a new one with "
@@ -211,10 +197,10 @@ flagcxResult_t hybridRunnerReduceScatter(const void *sendbuff, void *recvbuff,
          "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         recvcount, hybridComm->nclusters, flagcxCommOpReduceScatter, op,
-         (size_t)((uintptr_t)hybridComm), hashValue);
-    planner = flagcxC2cPlanner(hybridComm->nranks * recvcount, recvcount, -1,
-                               hybridComm, flagcxCommOpReduceScatter, op);
+         recvcount, comm->nclusters, flagcxCommOpReduceScatter, op,
+         (size_t)((uintptr_t)comm), hashValue);
+    planner = flagcxC2cPlanner(comm->nranks * recvcount, recvcount, -1, comm,
+                               flagcxCommOpReduceScatter, op);
     planCache.put(hashValue, planner);
   } else {
     INFO(FLAGCX_COLL,
@@ -222,8 +208,8 @@ flagcxResult_t hybridRunnerReduceScatter(const void *sendbuff, void *recvbuff,
          "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         recvcount, hybridComm->nclusters, flagcxCommOpReduceScatter, op,
-         (size_t)((uintptr_t)hybridComm), hashValue);
+         recvcount, comm->nclusters, flagcxCommOpReduceScatter, op,
+         (size_t)((uintptr_t)comm), hashValue);
   }
   FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, -1, stream));
   return flagcxSuccess;
@@ -232,16 +218,13 @@ flagcxResult_t hybridRunnerReduceScatter(const void *sendbuff, void *recvbuff,
 flagcxResult_t hybridRunnerAllGather(const void *sendbuff, void *recvbuff,
                                      size_t sendcount,
                                      flagcxDataType_t datatype,
-                                     flagcxInnerComm_t comm,
-                                     flagcxStream_t stream) {
-  // cast flagcxInnerComm_t to flagcxComm_t
-  flagcxComm_t hybridComm = reinterpret_cast<flagcxComm_t>(comm);
+                                     flagcxComm_t comm, flagcxStream_t stream) {
   // Construct flagcxC2cPlanner and find corresponding strategy
   flagcxC2cPlanner planner;
   auto hashValue = getC2cCommPatternHash(
-      sendcount, hybridComm->nclusters,
+      sendcount, comm->nclusters,
       flagcxCommOpAllGather, // use nclusters as rootClusterId for hash
-      flagcxRedNoOp, hybridComm);
+      flagcxRedNoOp, comm);
   if (!planCache.get(hashValue, planner)) {
     INFO(FLAGCX_COLL,
          "No available plan is found, create a new one with "
@@ -249,11 +232,10 @@ flagcxResult_t hybridRunnerAllGather(const void *sendbuff, void *recvbuff,
          "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         sendcount, hybridComm->nclusters, flagcxCommOpAllGather, flagcxRedNoOp,
-         (size_t)((uintptr_t)hybridComm), hashValue);
-    planner =
-        flagcxC2cPlanner(sendcount, sendcount * hybridComm->nranks, -1,
-                         hybridComm, flagcxCommOpAllGather, flagcxRedNoOp);
+         sendcount, comm->nclusters, flagcxCommOpAllGather, flagcxRedNoOp,
+         (size_t)((uintptr_t)comm), hashValue);
+    planner = flagcxC2cPlanner(sendcount, sendcount * comm->nranks, -1, comm,
+                               flagcxCommOpAllGather, flagcxRedNoOp);
     planCache.put(hashValue, planner);
   } else {
     INFO(FLAGCX_COLL,
@@ -261,8 +243,8 @@ flagcxResult_t hybridRunnerAllGather(const void *sendbuff, void *recvbuff,
          "(count, rootClusterId, commOp, redOp, comm) = (%ld, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         sendcount, hybridComm->nclusters, flagcxCommOpAllGather, flagcxRedNoOp,
-         (size_t)((uintptr_t)hybridComm), hashValue);
+         sendcount, comm->nclusters, flagcxCommOpAllGather, flagcxRedNoOp,
+         (size_t)((uintptr_t)comm), hashValue);
   }
   FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, -1, stream));
   return flagcxSuccess;
@@ -270,15 +252,12 @@ flagcxResult_t hybridRunnerAllGather(const void *sendbuff, void *recvbuff,
 
 flagcxResult_t hybridRunnerAlltoAll(const void *sendbuff, void *recvbuff,
                                     size_t count, flagcxDataType_t datatype,
-                                    flagcxInnerComm_t comm,
-                                    flagcxStream_t stream) {
-  // cast flagcxInnerComm_t to flagcxComm_t
-  flagcxComm_t hybridComm = reinterpret_cast<flagcxComm_t>(comm);
+                                    flagcxComm_t comm, flagcxStream_t stream) {
   // Construct flagcxC2cPlanner and find corresponding strategy
   flagcxC2cPlanner planner;
   auto hashValue =
       getC2cCommPatternHash(count, 1, // use 1 as rootClusterId for hash
-                            flagcxCommOpAlltoAll, flagcxRedNoOp, hybridComm);
+                            flagcxCommOpAlltoAll, flagcxRedNoOp, comm);
   if (!planCache.get(hashValue, planner)) {
     INFO(FLAGCX_COLL,
          "No available plan is found, create a new one with "
@@ -287,9 +266,9 @@ flagcxResult_t hybridRunnerAlltoAll(const void *sendbuff, void *recvbuff,
          "%ld), hashValue = "
          "%ld",
          count, 1, flagcxCommOpAlltoAll, flagcxRedNoOp,
-         (size_t)((uintptr_t)hybridComm), hashValue);
-    planner = flagcxC2cPlanner(count, count, -1, hybridComm,
-                               flagcxCommOpAlltoAll, flagcxRedNoOp);
+         (size_t)((uintptr_t)comm), hashValue);
+    planner = flagcxC2cPlanner(count, count, -1, comm, flagcxCommOpAlltoAll,
+                               flagcxRedNoOp);
     planCache.put(hashValue, planner);
   } else {
     INFO(FLAGCX_COLL,
@@ -298,7 +277,7 @@ flagcxResult_t hybridRunnerAlltoAll(const void *sendbuff, void *recvbuff,
          "%ld), hashValue = "
          "%ld",
          count, 1, flagcxCommOpAlltoAll, flagcxRedNoOp,
-         (size_t)((uintptr_t)hybridComm), hashValue);
+         (size_t)((uintptr_t)comm), hashValue);
   }
   FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, -1, stream));
   return flagcxSuccess;
@@ -308,14 +287,11 @@ flagcxResult_t hybridRunnerAlltoAllv(const void *sendbuff, size_t *sendcounts,
                                      size_t *sdispls, void *recvbuff,
                                      size_t *recvcounts, size_t *rdispls,
                                      flagcxDataType_t datatype,
-                                     flagcxInnerComm_t comm,
-                                     flagcxStream_t stream) {
-  // cast flagcxInnerComm_t to flagcxComm_t
-  flagcxComm_t hybridComm = reinterpret_cast<flagcxComm_t>(comm);
+                                     flagcxComm_t comm, flagcxStream_t stream) {
   flagcxC2cPlanner planner;
   auto hashValue = getC2cCommPatternHash(
       1, 1, // use 1 both as count and rootClusterId for hash
-      flagcxCommOpAlltoAllv, flagcxRedNoOp, hybridComm);
+      flagcxCommOpAlltoAllv, flagcxRedNoOp, comm);
   if (!planCache.get(hashValue, planner)) {
     INFO(FLAGCX_COLL,
          "No available plan is found, create a new one with "
@@ -323,10 +299,10 @@ flagcxResult_t hybridRunnerAlltoAllv(const void *sendbuff, size_t *sendcounts,
          "(count, rootClusterId, commOp, redOp, comm) = (%d, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         1, 1, flagcxCommOpAlltoAllv, flagcxRedNoOp,
-         (size_t)((uintptr_t)hybridComm), hashValue);
-    planner = flagcxC2cPlanner(1, 1, -1, hybridComm, flagcxCommOpAlltoAllv,
-                               flagcxRedNoOp);
+         1, 1, flagcxCommOpAlltoAllv, flagcxRedNoOp, (size_t)((uintptr_t)comm),
+         hashValue);
+    planner =
+        flagcxC2cPlanner(1, 1, -1, comm, flagcxCommOpAlltoAllv, flagcxRedNoOp);
     planCache.put(hashValue, planner);
   } else {
     INFO(FLAGCX_COLL,
@@ -334,8 +310,8 @@ flagcxResult_t hybridRunnerAlltoAllv(const void *sendbuff, size_t *sendcounts,
          "(count, rootClusterId, commOp, redOp, comm) = (%d, %d, %d, %d, "
          "%ld), hashValue = "
          "%ld",
-         1, 1, flagcxCommOpAlltoAllv, flagcxRedNoOp,
-         (size_t)((uintptr_t)hybridComm), hashValue);
+         1, 1, flagcxCommOpAlltoAllv, flagcxRedNoOp, (size_t)((uintptr_t)comm),
+         hashValue);
   }
   FLAGCXCHECK(planner.execute(sendbuff, recvbuff, datatype, -1, stream,
                               sendcounts, sdispls, recvcounts, rdispls));
@@ -344,34 +320,28 @@ flagcxResult_t hybridRunnerAlltoAllv(const void *sendbuff, size_t *sendcounts,
 
 flagcxResult_t hybridRunnerSend(const void *sendbuff, size_t count,
                                 flagcxDataType_t datatype, int peer,
-                                flagcxInnerComm_t comm, flagcxStream_t stream) {
-  // cast flagcxInnerComm_t to flagcxComm_t
-  flagcxComm_t hybridComm = reinterpret_cast<flagcxComm_t>(comm);
-  if (hybridComm->cluster_ids[hybridComm->rank] ==
-      hybridComm->cluster_ids[peer]) {
+                                flagcxComm_t comm, flagcxStream_t stream) {
+  if (comm->cluster_ids[comm->rank] == comm->cluster_ids[peer]) {
     FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->send(
-        sendbuff, count, datatype, hybridComm->globalrank2homorank[peer],
-        hybridComm->homo_comm, stream));
+        sendbuff, count, datatype, comm->globalrank2homorank[peer],
+        comm->homo_comm, stream));
   } else {
     FLAGCXCHECK(flagcxHeteroSend(sendbuff, count, datatype, peer,
-                                 hybridComm->hetero_comm, stream));
+                                 comm->hetero_comm, stream));
   }
   return flagcxSuccess;
 }
 
 flagcxResult_t hybridRunnerRecv(void *recvbuff, size_t count,
                                 flagcxDataType_t datatype, int peer,
-                                flagcxInnerComm_t comm, flagcxStream_t stream) {
-  // cast flagcxInnerComm_t to flagcxComm_t
-  flagcxComm_t hybridComm = reinterpret_cast<flagcxComm_t>(comm);
-  if (hybridComm->cluster_ids[hybridComm->rank] ==
-      hybridComm->cluster_ids[peer]) {
+                                flagcxComm_t comm, flagcxStream_t stream) {
+  if (comm->cluster_ids[comm->rank] == comm->cluster_ids[peer]) {
     FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->recv(
-        recvbuff, count, datatype, hybridComm->globalrank2homorank[peer],
-        hybridComm->homo_comm, stream));
+        recvbuff, count, datatype, comm->globalrank2homorank[peer],
+        comm->homo_comm, stream));
   } else {
     FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, peer,
-                                 hybridComm->hetero_comm, stream));
+                                 comm->hetero_comm, stream));
   }
   return flagcxSuccess;
 }

@@ -5,5 +5,4 @@
 #include "runner.h"
 
 struct flagcxRunner *flagcxRunners[NRUNNERS] = {&homoRunner, &hostRunner,
-                                                &hybridRunner, NULL};
-//  &uniRunner};
+                                                &hybridRunner, &uniRunner};

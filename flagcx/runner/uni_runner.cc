@@ -2,116 +2,174 @@
  * Copyright (c) 2025 BAAI. All rights reserved.
  ************************************************************************/
 
+#include "flagcx_hetero.h"
 #include "runner.h"
 
 flagcxResult_t uniRunnerReduce(const void *sendbuff, void *recvbuff,
                                size_t count, flagcxDataType_t datatype,
-                               flagcxRedOp_t op, int root,
-                               flagcxInnerComm_t comm, flagcxStream_t stream) {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduce(
-      sendbuff, recvbuff, count, datatype, op, root, comm, stream));
-  return flagcxSuccess;
+                               flagcxRedOp_t op, int root, flagcxComm_t comm,
+                               flagcxStream_t stream) {
+  return flagcxNotSupported;
 }
 
 flagcxResult_t uniRunnerGather(const void *sendbuff, void *recvbuff,
                                size_t count, flagcxDataType_t datatype,
-                               int root, flagcxInnerComm_t comm,
+                               int root, flagcxComm_t comm,
                                flagcxStream_t stream) {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->gather(
-      sendbuff, recvbuff, count, datatype, root, comm, stream));
+  size_t size = count * getFlagcxDataTypeSize(datatype);
+  char *buffer = static_cast<char *>(recvbuff);
+
+  FLAGCXCHECK(flagcxHeteroGroupStart());
+  if (comm->rank == root) {
+    for (int r = 0; r < comm->nranks; r++) {
+      FLAGCXCHECK(flagcxHeteroRecv(static_cast<void *>(buffer + r * size),
+                                   count, datatype, r, comm->hetero_comm,
+                                   stream));
+    }
+  }
+  FLAGCXCHECK(flagcxHeteroSend(sendbuff, count, datatype, root,
+                               comm->hetero_comm, stream));
+  FLAGCXCHECK(flagcxHeteroGroupEnd());
   return flagcxSuccess;
 }
 
 flagcxResult_t uniRunnerScatter(const void *sendbuff, void *recvbuff,
                                 size_t count, flagcxDataType_t datatype,
-                                int root, flagcxInnerComm_t comm,
+                                int root, flagcxComm_t comm,
                                 flagcxStream_t stream) {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->scatter(
-      sendbuff, recvbuff, count, datatype, root, comm, stream));
+  size_t size = count * getFlagcxDataTypeSize(datatype);
+  const char *buffer = static_cast<const char *>(sendbuff);
+
+  FLAGCXCHECK(flagcxHeteroGroupStart());
+  if (comm->rank == root) {
+    for (int r = 0; r < comm->nranks; r++) {
+      FLAGCXCHECK(flagcxHeteroSend(static_cast<const void *>(buffer + r * size),
+                                   count, datatype, r, comm->hetero_comm,
+                                   stream));
+    }
+  }
+  FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, root,
+                               comm->hetero_comm, stream));
+  FLAGCXCHECK(flagcxHeteroGroupEnd());
   return flagcxSuccess;
 }
 
 flagcxResult_t uniRunnerBroadcast(const void *sendbuff, void *recvbuff,
                                   size_t count, flagcxDataType_t datatype,
-                                  int root, flagcxInnerComm_t comm,
+                                  int root, flagcxComm_t comm,
                                   flagcxStream_t stream) {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->broadcast(
-      sendbuff, recvbuff, count, datatype, root, comm, stream));
+  FLAGCXCHECK(flagcxHeteroGroupStart());
+  if (comm->rank == root) {
+    for (int r = 0; r < comm->nranks; r++) {
+      FLAGCXCHECK(flagcxHeteroSend(sendbuff, count, datatype, r,
+                                   comm->hetero_comm, stream));
+    }
+  }
+  FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, root,
+                               comm->hetero_comm, stream));
+  FLAGCXCHECK(flagcxHeteroGroupEnd());
   return flagcxSuccess;
 }
 
 flagcxResult_t uniRunnerAllReduce(const void *sendbuff, void *recvbuff,
                                   size_t count, flagcxDataType_t datatype,
-                                  flagcxRedOp_t op, flagcxInnerComm_t comm,
+                                  flagcxRedOp_t op, flagcxComm_t comm,
                                   flagcxStream_t stream) {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->allReduce(
-      sendbuff, recvbuff, count, datatype, op, comm, stream));
-  return flagcxSuccess;
+  return flagcxNotSupported;
 }
 
 flagcxResult_t uniRunnerReduceScatter(const void *sendbuff, void *recvbuff,
                                       size_t recvcount,
                                       flagcxDataType_t datatype,
-                                      flagcxRedOp_t op, flagcxInnerComm_t comm,
+                                      flagcxRedOp_t op, flagcxComm_t comm,
                                       flagcxStream_t stream) {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->reduceScatter(
-      sendbuff, recvbuff, recvcount, datatype, op, comm, stream));
-  return flagcxSuccess;
+  return flagcxNotSupported;
 }
 
 flagcxResult_t uniRunnerAllGather(const void *sendbuff, void *recvbuff,
                                   size_t sendcount, flagcxDataType_t datatype,
-                                  flagcxInnerComm_t comm,
-                                  flagcxStream_t stream) {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->allGather(
-      sendbuff, recvbuff, sendcount, datatype, comm, stream));
+                                  flagcxComm_t comm, flagcxStream_t stream) {
+  size_t size = sendcount * getFlagcxDataTypeSize(datatype);
+  char *bufferOut = static_cast<char *>(recvbuff);
+  FLAGCXCHECK(flagcxHeteroGroupStart());
+  for (int r = 0; r < comm->nranks; r++) {
+    FLAGCXCHECK(flagcxHeteroSend(sendbuff, sendcount, datatype, r,
+                                 comm->hetero_comm, stream));
+    FLAGCXCHECK(flagcxHeteroRecv(static_cast<void *>(bufferOut + r * size),
+                                 sendcount, datatype, r, comm->hetero_comm,
+                                 stream));
+  }
+  FLAGCXCHECK(flagcxHeteroGroupEnd());
   return flagcxSuccess;
 }
 
 flagcxResult_t uniRunnerAlltoAll(const void *sendbuff, void *recvbuff,
                                  size_t count, flagcxDataType_t datatype,
-                                 flagcxInnerComm_t comm,
-                                 flagcxStream_t stream) {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAll(
-      sendbuff, recvbuff, count, datatype, comm, stream));
+                                 flagcxComm_t comm, flagcxStream_t stream) {
+  size_t size = count * getFlagcxDataTypeSize(datatype);
+  const char *bufferIn = static_cast<const char *>(sendbuff);
+  char *bufferOut = static_cast<char *>(recvbuff);
+  FLAGCXCHECK(flagcxHeteroGroupStart());
+  for (int r = 0; r < comm->nranks; r++) {
+    FLAGCXCHECK(flagcxHeteroSend(static_cast<const void *>(bufferIn + r * size),
+                                 count, datatype, r, comm->hetero_comm,
+                                 stream));
+    FLAGCXCHECK(flagcxHeteroRecv(static_cast<void *>(bufferOut + r * size),
+                                 count, datatype, r, comm->hetero_comm,
+                                 stream));
+  }
+  FLAGCXCHECK(flagcxHeteroGroupEnd());
   return flagcxSuccess;
 }
 
 flagcxResult_t uniRunnerAlltoAllv(const void *sendbuff, size_t *sendcounts,
                                   size_t *sdispls, void *recvbuff,
                                   size_t *recvcounts, size_t *rdispls,
-                                  flagcxDataType_t datatype,
-                                  flagcxInnerComm_t comm,
+                                  flagcxDataType_t datatype, flagcxComm_t comm,
                                   flagcxStream_t stream) {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->alltoAllv(
-      sendbuff, sendcounts, sdispls, recvbuff, recvcounts, rdispls, datatype,
-      comm, stream));
+  size_t size = getFlagcxDataTypeSize(datatype);
+  const char *bufferIn = static_cast<const char *>(sendbuff);
+  char *bufferOut = static_cast<char *>(recvbuff);
+  FLAGCXCHECK(flagcxHeteroGroupStart());
+  for (int r = 0; r < comm->nranks; r++) {
+    if (flagcxCCLAdaptorNeedSendrecv(sendcounts[r])) {
+      FLAGCXCHECK(flagcxHeteroSend(
+          static_cast<const void *>(bufferIn + sdispls[r] * size),
+          sendcounts[r], datatype, r, comm->hetero_comm, stream));
+    }
+    if (flagcxCCLAdaptorNeedSendrecv(recvcounts[r])) {
+      FLAGCXCHECK(flagcxHeteroRecv(
+          static_cast<void *>(bufferOut + rdispls[r] * size), recvcounts[r],
+          datatype, r, comm->hetero_comm, stream));
+    }
+  }
+  FLAGCXCHECK(flagcxHeteroGroupEnd());
   return flagcxSuccess;
 }
 
 flagcxResult_t uniRunnerSend(const void *sendbuff, size_t count,
                              flagcxDataType_t datatype, int peer,
-                             flagcxInnerComm_t comm, flagcxStream_t stream) {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->send(
-      sendbuff, count, datatype, peer, comm, stream));
+                             flagcxComm_t comm, flagcxStream_t stream) {
+  FLAGCXCHECK(flagcxHeteroSend(sendbuff, count, datatype, peer,
+                               comm->hetero_comm, stream));
   return flagcxSuccess;
 }
 
 flagcxResult_t uniRunnerRecv(void *recvbuff, size_t count,
                              flagcxDataType_t datatype, int peer,
-                             flagcxInnerComm_t comm, flagcxStream_t stream) {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->recv(
-      recvbuff, count, datatype, peer, comm, stream));
+                             flagcxComm_t comm, flagcxStream_t stream) {
+  FLAGCXCHECK(flagcxHeteroRecv(recvbuff, count, datatype, peer,
+                               comm->hetero_comm, stream));
   return flagcxSuccess;
 }
 
 flagcxResult_t uniRunnerGroupStart() {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->groupStart());
+  FLAGCXCHECK(flagcxHeteroGroupStart());
   return flagcxSuccess;
 }
 
 flagcxResult_t uniRunnerGroupEnd() {
-  FLAGCXCHECK(cclAdaptors[flagcxCCLAdaptorDevice]->groupEnd());
+  FLAGCXCHECK(flagcxHeteroGroupEnd());
   return flagcxSuccess;
 }
 
