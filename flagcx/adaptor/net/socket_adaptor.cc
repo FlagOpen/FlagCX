@@ -702,7 +702,7 @@ flagcxNetAdaptor flagcxNetSocket = {
     NULL, // signal - not implemented
 
     // One-sided extensions
-    NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL,
 
     // Device name lookup
     NULL, // getDevFromName

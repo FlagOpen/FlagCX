@@ -2135,46 +2135,6 @@ flagcxResult_t flagcxIbGetProperties(int dev, void *props) {
 }
 
 
-// Structure to store handle info for allgather
-struct flagcxIbGlobalHandleInfo {
-  uintptr_t *base_vas;
-  uint32_t *rkeys;
-  uint32_t *lkeys;
-};
-
-flagcxResult_t flagcxIbRegBuffer(void *comm, void *data, size_t size, int type,
-                                 void *commState, void **mhandle,
-                                 void **gHandles) {
-  struct bootstrapState *state = (struct bootstrapState *)commState;
-
-  // Register local memory region
-  FLAGCXCHECK(flagcxIbRegMr(comm, data, size, type, mhandle));
-
-  struct flagcxIbMrHandle *localMrHandle =
-      (struct flagcxIbMrHandle *)*mhandle;
-
-  int nranks = state->nranks;
-
-  struct flagcxIbGlobalHandleInfo *info = NULL;
-  FLAGCXCHECK(flagcxCalloc(&info, 1));
-  FLAGCXCHECK(flagcxCalloc(&info->base_vas, nranks));
-  FLAGCXCHECK(flagcxCalloc(&info->rkeys, nranks));
-  FLAGCXCHECK(flagcxCalloc(&info->lkeys, nranks));
-
-  info->base_vas[state->rank] = (uintptr_t)localMrHandle->mrs[0]->addr;
-  info->rkeys[state->rank] = localMrHandle->mrs[0]->rkey;
-  info->lkeys[state->rank] = localMrHandle->mrs[0]->lkey;
-
-  FLAGCXCHECK(bootstrapAllGather(
-      commState, (void *)info->base_vas,  sizeof(uintptr_t)));
-  FLAGCXCHECK(bootstrapAllGather(
-      commState, (void *)info->rkeys, sizeof(uint32_t)));
-  FLAGCXCHECK(bootstrapAllGather(
-      commState, (void *)info->lkeys, sizeof(uint32_t)));
-
-  *gHandles = (void *)info;
-  return flagcxSuccess;
-}
 
 flagcxResult_t flagcxIbDeregBuffer(void *comm, void *gHandles) {
   (void)comm;
@@ -2229,6 +2189,12 @@ flagcxResult_t flagcxIbPut(void *sendComm, uint64_t srcOff, uint64_t dstOff,
 
   struct ibv_send_wr *bad_wr;
   FLAGCXCHECK(flagcxWrapIbvPostSend(qp->qp, &wr, &bad_wr));
+  if (bad_wr != NULL) {
+    WARN("NET/IB: flagcxIbPut failed with bad_wr=%p qpn=%d srcRank=%d dstRank=%d "
+         "srcOff=%lu dstOff=%lu size=%zu srcPtr=%p dstPtr=%p lkey=0x%x rkey=0x%x",
+         bad_wr, qp->qp->qp_num, srcRank, dstRank, srcOff, dstOff, size,
+         srcPtr, dstPtr, lkey, rkey);
+  }
   flagcxIbAddEvent(req, qp->devIndex, &comm->devs[qp->devIndex].base);
 
   *request = req;
@@ -2317,8 +2283,7 @@ struct flagcxNetAdaptor flagcxNetIb = {
     NULL, // signal
 
     // One-sided extensions
-    flagcxIbRegBuffer, flagcxIbPut, flagcxIbSignal, flagcxIbWaitValue,
-    flagcxIbDeregBuffer,
+    flagcxIbPut, flagcxIbSignal, flagcxIbWaitValue,
 
     // Device name lookup
     flagcxIbGetDevFromName};

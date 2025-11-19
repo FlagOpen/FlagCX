@@ -285,9 +285,6 @@ struct flagcxNetAdaptor {
                            void *mhandle, void *phandle, void **request);
 
   // One-sided 
-  flagcxResult_t (*regBuffer)(void *comm, void *data, size_t size, int type,
-                              void *commState, void **mhandle,
-                              void **gHandles);
   flagcxResult_t (*put)(void *sendComm, uint64_t srcOff, uint64_t dstOff,
                         size_t size, int srcRank, int dstRank, void **gHandles,
                         void **request);
@@ -296,7 +293,6 @@ struct flagcxNetAdaptor {
                               void **request);
   flagcxResult_t (*waitValue)(void **gHandles, int rank, uint64_t offset,
                               uint64_t expected);
-  flagcxResult_t (*deregBuffer)(void *comm, void *gHandles);
 
   // Device name lookup
   flagcxResult_t (*getDevFromName)(char *name, int *dev);

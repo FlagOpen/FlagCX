@@ -9,6 +9,8 @@
 #include "flagcx_net.h"
 #include "global_comm.h"
 #include "net.h"
+#include "alloc.h"
+#include "check.h"
 
 #include <algorithm>
 #include <cassert>
@@ -190,27 +192,71 @@ int main(int argc, char *argv[]) {
 
   void *mrHandle = nullptr;
   void *globalHandles = nullptr;
-  if (netAdaptor->regBuffer == nullptr || netAdaptor->put == nullptr ||
-      netAdaptor->signalValue == nullptr || netAdaptor->waitValue == nullptr ||
-      netAdaptor->test == nullptr || netAdaptor->deregMr == nullptr) {
+  if (netAdaptor->put == nullptr || netAdaptor->signalValue == nullptr ||
+      netAdaptor->waitValue == nullptr || netAdaptor->test == nullptr ||
+      netAdaptor->deregMr == nullptr) {
     fprintf(stderr,
             "[rank %d] Net adaptor does not support one-sided extensions\n",
             proc);
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  void *regComm = sendComm;
-  if (netAdaptor == &flagcxNetIb && sendComm != nullptr) {
-    auto *ibSendComm = reinterpret_cast<struct flagcxIbSendComm *>(sendComm);
-    regComm = static_cast<void *>(&ibSendComm->base);
+  // Choose regComm based on role: sender uses sendComm, receiver uses recvComm
+  // Both need to register to get their rkey for RDMA operations
+  void *regComm = isSender ? sendComm : recvComm;
+  if (netAdaptor == &flagcxNetIb) {
+    if (isSender && sendComm != nullptr) {
+      auto *ibSendComm = reinterpret_cast<struct flagcxIbSendComm *>(sendComm);
+      regComm = static_cast<void *>(&ibSendComm->base);
+    } else if (isReceiver && recvComm != nullptr) {
+      auto *ibRecvComm = reinterpret_cast<struct flagcxIbRecvComm *>(recvComm);
+      regComm = static_cast<void *>(&ibRecvComm->base);
+    }
   }
 
-  res = netAdaptor->regBuffer(regComm, window, window_bytes, FLAGCX_PTR_HOST,
-                              innerComm->bootstrap, &mrHandle, &globalHandles);
-  printf("[test_put] proc %d: regBuffer done res=%d mrHandle=%p "
+  // Register buffer logic (moved from flagcxIbRegBuffer)
+  struct bootstrapState *state = innerComm->bootstrap;
+  
+  // Register with net adaptor to get MR handle for IB operations
+  res = netAdaptor->regMr(regComm, window, window_bytes, FLAGCX_PTR_HOST,
+                          &mrHandle);
+  fatal(res, "netAdaptor->regMr failed", proc);
+  
+  // Convert mrHandle (flagcxIbMrHandle*) to ibv_mr*
+  struct flagcxIbMrHandle *localMrHandle =
+      (struct flagcxIbMrHandle *)mrHandle;
+  struct ibv_mr *mr = localMrHandle->mrs[0];
+
+  int nranks = state->nranks;
+
+  struct flagcxIbGlobalHandleInfo *info = nullptr;
+  res = flagcxCalloc(&info, 1);
+  fatal(res, "flagcxCalloc failed for info", proc);
+  res = flagcxCalloc(&info->base_vas, nranks);
+  fatal(res, "flagcxCalloc failed for base_vas", proc);
+  res = flagcxCalloc(&info->rkeys, nranks);
+  fatal(res, "flagcxCalloc failed for rkeys", proc);
+  res = flagcxCalloc(&info->lkeys, nranks);
+  fatal(res, "flagcxCalloc failed for lkeys", proc);
+
+  info->base_vas[state->rank] = (uintptr_t)mr->addr;
+  info->rkeys[state->rank] = mr->rkey;
+  info->lkeys[state->rank] = mr->lkey;
+  res = bootstrapAllGather(innerComm->bootstrap, (void *)info->base_vas,
+                            sizeof(uintptr_t));
+  fatal(res, "bootstrapAllGather failed for base_vas", proc);
+  res = bootstrapAllGather(innerComm->bootstrap, (void *)info->rkeys,
+                           sizeof(uint32_t));
+  fatal(res, "bootstrapAllGather failed for rkeys", proc);
+  res = bootstrapAllGather(innerComm->bootstrap, (void *)info->lkeys,
+                           sizeof(uint32_t));
+  fatal(res, "bootstrapAllGather failed for lkeys", proc);
+
+  globalHandles = (void *)info;
+
+  printf("[test_put] proc %d: regBuffer done res=%d mrHandle=%p mr=%p "
          "globalHandles=%p window=%p bytes=%zu\n",
-         proc, int(res), mrHandle, globalHandles, window, window_bytes);
+         proc, int(res), mrHandle, mr, globalHandles, window, window_bytes);
   fflush(stdout);
-  fatal(res, "netAdaptor->regBuffer failed", proc);
 
   timer tim;
   size_t sendOffset = 0;
@@ -225,7 +271,6 @@ int main(int argc, char *argv[]) {
 
     for (int i = 0; i < num_warmup_iters; ++i) {
       if (isSender) {
-        sleep(3);
         uint8_t value = static_cast<uint8_t>((senderRank + i) & 0xff);
         std::memset((char *)window + sendOffset, value, size);
 
@@ -320,16 +365,19 @@ int main(int argc, char *argv[]) {
     MPI_Barrier(MPI_COMM_WORLD);
   }
 
-  res = netAdaptor->deregMr(sendComm, mrHandle);
+  // Deregister using the same comm that was used for registration
+  res = netAdaptor->deregMr(regComm, mrHandle);
   fatal(res, "netAdaptor->deregMr failed", proc);
-  if (netAdaptor->deregBuffer) {
-    fatal(netAdaptor->deregBuffer(sendComm, globalHandles),
-          "netAdaptor->deregBuffer failed", proc);
-  } else if (globalHandles != nullptr) {
-    fprintf(stderr,
-            "[rank %d] Warning: net adaptor does not expose deregBuffer; "
-            "potential leak for global handles\n",
-            proc);
+  
+  // Deregister buffer logic (moved from flagcxIbDeregBuffer)
+  if (globalHandles != nullptr) {
+    struct flagcxIbGlobalHandleInfo *info =
+        (struct flagcxIbGlobalHandleInfo *)globalHandles;
+    free(info->base_vas);
+    free(info->rkeys);
+    free(info->lkeys);
+    free(info);
+    globalHandles = nullptr;
   }
 
   res = netAdaptor->closeSend(sendComm);

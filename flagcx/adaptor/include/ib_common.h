@@ -121,6 +121,13 @@ struct flagcxIbMrHandle {
   ibv_mr *mrs[FLAGCX_IB_MAX_DEVS_PER_NIC];
 };
 
+// Structure to store handle info for allgather
+struct flagcxIbGlobalHandleInfo {
+  uintptr_t *base_vas;
+  uint32_t *rkeys;
+  uint32_t *lkeys;
+};
+
 #define FLAGCX_NET_IB_REQ_UNUSED 0
 #define FLAGCX_NET_IB_REQ_SEND 1
 #define FLAGCX_NET_IB_REQ_RECV 2
