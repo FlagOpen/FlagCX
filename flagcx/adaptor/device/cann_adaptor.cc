@@ -120,7 +120,7 @@ flagcxResult_t cannAdaptorStreamCopy(flagcxStream_t *newStream,
                                      void *oldStream) {
   (*newStream) = NULL;
   flagcxCalloc(newStream, 1);
-  memcpy((void *)*newStream, oldStream, sizeof(aclrtStream));
+  (*newStream)->base = (aclrtStream)oldStream;
   return flagcxSuccess;
 }
 

@@ -8,6 +8,7 @@
 #define FLAGCX_UTILS_H_
 
 #include "check.h"
+#include "global_comm.h"
 #include "pthread.h"
 #include "type.h"
 #include <algorithm>
@@ -200,6 +201,15 @@ T *flagcxIntruQueueMpscDequeueAll(struct flagcxIntruQueueMpsc<T, next> *me,
 template <typename T, T *T::*next>
 T *flagcxIntruQueueMpscAbandon(struct flagcxIntruQueueMpsc<T, next> *me);
 
+////////////////////////////////////////////////////////////////////////////////
+
+// Function helps init single homo cluster.
+// return homoComm via homoComm parameter.
+flagcxResult_t flagcxHomoCommInit(flagcxUniqueId_t commId,
+                                  flagcxUniqueId *uniqueIdData,
+                                  struct bootstrapState *state,
+                                  flagcxComm_t comm,
+                                  flagcxInnerComm_t *homoComm /*out*/);
 ////////////////////////////////////////////////////////////////////////////////
 
 struct flagcxMemoryStack {

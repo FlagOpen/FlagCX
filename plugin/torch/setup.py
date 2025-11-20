@@ -3,7 +3,6 @@ import sys
 from setuptools import setup
 # Disable auto load flagcx when setup
 os.environ["TORCH_DEVICE_BACKEND_AUTOLOAD"] = "0"
-from torch.utils import cpp_extension
 from setuptools import setup, find_packages
 
 adaptor_flag = "-DUSE_NVIDIA_ADAPTOR"
@@ -68,9 +67,11 @@ elif adaptor_flag == "-DUSE_METAX_ADAPTOR":
     library_dirs += ["/opt/maca/lib64"]
     libs += ["cuda", "cudart", "c10_cuda", "torch_cuda"]
 elif adaptor_flag == "-DUSE_MUSA_ADAPTOR":
-    include_dirs += ["/usr/local/musa/include"]
-    library_dirs += ["/usr/local/musa/lib64"]
-    libs += ["musa", "mudart", "c10_musa", "torch_musa"]
+    import torch_musa
+    pytorch_musa_install_path = os.path.dirname(os.path.abspath(torch_musa.__file__))
+    pytorch_library_path = os.path.join(pytorch_musa_install_path, "lib")
+    library_dirs += ['/usr/local/musa/lib/',pytorch_library_path]
+    libs += ["musa","musart"]
 elif adaptor_flag == "-DUSE_DU_ADAPTOR":
     include_dirs += ["${CUDA_PATH}/include"]
     library_dirs += ["${CUDA_PATH}/lib64"]
@@ -90,7 +91,14 @@ elif adaptor_flag == "-DUSE_AMD_ADAPTOR":
     include_dirs += ["/opt/rocm/include"]
     library_dirs += ["/opt/rocm/lib"]
     libs += ["hiprtc", "c10_hip", "torch_hip"]
-module = cpp_extension.CppExtension(
+
+if adaptor_flag == "-DUSE_MUSA_ADAPTOR":
+    from torch_musa.utils.musa_extension import MUSAExtension as CppExtension
+    from torch_musa.utils.musa_extension import BuildExtension
+else:
+    from torch.utils.cpp_extension import CppExtension, BuildExtension
+
+module = CppExtension(
     name='flagcx._C',
     sources=sources,
     include_dirs=include_dirs,
@@ -106,7 +114,7 @@ setup(
     name="flagcx",
     version="0.1.0",
     ext_modules=[module],
-    cmdclass={'build_ext': cpp_extension.BuildExtension},
+    cmdclass={'build_ext': BuildExtension},
     packages=find_packages(),
     entry_points={"torch.backends": ["flagcx = flagcx:init"]},
 )

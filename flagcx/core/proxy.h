@@ -96,12 +96,12 @@ struct flagcxProxyArgs {
   size_t chunkSize;
   size_t stepSize;
   void *stepBuff;
-  int waitCopy;
-  int posted;
-  int copied;
-  int postFlush;
-  int flushed;
-  int transmitted;
+  int waitCopy = 0;
+  int posted = 0;
+  int copied = 0;
+  int postFlush = 0;
+  int flushed = 0;
+  int transmitted = 0;
   int sendStepMask;
   size_t totalCopySize;
   size_t totalPostSize;
@@ -186,6 +186,7 @@ struct flagcxProxyOp {
   flagcxProxyArgs args;
   flagcxStream_t stream;
   flagcxEvent_t event; // used to record host/device func
+  int selfCopy = 0;
 };
 
 #define FLAGCX_MAX_NETDEVS 128

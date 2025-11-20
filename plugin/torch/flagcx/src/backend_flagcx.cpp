@@ -276,14 +276,16 @@ void flagcxBackend::initComm(at::Device dev) {
 
 void flagcxBackend::initComm() {
 #if defined(USE_NVIDIA_ADAPTOR) || defined(USE_ILUVATAR_COREX_ADAPTOR) ||      \
-    defined(USE_METAX_ADAPTOR) || defined(USE_MUSA_ADAPTOR) ||                 \
-    defined(USE_DU_ADAPTOR) || defined(USE_KUNLUNXIN_ADAPTOR) ||               \
-    defined(USE_AMD_ADAPTOR)
+    defined(USE_METAX_ADAPTOR) || defined(USE_DU_ADAPTOR) ||                   \
+    defined(USE_KUNLUNXIN_ADAPTOR) || defined(USE_AMD_ADAPTOR)
   initComm(c10::impl::getDeviceGuardImpl(at::DeviceType::CUDA)->getDevice());
 #elif defined(USE_CAMBRICON_ADAPTOR)
   initComm(
       c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice());
 #elif defined(USE_ASCEND_ADAPTOR)
+  initComm(
+      c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice());
+#elif defined(USE_MUSA_ADAPTOR)
   initComm(
       c10::impl::getDeviceGuardImpl(at::DeviceType::PrivateUse1)->getDevice());
 #endif

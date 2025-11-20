@@ -140,7 +140,7 @@ flagcxResult_t musaAdaptorStreamCopy(flagcxStream_t *newStream,
                                      void *oldStream) {
   (*newStream) = NULL;
   flagcxCalloc(newStream, 1);
-  memcpy((void *)*newStream, oldStream, sizeof(musaStream_t));
+  (*newStream)->base = (musaStream_t)oldStream;
   return flagcxSuccess;
 }
 
