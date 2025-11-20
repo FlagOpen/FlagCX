@@ -6,7 +6,6 @@
 #include "ibvwrap.h"
 
 #include <arpa/inet.h>
-#include <unistd.h>
 
 flagcxResult_t flagcxIbCommonPostFifo(
     struct flagcxIbRecvComm *comm, int n, void **data, size_t *sizes,
@@ -88,12 +87,6 @@ flagcxResult_t flagcxIbCommonTestDataQp(
   *done = 0;
   while (1) {
     if (r->events[0] == 0 && r->events[1] == 0) {
-      static __thread int done_count = 0;
-      if ((++done_count % 100) == 0) {
-        INFO(FLAGCX_INIT | FLAGCX_NET,
-             "IB CommonTestDataQp: Request done, type=%d, component=%s",
-             r->type, flagcxIbCommonComponent(ops));
-      }
       TRACE(FLAGCX_NET, "r=%p done", r);
       *done = 1;
       if (sizes && r->type == FLAGCX_NET_IB_REQ_RECV) {
@@ -115,34 +108,12 @@ flagcxResult_t flagcxIbCommonTestDataQp(
     int totalWrDone = 0;
     struct ibv_wc wcs[4];
 
-    static __thread int loop_count = 0;
-    if ((++loop_count % 100) == 0) {
-      INFO(FLAGCX_INIT | FLAGCX_NET,
-           "IB CommonTestDataQp: Loop iteration %d, events=[%d,%d], type=%d, "
-           "component=%s",
-           loop_count, r->events[0], r->events[1], r->type,
-           flagcxIbCommonComponent(ops));
-    }
-
     for (int i = 0; i < FLAGCX_IB_MAX_DEVS_PER_NIC; i++) {
       TIME_START(3);
       if (r->events[i]) {
         int wrDone = 0;
-        if ((loop_count % 100) == 0) {
-          INFO(FLAGCX_INIT | FLAGCX_NET,
-               "IB CommonTestDataQp: Polling CQ dev=%d, cq=%p, events[%d]=%d, "
-               "type=%d, component=%s",
-               i, r->devBases[i]->cq, i, r->events[i], r->type,
-               flagcxIbCommonComponent(ops));
-        }
         FLAGCXCHECK(flagcxWrapIbvPollCq(r->devBases[i]->cq, 4, wcs, &wrDone));
         totalWrDone += wrDone;
-        if ((loop_count % 100) == 0) {
-          INFO(FLAGCX_INIT | FLAGCX_NET,
-               "IB CommonTestDataQp: Polled CQ dev=%d, wrDone=%d, totalWrDone=%d, "
-               "type=%d, component=%s",
-               i, wrDone, totalWrDone, r->type, flagcxIbCommonComponent(ops));
-        }
         if (wrDone == 0) {
           TIME_CANCEL(3);
         } else {
@@ -152,6 +123,16 @@ flagcxResult_t flagcxIbCommonTestDataQp(
           continue;
         for (int w = 0; w < wrDone; w++) {
           struct ibv_wc *wc = wcs + w;
+
+          bool is_retrans_completion = (wc->wr_id == 0xFFFFFFFEULL);
+
+          bool handled = false;
+          if (is_retrans_completion && ops && ops->process_wc) {
+            FLAGCXCHECK(ops->process_wc(r, wc, i, &handled));
+            if (handled)
+              continue;
+          }
+
           if (wc->status != IBV_WC_SUCCESS) {
             union flagcxSocketAddress addr;
             flagcxSocketGetAddr(r->sock, &addr);
@@ -177,7 +158,6 @@ flagcxResult_t flagcxIbCommonTestDataQp(
             return flagcxRemoteError;
           }
 
-          bool handled = false;
           if (ops && ops->process_wc) {
             FLAGCXCHECK(ops->process_wc(r, wc, i, &handled));
           }
@@ -238,18 +218,7 @@ flagcxResult_t flagcxIbCommonTestDataQp(
       }
     }
 
-    if (totalWrDone == 0) {
-      // No completions available, but we still have pending events.
-      // Continue the loop to wait for completions. Don't return here as that
-      // would cause the caller to immediately call us again, creating a busy-wait.
-      // Add a small sleep to avoid 100% CPU usage in tight loops.
-      if ((loop_count % 1000) == 0) {
-        // Sleep only every 1000 iterations to avoid too much overhead
-        usleep(1); // 1 microsecond
-      }
-      continue;
-    }
+    if (totalWrDone == 0)
+      return flagcxSuccess;
   }
 }
-
-
