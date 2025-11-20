@@ -22,6 +22,7 @@ static void safeStrCopy(char *dst, size_t dstSize, const std::string &src);
 
 extern std::vector<EnvVar> ncclTunerVars;
 extern std::vector<EnvVar> mcclTunerVars;
-extern std::vector<EnvVar> vars;
+extern std::vector<EnvVar> xcclTunerVars;
+extern std::vector<EnvVar> &vars;
 
 #endif // end include guard

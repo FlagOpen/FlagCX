@@ -14,10 +14,16 @@ typedef enum {
 } flagcxDevicePrim;
 
 constexpr unsigned int flagcxDeviceTriggerBitsAddr = 64;
-// constexpr unsigned int flagcxDeviceTriggerBitsOffset = 32;
+constexpr unsigned int flagcxDeviceTriggerOffCount = 0;
 constexpr unsigned int flagcxDeviceTriggerBitsCount = 32;
+constexpr unsigned int flagcxDeviceTriggerOffPeerRank =
+    flagcxDeviceTriggerOffCount + flagcxDeviceTriggerBitsCount;
 constexpr unsigned int flagcxDeviceTriggerBitsPeerRank = 20;
+constexpr unsigned int flagcxDeviceTriggerOffDatatype =
+    flagcxDeviceTriggerOffPeerRank + flagcxDeviceTriggerBitsPeerRank;
 constexpr unsigned int flagcxDeviceTriggerBitsDatatype = 4;
+constexpr unsigned int flagcxDeviceTriggerOffPrim =
+    flagcxDeviceTriggerOffDatatype + flagcxDeviceTriggerBitsDatatype;
 constexpr unsigned int flagcxDeviceTriggerBitsPrim = 4;
 constexpr unsigned int flagcxDeviceTriggerBitsFifoReserved = 1;
 
@@ -28,36 +34,19 @@ constexpr unsigned int flagcxReduceTriggerBitsDatatype = 4;
 constexpr unsigned int flagcxReduceTriggerBitsRedop = 4;
 constexpr unsigned int flagcxReduceTriggerBitsFifoReserved = 1;
 
-// typedef union alignas(16) {
-//   struct {
-//     uint64_t fst;
-//     uint64_t snd;
-//   } value;
-//   // The summation of number of bits must be 128 or less.
-//   struct {
-//     // First 64 bits: value[0]
-//     uint64_t addr : flagcxDeviceTriggerBitsAddr;
-//     // uint64_t offset : flagcxDeviceTriggerBitsOffset;
-//     // Second 64 bits: value[1]
-//     uint64_t count : flagcxDeviceTriggerBitsCount;
-//     uint64_t peerRank : flagcxDeviceTriggerBitsPeerRank;
-//     uint64_t datatype : flagcxDeviceTriggerBitsDatatype;
-//     uint64_t type : flagcxDeviceTriggerBitsPrim;
-//     uint64_t
-//         : (64 - flagcxDeviceTriggerBitsCount -
-//         flagcxDeviceTriggerBitsPeerRank -
-//            flagcxDeviceTriggerBitsDatatype - flagcxDeviceTriggerBitsPrim -
-//            flagcxDeviceTriggerBitsFifoReserved); // ensure 64-bit alignment
-//     uint64_t reserved : flagcxDeviceTriggerBitsFifoReserved;
-//   } fields;
-// } flagcxDeviceTrigger;
-typedef struct {
-  uint64_t addr;
-  uint64_t count;
-  uint64_t peerRank;
-  uint64_t datatype;
-  uint64_t type;
-} flagcxDeviceTrigger;
+struct flagcxDeviceTrigger {
+  uint64_t fst;
+  uint64_t snd;
+
+  FLAGCX_HOST_DECORATOR uint64_t getAddr();
+  FLAGCX_HOST_DECORATOR uint64_t getCount();
+  FLAGCX_HOST_DECORATOR uint64_t getPeerRank();
+  FLAGCX_HOST_DECORATOR uint64_t getDatatype();
+  FLAGCX_HOST_DECORATOR uint64_t getType();
+  FLAGCX_DEVICE_DECORATOR void setValue(uint64_t addr, uint64_t count,
+                                        uint64_t peerRank, uint64_t datatype,
+                                        uint64_t type);
+};
 typedef flagcxDeviceTrigger *flagcxDeviceTrigger_t;
 
 typedef union alignas(16) {
@@ -88,22 +77,10 @@ struct flagcxFifo {
   uint64_t *buffer;
 
 public:
-  flagcxFifo() {
-    // TODO: use a better way to initialize FIFO
-    deviceAdaptor->deviceMalloc((void **)&buffer,
-                                3 * sizeof(uint64_t) +
-                                    FLAGCX_KERNEL_FIFO_CAPACITY *
-                                        sizeof(flagcxDeviceTrigger),
-                                flagcxMemHost, NULL);
-    buffer[0] = FLAGCX_KERNEL_FIFO_CAPACITY;
-    buffer[1] = 0;
-    buffer[2] = 0;
-    memset((void *)(buffer + 3), 0,
-           FLAGCX_KERNEL_FIFO_CAPACITY * sizeof(flagcxDeviceTrigger));
-  }
-  ~flagcxFifo() {
-    deviceAdaptor->deviceFree((void *)buffer, flagcxMemHost, NULL);
-  }
+  flagcxFifo() {}
+  ~flagcxFifo() {}
+  flagcxResult_t flagcxFifoInit();
+  flagcxResult_t flagcxFifoDestroy();
 };
 typedef struct flagcxFifo *flagcxFifo_t;
 

@@ -12,7 +12,12 @@ except:
         from torch_npu.contrib import transfer_to_npu
         dev_name = "npu"
     except:
-        dev_name = "cuda"
+        try:
+            import torch_musa
+            import transfer_to_musa
+            dev_name = "musa"
+        except:
+            dev_name = "cuda"
 
 import flagcx
 import torch.distributed as dist
@@ -275,10 +280,10 @@ def test_alltoall():
         list_x = list(torch.chunk(x, WORLD_SIZE, dim=0))
         list_y = list(torch.chunk(y, WORLD_SIZE, dim=0))
 
-        # Perform all_to_all with FLAGCX_GROUP2
-        print(f"rank {MY_RANK} before all_to_all with FLAGCX_GROUP2: list_x = {list_x}, list_y = {list_y}")
-        dist.all_to_all(list_y, list_x, group=FLAGCX_GROUP2)
-        print(f"rank {MY_RANK} after all_to_all with FLAGCX_GROUP2: list_x = {list_x}, list_y = {list_y}")
+        # Perform all_to_all with FLAGCX_GROUP1
+        print(f"rank {MY_RANK} before all_to_all with FLAGCX_GROUP1: list_x = {list_x}, list_y = {list_y}")
+        dist.all_to_all(list_y, list_x, group=FLAGCX_GROUP1)
+        print(f"rank {MY_RANK} after all_to_all with FLAGCX_GROUP1: list_x = {list_x}, list_y = {list_y}")
 
         # Perform all_to_all_single with FLAGCX_GROUP2
         ## Without output_splits, input_splits
