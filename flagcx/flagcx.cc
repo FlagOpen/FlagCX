@@ -11,9 +11,9 @@
 #include "param.h"
 #include "proxy.h"
 #include "reg_pool.h"
-#include "utils.h"
 #include "runner.h"
 #include "timer.h"
+#include "utils.h"
 #include <cassert>
 #include <stdio.h>
 #include <string.h>
