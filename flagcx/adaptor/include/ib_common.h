@@ -10,6 +10,7 @@
 
 #include "flagcx_net.h"
 #include "ibvcore.h"
+#include "ibvwrap.h"
 #include "net.h"
 #include <pthread.h>
 #include <stdint.h>
@@ -222,6 +223,8 @@ struct flagcxIbRetransState {
   uint32_t minRtoUs;
   uint32_t maxRtoUs;
   int retransQPIndex;
+  uint32_t lastAckSeq;
+  uint64_t lastAckSendTimeUs;
 };
 
 struct flagcxIbQp {
@@ -451,6 +454,23 @@ extern flagcxResult_t flagcxIbDevices(int *ndev);
 extern flagcxResult_t flagcxIbGdrSupport(void);
 extern flagcxResult_t flagcxIbDmaBufSupport(int dev);
 extern flagcxResult_t flagcxIbFreeRequest(struct flagcxIbRequest *r);
+
+struct flagcxIbCommonTestOps {
+  const char *component;
+  flagcxResult_t (*pre_check)(struct flagcxIbRequest *req);
+  flagcxResult_t (*process_wc)(struct flagcxIbRequest *req, struct ibv_wc *wc,
+                               int devIndex, bool *handled);
+};
+
+flagcxResult_t flagcxIbCommonPostFifo(
+    struct flagcxIbRecvComm *comm, int n, void **data, size_t *sizes,
+    int *tags, void **mhandles, struct flagcxIbRequest *req,
+    void (*addEventFunc)(struct flagcxIbRequest *, int,
+                         struct flagcxIbNetCommDevBase *));
+
+flagcxResult_t flagcxIbCommonTestDataQp(
+    struct flagcxIbRequest *r, int *done, int *sizes,
+    const struct flagcxIbCommonTestOps *ops);
 
 static_assert((sizeof(struct flagcxIbNetCommBase) % 32) == 0,
               "flagcxIbNetCommBase size must be 32-byte multiple to ensure "
