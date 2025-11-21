@@ -16,13 +16,11 @@
 #include <unistd.h>
 
 FLAGCX_PARAM(IbRetransEnable, "IB_RETRANS_ENABLE", 0);
-FLAGCX_PARAM(IbRetransTimeout, "IB_RETRANS_TIMEOUT", 5000); // 5ms (was 500us)
+FLAGCX_PARAM(IbRetransTimeout, "IB_RETRANS_TIMEOUT", 5000);
 FLAGCX_PARAM(IbRetransMaxRetry, "IB_RETRANS_MAX_RETRY", 10);
-FLAGCX_PARAM(IbRetransAckInterval, "IB_RETRANS_ACK_INTERVAL", 16); // 16 (was 8)
+FLAGCX_PARAM(IbRetransAckInterval, "IB_RETRANS_ACK_INTERVAL", 16);
 FLAGCX_PARAM(IbMaxOutstanding, "IB_MAX_OUTSTANDING",
-             16); // QP depth is 512, keep conservative headroom for retransmissions
-                  // Lower value prevents SQ overflow when retransmissions are active
-
+             16); 
 flagcxResult_t flagcxIbRetransInit(struct flagcxIbRetransState *state) {
   if (!state)
     return flagcxInternalError;

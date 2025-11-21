@@ -27,10 +27,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// Actively poll CQ to free up send queue space
-// Only processes retransmission completions to avoid interfering with normal request processing
-// Regular send completions are handled by flagcxIbCommonTestDataQp
-// This is critical for IBUC to prevent SQ overflow when retransmission is enabled
+
 static void flagcxIbucPollCompletions(struct flagcxIbSendComm *comm) {
   if (!comm)
     return;
@@ -42,35 +39,17 @@ static void flagcxIbucPollCompletions(struct flagcxIbSendComm *comm) {
     struct flagcxIbNetCommDevBase *devBase = &comm->devs[i].base;
     if (!devBase || !devBase->cq)
       continue;
-
-    // Poll retransmission completions only (identified by FLAGCX_RETRANS_WR_ID)
-    // This frees up send queue space without interfering with normal request flow
-    // We poll more aggressively (16 rounds) to ensure we free up enough SQ space
-    // Note: We cannot selectively poll only retrans completions, so we poll all
-    // but only process retrans ones. Normal send completions remain in CQ for
-    // flagcxIbCommonTestDataQp to handle.
     for (int poll_round = 0; poll_round < 16; poll_round++) {
       int n_cqe = 0;
       flagcxWrapIbvPollCq(devBase->cq, 64, wcs, &n_cqe);
       
       if (n_cqe == 0)
         break;
-
-      // Process only retransmission completions
-      // WARNING: ibv_poll_cq removes completions from CQ, so normal send completions
-      // that we don't process here will be lost. This is why we don't call this function
-      // from flagcxIbucTestPreCheck - it would consume completions that flagcxIbCommonTestDataQp
-      // is waiting for. This function should only be called from places where we're not
-      // waiting for a specific request's completion (e.g., flagcxIbucIsend before posting).
       for (int j = 0; j < n_cqe; j++) {
         if (wcs[j].status == IBV_WC_SUCCESS && wcs[j].wr_id == FLAGCX_RETRANS_WR_ID) {
           comm->outstanding_retrans--;
           retrans_freed++;
         }
-        // Normal send completions are NOT processed here - they must be handled by
-        // flagcxIbCommonTestDataQp. However, since ibv_poll_cq removes them from CQ,
-        // they will be lost if we don't process them. This is why this function should
-        // NOT be called when we're waiting for normal send completions.
       }
     }
   }
@@ -91,7 +70,7 @@ static flagcxResult_t flagcxIbucTestPreCheck(struct flagcxIbRequest *r) {
     
     static __thread uint64_t last_log_time = 0;
     uint64_t now_us = flagcxIbGetTimeUs();
-    if (now_us - last_log_time > 100000) { // Log every 100ms
+    if (now_us - last_log_time > 100000) {
       INFO(FLAGCX_INIT | FLAGCX_NET,
            "IBUC TestPreCheck: SEND request events=[%d,%d], outstanding_sends=%d, "
            "outstanding_retrans=%d, buffer_count=%d",
@@ -99,13 +78,7 @@ static flagcxResult_t flagcxIbucTestPreCheck(struct flagcxIbRequest *r) {
            sComm->outstanding_retrans, sComm->retrans.bufferCount);
       last_log_time = now_us;
     }
-    
-    // Don't poll completions here - it interferes with flagcxIbCommonTestDataQp's
-    // completion handling. flagcxIbucPollCompletions is called from other places
-    // (like flagcxIbucIsend) where we're not waiting for a specific request's completion.
-    // Calling it here would consume completions that flagcxIbCommonTestDataQp is waiting for.
-    // flagcxIbucPollCompletions(sComm);
-    
+        
     if (sComm->retrans.enabled) {
       // Check if control QP is still valid before accessing it
       bool ctrlQpValid = false;
@@ -138,10 +111,8 @@ static flagcxResult_t flagcxIbucTestPreCheck(struct flagcxIbRequest *r) {
                "IBUC Retrans: CheckTimeout called, buffer_count=%d, "
                "outstanding_retrans=%d",
                sComm->retrans.bufferCount, sComm->outstanding_retrans);
-          // Don't use FLAGCXCHECK here - retransmission errors shouldn't block operation completion
           flagcxResult_t retrans_result = flagcxIbRetransCheckTimeout(&sComm->retrans, sComm);
           if (retrans_result != flagcxSuccess && retrans_result != flagcxInProgress) {
-            // Log error but don't fail the operation
             if (flagcxDebugNoWarn == 0)
               INFO(FLAGCX_ALL, "%s:%d -> %d (retransmission check failed, continuing)", 
                    __FILE__, __LINE__, retrans_result);
@@ -171,8 +142,6 @@ static flagcxResult_t flagcxIbucProcessWc(struct flagcxIbRequest *r,
   if (!r || !wc || !handled)
     return flagcxInternalError;
   *handled = false;
-
-  // Log normal send completions to track if they're being processed
   if (r->type == FLAGCX_NET_IB_REQ_SEND && r->base->isSend && 
       wc->wr_id != FLAGCX_RETRANS_WR_ID) {
     static __thread int normal_send_wc_count = 0;
@@ -605,11 +574,9 @@ flagcxResult_t flagcxIbucDestroyBase(struct flagcxIbNetCommDevBase *base) {
   if (0 == --flagcxIbDevs[base->ibDevN].pdRefs) {
     flagcxResult_t pd_result = flagcxWrapIbvDeallocPd(flagcxIbDevs[base->ibDevN].pd);
     if (pd_result != flagcxSuccess) {
-      // Log but don't fail - PD deallocation errors are often non-fatal
-      // (e.g., "Device or resource busy" when there are still resources using the PD)
       if (flagcxDebugNoWarn == 0)
         INFO(FLAGCX_ALL, "Failed to deallocate PD: %d (non-fatal, may have remaining resources)", pd_result);
-      res = flagcxSuccess; // Continue cleanup even if PD deallocation fails
+      res = flagcxSuccess;
     } else {
       res = flagcxSuccess;
     }
@@ -1268,11 +1235,8 @@ ib_recv:
   }
 
   // Create SRQ if retransmission is enabled
-  // Similar to UCCL: all data QPs will use SRQ for receiving both normal and
-  // retrans data
-  // IBUC always enables retransmission, force it on
   remMeta.retransEnabled = 1;
-  meta.retransEnabled = 1; // Initialize meta.retransEnabled early for control QP creation
+  meta.retransEnabled = 1;
   srq = NULL;
   if (remMeta.retransEnabled) {
     ibDevN = mergedDev->devs[0];
@@ -1323,9 +1287,6 @@ ib_recv:
       FLAGCXCHECK(flagcxWrapIbvSetEce(qp->qp, &remMeta.qpInfo[q].ece,
                                       &meta.qpInfo[q].ece_supported));
 
-      // Query the reduced ece for this QP (matching enhancements between the
-      // requestor and the responder) Store this in our own qpInfo for returning
-      // to the requestor
       if (meta.qpInfo[q].ece_supported)
         FLAGCXCHECK(flagcxWrapIbvQueryEce(qp->qp, &meta.qpInfo[q].ece,
                                           &meta.qpInfo[q].ece_supported));
@@ -1564,8 +1525,8 @@ flagcxResult_t flagcxIbucRegMrDmaBufInternal(flagcxIbNetCommDevBase *base,
   pthread_mutex_lock(&flagcxIbDevs[base->ibDevN].lock);
   for (int slot = 0; /*true*/; slot++) {
     if (slot == cache->population ||
-        addr < cache->slots[slot].addr) {         // didn't find in cache
-      if (cache->population == cache->capacity) { // must grow cache
+        addr < cache->slots[slot].addr) {
+      if (cache->population == cache->capacity) {
         cache->capacity = cache->capacity < 32 ? 32 : 2 * cache->capacity;
         FLAGCXCHECKGOTO(
             flagcxRealloc(&cache->slots, cache->population, cache->capacity),
@@ -1892,17 +1853,11 @@ flagcxResult_t flagcxIbucIsend(void *sendComm, void *data, size_t size, int tag,
     WARN("NET/IBUC: flagcxIbucIsend() called when comm->base.ready == 0");
     return flagcxInternalError;
   }
-
-  // Actively poll completions before checking flow control
-  // This helps free up send queue space proactively
-  // Critical for IBUC when retransmission is enabled to prevent SQ overflow
   flagcxIbucPollCompletions(comm);
 
   // Flow control: Check if we have too many outstanding sends before matching
-  // request This prevents retransmission buffer overflow when ACKs are delayed
   int total_outstanding = comm->outstanding_sends + comm->outstanding_retrans;
   if (total_outstanding >= comm->max_outstanding) {
-    // If flow control kicks in, poll again to try to free up more space
     flagcxIbucPollCompletions(comm);
     total_outstanding = comm->outstanding_sends + comm->outstanding_retrans;
     
@@ -1944,8 +1899,7 @@ flagcxResult_t flagcxIbucIsend(void *sendComm, void *data, size_t size, int tag,
   for (int r = 1; r < nreqs; r++)
     while (slots[r].idx != idx)
       ;
-  __sync_synchronize(); // order the nreqsPtr load against tag/rkey/addr loads
-                        // below
+  __sync_synchronize(); 
   for (int r = 0; r < nreqs; r++) {
     if (reqs[r] != NULL || slots[r].tag != tag)
       continue;
@@ -2060,7 +2014,7 @@ flagcxResult_t flagcxIbucIrecv(void *recvComm, int n, void **data,
   const int nqps =
       flagcxParamIbucSplitDataOnQps() ? comm->base.nqps : comm->base.ndevs;
 
-  // Post recvs - skip if using SRQ (similar to UCCL)
+  // Post recvs - skip if using SRQ
   // When using SRQ, all QPs share SRQ for recv, don't post per-request recv
   if (!comm->retrans.enabled || comm->srqMgr.srq == NULL) {
     // Normal mode: post recv to each QP
@@ -2273,8 +2227,7 @@ flagcxResult_t flagcxIbucCloseRecv(void *recvComm) {
       }
     }
 
-    // Destroy QPs first, before destroying SRQ (avoid "Device or resource
-    // busy")
+    // Destroy QPs first, before destroying SRQ
     for (int q = 0; q < comm->base.nqps; q++)
       if (comm->base.qps[q].qp != NULL)
         FLAGCXCHECK(flagcxWrapIbvDestroyQp(comm->base.qps[q].qp));
@@ -2329,8 +2282,7 @@ flagcxResult_t flagcxIbucGetProperties(int dev, void *props) {
   properties->name = mergedDev->devName;
   properties->speed = mergedDev->speed;
 
-  // Take the rest of the properties from an arbitrary sub-device (should be the
-  // same)
+  // Take the rest of the properties from an arbitrary sub-device
   struct flagcxIbDev *ibucDev = flagcxIbDevs + mergedDev->devs[0];
   properties->pciPath = ibucDev->pciPath;
   properties->guid = ibucDev->guid;
