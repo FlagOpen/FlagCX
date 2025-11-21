@@ -134,7 +134,6 @@ extern const char *reqTypeStr[];
 #define FLAGCX_IB_RETRANS_MAX_CHUNK_SIZE (8 * 1024 * 1024)
 #define FLAGCX_IB_SRQ_SIZE 1024
 
-
 #define FLAGCX_IB_ACK_BUF_PADDING 40
 #define FLAGCX_IB_ACK_BUF_COUNT 64
 
@@ -462,15 +461,16 @@ struct flagcxIbCommonTestOps {
                                int devIndex, bool *handled);
 };
 
-flagcxResult_t flagcxIbCommonPostFifo(
-    struct flagcxIbRecvComm *comm, int n, void **data, size_t *sizes,
-    int *tags, void **mhandles, struct flagcxIbRequest *req,
-    void (*addEventFunc)(struct flagcxIbRequest *, int,
-                         struct flagcxIbNetCommDevBase *));
+flagcxResult_t
+flagcxIbCommonPostFifo(struct flagcxIbRecvComm *comm, int n, void **data,
+                       size_t *sizes, int *tags, void **mhandles,
+                       struct flagcxIbRequest *req,
+                       void (*addEventFunc)(struct flagcxIbRequest *, int,
+                                            struct flagcxIbNetCommDevBase *));
 
-flagcxResult_t flagcxIbCommonTestDataQp(
-    struct flagcxIbRequest *r, int *done, int *sizes,
-    const struct flagcxIbCommonTestOps *ops);
+flagcxResult_t
+flagcxIbCommonTestDataQp(struct flagcxIbRequest *r, int *done, int *sizes,
+                         const struct flagcxIbCommonTestOps *ops);
 
 static_assert((sizeof(struct flagcxIbNetCommBase) % 32) == 0,
               "flagcxIbNetCommBase size must be 32-byte multiple to ensure "

@@ -639,7 +639,7 @@ flagcxResult_t flagcxIbInitCommDevBase(int ibDevN,
 
 flagcxResult_t flagcxIbDestroyBase(struct flagcxIbNetCommDevBase *base) {
   flagcxResult_t res;
-  
+
   // Poll any remaining completions before destroying CQ
   if (base->cq) {
     struct ibv_wc wcs[64];
@@ -651,17 +651,22 @@ flagcxResult_t flagcxIbDestroyBase(struct flagcxIbNetCommDevBase *base) {
         break;
     }
   }
-  
+
   FLAGCXCHECK(flagcxWrapIbvDestroyCq(base->cq));
 
   pthread_mutex_lock(&flagcxIbDevs[base->ibDevN].lock);
   if (0 == --flagcxIbDevs[base->ibDevN].pdRefs) {
-    flagcxResult_t pd_result = flagcxWrapIbvDeallocPd(flagcxIbDevs[base->ibDevN].pd);
+    flagcxResult_t pd_result =
+        flagcxWrapIbvDeallocPd(flagcxIbDevs[base->ibDevN].pd);
     if (pd_result != flagcxSuccess) {
       // Log but don't fail - PD deallocation errors are often non-fatal
-      // (e.g., "Device or resource busy" when there are still resources using the PD)
+      // (e.g., "Device or resource busy" when there are still resources using
+      // the PD)
       if (flagcxDebugNoWarn == 0)
-        INFO(FLAGCX_ALL, "Failed to deallocate PD: %d (non-fatal, may have remaining resources)", pd_result);
+        INFO(FLAGCX_ALL,
+             "Failed to deallocate PD: %d (non-fatal, may have remaining "
+             "resources)",
+             pd_result);
       res = flagcxSuccess; // Continue cleanup even if PD deallocation fails
     } else {
       res = flagcxSuccess;
@@ -820,7 +825,8 @@ ib_connect_check:
   struct flagcxIbConnectionMetadata meta;
   meta.ndevs = comm->base.ndevs;
 
-  // IBRC retransmission: default disabled, can be enabled via FLAGCX_IB_RETRANS_ENABLE=1
+  // IBRC retransmission: default disabled, can be enabled via
+  // FLAGCX_IB_RETRANS_ENABLE=1
   meta.retransEnabled = flagcxParamIbRetransEnable() ? 1 : 0;
 
   // Alternate QPs between devices
@@ -885,7 +891,9 @@ ib_connect_check:
       meta.ctrlLid[i] = ibDev->portAttr.lid;
       meta.ctrlGid[i] = commDev->base.gidInfo.localGid;
 
-      size_t ack_buf_size = (sizeof(struct flagcxIbAckMsg) + FLAGCX_IB_ACK_BUF_PADDING) * FLAGCX_IB_ACK_BUF_COUNT;
+      size_t ack_buf_size =
+          (sizeof(struct flagcxIbAckMsg) + FLAGCX_IB_ACK_BUF_PADDING) *
+          FLAGCX_IB_ACK_BUF_COUNT;
       commDev->ackBuffer = malloc(ack_buf_size);
       FLAGCXCHECK(flagcxWrapIbvRegMr(&commDev->ackMr, commDev->base.pd,
                                      commDev->ackBuffer, ack_buf_size,
@@ -1080,7 +1088,8 @@ ib_connect:
         break;
       }
 
-      size_t buf_entry_size = sizeof(struct flagcxIbAckMsg) + FLAGCX_IB_ACK_BUF_PADDING;
+      size_t buf_entry_size =
+          sizeof(struct flagcxIbAckMsg) + FLAGCX_IB_ACK_BUF_PADDING;
       for (int r = 0; r < 32; r++) {
         struct ibv_sge sge;
         sge.addr = (uint64_t)((char *)commDev->ackBuffer + r * buf_entry_size);
@@ -1121,7 +1130,7 @@ ib_connect:
       flagcxResult_t mr_result = flagcxWrapIbvRegMr(
           &comm->retrans_hdr_mr, comm->devs[0].base.pd, comm->retrans_hdr_pool,
           sizeof(comm->retrans_hdr_pool), IBV_ACCESS_LOCAL_WRITE);
-      
+
       if (mr_result != flagcxSuccess || !comm->retrans_hdr_mr) {
         WARN("Failed to register retrans_hdr_mr, disabling retransmission");
         comm->retrans.enabled = 0;
@@ -1134,8 +1143,9 @@ ib_connect:
           flagcxIbDestroyCtrlQp(&comm->devs[i].ctrlQp);
         }
       } else {
-        TRACE(FLAGCX_NET,
-              "Sender: Initialized SEND retransmission (header pool MR created)");
+        TRACE(
+            FLAGCX_NET,
+            "Sender: Initialized SEND retransmission (header pool MR created)");
       }
     }
   }
@@ -1233,11 +1243,13 @@ ib_recv:
 
   // Metadata to send back to requestor (sender)
   struct flagcxIbConnectionMetadata meta;
-  memset(&meta, 0, sizeof(meta)); // Initialize meta, including meta.retransEnabled = 0
-  
-  // IBRC retransmission: default disabled, can be enabled via FLAGCX_IB_RETRANS_ENABLE=1
+  memset(&meta, 0,
+         sizeof(meta)); // Initialize meta, including meta.retransEnabled = 0
+
+  // IBRC retransmission: default disabled, can be enabled via
+  // FLAGCX_IB_RETRANS_ENABLE=1
   meta.retransEnabled = flagcxParamIbRetransEnable() ? 1 : 0;
-  
+
   // Create SRQ if retransmission is enabled
   if (remMeta.retransEnabled && meta.retransEnabled) {
     ibDevN = mergedDev->devs[0];
@@ -1258,7 +1270,7 @@ ib_recv:
       srq = NULL;
     }
   }
-  
+
   for (int i = 0; i < rComm->base.ndevs; i++) {
     rCommDev = rComm->devs + i;
     ibDevN = mergedDev->devs[i];
@@ -1397,7 +1409,9 @@ ib_recv:
             "Receiver: Control QP created for dev %d, qpn=%u, lid=%u", i,
             meta.ctrlQpn[i], meta.ctrlLid[i]);
 
-      size_t ack_buf_size = (sizeof(struct flagcxIbAckMsg) + FLAGCX_IB_ACK_BUF_PADDING) * FLAGCX_IB_ACK_BUF_COUNT;
+      size_t ack_buf_size =
+          (sizeof(struct flagcxIbAckMsg) + FLAGCX_IB_ACK_BUF_PADDING) *
+          FLAGCX_IB_ACK_BUF_COUNT;
       rCommDev->ackBuffer = malloc(ack_buf_size);
       FLAGCXCHECK(flagcxWrapIbvRegMr(&rCommDev->ackMr, rCommDev->base.pd,
                                      rCommDev->ackBuffer, ack_buf_size,
@@ -2072,13 +2086,14 @@ static flagcxResult_t flagcxIbrcTestPreCheck(struct flagcxIbRequest *r) {
           break;
         }
       }
-      
+
       if (ctrlQpValid) {
         for (int i = 0; i < sComm->base.ndevs; i++) {
           // Only poll if control QP is still valid
           if (sComm->devs[i].ctrlQp.qp && sComm->devs[i].ctrlQp.cq) {
             for (int p = 0; p < 4; p++) {
-              flagcxResult_t poll_result = flagcxIbRetransRecvAckViaUd(sComm, i);
+              flagcxResult_t poll_result =
+                  flagcxIbRetransRecvAckViaUd(sComm, i);
               if (poll_result != flagcxSuccess)
                 break;
             }
@@ -2088,12 +2103,16 @@ static flagcxResult_t flagcxIbrcTestPreCheck(struct flagcxIbRequest *r) {
         uint64_t now_us = flagcxIbGetTimeUs();
         const uint64_t CHECK_INTERVAL_US = 1000;
         if (now_us - sComm->last_timeout_check_us >= CHECK_INTERVAL_US) {
-          // Don't use FLAGCXCHECK here - retransmission errors shouldn't block operation completion
-          flagcxResult_t retrans_result = flagcxIbRetransCheckTimeout(&sComm->retrans, sComm);
-          if (retrans_result != flagcxSuccess && retrans_result != flagcxInProgress) {
+          // Don't use FLAGCXCHECK here - retransmission errors shouldn't block
+          // operation completion
+          flagcxResult_t retrans_result =
+              flagcxIbRetransCheckTimeout(&sComm->retrans, sComm);
+          if (retrans_result != flagcxSuccess &&
+              retrans_result != flagcxInProgress) {
             // Log error but don't fail the operation
             if (flagcxDebugNoWarn == 0)
-              INFO(FLAGCX_ALL, "%s:%d -> %d (retransmission check failed, continuing)", 
+              INFO(FLAGCX_ALL,
+                   "%s:%d -> %d (retransmission check failed, continuing)",
                    __FILE__, __LINE__, retrans_result);
           }
           sComm->last_timeout_check_us = now_us;
@@ -2107,7 +2126,8 @@ static flagcxResult_t flagcxIbrcTestPreCheck(struct flagcxIbRequest *r) {
     if (rComm->retrans.enabled && rComm->srqMgr.srq != NULL) {
       const int kPostThreshold = 16;
       if (rComm->srqMgr.postSrqCount >= kPostThreshold) {
-        FLAGCXCHECK(flagcxIbSrqPostRecv(&rComm->srqMgr, FLAGCX_IB_ACK_BUF_COUNT));
+        FLAGCXCHECK(
+            flagcxIbSrqPostRecv(&rComm->srqMgr, FLAGCX_IB_ACK_BUF_COUNT));
       }
     }
   }
@@ -2134,15 +2154,15 @@ static flagcxResult_t flagcxIbrcProcessWc(struct flagcxIbRequest *r,
 
       struct flagcxIbAckMsg ack_msg = {0};
       int should_ack = 0;
-      FLAGCXCHECK(flagcxIbRetransRecvPacket(
-          &rComm->retrans, seq, &ack_msg, &should_ack));
+      FLAGCXCHECK(flagcxIbRetransRecvPacket(&rComm->retrans, seq, &ack_msg,
+                                            &should_ack));
 
       if (should_ack) {
         flagcxResult_t ack_result =
             flagcxIbRetransSendAckViaUd(rComm, &ack_msg, devIndex);
         if (ack_result != flagcxSuccess) {
-          TRACE(FLAGCX_NET,
-                "Failed to send ACK for seq=%u (result=%d)", seq, ack_result);
+          TRACE(FLAGCX_NET, "Failed to send ACK for seq=%u (result=%d)", seq,
+                ack_result);
         } else {
           TRACE(FLAGCX_NET, "Sent ACK for seq=%u, ack_seq=%u", seq,
                 ack_msg.ackSeq);
@@ -2151,7 +2171,8 @@ static flagcxResult_t flagcxIbrcProcessWc(struct flagcxIbRequest *r,
         TRACE(FLAGCX_NET, "No ACK needed for seq=%u (expect=%u)", seq,
               rComm->retrans.recvSeq);
       }
-    } else if (!rComm->retrans.enabled && wc->opcode == IBV_WC_RECV_RDMA_WITH_IMM) {
+    } else if (!rComm->retrans.enabled &&
+               wc->opcode == IBV_WC_RECV_RDMA_WITH_IMM) {
       r->recv.sizes[0] = wc->imm_data;
     }
   }
@@ -2161,7 +2182,9 @@ static flagcxResult_t flagcxIbrcProcessWc(struct flagcxIbRequest *r,
 
 flagcxResult_t flagcxIbTest(void *request, int *done, int *sizes) {
   static const struct flagcxIbCommonTestOps kIbrcTestOps = {
-      .component = "NET/IBRC", .pre_check = flagcxIbrcTestPreCheck, .process_wc = flagcxIbrcProcessWc};
+      .component = "NET/IBRC",
+      .pre_check = flagcxIbrcTestPreCheck,
+      .process_wc = flagcxIbrcProcessWc};
   return flagcxIbCommonTestDataQp((struct flagcxIbRequest *)request, done,
                                   sizes, &kIbrcTestOps);
 }

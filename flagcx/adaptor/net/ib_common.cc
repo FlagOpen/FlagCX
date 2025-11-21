@@ -1,17 +1,19 @@
 #include "ib_common.h"
 
 #include "flagcx_common.h"
+#include "ibvwrap.h"
 #include "socket.h"
 #include "timer.h"
-#include "ibvwrap.h"
 
 #include <arpa/inet.h>
+#include <sched.h>
 
-flagcxResult_t flagcxIbCommonPostFifo(
-    struct flagcxIbRecvComm *comm, int n, void **data, size_t *sizes,
-    int *tags, void **mhandles, struct flagcxIbRequest *req,
-    void (*addEventFunc)(struct flagcxIbRequest *, int,
-                         struct flagcxIbNetCommDevBase *)) {
+flagcxResult_t
+flagcxIbCommonPostFifo(struct flagcxIbRecvComm *comm, int n, void **data,
+                       size_t *sizes, int *tags, void **mhandles,
+                       struct flagcxIbRequest *req,
+                       void (*addEventFunc)(struct flagcxIbRequest *, int,
+                                            struct flagcxIbNetCommDevBase *)) {
   if (!comm || !req || !addEventFunc)
     return flagcxInternalError;
 
@@ -74,9 +76,9 @@ flagcxIbCommonComponent(const struct flagcxIbCommonTestOps *ops) {
   return (ops && ops->component) ? ops->component : "NET/IB";
 }
 
-flagcxResult_t flagcxIbCommonTestDataQp(
-    struct flagcxIbRequest *r, int *done, int *sizes,
-    const struct flagcxIbCommonTestOps *ops) {
+flagcxResult_t
+flagcxIbCommonTestDataQp(struct flagcxIbRequest *r, int *done, int *sizes,
+                         const struct flagcxIbCommonTestOps *ops) {
   if (!r || !done)
     return flagcxInternalError;
 
@@ -107,6 +109,7 @@ flagcxResult_t flagcxIbCommonTestDataQp(
 
     int totalWrDone = 0;
     struct ibv_wc wcs[4];
+    static __thread int poll_spin_count = 0;
 
     for (int i = 0; i < FLAGCX_IB_MAX_DEVS_PER_NIC; i++) {
       TIME_START(3);
@@ -118,9 +121,15 @@ flagcxResult_t flagcxIbCommonTestDataQp(
           TIME_CANCEL(3);
         } else {
           TIME_STOP(3);
+          poll_spin_count = 0;
         }
-        if (wrDone == 0)
+        if (wrDone == 0) {
+          if (++poll_spin_count > 100) {
+            sched_yield();
+            poll_spin_count = 0;
+          }
           continue;
+        }
         for (int w = 0; w < wrDone; w++) {
           struct ibv_wc *wc = wcs + w;
 
