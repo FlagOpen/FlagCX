@@ -27,7 +27,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-
 static void flagcxIbucPollCompletions(struct flagcxIbSendComm *comm) {
   if (!comm)
     return;
@@ -805,9 +804,7 @@ ibuc_connect_check:
     devIndex = (devIndex + 1) % comm->base.ndevs;
   }
 
-   // IBUC always enables retransmission, ignore environment variable
   meta.retransEnabled = 1;
-
   for (int i = 0; i < comm->base.ndevs; i++) {
     flagcxIbSendCommDev *commDev = comm->devs + i;
     flagcxIbDev *ibucDev = flagcxIbDevs + commDev->base.ibDevN;
@@ -1157,6 +1154,7 @@ flagcxResult_t flagcxIbucAccept(void *listenComm, void **recvComm) {
   struct flagcxIbConnectionMetadata meta;
   memset(&meta, 0, sizeof(meta)); // Initialize meta, including meta.retransEnabled = 0
 
+
   if (stage->state == flagcxIbCommStateAccept)
     goto ib_accept_check;
   if (stage->state == flagcxIbCommStateRecv)
@@ -1237,6 +1235,7 @@ ib_recv:
   // Create SRQ if retransmission is enabled
   remMeta.retransEnabled = 1;
   meta.retransEnabled = 1;
+
   srq = NULL;
   if (remMeta.retransEnabled) {
     ibDevN = mergedDev->devs[0];
@@ -1423,8 +1422,10 @@ ib_recv:
   }
 
   meta.ndevs = rComm->base.ndevs;
+  
   // IBUC always enables retransmission, ignore remote value
   meta.retransEnabled = 1;
+
   strncpy(meta.devName, mergedDev->devName, MAX_MERGED_DEV_NAME);
 
   stage->state = flagcxIbCommStateSend;
@@ -1453,14 +1454,12 @@ ib_recv_ready:
     return flagcxSuccess;
 
   FLAGCXCHECK(flagcxIbRetransInit(&rComm->retrans));
-  if (rComm->retrans.enabled) {
-    rComm->retrans.ackInterval = 1;
-  }
-
+  
   // IBUC always enables retransmission, force it on
   rComm->retrans.enabled = 1;
   if (meta.retransEnabled == 0) {
     INFO(FLAGCX_NET, "Receiver: Remote disabled retransmission, but IBUC always enables it");
+
   }
 
   // Initialize SRQ with recv buffers
@@ -1712,6 +1711,7 @@ flagcxResult_t flagcxIbucMultiSend(struct flagcxIbSendComm *comm, int slot) {
       INFO(FLAGCX_INIT | FLAGCX_NET,
            "IBUC Send: Generated seq=%u, size=%u, immData=0x%x, data=%p",
            seq, reqs[0]->send.size, immData, reqs[0]->send.data);
+
     } else {
       immData = reqs[0]->send.size;
     }
@@ -2172,6 +2172,19 @@ flagcxResult_t flagcxIbucCloseSend(void *sendComm) {
 
     for (int i = 0; i < comm->base.ndevs; i++) {
       struct flagcxIbSendCommDev *commDev = comm->devs + i;
+
+      if (comm->retrans.enabled) {
+        FLAGCXCHECK(flagcxIbDestroyCtrlQp(&commDev->ctrlQp));
+        if (commDev->ackMr != NULL)
+          FLAGCXCHECK(flagcxWrapIbvDeregMr(commDev->ackMr));
+        if (commDev->ackBuffer != NULL)
+          free(commDev->ackBuffer);
+      }
+
+      if (i == 0 && comm->retrans_hdr_mr != NULL) {
+        FLAGCXCHECK(flagcxWrapIbvDeregMr(comm->retrans_hdr_mr));
+      }
+
       if (commDev->fifoMr != NULL)
         FLAGCXCHECK(flagcxWrapIbvDeregMr(commDev->fifoMr));
       if (comm->remSizesFifo.mrs[i] != NULL)
@@ -2239,6 +2252,15 @@ flagcxResult_t flagcxIbucCloseRecv(void *recvComm) {
 
     for (int i = 0; i < comm->base.ndevs; i++) {
       struct flagcxIbRecvCommDev *commDev = comm->devs + i;
+
+      if (comm->retrans.enabled) {
+        FLAGCXCHECK(flagcxIbDestroyCtrlQp(&commDev->ctrlQp));
+        if (commDev->ackMr != NULL)
+          FLAGCXCHECK(flagcxWrapIbvDeregMr(commDev->ackMr));
+        if (commDev->ackBuffer != NULL)
+          free(commDev->ackBuffer);
+      }
+
       if (comm->flushEnabled) {
         if (commDev->gpuFlush.qp.qp != NULL)
           FLAGCXCHECK(flagcxWrapIbvDestroyQp(commDev->gpuFlush.qp.qp));
