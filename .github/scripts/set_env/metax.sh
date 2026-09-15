@@ -51,6 +51,10 @@ flagcx_ci_configure_suite() {
         "RMA_PLATFORM_ENV=$RMA_PLATFORM_ENV"
       )
       ;;
+    symmem)
+      export FLAGCX_DEBUG=TRACE
+      export FLAGCX_DEBUG_SUBSYS=ALL
+      ;;
   esac
 }
 

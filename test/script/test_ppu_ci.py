@@ -335,5 +335,68 @@ class PpuCiRegressionTest(unittest.TestCase):
             self.assertIn(variable, torch_workflow)
         self.assertIn("--network=host", ppu_config)
 
+    def test_reference_platform_coverage_is_explicit(self):
+        perf_workflow = (
+            REPO_ROOT / ".github/workflows/test.yml"
+        ).read_text()
+        torch_workflow = (
+            REPO_ROOT / ".github/workflows/torch-api-test.yml"
+        ).read_text()
+
+        hygon_perf = perf_workflow[perf_workflow.index("  perf-test-hygon:"):]
+        hygon_perf = hygon_perf[:hygon_perf.index("  perf-test-cuda:")]
+        metax_perf = perf_workflow[perf_workflow.index("  perf-test-metax:"):]
+        metax_perf = metax_perf[:metax_perf.index("  perf-test-ppu:")]
+        hygon_handler = (
+            REPO_ROOT / ".github/scripts/ci/run_hygon_workload.sh"
+        ).read_text()
+        self.assertIn("hygon perf", hygon_perf)
+        self.assertIn('"$perf_runner" homogeneous "$perf_bin"', hygon_handler)
+        self.assertIn('"$perf_runner" heterogeneous "$perf_bin"', hygon_handler)
+
+        self.assertIn("Perf tests (MetaX uniRunner 8-chip)", metax_perf)
+        self.assertIn("run_host_perf_suite.sh heterogeneous", metax_perf)
+
+        hygon_torch = torch_workflow[torch_workflow.index("  torch-api-test-hygon:"):]
+        hygon_torch = hygon_torch[:hygon_torch.index("  torch-api-test-cuda:")]
+        metax_torch = torch_workflow[torch_workflow.index("  torch-api-test-metax:"):]
+        metax_torch = metax_torch[:metax_torch.index("  torch-api-test-ppu:")]
+        self.assertIn("hygon torch-api", hygon_torch)
+        self.assertIn("unset FLAGCX_SKIP_HETERO", hygon_handler)
+        self.assertNotIn("FLAGCX_USE_HETERO_COMM", metax_torch)
+
+    def test_common_launcher_and_static_rdma_preflight_cover_all_platforms(self):
+        unit_workflow = (
+            REPO_ROOT / ".github/workflows/unit_tests_common.yml"
+        ).read_text()
+        self.assertIn("run_hardware_container.sh\"", unit_workflow)
+        self.assertIn('unittest "${{ matrix.suite }}"', unit_workflow)
+
+        for platform in ("cuda", "metax", "hygon", "ppu"):
+            source = (
+                REPO_ROOT / f".github/scripts/set_env/{platform}.sh"
+            ).read_text()
+            self.assertIn("rdma_static_preflight.sh", source)
+            self.assertIn("flagcx_ci_validate_rdma_static", source)
+
+    def test_perf_collectives_fail_fast_on_flagcx_errors(self):
+        perf_dir = REPO_ROOT / "test/perf/host_api"
+        operations = (
+            "alltoall",
+            "alltoallv",
+            "sendrecv",
+            "allreduce",
+            "allgather",
+            "reducescatter",
+            "broadcast",
+            "gather",
+            "scatter",
+            "reduce",
+        )
+
+        for operation in operations:
+            source = (perf_dir / f"test_{operation}.cpp").read_text()
+            self.assertIn("PERF_CHECK(flagcx", source, operation)
+
 if __name__ == "__main__":
     unittest.main()
