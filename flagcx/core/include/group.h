@@ -9,6 +9,7 @@
 
 #include "assert.h"
 #include "comm.h"
+#include <pthread.h>
 
 typedef flagcxResult_t (*flagcxInitFunc_t)(flagcxHeteroComm_t *newcomm,
                                            int ndev, flagcxUniqueId commId,
@@ -37,6 +38,15 @@ struct flagcxAsyncJob {
   flagcxHeteroComm_t comm;
 };
 
+typedef int (*flagcxPthreadCreateFn)(pthread_t *, const pthread_attr_t *,
+                                     void *(*)(void *), void *);
+typedef int (*flagcxPthreadJoinFn)(pthread_t, void **);
+
+flagcxResult_t flagcxGroupLaunchAsyncJobs(
+    struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
+        *asyncJobs,
+    flagcxPthreadCreateFn createThread, flagcxPthreadJoinFn joinThread);
+
 flagcxResult_t
 flagcxAsyncLaunch(struct flagcxAsyncJob *job,
                   flagcxResult_t (*func)(struct flagcxAsyncJob *),
@@ -46,7 +56,10 @@ flagcxAsyncLaunch(struct flagcxAsyncJob *job,
 struct flagcxGroupJob {
   struct flagcxAsyncJob base;
   struct flagcxHeteroComm **groupCommHeadPtr;
-  struct flagcxHeteroComm **groupCommPreconnectHeadPtr;
+  // Ownership is transferred from the thread-local preconnect list when the
+  // outermost group ends. Keeping the head by value prevents launch and
+  // cleanup from walking the same intrusive list independently.
+  struct flagcxHeteroComm *groupCommPreconnectHead;
   flagcxResult_t *groupErrorPtr;
   volatile bool *abortFlagPtr;
   int *groupBlockingPtr;
@@ -106,6 +119,30 @@ inline void flagcxGroupCommPreconnect(struct flagcxHeteroComm *comm) {
     comm->preconnectNext = flagcxGroupCommPreconnectHead;
     flagcxGroupCommPreconnectHead = comm;
   }
+}
+
+// Transfer the complete preconnect list out of its current owner.
+inline struct flagcxHeteroComm *
+flagcxGroupCommPreconnectTakeAll(struct flagcxHeteroComm **head) {
+  if (head == nullptr)
+    return nullptr;
+  struct flagcxHeteroComm *owned = *head;
+  *head = nullptr;
+  return owned;
+}
+
+// Remove one communicator from an owned preconnect list and restore its
+// not-in-list sentinel. A sentinel head indicates a corrupted list and is not
+// dereferenced.
+inline struct flagcxHeteroComm *
+flagcxGroupCommPreconnectPop(struct flagcxHeteroComm **head) {
+  if (head == nullptr || *head == nullptr ||
+      *head == reinterpret_cast<struct flagcxHeteroComm *>(0x1))
+    return nullptr;
+  struct flagcxHeteroComm *comm = *head;
+  *head = comm->preconnectNext;
+  comm->preconnectNext = reinterpret_cast<struct flagcxHeteroComm *>(0x1);
+  return comm;
 }
 
 // Comm has left group

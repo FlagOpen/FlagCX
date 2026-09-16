@@ -14,7 +14,6 @@
 #include "p2p.h"
 #include "transport.h"
 #include "type.h"
-#include <new>
 #include <pthread.h>
 #include <queue>
 #include <sched.h>
@@ -34,11 +33,6 @@ __thread struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
     flagcxAsyncJobs;
 
 FLAGCX_PARAM(P2pScheduleDisable, "P2P_SCHEDULE_DISABLE", 0);
-
-static flagcxResult_t flagcxNewProxyOp(flagcxProxyOp **op) {
-  *op = new (std::nothrow) flagcxProxyOp{};
-  return *op == nullptr ? flagcxSystemError : flagcxSuccess;
-}
 
 flagcxResult_t flagcxHeteroGroupStart() {
   flagcxResult_t ret = flagcxSuccess;
@@ -87,14 +81,71 @@ void *flagcxAsyncJobMain(void *arg) {
 
 static int64_t p2pScheduleDisable = flagcxParamP2pScheduleDisable();
 
+flagcxResult_t flagcxGroupLaunchAsyncJobs(
+    struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
+        *asyncJobs,
+    flagcxPthreadCreateFn createThread, flagcxPthreadJoinFn joinThread) {
+  if (asyncJobs == nullptr || createThread == nullptr || joinThread == nullptr)
+    return flagcxInvalidArgument;
+
+  flagcxResult_t result = flagcxSuccess;
+  size_t startedJobs = 0;
+
+  for (struct flagcxAsyncJob *job = flagcxIntruQueueHead(asyncJobs);
+       job != nullptr; job = job->next) {
+    int error = createThread(&job->thread, nullptr, flagcxAsyncJobMain, job);
+    if (error != 0) {
+      WARN("Failed to create async group thread: %s", strerror(error));
+      result = flagcxSystemError;
+      break;
+    }
+    startedJobs++;
+  }
+
+  // A later pthread_create may fail after earlier jobs have started. Always
+  // wait for those jobs before the caller destroys the async job queue.
+  struct flagcxAsyncJob *job = flagcxIntruQueueHead(asyncJobs);
+  for (size_t i = 0; i < startedJobs; i++, job = job->next) {
+    int error = joinThread(job->thread, nullptr);
+    if (error != 0) {
+      WARN("Failed to join async group thread: %s", strerror(error));
+      if (result == flagcxSuccess)
+        result = flagcxSystemError;
+
+      // The job object cannot be released while its worker may still use it.
+      // Waiting for the worker's release-store is the safe fallback for a
+      // successfully created thread whose join unexpectedly failed.
+      while (__atomic_load_n(&job->state, __ATOMIC_ACQUIRE) ==
+             flagcxGroupJobRunning)
+        sched_yield();
+    }
+    __atomic_store_n(&job->state, flagcxGroupJobJoined, __ATOMIC_RELEASE);
+    if (job->result != flagcxSuccess && result == flagcxSuccess) {
+      WARN("Async job failed with result %d", job->result);
+      result = job->result;
+    }
+  }
+
+  return result;
+}
+
+static void groupDestroyAsyncJobs(
+    struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
+        *asyncJobs) {
+  while (!flagcxIntruQueueEmpty(asyncJobs)) {
+    struct flagcxAsyncJob *job = flagcxIntruQueueDequeue(asyncJobs);
+    if (job->destructor != nullptr)
+      job->destructor(job);
+    else
+      free(job);
+  }
+}
+
 static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
   flagcxResult_t ret = flagcxSuccess;
   // bool errorJobAbortFlag = false;
   struct flagcxGroupJob *gjob = (struct flagcxGroupJob *)job_;
   struct flagcxHeteroComm *groupCommHeadMain = *gjob->groupCommHeadPtr;
-
-  struct flagcxHeteroComm *groupCommPreconnectHeadMain =
-      *gjob->groupCommPreconnectHeadPtr;
 
   struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
       *asyncJobsMain = gjob->asyncJobsPtr;
@@ -121,72 +172,43 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
   std::map<int, std::vector<std::pair<flagcxHeteroComm *, flagcxProxyOp *>>>
       proxyOps;
 
-  if (groupCommPreconnectHeadMain != nullptr) {
-    struct flagcxHeteroComm *comm = groupCommPreconnectHeadMain;
-    do {
-      struct flagcxPreconnectJob *job;
-      FLAGCXCHECKGOTO(flagcxCalloc(&job, 1), ret, fail);
-      job->base.func = flagcxPreconnectFunc;
-      job->base.undo = nullptr;
-      job->base.destructor = free;
-      job->base.state = flagcxGroupJobRunning;
-      job->base.abortFlag = comm->abortFlag;
-      job->comm = job->base.comm = comm;
-      flagcxIntruQueueEnqueue(asyncJobsMain, &job->base);
-      comm = comm->preconnectNext;
-    } while (comm != nullptr);
+  while (gjob->groupCommPreconnectHead != nullptr) {
+    if (gjob->groupCommPreconnectHead ==
+        reinterpret_cast<struct flagcxHeteroComm *>(0x1)) {
+      WARN("groupLaunch: invalid preconnect list head");
+      gjob->groupCommPreconnectHead = nullptr;
+      ret = flagcxInternalError;
+      goto fail;
+    }
 
-    // Job allocation is the only fallible part of materializing the
-    // preconnect list. Transfer the head only after every job exists, so an
-    // allocation failure leaves the original list intact for groupCleanup().
-    *gjob->groupCommPreconnectHeadPtr = nullptr;
-    comm = groupCommPreconnectHeadMain;
-    do {
-      struct flagcxHeteroComm *next = comm->preconnectNext;
-      comm->preconnectNext = reinterpret_cast<struct flagcxHeteroComm *>(0x1);
-      comm = next;
-    } while (comm != nullptr);
+    struct flagcxHeteroComm *comm = gjob->groupCommPreconnectHead;
+    struct flagcxPreconnectJob *job;
+    FLAGCXCHECKGOTO(flagcxCalloc(&job, 1), ret, fail);
+    job->base.func = flagcxPreconnectFunc;
+    job->base.undo = nullptr;
+    job->base.destructor = free;
+    job->base.state = flagcxGroupJobRunning;
+    job->base.abortFlag = comm->abortFlag;
+    job->comm = job->base.comm = comm;
+
+    // Allocation and initialization are complete, so ownership can move
+    // from the group job's list to the async job queue without a failure
+    // point in between.
+    struct flagcxHeteroComm *popped =
+        flagcxGroupCommPreconnectPop(&gjob->groupCommPreconnectHead);
+    if (popped != comm) {
+      free(job);
+      WARN("groupLaunch: failed to consume preconnect list head");
+      ret = flagcxInternalError;
+      goto fail;
+    }
+    flagcxIntruQueueEnqueue(asyncJobsMain, &job->base);
   }
 
   if (!flagcxIntruQueueEmpty(asyncJobsMain)) {
-    struct flagcxAsyncJob *job = flagcxIntruQueueHead(asyncJobsMain);
-    size_t startedJobs = 0;
-    while (job != nullptr) {
-      int error =
-          pthread_create(&job->thread, nullptr, flagcxAsyncJobMain, job);
-      if (error != 0) {
-        WARN("Failed to create async group thread: %s", strerror(error));
-        ret = flagcxSystemError;
-        break;
-      }
-      startedJobs++;
-      job = job->next;
-    }
-
-    job = flagcxIntruQueueHead(asyncJobsMain);
-    for (size_t i = 0; i < startedJobs; i++) {
-      int error = pthread_join(job->thread, nullptr);
-      if (error != 0) {
-        WARN("Failed to join async group thread: %s", strerror(error));
-        if (ret == flagcxSuccess)
-          ret = flagcxSystemError;
-        // The job object cannot be released while its worker may still use
-        // it. A successfully created worker always publishes Done before
-        // returning, so wait for that publication if pthread_join itself
-        // unexpectedly fails.
-        while (__atomic_load_n(&job->state, __ATOMIC_ACQUIRE) ==
-               flagcxGroupJobRunning)
-          sched_yield();
-      }
-      if (job->result != flagcxSuccess && ret == flagcxSuccess) {
-        WARN("Async job failed with result %d", job->result);
-        ret = job->result;
-      }
-      job = job->next;
-    }
-
-    if (ret != flagcxSuccess)
-      goto fail;
+    FLAGCXCHECKGOTO(
+        flagcxGroupLaunchAsyncJobs(asyncJobsMain, pthread_create, pthread_join),
+        ret, fail);
   }
 
   if (groupCommHeadMain != nullptr) {
@@ -213,16 +235,15 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           bool matched = false;
           for (size_t j = 0; j < recvTasks.size(); j++) {
             if (sendTasks[i]->bytes == recvTasks[j]->bytes &&
-                sendTasks[i]->dtype == recvTasks[j]->dtype &&
-                sendTasks[i]->channelId == recvTasks[j]->channelId) {
+                sendTasks[i]->dtype == recvTasks[j]->dtype) {
               if (sendTasks[i]->buff != recvTasks[j]->buff) {
                 flagcxProxyOp *op;
-                FLAGCXCHECK(flagcxNewProxyOp(&op));
+                FLAGCXCHECK(flagcxCalloc(&op, 1));
                 op->pattern = flagcxPatternSend;
                 op->nbytes = sendTasks[i]->bytes;
                 op->sendbuff = (uint8_t *)sendTasks[i]->buff;
                 op->recvbuff = (uint8_t *)recvTasks[j]->buff;
-                op->channelId = sendTasks[i]->channelId;
+                op->channelId = 0;
                 op->root = peer;
                 op->connection = comm->channels[op->channelId]
                                      .peers[peer]
@@ -293,11 +314,11 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
                 flagcxIntruQueueDequeue(&tasks->peers[recvPeer].recvQueue);
             int peer = recvPeer;
             flagcxProxyOp *op;
-            FLAGCXCHECK(flagcxNewProxyOp(&op));
+            FLAGCXCHECK(flagcxCalloc(&op, 1));
             op->pattern = flagcxPatternRecv;
             op->nbytes = p2p->bytes;
             op->recvbuff = (uint8_t *)p2p->buff;
-            op->channelId = p2p->channelId;
+            op->channelId = 0;
             op->root = peer;
             op->connection = comm->channels[op->channelId]
                                  .peers[peer]
@@ -310,8 +331,45 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
                    comm->rank, peer, op->channelId);
               return flagcxInternalError;
             }
-            FLAGCXCHECK(flagcxTransportPrepareProxyOp(
-                comm, op, p2p->buff, p2p->bytes, peer, p2p->dtype));
+            if (op->connection->transport == TRANSPORT_P2P) {
+              op->args.chunkSize = computeP2pChunkSize(p2p->bytes);
+              op->args.chunkSteps =
+                  (p2p->bytes + op->args.chunkSize - 1) / (op->args.chunkSize);
+              op->args.sendStepMask = flagcxP2pChunks - 1;
+              setP2pSlotInfo(comm->rank, peer, p2p->bytes, p2p->dtype, 1,
+                             &op->args.p2pOpHash, &op->args.p2pSlotIdx);
+              setP2pSlotInfo(peer, comm->rank, p2p->bytes, p2p->dtype, 0,
+                             &op->args.p2pPeerOpHash, &op->args.p2pPeerSlotIdx);
+              TRACE_CALL("Receiver: [rank(%d), peerRank(%d)] -> [slotIdx(%ld), "
+                         "opHash(%ld)]",
+                         comm->rank, peer, op->args.p2pSlotIdx,
+                         op->args.p2pOpHash);
+              TRACE_CALL("Receiver: [peerRank(%d), rank(%d)] -> "
+                         "[peerSlotIdx(%ld), peerOpHash(%ld)]",
+                         peer, comm->rank, op->args.p2pPeerSlotIdx,
+                         op->args.p2pPeerOpHash);
+
+              int peerRanks[] = {peer};
+              uintptr_t regOffset = 0;
+              uintptr_t *peerRmtAddr = NULL;
+              op->args.regBufFlag = 0;
+              FLAGCXCHECK(flagcxP2pRegisterBuffer(
+                  comm, p2p->buff, p2p->bytes, peerRanks, 1,
+                  &op->args.regBufFlag, &regOffset, &peerRmtAddr));
+              if (op->args.regBufFlag && peerRmtAddr) {
+                op->args.p2pRmtAddr = (void *)peerRmtAddr;
+              }
+            } else if (op->connection->transport == TRANSPORT_NET) {
+              op->args.chunkSize = flagcxNetChunkSize;
+              op->args.chunkSteps =
+                  (p2p->bytes + flagcxNetChunkSize - 1) / (flagcxNetChunkSize);
+              op->args.sendStepMask = flagcxNetChunks - 1;
+              flagcxConnector *peerConns[] = {
+                  comm->channels[op->channelId].peers[peer]->recv};
+              FLAGCXCHECK(flagcxNetRegisterBuffer(
+                  comm, p2p->buff, p2p->bytes, peerConns, 1,
+                  &op->args.regBufFlag, &op->args.regHandle));
+            }
             op->args.semaphore = semaphore;
             op->args.opId =
                 p2p->opId == INT_MAX
@@ -346,17 +404,16 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
                 flagcxIntruQueueDequeue(&tasks->peers[sendPeer].sendQueue);
             int peer = sendPeer;
             flagcxProxyOp *op;
-            FLAGCXCHECK(flagcxNewProxyOp(&op));
+            FLAGCXCHECK(flagcxCalloc(&op, 1));
             op->pattern = flagcxPatternSend;
             op->nbytes = p2p->bytes;
             op->recvbuff = (uint8_t *)p2p->buff;
-            op->channelId = p2p->channelId;
+            op->channelId = 0;
             op->root = peer;
             op->connection = comm->channels[op->channelId]
                                  .peers[peer]
                                  ->send[0]
                                  .proxyConn.connection;
-            op->comm = comm;
             op->stream = p2p->stream;
             if (op->connection == NULL) {
               WARN("groupLaunch: send proxyConn.connection is NULL for rank %d "
@@ -364,8 +421,47 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
                    comm->rank, peer, op->channelId);
               return flagcxInternalError;
             }
-            FLAGCXCHECK(flagcxTransportPrepareProxyOp(
-                comm, op, p2p->buff, p2p->bytes, peer, p2p->dtype));
+            if (op->connection->transport == TRANSPORT_P2P) {
+              op->args.chunkSize = computeP2pChunkSize(p2p->bytes);
+              op->args.chunkSteps =
+                  (p2p->bytes + op->args.chunkSize - 1) / (op->args.chunkSize);
+              op->args.sendStepMask = flagcxP2pChunks - 1;
+              setP2pSlotInfo(comm->rank, peer, p2p->bytes, p2p->dtype, 0,
+                             &op->args.p2pOpHash, &op->args.p2pSlotIdx);
+              setP2pSlotInfo(peer, comm->rank, p2p->bytes, p2p->dtype, 1,
+                             &op->args.p2pPeerOpHash, &op->args.p2pPeerSlotIdx);
+              TRACE_CALL("Sender: [rank(%d), peerRank(%d)] -> [slotIdx(%ld), "
+                         "opHash(%ld)]",
+                         comm->rank, peer, op->args.p2pSlotIdx,
+                         op->args.p2pOpHash);
+              TRACE_CALL(
+                  "Sender: [peerRank(%d), rank(%d)] -> [peerSlotIdx(%ld), "
+                  "peerOpHash(%ld)]",
+                  peer, comm->rank, op->args.p2pPeerSlotIdx,
+                  op->args.p2pPeerOpHash);
+              // Send side: register own buffer to peer's proxy for READ mode.
+              // The actual IPC address comes from SHM at proxy time.
+              int peerRanks[] = {peer};
+              uintptr_t regOffset = 0;
+              uintptr_t *peerRmtAddr = NULL;
+              op->args.regBufFlag = 0;
+              FLAGCXCHECK(flagcxP2pRegisterBuffer(
+                  comm, p2p->buff, p2p->bytes, peerRanks, 1,
+                  &op->args.regBufFlag, &regOffset, &peerRmtAddr));
+              if (op->args.regBufFlag && peerRmtAddr) {
+                op->args.p2pRmtAddr = (void *)peerRmtAddr;
+              }
+            } else if (op->connection->transport == TRANSPORT_NET) {
+              op->args.chunkSize = flagcxNetChunkSize;
+              op->args.chunkSteps =
+                  (p2p->bytes + flagcxNetChunkSize - 1) / (flagcxNetChunkSize);
+              op->args.sendStepMask = flagcxNetChunks - 1;
+              flagcxConnector *peerConns[] = {
+                  comm->channels[op->channelId].peers[peer]->send};
+              FLAGCXCHECK(flagcxNetRegisterBuffer(
+                  comm, p2p->buff, p2p->bytes, peerConns, 1,
+                  &op->args.regBufFlag, &op->args.regHandle));
+            }
             op->args.semaphore = semaphore;
             op->args.opId = p2p->opId == INT_MAX
                                 ? (p2pScheduleDisable ? defaultOpId : roundOpId)
@@ -419,10 +515,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
     }
   }
 
-  while (!flagcxIntruQueueEmpty(asyncJobsMain)) {
-    struct flagcxAsyncJob *job = flagcxIntruQueueDequeue(asyncJobsMain);
-    free(job);
-  }
+  groupDestroyAsyncJobs(asyncJobsMain);
 
   while (groupCommHeadMain != nullptr) {
     struct flagcxHeteroComm *comm = groupCommHeadMain;
@@ -439,24 +532,22 @@ fail:
 static flagcxResult_t groupCleanup(struct flagcxAsyncJob *job_) {
   struct flagcxGroupJob *gjob = (struct flagcxGroupJob *)job_;
   struct flagcxHeteroComm *groupCommHeadMain = *gjob->groupCommHeadPtr;
-  struct flagcxHeteroComm *groupCommPreconnectHeadMain =
-      *gjob->groupCommPreconnectHeadPtr;
   struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
       *asyncJobsMain = gjob->asyncJobsPtr;
 
-  // clean up preconnect comms
-  while (groupCommPreconnectHeadMain != nullptr) {
-    struct flagcxHeteroComm *comm = groupCommPreconnectHeadMain;
-    struct flagcxHeteroComm *next = comm->preconnectNext;
-    comm->preconnectNext = reinterpret_cast<struct flagcxHeteroComm *>(0x1);
-    groupCommPreconnectHeadMain = next;
+  // Clean up only the tail that was not transferred to an async job.
+  while (gjob->groupCommPreconnectHead != nullptr) {
+    if (gjob->groupCommPreconnectHead ==
+        reinterpret_cast<struct flagcxHeteroComm *>(0x1)) {
+      WARN("groupCleanup: invalid preconnect list head");
+      gjob->groupCommPreconnectHead = nullptr;
+      break;
+    }
+    (void)flagcxGroupCommPreconnectPop(&gjob->groupCommPreconnectHead);
   }
 
   // clean up async jobs
-  while (!flagcxIntruQueueEmpty(asyncJobsMain)) {
-    struct flagcxAsyncJob *job = flagcxIntruQueueDequeue(asyncJobsMain);
-    free(job);
-  }
+  groupDestroyAsyncJobs(asyncJobsMain);
 
   // clean up comms
   while (groupCommHeadMain != nullptr) {
@@ -485,8 +576,8 @@ flagcxResult_t flagcxGroupEndInternal() {
   if (flagcxGroupDepth == 0) {
     if (flagcxGroupCommPreconnectHead || flagcxGroupCommHead) {
       flagcxGroupJobMain.groupCommHeadPtr = &flagcxGroupCommHead;
-      flagcxGroupJobMain.groupCommPreconnectHeadPtr =
-          &flagcxGroupCommPreconnectHead;
+      flagcxGroupJobMain.groupCommPreconnectHead =
+          flagcxGroupCommPreconnectTakeAll(&flagcxGroupCommPreconnectHead);
       flagcxGroupJobMain.asyncJobsPtr = &flagcxAsyncJobs;
       flagcxGroupJobMain.initialized = true;
       flagcxGroupJobMainPtr = &flagcxGroupJobMain;
