@@ -16,9 +16,7 @@
 #include "type.h"
 #include <pthread.h>
 #include <queue>
-#include <sched.h>
 #include <stdio.h>
-#include <string.h>
 #include <vector>
 
 __thread int flagcxGroupDepth = 0;
@@ -81,71 +79,14 @@ void *flagcxAsyncJobMain(void *arg) {
 
 static int64_t p2pScheduleDisable = flagcxParamP2pScheduleDisable();
 
-flagcxResult_t flagcxGroupLaunchAsyncJobs(
-    struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
-        *asyncJobs,
-    flagcxPthreadCreateFn createThread, flagcxPthreadJoinFn joinThread) {
-  if (asyncJobs == nullptr || createThread == nullptr || joinThread == nullptr)
-    return flagcxInvalidArgument;
-
-  flagcxResult_t result = flagcxSuccess;
-  size_t startedJobs = 0;
-
-  for (struct flagcxAsyncJob *job = flagcxIntruQueueHead(asyncJobs);
-       job != nullptr; job = job->next) {
-    int error = createThread(&job->thread, nullptr, flagcxAsyncJobMain, job);
-    if (error != 0) {
-      WARN("Failed to create async group thread: %s", strerror(error));
-      result = flagcxSystemError;
-      break;
-    }
-    startedJobs++;
-  }
-
-  // A later pthread_create may fail after earlier jobs have started. Always
-  // wait for those jobs before the caller destroys the async job queue.
-  struct flagcxAsyncJob *job = flagcxIntruQueueHead(asyncJobs);
-  for (size_t i = 0; i < startedJobs; i++, job = job->next) {
-    int error = joinThread(job->thread, nullptr);
-    if (error != 0) {
-      WARN("Failed to join async group thread: %s", strerror(error));
-      if (result == flagcxSuccess)
-        result = flagcxSystemError;
-
-      // The job object cannot be released while its worker may still use it.
-      // Waiting for the worker's release-store is the safe fallback for a
-      // successfully created thread whose join unexpectedly failed.
-      while (__atomic_load_n(&job->state, __ATOMIC_ACQUIRE) ==
-             flagcxGroupJobRunning)
-        sched_yield();
-    }
-    __atomic_store_n(&job->state, flagcxGroupJobJoined, __ATOMIC_RELEASE);
-    if (job->result != flagcxSuccess && result == flagcxSuccess) {
-      WARN("Async job failed with result %d", job->result);
-      result = job->result;
-    }
-  }
-
-  return result;
-}
-
-static void groupDestroyAsyncJobs(
-    struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
-        *asyncJobs) {
-  while (!flagcxIntruQueueEmpty(asyncJobs)) {
-    struct flagcxAsyncJob *job = flagcxIntruQueueDequeue(asyncJobs);
-    if (job->destructor != nullptr)
-      job->destructor(job);
-    else
-      free(job);
-  }
-}
-
 static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
   flagcxResult_t ret = flagcxSuccess;
   // bool errorJobAbortFlag = false;
   struct flagcxGroupJob *gjob = (struct flagcxGroupJob *)job_;
   struct flagcxHeteroComm *groupCommHeadMain = *gjob->groupCommHeadPtr;
+
+  struct flagcxHeteroComm *groupCommPreconnectHeadMain =
+      *gjob->groupCommPreconnectHeadPtr;
 
   struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
       *asyncJobsMain = gjob->asyncJobsPtr;
@@ -172,43 +113,46 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
   std::map<int, std::vector<std::pair<flagcxHeteroComm *, flagcxProxyOp *>>>
       proxyOps;
 
-  while (gjob->groupCommPreconnectHead != nullptr) {
-    if (gjob->groupCommPreconnectHead ==
-        reinterpret_cast<struct flagcxHeteroComm *>(0x1)) {
-      WARN("groupLaunch: invalid preconnect list head");
-      gjob->groupCommPreconnectHead = nullptr;
-      ret = flagcxInternalError;
-      goto fail;
-    }
+  if (groupCommPreconnectHeadMain != nullptr) {
+    struct flagcxHeteroComm *comm = groupCommPreconnectHeadMain;
+    do {
+      struct flagcxPreconnectJob *job;
+      FLAGCXCHECKGOTO(flagcxCalloc(&job, 1), ret, fail);
+      job->base.func = flagcxPreconnectFunc;
+      job->base.undo = nullptr;
+      job->base.destructor = free;
+      job->base.state = flagcxGroupJobRunning;
+      job->base.abortFlag = comm->abortFlag;
+      job->comm = job->base.comm = comm;
+      flagcxIntruQueueEnqueue(asyncJobsMain, &job->base);
 
-    struct flagcxHeteroComm *comm = gjob->groupCommPreconnectHead;
-    struct flagcxPreconnectJob *job;
-    FLAGCXCHECKGOTO(flagcxCalloc(&job, 1), ret, fail);
-    job->base.func = flagcxPreconnectFunc;
-    job->base.undo = nullptr;
-    job->base.destructor = free;
-    job->base.state = flagcxGroupJobRunning;
-    job->base.abortFlag = comm->abortFlag;
-    job->comm = job->base.comm = comm;
-
-    // Allocation and initialization are complete, so ownership can move
-    // from the group job's list to the async job queue without a failure
-    // point in between.
-    struct flagcxHeteroComm *popped =
-        flagcxGroupCommPreconnectPop(&gjob->groupCommPreconnectHead);
-    if (popped != comm) {
-      free(job);
-      WARN("groupLaunch: failed to consume preconnect list head");
-      ret = flagcxInternalError;
-      goto fail;
-    }
-    flagcxIntruQueueEnqueue(asyncJobsMain, &job->base);
+      struct flagcxHeteroComm *next = comm->preconnectNext;
+      comm->preconnectNext = reinterpret_cast<struct flagcxHeteroComm *>(0x1);
+      comm = next;
+    } while (comm != nullptr);
   }
 
   if (!flagcxIntruQueueEmpty(asyncJobsMain)) {
-    FLAGCXCHECKGOTO(
-        flagcxGroupLaunchAsyncJobs(asyncJobsMain, pthread_create, pthread_join),
-        ret, fail);
+    struct flagcxAsyncJob *job = flagcxIntruQueueHead(asyncJobsMain);
+    do {
+      SYSCHECKGOTO(
+          pthread_create(&job->thread, nullptr, flagcxAsyncJobMain, job), ret,
+          fail);
+      job = job->next;
+    } while (job != nullptr);
+
+    job = flagcxIntruQueueHead(asyncJobsMain);
+    do {
+      pthread_join(job->thread, nullptr);
+      if (job->result != flagcxSuccess) {
+        WARN("Async job failed with result %d", job->result);
+        ret = job->result;
+      }
+      job = job->next;
+    } while (job != nullptr);
+
+    if (ret != flagcxSuccess)
+      goto fail;
   }
 
   if (groupCommHeadMain != nullptr) {
@@ -515,7 +459,10 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
     }
   }
 
-  groupDestroyAsyncJobs(asyncJobsMain);
+  while (!flagcxIntruQueueEmpty(asyncJobsMain)) {
+    struct flagcxAsyncJob *job = flagcxIntruQueueDequeue(asyncJobsMain);
+    free(job);
+  }
 
   while (groupCommHeadMain != nullptr) {
     struct flagcxHeteroComm *comm = groupCommHeadMain;
@@ -532,22 +479,24 @@ fail:
 static flagcxResult_t groupCleanup(struct flagcxAsyncJob *job_) {
   struct flagcxGroupJob *gjob = (struct flagcxGroupJob *)job_;
   struct flagcxHeteroComm *groupCommHeadMain = *gjob->groupCommHeadPtr;
+  struct flagcxHeteroComm *groupCommPreconnectHeadMain =
+      *gjob->groupCommPreconnectHeadPtr;
   struct flagcxIntruQueue<struct flagcxAsyncJob, &flagcxAsyncJob::next>
       *asyncJobsMain = gjob->asyncJobsPtr;
 
-  // Clean up only the tail that was not transferred to an async job.
-  while (gjob->groupCommPreconnectHead != nullptr) {
-    if (gjob->groupCommPreconnectHead ==
-        reinterpret_cast<struct flagcxHeteroComm *>(0x1)) {
-      WARN("groupCleanup: invalid preconnect list head");
-      gjob->groupCommPreconnectHead = nullptr;
-      break;
-    }
-    (void)flagcxGroupCommPreconnectPop(&gjob->groupCommPreconnectHead);
+  // clean up preconnect comms
+  while (groupCommPreconnectHeadMain != nullptr) {
+    struct flagcxHeteroComm *comm = groupCommPreconnectHeadMain;
+    struct flagcxHeteroComm *next = comm->preconnectNext;
+    comm->preconnectNext = reinterpret_cast<struct flagcxHeteroComm *>(0x1);
+    groupCommPreconnectHeadMain = next;
   }
 
   // clean up async jobs
-  groupDestroyAsyncJobs(asyncJobsMain);
+  while (!flagcxIntruQueueEmpty(asyncJobsMain)) {
+    struct flagcxAsyncJob *job = flagcxIntruQueueDequeue(asyncJobsMain);
+    free(job);
+  }
 
   // clean up comms
   while (groupCommHeadMain != nullptr) {
@@ -576,8 +525,8 @@ flagcxResult_t flagcxGroupEndInternal() {
   if (flagcxGroupDepth == 0) {
     if (flagcxGroupCommPreconnectHead || flagcxGroupCommHead) {
       flagcxGroupJobMain.groupCommHeadPtr = &flagcxGroupCommHead;
-      flagcxGroupJobMain.groupCommPreconnectHead =
-          flagcxGroupCommPreconnectTakeAll(&flagcxGroupCommPreconnectHead);
+      flagcxGroupJobMain.groupCommPreconnectHeadPtr =
+          &flagcxGroupCommPreconnectHead;
       flagcxGroupJobMain.asyncJobsPtr = &flagcxAsyncJobs;
       flagcxGroupJobMain.initialized = true;
       flagcxGroupJobMainPtr = &flagcxGroupJobMain;
