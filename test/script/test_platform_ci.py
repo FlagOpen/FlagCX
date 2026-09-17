@@ -1552,6 +1552,50 @@ class PlatformCiRegressionTest(unittest.TestCase):
         self.assertIn("single_qp_status", p2p_runner)
         self.assertIn("mtu_2048_status", p2p_runner)
 
+    def test_rma_transport_mode_uses_common_ib_and_p2p_switches(self):
+        rma_makefile = (
+            REPO_ROOT / "test/unittest/rma/Makefile"
+        ).read_text()
+        rma_fixture = (
+            REPO_ROOT / "test/unittest/rma/rma_test.cpp"
+        ).read_text()
+
+        self.assertIn(
+            "IPC_ENV := $(HETERO_ENV) -x FLAGCX_IB_DISABLE=1 "
+            "-x FLAGCX_P2P_DISABLE=0",
+            rma_makefile,
+        )
+        self.assertIn(
+            "NET_ENV := $(HETERO_ENV) -x FLAGCX_IB_DISABLE=0 "
+            "-x FLAGCX_P2P_DISABLE=1",
+            rma_makefile,
+        )
+        self.assertIn('std::getenv("FLAGCX_IB_DISABLE")', rma_fixture)
+        self.assertIn('std::getenv("FLAGCX_P2P_DISABLE")', rma_fixture)
+
+        for path in (
+            REPO_ROOT / "flagcx/core/flagcx_hetero.cc",
+            REPO_ROOT / "test/unittest/rma/Makefile",
+            REPO_ROOT / "test/unittest/rma/rma_test.cpp",
+            REPO_ROOT / ".github/scripts/set_env/metax.sh",
+            REPO_ROOT / ".github/scripts/set_env/hygon.sh",
+            REPO_ROOT / ".github/scripts/set_env/cuda.sh",
+            REPO_ROOT / ".github/scripts/set_env/ppu.sh",
+        ):
+            source = path.read_text()
+            self.assertNotIn("FLAGCX_RMA_FORCE_NET", source, str(path))
+            self.assertNotIn("FLAGCX_RMA_TEST_REQUIRE_IPC", source, str(path))
+
+        for platform in ("cuda", "metax", "hygon", "ppu"):
+            source = (
+                REPO_ROOT / f".github/scripts/set_env/{platform}.sh"
+            ).read_text()
+            configure = source[source.index("flagcx_ci_configure_suite() {") :]
+            configure = configure[: configure.index("\n}\n") + 3]
+            self.assertNotIn(
+                "FLAGCX_P2P_DISABLE=1", configure, platform
+            )
+
 
 class MetaXEnvironmentTest(unittest.TestCase):
     def run_metax_shell(self, body, *, extra_env=None):
