@@ -12,6 +12,7 @@
 #include <iostream>
 #include <mutex>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
@@ -684,8 +685,19 @@ flagcxBackend::collectiveCoalesced(std::vector<at::Tensor> &inputs,
   {
     int isHomo;
     flagcxIsHomoComm(comm_, &isHomo);
+    // The guard has to cover the loop below, not just this if-statement.
+    //
+    // flagcxGroupGuard is RAII - flagcxGroupStart() in the constructor,
+    // flagcxGroupEnd() in the destructor. Declared as
+    // `if (isHomo) { flagcxGroupGuard guard(comm_); }` it opened an empty
+    // group and closed it on the very next line, so every collective issued
+    // in the loop below ran outside any group and the batching that the
+    // *_coalesced entry points exist for was lost. That is the path the
+    // distributed optimizer takes for reduce_scatter_tensor_coalesced and
+    // allgather_into_tensor_coalesced.
+    std::optional<flagcxGroupGuard> guard;
     if (isHomo) {
-      flagcxGroupGuard guard(comm_);
+      guard.emplace(comm_);
     }
     // multi-stream may lead to queue sync error on mlu,
     // more tests are required to confirm,
