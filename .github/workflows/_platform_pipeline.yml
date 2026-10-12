@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Reusable per-platform pipeline for FlagCX CI:
-#   unit_tests_common → Feishu notification.
+#   unit_tests_common.
 # Called from ci.yml with a platform matrix so each platform runs independently.
 
 name: Platform Pipeline
@@ -25,9 +25,6 @@ on:
         required: true
         type: string
         description: Platform identifier (must match a .github/configs/*.yml stem)
-    secrets:
-      FEISHU_WEBHOOK:
-        required: false
 
 jobs:
   test:
@@ -35,15 +32,3 @@ jobs:
     uses: ./.github/workflows/unit_tests_common.yml
     with:
       platform: ${{ inputs.platform }}
-
-  notify:
-    name: notify / ${{ inputs.platform }}
-    if: always()
-    needs: test
-    uses: ./.github/workflows/_feishu_notify.yml
-    with:
-      platform: ${{ inputs.platform }}
-      overall_result: ${{ needs.test.result }}
-      run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-    secrets:
-      FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
