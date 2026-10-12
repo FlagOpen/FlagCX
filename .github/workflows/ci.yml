@@ -16,9 +16,8 @@
 #
 # Pipeline:  lint → generate-matrix → platform-pipeline (matrix)
 #
-# FlagCX is a C/C++ communication library; ruff is not applicable.
-# Lint covers typos only.  clang-format correctness is verified separately
-# via the existing format-check.yml workflow.
+# Lint runs the repository's pre-commit hooks (clang-format) on changed files;
+# the full-tree check remains in format-check.yml.
 #
 # Platform discovery is config-driven: generate_matrix.py scans
 # .github/configs/*.yml for platform names, then on pull_request events
@@ -49,18 +48,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Reuse the repository's own .pre-commit-config.yaml, scoped to files changed
+  # against the base branch.  Pre-existing style debt elsewhere in the tree is
+  # not this gate's concern; on push/schedule the diff is empty and it passes.
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install typos
-        run: pip install --quiet typos
-      - name: typos
-        run: typos
+      - name: Install pre-commit
+        run: pip install --quiet pre-commit==4.2.0
+      - name: pre-commit (changed files)
+        env:
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: |
+          git fetch --no-tags origin "$BASE_REF"
+          pre-commit run --show-diff-on-failure \
+            --from-ref "$(git merge-base "origin/$BASE_REF" HEAD)" --to-ref HEAD
 
   generate-matrix:
     name: Generate platform matrix
