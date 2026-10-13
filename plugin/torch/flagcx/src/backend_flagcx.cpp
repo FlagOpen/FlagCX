@@ -683,8 +683,11 @@ flagcxBackend::collectiveCoalesced(std::vector<at::Tensor> &inputs,
       c10::make_intrusive<flagcxWork>(opType, getStreamByIndex(0), devHandle_);
 
   {
-    int isHomo;
-    flagcxIsHomoComm(comm_, &isHomo);
+    // isHomo decides whether the batch is grouped at all, and
+    // flagcxIsHomoComm() leaves it untouched when it fails, so take its
+    // result rather than branching on an uninitialized value.
+    int isHomo = 0;
+    C10D_FLAGCX_CHECK(flagcxIsHomoComm(comm_, &isHomo), std::nullopt);
     // The guard has to cover the loop below, not just this if-statement.
     //
     // flagcxGroupGuard is RAII - flagcxGroupStart() in the constructor,
@@ -730,6 +733,17 @@ flagcxBackend::collectiveCoalesced(std::vector<at::Tensor> &inputs,
     //     event->block(getStreamByIndex(0), deviceId_);
     //   }
     // }
+
+    // End the group here instead of leaving it to the guard's destructor.
+    // Now that the collectives above are issued inside the group,
+    // flagcxGroupEnd() is what submits them, and the Work created below
+    // reports the batch as complete - so a failed submission has to surface
+    // before that. The destructor still ends the group if the loop above
+    // throws; it warns there rather than throwing, because it can run while
+    // another exception is in flight.
+    if (guard.has_value()) {
+      C10D_FLAGCX_CHECK(guard->close(), std::nullopt);
+    }
   }
 
   work->event_->record(getStreamByIndex(0), deviceId_);
