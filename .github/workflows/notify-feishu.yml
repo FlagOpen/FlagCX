@@ -36,22 +36,46 @@ jobs:
         id: pr
         env:
           GH_TOKEN: ${{ github.token }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          RUN_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          BASE_REPOSITORY: ${{ github.repository }}
         run: |
-          # workflow_run.pull_requests is empty for fork PRs, so fall back to API lookup by SHA
-          PR_NUM="${{ github.event.workflow_run.pull_requests[0].number }}"
+          PR_NUM=""
           PR_TITLE=""
-          if [ -z "$PR_NUM" ]; then
-            HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
-            PR_JSON=$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/pulls" \
-              --jq '.[0] | {number, title}' 2>/dev/null || true)
-            PR_NUM=$(echo "$PR_JSON" | jq -r '.number // empty' 2>/dev/null || true)
-            PR_TITLE=$(echo "$PR_JSON" | jq -r '.title // empty' 2>/dev/null || true)
-          elif [ -n "$PR_NUM" ]; then
-            PR_TITLE=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUM}" \
-              --jq '.title // empty' 2>/dev/null || true)
+
+          # workflow_run.pull_requests is empty for fork PRs. Query the base
+          # repository by the run's head repository and branch, then require
+          # the exact head SHA so an old or unrelated PR cannot be selected.
+          if [ "$RUN_EVENT" = "pull_request" ] && [ -n "$HEAD_OWNER" ] && [ -n "$HEAD_BRANCH" ] && [ -n "$HEAD_SHA" ]; then
+            PR_JSON=$(gh api "repos/$BASE_REPOSITORY/pulls" \
+              --method GET \
+              --field "head=$HEAD_OWNER:$HEAD_BRANCH" \
+              --field "state=all" \
+              --paginate 2>/dev/null \
+              | jq -c --arg head_repo "$HEAD_REPOSITORY" \
+                --arg head_branch "$HEAD_BRANCH" --arg head_sha "$HEAD_SHA" \
+                '.[] | select(.head.repo.full_name == $head_repo and .head.ref == $head_branch and .head.sha == $head_sha) | {number, title}' \
+              | head -n 1 || true)
+            PR_NUM=$(printf '%s\n' "$PR_JSON" | jq -r '.number // empty' 2>/dev/null || true)
+            PR_TITLE=$(printf '%s\n' "$PR_JSON" | jq -r '.title // empty' 2>/dev/null || true)
           fi
-          echo "number=${PR_NUM}" >> "$GITHUB_OUTPUT"
-          echo "title=${PR_TITLE}" >> "$GITHUB_OUTPUT"
+
+          # Retain the event's PR number only after verifying its head SHA.
+          if [ -z "$PR_NUM" ] && [ "$RUN_EVENT" = "pull_request" ] && [ -n "$RUN_PR_NUMBER" ]; then
+            PR_JSON=$(gh api "repos/$BASE_REPOSITORY/pulls/$RUN_PR_NUMBER" \
+              --jq '{number, title, head_repo: .head.repo.full_name, head_sha: .head.sha}' \
+              2>/dev/null || true)
+            if [ "$(printf '%s\n' "$PR_JSON" | jq -r --arg repo "$HEAD_REPOSITORY" --arg sha "$HEAD_SHA" 'select(.head_repo == $repo and .head_sha == $sha) | .number // empty' 2>/dev/null)" = "$RUN_PR_NUMBER" ]; then
+              PR_NUM="$RUN_PR_NUMBER"
+              PR_TITLE=$(printf '%s\n' "$PR_JSON" | jq -r '.title // empty' 2>/dev/null || true)
+            fi
+          fi
+          printf 'number=%s\n' "$PR_NUM" >> "$GITHUB_OUTPUT"
+          printf 'title=%s\n' "$PR_TITLE" >> "$GITHUB_OUTPUT"
       - name: Send Feishu notification
         env:
           FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
@@ -62,6 +86,7 @@ jobs:
           OVERRIDE_REF: ${{ github.event.workflow_run.head_branch }}
           OVERRIDE_SHA: ${{ github.event.workflow_run.head_sha }}
           OVERRIDE_RUN_URL: ${{ github.event.workflow_run.html_url }}
+          OVERRIDE_EVENT: ${{ github.event.workflow_run.event }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
           PR_TITLE: ${{ steps.pr.outputs.title }}
         run: python .github/scripts/notify_feishu.py

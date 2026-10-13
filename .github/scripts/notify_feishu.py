@@ -49,9 +49,15 @@ OPTIONAL_VARS = [
     "OVERRIDE_SHA",  # e.g. github.event.workflow_run.head_sha
     "OVERRIDE_RUN_URL",  # e.g. github.event.workflow_run.html_url
     "OVERRIDE_WORKFLOW",  # e.g. github.event.workflow_run.name
+    "OVERRIDE_EVENT",  # e.g. github.event.workflow_run.event
     "PR_NUMBER",  # e.g. github.event.workflow_run.pull_requests[0].number
     "PR_TITLE",  # PR title from GitHub API
 ]
+
+
+def resolve_event_name() -> str:
+    """Use the source workflow event when called from workflow_run."""
+    return os.environ.get("OVERRIDE_EVENT") or os.environ["GITHUB_EVENT_NAME"]
 
 
 def check_env_vars() -> bool:
@@ -103,7 +109,7 @@ def main():
     actor = os.environ["GITHUB_ACTOR"]
     run_id = os.environ["GITHUB_RUN_ID"]
     server_url = os.environ["GITHUB_SERVER_URL"]
-    event_name = os.environ["GITHUB_EVENT_NAME"]
+    event_name = resolve_event_name()
     pr_number = os.environ.get("PR_NUMBER", "")
     pr_title = os.environ.get("PR_TITLE", "")
 
