@@ -16,13 +16,12 @@
 #
 # Pipeline:  lint → generate-matrix → platform-pipeline (matrix)
 #
-# Lint runs the repository's pre-commit hooks (clang-format) on changed files;
-# the full-tree check remains in format-check.yml.
+# Lint runs the repository's pre-commit hooks (clang-format) on PR/push changes
+# and on the complete tree for scheduled/manual events.
 #
-# Platform discovery is config-driven: generate_matrix.py scans
-# .github/configs/*.yml for platform names, then on pull_request events
-# intersects the changed-file list against per-platform paths_watch so
-# only affected platforms run.  All other events run the full matrix.
+# Platform discovery reuses platforms.yml's enabled selection, then filters
+# PR changes with per-platform paths_watch.  Shared or unknown files and all
+# other events run the full enabled matrix.
 
 name: CI
 
@@ -30,7 +29,7 @@ on:
   schedule:
     - cron: '0 18 * * *'   # 02:00 CST daily
   push:
-    branches: [main]
+    branches: [main, devops]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -48,9 +47,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Reuse the repository's own .pre-commit-config.yaml, scoped to files changed
-  # against the base branch.  Pre-existing style debt elsewhere in the tree is
-  # not this gate's concern; on push/schedule the diff is empty and it passes.
+  # Reuse the repository's own .pre-commit-config.yaml.  Pull requests and
+  # pushes check their event-specific ranges; scheduled and manual runs check
+  # the complete tree so a successful job always ran the hooks it reports.
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -64,13 +63,41 @@ jobs:
           python-version: '3.12'
       - name: Install pre-commit
         run: pip install --quiet pre-commit==4.2.0
-      - name: pre-commit (changed files)
+      - name: pre-commit (event scope)
         env:
+          EVENT_NAME: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref || 'main' }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
-          git fetch --no-tags origin "$BASE_REF"
-          pre-commit run --show-diff-on-failure \
-            --from-ref "$(git merge-base "origin/$BASE_REF" HEAD)" --to-ref HEAD
+          set -euo pipefail
+
+          case "$EVENT_NAME" in
+            pull_request)
+              git fetch --no-tags origin "$BASE_REF"
+              from_ref="$(git merge-base "origin/$BASE_REF" HEAD)"
+              pre-commit run --show-diff-on-failure \
+                --from-ref "$from_ref" --to-ref "$HEAD_SHA"
+              ;;
+            push)
+              if [[ -n "$BEFORE_SHA" && ! "$BEFORE_SHA" =~ ^0+$ ]] && \
+                  git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+                pre-commit run --show-diff-on-failure \
+                  --from-ref "$BEFORE_SHA" --to-ref "$HEAD_SHA"
+              else
+                # New branches and unreachable pre-force-push commits have no
+                # usable range; check all files instead of silently skipping.
+                pre-commit run --show-diff-on-failure --all-files
+              fi
+              ;;
+            schedule|workflow_dispatch)
+              pre-commit run --show-diff-on-failure --all-files
+              ;;
+            *)
+              echo "Unsupported event for lint: $EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
 
   generate-matrix:
     name: Generate platform matrix
@@ -83,6 +110,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install matrix dependencies
+        run: pip install --quiet pyyaml==6.0.2
       - name: Compute platform matrix
         id: matrix
         run: |

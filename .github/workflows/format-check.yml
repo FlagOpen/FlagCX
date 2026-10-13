@@ -32,7 +32,9 @@ jobs:
           python-version: "3.12"
 
       - name: Run CI script unit tests
-        run: python3 -m unittest discover -s test/script -p 'test_*.py'
+        run: |
+          python3 -m pip install --quiet pyyaml==6.0.2
+          python3 -m unittest discover -s test/script -p 'test_*.py'
 
       - name: Install format dependencies
         run: |

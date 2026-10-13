@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import tempfile
@@ -11,6 +12,105 @@ HYGON_ENV = REPO_ROOT / ".github/scripts/set_env/hygon.sh"
 
 
 class PlatformCiRegressionTest(unittest.TestCase):
+    def _run_platform_matrix(
+        self, event_name, changed_files="", configs_dir=None
+    ):
+        script = REPO_ROOT / ".github/scripts/ci/generate_matrix.py"
+        command = [
+            "python3",
+            str(script),
+            "--event-name",
+            event_name,
+        ]
+        if configs_dir is not None:
+            command.extend(["--configs-dir", str(configs_dir)])
+        if changed_files:
+            command.extend(["--changed-files", changed_files])
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return json.loads(result.stdout.strip().split("=", 1)[1])
+
+    def test_unified_ci_filters_platform_changes_and_preserves_shared_fallback(self):
+        all_platforms = ["cuda", "hygon", "metax", "ppu"]
+        self.assertEqual(
+            self._run_platform_matrix(
+                "pull_request", "flagcx/adaptor/device/cuda_adaptor.cc"
+            ),
+            ["cuda"],
+        )
+        self.assertEqual(
+            self._run_platform_matrix(
+                "pull_request", "flagcx/adaptor/device/ducuda_adaptor.cc"
+            ),
+            ["hygon"],
+        )
+        for changed_files in (
+            "flagcx/flagcx.cc",
+            ".github/workflows/ci.yml",
+            "flagcx/adaptor/device/cuda_adaptor.cc\nflagcx/flagcx.cc",
+        ):
+            self.assertEqual(
+                self._run_platform_matrix("pull_request", changed_files),
+                all_platforms,
+            )
+        self.assertEqual(
+            self._run_platform_matrix("push", "flagcx/flagcx.cc"),
+            all_platforms,
+        )
+
+    def test_unified_ci_uses_enabled_registry_for_matrix(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            configs_dir = Path(temp_dir)
+            (configs_dir / "platforms.yml").write_text(
+                "platforms:\n"
+                "  cuda:\n"
+                "    enabled: true\n"
+                "  hygon:\n"
+                "    enabled: false\n"
+            )
+            (configs_dir / "cuda.yml").write_text(
+                "hardware_name: cuda\n"
+                "display_name: CUDA\n"
+                "paths_watch:\n"
+                "  - flagcx/adaptor/device/cuda_adaptor.cc\n"
+            )
+            (configs_dir / "hygon.yml").write_text(
+                "hardware_name: hygon\n"
+                "display_name: Hygon\n"
+                "paths_watch:\n"
+                "  - flagcx/adaptor/device/ducuda_adaptor.cc\n"
+            )
+            self.assertEqual(
+                self._run_platform_matrix(
+                    "push", configs_dir=configs_dir
+                ),
+                ["cuda"],
+            )
+            self.assertEqual(
+                self._run_platform_matrix(
+                    "pull_request",
+                    "flagcx/adaptor/device/ducuda_adaptor.cc",
+                    configs_dir,
+                ),
+                ["cuda"],
+            )
+
+    def test_main_unit_tests_have_one_automatic_entry_point(self):
+        ci_workflow = (REPO_ROOT / ".github/workflows/ci.yml").read_text()
+        unit_workflow = (REPO_ROOT / ".github/workflows/unit-test.yml").read_text()
+        ci_trigger = ci_workflow[: ci_workflow.index("\njobs:")]
+        unit_trigger = unit_workflow[: unit_workflow.index("\njobs:")]
+
+        self.assertIn("branches: [main, devops]", ci_trigger)
+        self.assertIn("pull_request:", ci_trigger)
+        self.assertIn("branches: [dev]", unit_trigger)
+        self.assertNotIn("pull_request:", unit_trigger)
+        self.assertNotIn("branches: [main]", unit_trigger)
+
     def test_hygon_builds_ibrc_with_shca_abi(self):
         hygon_env = HYGON_ENV.read_text()
         makefile = (REPO_ROOT / "Makefile").read_text()

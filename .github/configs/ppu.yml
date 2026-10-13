@@ -2,6 +2,16 @@
 hardware_name: ppu
 display_name: T-Head PPU Tests
 
+# Only platform-specific files belong here; shared/unmatched changes run all.
+paths_watch:
+  - .github/scripts/set_env/ppu.sh
+  - flagcx/adaptor/device/ppu_cuda_adaptor.cc
+  - flagcx/adaptor/device/ptpu_adaptor.cc
+  - flagcx/adaptor/ccl/ppu_nccl_adaptor.cc
+  - flagcx/adaptor/include/ppu_adaptor.h
+  - flagcx/adaptor/include/barex_runtime.h
+  - flagcx/adaptor/net/barex_adaptor.cc
+
 ci_image: harbor.baai.ac.cn/flagos-dev/flagcx:manual-20260827-ppu-dev
 
 runner_labels:
