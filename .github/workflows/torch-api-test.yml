@@ -38,7 +38,7 @@ jobs:
   torch-api-test:
     runs-on: [nv-8g-cicd-flagcx]
     container:
-      image: localhost:5000/flagscale:cuda12.8.1-cudnn9.7.1-python3.12-torch2.7.0-time2507111538
+      image: harbor.baai.ac.cn/flagos-dev/flagcx:55c5c6f-cuda-dev
       options:  --gpus all --shm-size=500g --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 --ulimit nofile=65535:65535 --user root
     steps:
       - name: Checkout Code
