@@ -29,7 +29,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout scripts
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           sparse-checkout: .github/scripts
       - name: Resolve PR info
