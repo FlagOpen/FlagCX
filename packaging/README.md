@@ -140,20 +140,18 @@ environment (for example `pip install nvidia-nccl-cu13`).
 
 ## CI/CD
 
-Automated builds are triggered by:
-- Push to `main` branch (when packaging files change)
-- Pull requests to `main`
+The packaging workflows in this repository only verify that the packaging
+definition still builds. They run on:
+- Pull requests to `main` that change packaging files
 - Manual workflow dispatch
 
-See `.github/workflows/build-deb.yml` for details.
+See `.github/workflows/build-deb.yml` and `build-rpm.yml` for details.
+Packages for the FlagOS repositories are built and uploaded by
+`flagos-ai/build-infra` from a pinned ref, not by a tag push here.
 
-### Publishing to Nexus APT Repository
+### Installing from the FlagOS APT repository
 
-Packages are uploaded to Nexus when:
-- A version tag is pushed: `git tag v1.0.0 && git push origin v1.0.0`
-- Manual workflow dispatch via GitHub Actions
-
-After upload, users can install packages from the APT repository:
+Users can install packages from the APT repository:
 
 ```bash
 # Add the FlagOS APT repository

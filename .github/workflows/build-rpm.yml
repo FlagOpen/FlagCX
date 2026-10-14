@@ -1,15 +1,16 @@
 name: Build RPM Packages
 
+# Verifies that the packaging definition still builds and installs. It is
+# not a release path: packages published to the FlagOS repositories are
+# built and uploaded by flagos-ai/build-infra from a pinned ref, so no tag
+# triggers a build here.
 on:
-  push:
-    tags:
-      - 'v*'
   pull_request:
     branches: [ main ]
     # Only what changes the package. flagcx/** is the library source, so
     # leaving it here built a full multi-backend matrix for every source PR;
-    # those packages are published nowhere and downloaded by no one. Release
-    # tags above still build, and a build can be requested by hand.
+    # those packages are published nowhere and downloaded by no one. A build
+    # can be requested by hand.
     paths:
       - 'packaging/rpm/**'
       - 'packaging/sync-changelog.py'
@@ -80,56 +81,3 @@ jobs:
           name: flagcx-${{ matrix.target }}-rpm-packages
           path: rpm-packages/${{ matrix.target }}/**/*.rpm
           retention-days: 7
-
-  # Publish on the internal h20 runner, which can reach the internal Nexus.
-  # Tag-only and never triggered by pull_request, so fork PRs are never handed
-  # the Nexus credentials (GitHub withholds secrets from fork PRs anyway; the
-  # explicit tag guard is a second layer).
-  #
-  # TODO(unverified): this is the first design where h20 pulls a same-run
-  # artifact via download-artifact (results.actions blob, a different endpoint
-  # than codeload). It cannot be validated until the first v* tag is pushed; if
-  # h20's egress to that endpoint is also unreliable, move this step to an
-  # internal host with stable GitHub access, or fix h20's public egress.
-  publish-rpm-packages:
-    needs: build-rpm-packages
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: h20
-
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [nvidia, nvidia-openeuler2403, metax, ascend]
-
-    steps:
-      - name: Download ${{ matrix.target }} RPM packages
-        uses: actions/download-artifact@v8
-        with:
-          name: flagcx-${{ matrix.target }}-rpm-packages
-          path: rpm-packages/${{ matrix.target }}
-
-      - name: Publish ${{ matrix.target }} RPMs to Nexus YUM repository
-        env:
-          NEXUS_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
-          NEXUS_PASSWORD: ${{ secrets.CONTAINER_REGISTRY }}
-          NEXUS_REPO_URL: https://resource.flagos.net/repository/flagos-yum-hosted
-          TARGET: ${{ matrix.target }}
-        run: |
-          set -euo pipefail
-
-          uploaded=0
-          while IFS= read -r -d '' rpm; do
-            # rel keeps the RPMS/<arch>/<file> or SRPMS/<file> layout under the backend
-            rel="${rpm#rpm-packages/${TARGET}/}"
-            echo "Uploading ${rpm} -> ${TARGET}/${rel}"
-            curl -f -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" \
-              --upload-file "$rpm" \
-              "${NEXUS_REPO_URL}/${TARGET}/${rel}"
-            uploaded=$((uploaded + 1))
-          done < <(find "rpm-packages/${TARGET}" -name '*.rpm' -print0)
-
-          if [ "$uploaded" -eq 0 ]; then
-            echo "No RPMs found for ${TARGET}"
-            exit 1
-          fi
-          echo "Uploaded ${uploaded} ${TARGET} RPM(s) to Nexus YUM repository"
