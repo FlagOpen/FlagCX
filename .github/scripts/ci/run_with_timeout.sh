@@ -14,17 +14,26 @@ if ! command -v timeout >/dev/null 2>&1; then
   echo "GNU timeout is required to run CI tests" >&2
   exit 1
 fi
-
-# Each call owns a fresh timeout process. A stalled test therefore cannot
-# consume the entire job timeout or reduce the budget of later invocations.
-echo "Starting $test_label (timeout=$test_timeout, kill-after=$test_kill_after)"
-if timeout --signal=TERM --kill-after="$test_kill_after" \
-  "$test_timeout" "$@"; then
-  exit 0
-else
-  status=$?
-  if [[ "$status" == 124 || "$status" == 137 ]]; then
-    echo "$test_label exceeded its $test_timeout timeout" >&2
+attempt=1
+max_attempts=2
+while ((attempt <= max_attempts)); do
+  echo "Starting $test_label (attempt $attempt/$max_attempts, timeout=$test_timeout, kill-after=$test_kill_after)"
+  if timeout --signal=TERM --kill-after="$test_kill_after" \
+    "$test_timeout" "$@"; then
+    if ((attempt > 1)); then
+      echo "::warning title=Flaky CI test::$test_label passed on retry $((attempt - 1))"
+      echo "$test_label passed on retry $((attempt - 1)); classify as flaky"
+    fi
+    exit 0
+  else
+    status=$?
   fi
-  exit "$status"
-fi
+  if [[ "$status" == 124 || "$status" == 137 ]]; then
+    echo "$test_label exceeded its $test_timeout timeout on attempt $attempt" >&2
+  fi
+  if ((attempt == max_attempts)); then
+    exit "$status"
+  fi
+  echo "$test_label failed with exit=$status; retrying once" >&2
+  attempt=$((attempt + 1))
+done

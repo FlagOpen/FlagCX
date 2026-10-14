@@ -1,6 +1,11 @@
 # MetaX Hardware Configuration
 hardware_name: metax
 display_name: MetaX Tests
+paths_watch:
+  - .github/configs/metax.yml
+  - .github/scripts/set_env/metax.sh
+  - flagcx/adaptor/device/maca_adaptor.cc
+  - test/kernel/maca/**
 
 # Only platform-specific files belong here; shared/unmatched changes run all.
 paths_watch:

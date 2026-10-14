@@ -1,6 +1,13 @@
 # Hygon DCU Hardware Configuration
 hardware_name: hygon
 display_name: Hygon DCU Tests
+paths_watch:
+  - .github/configs/hygon.yml
+  - .github/scripts/set_env/hygon.sh
+  - .github/scripts/ci/run_hygon_workload.sh
+  - flagcx/adaptor/device/ducuda_adaptor.cc
+  - flagcx/adaptor/kernel/du/**
+  - test/kernel/du/**
 
 # Only platform-specific files belong here; shared/unmatched changes run all.
 paths_watch:

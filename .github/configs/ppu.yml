@@ -1,6 +1,12 @@
 # T-Head PPU hardware configuration
 hardware_name: ppu
 display_name: T-Head PPU Tests
+paths_watch:
+  - .github/configs/ppu.yml
+  - .github/scripts/set_env/ppu.sh
+  - .github/scripts/ci/run_ppu_workload.sh
+  - flagcx/adaptor/device/ptpu_adaptor.cc
+  - flagcx/adaptor/device/ppu_cuda_adaptor.cc
 
 # Only platform-specific files belong here; shared/unmatched changes run all.
 paths_watch:

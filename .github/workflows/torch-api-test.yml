@@ -1,15 +1,24 @@
 name: Torch API Tests in Container
 
+env:
+  FLAGCX_CI_TEST_TIMEOUT: 80m
+
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      platforms:
+        required: true
+        type: string
+      repository:
+        required: true
+        type: string
+      ref:
+        required: true
+        type: string
 
 jobs:
   load-hardware-container-configs:
+    if: contains(fromJSON(inputs.platforms), 'hygon') || contains(fromJSON(inputs.platforms), 'ppu')
     name: Load explicit container configurations
     runs-on: ubuntu-latest
     outputs:
@@ -23,8 +32,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           persist-credentials: false
 
       - name: Load Hygon configuration
@@ -36,6 +45,7 @@ jobs:
         run: ruby .github/scripts/ci/load_platform_config.rb ppu
 
   torch-api-test:
+    if: contains(fromJSON(inputs.platforms), 'cuda')
     runs-on: [nv-8g-cicd-flagcx]
     container:
       image: harbor.baai.ac.cn/flagos-dev/flagcx:55c5c6f-cuda-dev
@@ -44,8 +54,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           ssh-strict: true
           ssh-user: git
           persist-credentials: true
@@ -58,12 +68,7 @@ jobs:
           set-safe-directory: true
 
       - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
+        run: bash .github/scripts/ci/checkout_submodules.sh
 
       - name: Set up Install Dependencies
         run: |
@@ -98,9 +103,10 @@ jobs:
           cd /__w/FlagCX/FlagCX/test/script/
           export FLAGCX_DEBUG=INFO
           export FLAGCX_DEBUG_SUBSYS=ALL
-          bash torch_api_test.sh
+          .github/scripts/ci/run_with_timeout.sh bash torch_api_test.sh
 
   torch-api-test-hygon:
+    if: contains(fromJSON(inputs.platforms), 'hygon')
     name: torch-api-test (hygon)
     needs: load-hardware-container-configs
     runs-on: [hg-8g-cicd-flagcx]
@@ -110,8 +116,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           ssh-strict: true
           ssh-user: git
           persist-credentials: true
@@ -130,11 +136,13 @@ jobs:
       - name: Run Hygon Torch API tests
         shell: bash
         env:
+          FLAGCX_CI_TEST_TIMEOUT: 80m
           FLAGCX_CI_CONTAINER_NAME: flagcx-hygon-torch-${{ github.run_id }}-${{ github.run_attempt }}
           FLAGCX_CI_DOCKER_ARGS: ${{ needs.load-hardware-container-configs.outputs.hygon_docker_args }}
           FLAGCX_CI_IMAGE: ${{ needs.load-hardware-container-configs.outputs.hygon_ci_image }}
           FLAGCX_CI_SET_ENV: ${{ needs.load-hardware-container-configs.outputs.hygon_set_env }}
         run: >-
+          bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_with_timeout.sh"
           bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
           hygon torch-api
 
@@ -146,6 +154,7 @@ jobs:
         run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
 
   torch-api-test-cuda:
+    if: contains(fromJSON(inputs.platforms), 'cuda')
     name: torch-api-test (cuda)
     runs-on: [nv-8g-cicd-flagcx]
     container:
@@ -168,8 +177,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           ssh-strict: true
           ssh-user: git
           persist-credentials: true
@@ -182,12 +191,7 @@ jobs:
           set-safe-directory: true
 
       - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
+        run: bash .github/scripts/ci/checkout_submodules.sh
 
       - name: Prepare CUDA environment
         shell: bash
@@ -228,9 +232,10 @@ jobs:
           export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
           export FLAGCX_DEBUG=INFO
           export FLAGCX_DEBUG_SUBSYS=ALL
-          bash torch_api_test.sh
+          .github/scripts/ci/run_with_timeout.sh bash torch_api_test.sh
 
   torch-api-test-metax:
+    if: contains(fromJSON(inputs.platforms), 'metax')
     name: torch-api-test (metax)
     runs-on: [mx-8g-cicd-flagcx]
     container:
@@ -259,8 +264,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           ssh-strict: true
           ssh-user: git
           persist-credentials: true
@@ -273,12 +278,7 @@ jobs:
           set-safe-directory: true
 
       - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
+        run: bash .github/scripts/ci/checkout_submodules.sh
 
       - name: Prepare MetaX environment
         shell: bash
@@ -313,9 +313,10 @@ jobs:
           export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
           export FLAGCX_DEBUG=INFO
           export FLAGCX_DEBUG_SUBSYS=ALL
-          bash torch_api_test.sh
+          .github/scripts/ci/run_with_timeout.sh bash torch_api_test.sh
 
   torch-api-test-ppu:
+    if: contains(fromJSON(inputs.platforms), 'ppu')
     name: torch-api-test (ppu)
     needs: load-hardware-container-configs
     runs-on: [flagcicd-810e]
@@ -325,8 +326,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           ssh-strict: true
           ssh-user: git
           persist-credentials: true
@@ -345,11 +346,13 @@ jobs:
       - name: Run PPU Torch API tests
         shell: bash
         env:
+          FLAGCX_CI_TEST_TIMEOUT: 80m
           FLAGCX_CI_CONTAINER_NAME: flagcx-ppu-torch-${{ github.run_id }}-${{ github.run_attempt }}
           FLAGCX_CI_DOCKER_ARGS: ${{ needs.load-hardware-container-configs.outputs.ppu_docker_args }}
           FLAGCX_CI_IMAGE: ${{ needs.load-hardware-container-configs.outputs.ppu_ci_image }}
           FLAGCX_CI_SET_ENV: ${{ needs.load-hardware-container-configs.outputs.ppu_set_env }}
         run: >-
+          bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_with_timeout.sh"
           bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
           ppu torch-api
 
@@ -359,3 +362,36 @@ jobs:
         env:
           FLAGCX_CI_CONTAINER_NAME: flagcx-ppu-torch-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
+
+  torch_api_complete:
+    name: Validate selected Torch API jobs
+    if: always()
+    needs:
+      - load-hardware-container-configs
+      - torch-api-test
+      - torch-api-test-hygon
+      - torch-api-test-cuda
+      - torch-api-test-metax
+      - torch-api-test-ppu
+    runs-on: ubuntu-latest
+    env:
+      PLATFORMS: ${{ inputs.platforms }}
+      CONFIG_RESULT: ${{ needs['load-hardware-container-configs'].result }}
+      CUDA_BASE_RESULT: ${{ needs['torch-api-test'].result }}
+      CUDA_RESULT: ${{ needs['torch-api-test-cuda'].result }}
+      HYGON_RESULT: ${{ needs['torch-api-test-hygon'].result }}
+      METAX_RESULT: ${{ needs['torch-api-test-metax'].result }}
+      PPU_RESULT: ${{ needs['torch-api-test-ppu'].result }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Validate selected Torch API jobs
+        run: >-
+          bash .github/scripts/ci/check_platform_workflow.sh
+          "$PLATFORMS" "$CONFIG_RESULT" "$CUDA_BASE_RESULT" "$CUDA_RESULT"
+          "$HYGON_RESULT" "$METAX_RESULT" "$PPU_RESULT"

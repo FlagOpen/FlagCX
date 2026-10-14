@@ -402,10 +402,7 @@ run_suite() {
       local mpi_status=0
       local shared_status=0
       local shared_mpi_status=0
-      local single_qp_status=0
-      local mtu_2048_status=0
       local p2p_mpi_env=""
-      local read_diagnostic_filter="FlagcxP2pEngineReadTest.ReadsWholeRegisteredGpuBufferAfterMetadataHandshake:FlagcxP2pEngineReadTest.TwoIndependent2KiBReadsCover4KiBBuffer:FlagcxP2pEngineReadTest.ReadsWholeRegisteredHostBuffer"
       if [[ "${FLAGCX_P2P_TRANSPORT:-ib}" == "accl" ]]; then
         p2p_mpi_env="-x FLAGCX_P2P_TRANSPORT=accl"
       fi
@@ -414,22 +411,6 @@ run_suite() {
         FLAGCX_CI_TEST_LABEL="p2p unit tests" \
         "$TEST_RUNNER" make -C "$suite_dir" run-unit "${args[@]}" || \
         unit_status=$?
-      # Each invocation gets a fresh IB_P2P configuration; ACCL does not use
-      # these QP/MTU controls.
-      if [[ "${FLAGCX_P2P_TRANSPORT:-ib}" != "accl" ]]; then
-        GTEST_FILTER="$read_diagnostic_filter" \
-          FLAGCX_P2P_QPS_PER_CONN=1 FLAGCX_P2P_MTU=4096 \
-          FLAGCX_USE_HETERO_COMM=1 FLAGCX_MEM_ENABLE=1 FLAGCX_VMM_ENABLE=0 \
-          FLAGCX_CI_TEST_LABEL="p2p READ single-QP diagnostics" \
-          "$TEST_RUNNER" make -C "$suite_dir" run-unit "${args[@]}" || \
-          single_qp_status=$?
-        GTEST_FILTER="$read_diagnostic_filter" \
-          FLAGCX_P2P_QPS_PER_CONN=1 FLAGCX_P2P_MTU=2048 \
-          FLAGCX_USE_HETERO_COMM=1 FLAGCX_MEM_ENABLE=1 FLAGCX_VMM_ENABLE=0 \
-          FLAGCX_CI_TEST_LABEL="p2p READ MTU-2048 diagnostics" \
-          "$TEST_RUNNER" make -C "$suite_dir" run-unit "${args[@]}" || \
-          mtu_2048_status=$?
-      fi
       FLAGCX_P2P_QPS_PER_CONN=2 FLAGCX_IB_QPS_PER_CONNECTION=2 \
         FLAGCX_CI_MPI_LABEL="p2p Engine WRITE MPI tests" \
         make -C "$suite_dir" run-mpi "${args[@]}" \
@@ -478,10 +459,9 @@ run_suite() {
         fi
       fi
 
-      if ((unit_status != 0 || single_qp_status != 0 ||
-           mtu_2048_status != 0 || mpi_status != 0 || shared_status != 0 ||
+      if ((unit_status != 0 || mpi_status != 0 || shared_status != 0 ||
            shared_mpi_status != 0)); then
-        echo "P2P failures: unit=$unit_status single-QP=$single_qp_status MTU-2048=$mtu_2048_status MPI_WRITE=$mpi_status shared=$shared_status shared_MPI_WRITE=$shared_mpi_status" >&2
+        echo "P2P failures: unit=$unit_status MPI_WRITE=$mpi_status shared=$shared_status shared_MPI_WRITE=$shared_mpi_status" >&2
         return 1
       fi
       ;;

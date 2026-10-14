@@ -1,6 +1,13 @@
 # CUDA Hardware Configuration
 hardware_name: cuda
 display_name: CUDA Tests
+paths_watch:
+  - .github/configs/cuda.yml
+  - .github/scripts/set_env/cuda.sh
+  - flagcx/adaptor/device/cuda_adaptor.cc
+  - flagcx/adaptor/device/ixcuda_adaptor.cc
+  - flagcx/adaptor/kernel/nvidia/**
+  - test/kernel/nvidia/**
 
 # Only platform-specific files belong here; shared/unmatched changes run all.
 paths_watch:
