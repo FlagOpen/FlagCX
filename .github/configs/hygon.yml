@@ -8,16 +8,11 @@ paths_watch:
   - flagcx/adaptor/device/ducuda_adaptor.cc
   - flagcx/adaptor/kernel/du/**
   - test/kernel/du/**
-
-# Only platform-specific files belong here; shared/unmatched changes run all.
-paths_watch:
-  - .github/scripts/set_env/hygon.sh
-  - flagcx/adaptor/device/ducuda_adaptor.cc
   - flagcx/adaptor/ccl/dunccl_adaptor.cc
   - flagcx/adaptor/include/du_adaptor.h
   - flagcx/adaptor/include/device_api/du_*.h
-  - flagcx/adaptor/kernel/du/*
-  - test/kernel/du/*
+
+# Only platform-specific files belong here; shared/unmatched changes run all.
 
 # Pinned by digest, not by the b079886-hygon-dev tag: the rebake pushed under that
 # tag on 2026-09-11 runs an MLX->SHCA conversion that removes the hcoll package,

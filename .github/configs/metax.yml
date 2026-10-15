@@ -6,15 +6,11 @@ paths_watch:
   - .github/scripts/set_env/metax.sh
   - flagcx/adaptor/device/maca_adaptor.cc
   - test/kernel/maca/**
-
-# Only platform-specific files belong here; shared/unmatched changes run all.
-paths_watch:
-  - .github/scripts/set_env/metax.sh
-  - flagcx/adaptor/device/maca_adaptor.cc
   - flagcx/adaptor/ccl/mccl_adaptor.cc
   - flagcx/adaptor/include/metax_adaptor.h
   - flagcx/adaptor/tuner/mccl_tuner.cc
-  - test/kernel/maca/*
+
+# Only platform-specific files belong here; shared/unmatched changes run all.
 
 ci_image: harbor.baai.ac.cn/flagos-dev/flagcx:3016346-metax-dev
 
