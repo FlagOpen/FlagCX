@@ -7,6 +7,14 @@ on:
         description: Platform configuration name
         required: true
         type: string
+      repository:
+        description: Repository containing the source under test
+        required: false
+        type: string
+      ref:
+        description: Commit under test
+        required: false
+        type: string
 
 jobs:
   load_config:
@@ -23,8 +31,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref || github.ref }}
           persist-credentials: false
 
       - name: Load platform configuration
@@ -46,8 +54,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref || github.ref }}
           submodules: recursive
           persist-credentials: false
           set-safe-directory: true

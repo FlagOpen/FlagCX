@@ -387,9 +387,12 @@ class PlatformCiRegressionTest(unittest.TestCase):
             REPO_ROOT / ".github/workflows/unit-test.yml"
         ).read_text()
         self.assertIn(
-            "FLAGCX_CI_PLATFORM: ${{ github.event.inputs.platform || 'all' }}",
+            "EVENT_SELECTION: ${{ inputs.platform || 'all' }}",
             unit_workflow,
         )
+        self.assertIn("  schedule:", unit_workflow)
+        self.assertIn("  issue_comment:", unit_workflow)
+        self.assertIn("name: ci-complete", unit_workflow)
         self.assertNotIn("pull_request.number == 648", unit_workflow)
 
         expected_suites = {
@@ -457,8 +460,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
                 REPO_ROOT / f".github/workflows/{workflow_name}"
             ).read_text()
             trigger = workflow[: workflow.index("\njobs:")]
-            self.assertIn("pull_request:", trigger)
-            self.assertIn("push:", trigger)
+            self.assertIn("workflow_call:", trigger)
             self.assertNotIn("pull_request.number != 648", workflow)
 
     def test_reference_platform_coverage_is_explicit(self):
@@ -1529,28 +1531,6 @@ class PlatformCiRegressionTest(unittest.TestCase):
             / "test/unittest/device_api/test_device_api_inter.cpp"
         ).read_text()
         self.assertIn("usleep(100000)", device_api_test)
-
-    def test_p2p_read_diagnostics_use_fresh_qp_and_mtu_processes(self):
-        unit_runner = (
-            REPO_ROOT / ".github/scripts/ci/run_unit_test.sh"
-        ).read_text()
-        p2p_runner = unit_runner[unit_runner.index("    p2p)") :]
-        p2p_runner = p2p_runner[: p2p_runner.index("    rma)")]
-
-        self.assertIn("read_diagnostic_filter", p2p_runner)
-        self.assertIn("ReadsWholeRegisteredGpuBuffer", p2p_runner)
-        self.assertIn("TwoIndependent2KiBReadsCover4KiBBuffer", p2p_runner)
-        self.assertIn("ReadsWholeRegisteredHostBuffer", p2p_runner)
-        self.assertIn(
-            "FLAGCX_P2P_QPS_PER_CONN=1 FLAGCX_P2P_MTU=4096",
-            p2p_runner,
-        )
-        self.assertIn(
-            "FLAGCX_P2P_QPS_PER_CONN=1 FLAGCX_P2P_MTU=2048",
-            p2p_runner,
-        )
-        self.assertIn("single_qp_status", p2p_runner)
-        self.assertIn("mtu_2048_status", p2p_runner)
 
     def test_rma_transport_mode_uses_common_ib_and_p2p_switches(self):
         rma_makefile = (

@@ -1,20 +1,27 @@
 name: Perf Tests in Container
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      platforms:
+        required: true
+        type: string
+      repository:
+        required: true
+        type: string
+      ref:
+        required: true
+        type: string
 
 env:
   MPI_HOME: /usr/local/mpi
+  FLAGCX_CI_MPI_TIMEOUT: 60m
   PERF_BIN: /__w/FlagCX/FlagCX/test/perf/host_api/build/bin
   DEVICE_API_BIN: /__w/FlagCX/FlagCX/test/perf/device_api/build/bin
 
 jobs:
   load-hardware-container-configs:
+    if: contains(fromJSON(inputs.platforms), 'hygon') || contains(fromJSON(inputs.platforms), 'ppu')
     name: Load explicit container configurations
     runs-on: ubuntu-latest
     outputs:
@@ -28,8 +35,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           persist-credentials: false
 
       - name: Load Hygon configuration
@@ -41,6 +48,7 @@ jobs:
         run: ruby .github/scripts/ci/load_platform_config.rb ppu
 
   perf-test:
+    if: contains(fromJSON(inputs.platforms), 'cuda')
     runs-on: [self-hosted, cx-build]
     container:
       image: localhost:5000/flagscale:cuda12.8.1-cudnn9.7.1-python3.12-torch2.7.0-time2507111538
@@ -50,8 +58,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           ssh-strict: true
           ssh-user: git
           persist-credentials: true
@@ -64,12 +72,7 @@ jobs:
           set-safe-directory: true
 
       - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
+        run: bash .github/scripts/ci/checkout_submodules.sh
 
       # FORCE_DEFAULT_PATH only affects kernel object compilation (comm traits);
       # host-side library and vendor API dispatch are unchanged.
@@ -95,52 +98,52 @@ jobs:
           export PATH=$MPI_HOME/bin:$PATH
           export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
           set -e
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_alltoall -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_alltoallv -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_sendrecv -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_allreduce -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_allgather -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_reducescatter -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_broadcast -b 128M -e 1G -f 2 -r 0 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_gather -b 128M -e 1G -f 2 -r 0 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_scatter -b 128M -e 1G -f 2 -r 0 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_reduce -b 128M -e 1G -f 2 -r 0 -p 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root $PERF_BIN/perf_alltoall -b 128M -e 1G -f 2 -p 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root $PERF_BIN/perf_alltoallv -b 128M -e 1G -f 2 -p 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root $PERF_BIN/perf_sendrecv -b 128M -e 1G -f 2 -p 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root $PERF_BIN/perf_allreduce -b 128M -e 1G -f 2 -p 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root $PERF_BIN/perf_allgather -b 128M -e 1G -f 2 -p 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root $PERF_BIN/perf_reducescatter -b 128M -e 1G -f 2 -p 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root $PERF_BIN/perf_broadcast -b 128M -e 1G -f 2 -r 0 -p 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root $PERF_BIN/perf_gather -b 128M -e 1G -f 2 -r 0 -p 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root $PERF_BIN/perf_scatter -b 128M -e 1G -f 2 -r 0 -p 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root $PERF_BIN/perf_reduce -b 128M -e 1G -f 2 -r 0 -p 1
 
       - name: "Registration -R 1 (homoRunner)"
         run: |
           export PATH=$MPI_HOME/bin:$PATH
           export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_allreduce -b 128M -e 1G -f 2 -p 1 -R 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root $PERF_BIN/perf_allreduce -b 128M -e 1G -f 2 -p 1 -R 1
 
       - name: "Registration -R 1 (uniRunner P2P)"
         run: |
           export PATH=$MPI_HOME/bin:$PATH
           export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
           set -e
-          mpirun -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_sendrecv -b 128M -e 1G -f 2 -p 1 -R 1
-          mpirun -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_alltoall -b 128M -e 1G -f 2 -p 1 -R 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_sendrecv -b 128M -e 1G -f 2 -p 1 -R 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_alltoall -b 128M -e 1G -f 2 -p 1 -R 1
 
       - name: "Registration -R 1 (uniRunner NET)"
         run: |
           export PATH=$MPI_HOME/bin:$PATH
           export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
           set -e
-          mpirun -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 -x FLAGCX_P2P_DISABLE=1 $PERF_BIN/perf_sendrecv -b 128M -e 1G -f 2 -p 1 -R 1
-          mpirun -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 -x FLAGCX_P2P_DISABLE=1 $PERF_BIN/perf_alltoall -b 128M -e 1G -f 2 -p 1 -R 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 -x FLAGCX_P2P_DISABLE=1 $PERF_BIN/perf_sendrecv -b 128M -e 1G -f 2 -p 1 -R 1
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 -x FLAGCX_P2P_DISABLE=1 $PERF_BIN/perf_alltoall -b 128M -e 1G -f 2 -p 1 -R 1
 
       - name: "RMA one-sided (put/get)"
         run: |
           export PATH=$MPI_HOME/bin:$PATH
           export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
           set -e
-          mpirun -np 2 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_put -b 8 -e 1M -f 2 -R 2
-          mpirun -np 2 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_get -b 8 -e 1M -f 2 -R 2
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 2 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_put -b 8 -e 1M -f 2 -R 2
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 2 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_get -b 8 -e 1M -f 2 -R 2
 
       - name: "Device API perf (intra-node)"
         run: |
           export PATH=$MPI_HOME/bin:$PATH
           export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
-          mpirun -np 8 --allow-run-as-root \
+          .github/scripts/ci/run_mpi_with_timeout.sh -np 8 --allow-run-as-root \
             -x FLAGCX_USE_HETERO_COMM=1 \
             -x FLAGCX_MEM_ENABLE=1 \
             -x FLAGCX_VMM_ENABLE=0 \
@@ -156,7 +159,7 @@ jobs:
           COMMON_ENV="-x FLAGCX_USE_HETERO_COMM=1 -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_P2P_DISABLE=1 -x LD_LIBRARY_PATH"
           NODE1_FLAG="-x CUDA_VISIBLE_DEVICES=0,1,2,3 -x FLAGCX_HOSTID=node0 -x FLAGCX_IB_HCA=mlx5_0,mlx5_1,mlx5_2,mlx5_3"
           NODE2_FLAG="-x CUDA_VISIBLE_DEVICES=4,5,6,7 -x FLAGCX_HOSTID=node1 -x FLAGCX_IB_HCA=mlx5_4,mlx5_5,mlx5_6,mlx5_7"
-          mpirun --allow-run-as-root \
+          .github/scripts/ci/run_mpi_with_timeout.sh --allow-run-as-root \
             -np 4 ${COMMON_ENV} ${NODE1_FLAG} $DEVICE_API_BIN/perf_internode_onesided -b 1M -e 64M -f 2 -R 1 \
             : -np 4 ${COMMON_ENV} ${NODE2_FLAG} $DEVICE_API_BIN/perf_internode_onesided -b 1M -e 64M -f 2 -R 1
 
@@ -169,9 +172,10 @@ jobs:
           # path; restore READ only after IB_P2P implements and advertises a
           # real FLAGCX_NET_GDR_FLUSH_READ capability.
           FLAGCX_P2P_PERF_OP=write \
-            mpirun -np 2 --allow-run-as-root $PERF_BIN/perf_p2p_engine -b 4K -e 64M -f 2 -n 10
+            .github/scripts/ci/run_mpi_with_timeout.sh -np 2 --allow-run-as-root $PERF_BIN/perf_p2p_engine -b 4K -e 64M -f 2 -n 10
 
   perf-test-hygon:
+    if: contains(fromJSON(inputs.platforms), 'hygon')
     name: perf-test (hygon)
     needs: load-hardware-container-configs
     runs-on: [hg-8g-cicd-flagcx]
@@ -181,8 +185,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           ssh-strict: true
           ssh-user: git
           persist-credentials: true
@@ -201,11 +205,13 @@ jobs:
       - name: Run Hygon perf tests
         shell: bash
         env:
+          FLAGCX_CI_TEST_TIMEOUT: 100m
           FLAGCX_CI_CONTAINER_NAME: flagcx-hygon-perf-${{ github.run_id }}-${{ github.run_attempt }}
           FLAGCX_CI_DOCKER_ARGS: ${{ needs.load-hardware-container-configs.outputs.hygon_docker_args }}
           FLAGCX_CI_IMAGE: ${{ needs.load-hardware-container-configs.outputs.hygon_ci_image }}
           FLAGCX_CI_SET_ENV: ${{ needs.load-hardware-container-configs.outputs.hygon_set_env }}
         run: >-
+          bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_with_timeout.sh"
           bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
           hygon perf
 
@@ -217,6 +223,7 @@ jobs:
         run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
 
   perf-test-cuda:
+    if: contains(fromJSON(inputs.platforms), 'cuda')
     name: perf-test (cuda)
     runs-on: [nv-8g-cicd-flagcx]
     container:
@@ -235,8 +242,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           ssh-strict: true
           ssh-user: git
           persist-credentials: true
@@ -249,12 +256,7 @@ jobs:
           set-safe-directory: true
 
       - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
+        run: bash .github/scripts/ci/checkout_submodules.sh
 
       - name: Prepare CUDA environment
         shell: bash
@@ -301,6 +303,7 @@ jobs:
             .github/scripts/ci/run_host_perf_suite.sh heterogeneous "$PERF_BIN"
 
   perf-test-metax:
+    if: contains(fromJSON(inputs.platforms), 'metax')
     name: perf-test (metax)
     runs-on: [mx-8g-cicd-flagcx]
     container:
@@ -326,8 +329,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           ssh-strict: true
           ssh-user: git
           persist-credentials: true
@@ -340,12 +343,7 @@ jobs:
           set-safe-directory: true
 
       - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
+        run: bash .github/scripts/ci/checkout_submodules.sh
 
       - name: Prepare MetaX environment
         shell: bash
@@ -394,6 +392,7 @@ jobs:
             .github/scripts/ci/run_host_perf_suite.sh heterogeneous "$PERF_BIN"
 
   perf-test-ppu:
+    if: contains(fromJSON(inputs.platforms), 'ppu')
     name: perf-test (ppu)
     needs: load-hardware-container-configs
     runs-on: [flagcicd-810e]
@@ -403,8 +402,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           ssh-strict: true
           ssh-user: git
           persist-credentials: true
@@ -423,11 +422,13 @@ jobs:
       - name: Run PPU perf tests
         shell: bash
         env:
+          FLAGCX_CI_TEST_TIMEOUT: 100m
           FLAGCX_CI_CONTAINER_NAME: flagcx-ppu-perf-${{ github.run_id }}-${{ github.run_attempt }}
           FLAGCX_CI_DOCKER_ARGS: ${{ needs.load-hardware-container-configs.outputs.ppu_docker_args }}
           FLAGCX_CI_IMAGE: ${{ needs.load-hardware-container-configs.outputs.ppu_ci_image }}
           FLAGCX_CI_SET_ENV: ${{ needs.load-hardware-container-configs.outputs.ppu_set_env }}
         run: >-
+          bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_with_timeout.sh"
           bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
           ppu perf
 
@@ -437,3 +438,36 @@ jobs:
         env:
           FLAGCX_CI_CONTAINER_NAME: flagcx-ppu-perf-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
+
+  perf_complete:
+    name: Validate selected performance jobs
+    if: always()
+    needs:
+      - load-hardware-container-configs
+      - perf-test
+      - perf-test-hygon
+      - perf-test-cuda
+      - perf-test-metax
+      - perf-test-ppu
+    runs-on: ubuntu-latest
+    env:
+      PLATFORMS: ${{ inputs.platforms }}
+      CONFIG_RESULT: ${{ needs['load-hardware-container-configs'].result }}
+      CUDA_BASE_RESULT: ${{ needs['perf-test'].result }}
+      CUDA_RESULT: ${{ needs['perf-test-cuda'].result }}
+      HYGON_RESULT: ${{ needs['perf-test-hygon'].result }}
+      METAX_RESULT: ${{ needs['perf-test-metax'].result }}
+      PPU_RESULT: ${{ needs['perf-test-ppu'].result }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Validate selected performance jobs
+        run: >-
+          bash .github/scripts/ci/check_platform_workflow.sh
+          "$PLATFORMS" "$CONFIG_RESULT" "$CUDA_BASE_RESULT" "$CUDA_RESULT"
+          "$HYGON_RESULT" "$METAX_RESULT" "$PPU_RESULT"
