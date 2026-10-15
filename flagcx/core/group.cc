@@ -327,8 +327,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
               op->args.regBufFlag = 0;
               FLAGCXCHECK(flagcxP2pRegisterBuffer(
                   comm, p2p->buff, p2p->bytes, peerRanks, 1,
-                  &op->args.regBufFlag, &regOffset, &peerRmtAddr,
-                  &op->args.p2pFallbackRequired));
+                  &op->args.regBufFlag, &regOffset, &peerRmtAddr));
               if (op->args.regBufFlag && peerRmtAddr) {
                 op->args.p2pRmtAddr = (void *)peerRmtAddr;
               }
@@ -420,8 +419,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
               op->args.regBufFlag = 0;
               FLAGCXCHECK(flagcxP2pRegisterBuffer(
                   comm, p2p->buff, p2p->bytes, peerRanks, 1,
-                  &op->args.regBufFlag, &regOffset, &peerRmtAddr,
-                  &op->args.p2pFallbackRequired));
+                  &op->args.regBufFlag, &regOffset, &peerRmtAddr));
               if (op->args.regBufFlag && peerRmtAddr) {
                 op->args.p2pRmtAddr = (void *)peerRmtAddr;
               }
