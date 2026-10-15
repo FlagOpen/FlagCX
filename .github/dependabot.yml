@@ -4,6 +4,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Keep the dependency configuration for visibility, but do not open
+    # automatic version-update pull requests.
+    open-pull-requests-limit: 0
     groups:
       actions-minor:
         update-types:
