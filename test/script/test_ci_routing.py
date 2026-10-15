@@ -73,12 +73,18 @@ class CiMatrixRoutingTest(unittest.TestCase):
         )
         self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "ppu"])
 
-    def test_unmatched_pr_changes_have_empty_matrix(self):
+    def test_empty_pr_changes_skip_hardware_matrix(self):
         outputs, _ = self.resolve(
-            {"event_name": "pull_request", "files": ["README.md"]}
+            {"event_name": "pull_request", "files": []}
         )
         self.assertEqual(outputs["platforms"], [])
         self.assertEqual(outputs["has_platforms"], "false")
+
+    def test_unclassified_pr_changes_use_full_matrix(self):
+        outputs, _ = self.resolve(
+            {"event_name": "pull_request", "files": ["README.md"]}
+        )
+        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "ppu"])
 
     def test_unmapped_ci_source_change_falls_back_to_all_platforms(self):
         outputs, _ = self.resolve(
@@ -116,6 +122,16 @@ class CiMatrixRoutingTest(unittest.TestCase):
                     "is_pull_request": True,
                 },
                 ["cuda", "hygon", "metax", "ppu"],
+            ),
+            (
+                "issue_comment",
+                {
+                    "comment": "/test",
+                    "permission": "write",
+                    "is_pull_request": True,
+                    "files": ["flagcx/adaptor/device/cuda_adaptor.cc"],
+                },
+                ["cuda"],
             ),
         ):
             with self.subTest(event=event_name, extra=extra):
@@ -174,9 +190,12 @@ class CiRetryTest(unittest.TestCase):
     def test_transient_failure_retries_and_is_reported_as_flaky(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             marker = Path(temp_dir) / "first-attempt"
+            summary = Path(temp_dir) / "summary.md"
             command = 'if [[ ! -e "$MARKER" ]]; then touch "$MARKER"; exit 7; fi'
             env = os.environ.copy()
             env["MARKER"] = str(marker)
+            env["GITHUB_STEP_SUMMARY"] = str(summary)
+            env["FLAGCX_CI_LOG_DIR"] = str(Path(temp_dir) / "attempt-logs")
             env.update(
                 {
                     "FLAGCX_CI_TEST_TIMEOUT": "5s",
@@ -191,9 +210,13 @@ class CiRetryTest(unittest.TestCase):
                 env=env,
                 timeout=15,
             )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("passed on retry 1", result.stdout)
-        self.assertIn("::warning title=Flaky CI test::", result.stdout)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("passed on retry 1", result.stdout)
+            self.assertIn("::warning title=Flaky CI test::", result.stdout)
+            self.assertIn("First attempt log", summary.read_text())
+            self.assertTrue(
+                (Path(temp_dir) / "attempt-logs" / "retry-test" / "attempt-1.log").exists()
+            )
 
     def test_persistent_failure_retries_once_then_fails(self):
         with tempfile.TemporaryDirectory() as temp_dir:

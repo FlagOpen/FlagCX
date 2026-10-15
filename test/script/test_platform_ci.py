@@ -15,24 +15,29 @@ class PlatformCiRegressionTest(unittest.TestCase):
     def _run_platform_matrix(
         self, event_name, changed_files="", configs_dir=None
     ):
-        script = REPO_ROOT / ".github/scripts/ci/generate_matrix.py"
-        command = [
-            "python3",
-            str(script),
-            "--event-name",
-            event_name,
-        ]
-        if configs_dir is not None:
-            command.extend(["--configs-dir", str(configs_dir)])
-        if changed_files:
-            command.extend(["--changed-files", changed_files])
-        result = subprocess.run(
-            command,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return json.loads(result.stdout.strip().split("=", 1)[1])
+        script = REPO_ROOT / ".github/scripts/ci/resolve_ci_matrix.rb"
+        config_root = Path(configs_dir or REPO_ROOT / ".github/configs")
+        files = [path for path in changed_files.splitlines() if path]
+        context = {"event_name": event_name, "files": files}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            context_path = temp_root / "context.json"
+            output_path = temp_root / "github-output"
+            context_path.write_text(json.dumps(context))
+            env = os.environ.copy()
+            env["GITHUB_OUTPUT"] = str(output_path)
+            subprocess.run(
+                ["ruby", str(script), str(config_root), str(context_path)],
+                check=True,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            outputs = dict(
+                line.split("=", 1)
+                for line in output_path.read_text().splitlines()
+            )
+            return json.loads(outputs["platforms"])
 
     def test_unified_ci_filters_platform_changes_and_preserves_shared_fallback(self):
         all_platforms = ["cuda", "hygon", "metax", "ppu"]
@@ -50,7 +55,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
         )
         for changed_files in (
             "flagcx/flagcx.cc",
-            ".github/workflows/ci.yml",
+            ".github/workflows/unit-test.yml",
             "flagcx/adaptor/device/cuda_adaptor.cc\nflagcx/flagcx.cc",
         ):
             self.assertEqual(
@@ -108,6 +113,20 @@ class PlatformCiRegressionTest(unittest.TestCase):
         self.assertIn("  pull_request:", unit_trigger)
         self.assertIn("  issue_comment:", unit_trigger)
         self.assertIn("name: FlagCX CI", unit_trigger)
+
+    def test_legacy_ci_entry_points_are_removed(self):
+        self.assertFalse((REPO_ROOT / ".github/workflows/ci.yml").exists())
+        self.assertFalse(
+            (REPO_ROOT / ".github/workflows/_platform_pipeline.yml").exists()
+        )
+        self.assertFalse(
+            (REPO_ROOT / ".github/scripts/ci/generate_matrix.py").exists()
+        )
+
+    def test_common_checks_provision_ruby_for_matrix_scripts(self):
+        workflow = (REPO_ROOT / ".github/workflows/format-check.yml").read_text()
+        self.assertIn("ruby/setup-ruby@v1", workflow)
+        self.assertIn('ruby-version: "3.2"', workflow)
 
     def test_hygon_builds_ibrc_with_shca_abi(self):
         hygon_env = HYGON_ENV.read_text()

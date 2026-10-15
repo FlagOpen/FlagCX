@@ -28,6 +28,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+
       - name: Run CI script unit tests
         run: |
           python3 -m pip install --quiet pyyaml==6.0.2
@@ -38,5 +43,5 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git
 
-      - name: Run code format check
+      - name: Run pre-commit and code format checks
         run: bash .github/scripts/ci/format.sh

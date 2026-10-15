@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 # Resolve the platform matrix for push, PR, dispatch, and /test comment events.
+# An empty PR diff skips hardware jobs; shared and unclassified changes use the
+# full enabled matrix so a new or generic source path cannot bypass coverage.
 # Usage: resolve_ci_matrix.rb <config-dir> <context.json>
 # Writes active, matrix, platforms, repository, and ref outputs to
 # GITHUB_OUTPUT. The context JSON is assembled by the controller workflow.
@@ -80,13 +82,15 @@ when "pull_request"
   else
     shared_patterns = registry.fetch("shared_paths_watch", [])
     abort "#{registry_path}: shared_paths_watch must be an array" unless shared_patterns.is_a?(Array)
-    if match_paths.call(shared_patterns, files)
+    if files.empty?
+      selection = []
+    elsif match_paths.call(shared_patterns, files)
       selection = platform_names
     else
       selection = platforms.filter_map do |entry|
         entry.fetch("platform") if match_paths.call(entry.fetch("patterns"), files)
       end
-      if selection.empty? && files.any? { |path| path.match?(%r{\A(?:\.github|flagcx|test|include|makefiles)/}) }
+      if selection.empty?
         selection = platform_names
       end
     end
@@ -100,13 +104,15 @@ when "issue_comment"
     selection = []
   elsif command[1].nil?
     shared_patterns = registry.fetch("shared_paths_watch", [])
-    selection = if match_paths.call(shared_patterns, files)
+    selection = if files.empty?
+                  []
+                elsif match_paths.call(shared_patterns, files)
                   platform_names
                 else
                   routed = platforms.filter_map do |entry|
                     entry.fetch("platform") if match_paths.call(entry.fetch("patterns"), files)
                   end
-                  if routed.empty? && files.any? { |path| path.match?(%r{\A(?:\.github|flagcx|test|include|makefiles)/}) }
+                  if routed.empty?
                     platform_names
                   else
                     routed
