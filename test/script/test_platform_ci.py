@@ -99,17 +99,15 @@ class PlatformCiRegressionTest(unittest.TestCase):
                 ["cuda"],
             )
 
-    def test_main_unit_tests_have_one_automatic_entry_point(self):
-        ci_workflow = (REPO_ROOT / ".github/workflows/ci.yml").read_text()
+    def test_flagcx_ci_has_the_automatic_entry_point(self):
         unit_workflow = (REPO_ROOT / ".github/workflows/unit-test.yml").read_text()
-        ci_trigger = ci_workflow[: ci_workflow.index("\njobs:")]
         unit_trigger = unit_workflow[: unit_workflow.index("\njobs:")]
 
-        self.assertIn("branches: [main, devops]", ci_trigger)
-        self.assertIn("pull_request:", ci_trigger)
-        self.assertIn("branches: [dev]", unit_trigger)
-        self.assertNotIn("pull_request:", unit_trigger)
-        self.assertNotIn("branches: [main]", unit_trigger)
+        self.assertIn("      - main", unit_trigger)
+        self.assertIn("      - dev", unit_trigger)
+        self.assertIn("  pull_request:", unit_trigger)
+        self.assertIn("  issue_comment:", unit_trigger)
+        self.assertIn("name: FlagCX CI", unit_trigger)
 
     def test_hygon_builds_ibrc_with_shca_abi(self):
         hygon_env = HYGON_ENV.read_text()
