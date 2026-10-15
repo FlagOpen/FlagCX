@@ -207,7 +207,8 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
           bool matched = false;
           for (size_t j = 0; j < recvTasks.size(); j++) {
             if (sendTasks[i]->bytes == recvTasks[j]->bytes &&
-                sendTasks[i]->dtype == recvTasks[j]->dtype) {
+                sendTasks[i]->dtype == recvTasks[j]->dtype &&
+                sendTasks[i]->channelId == recvTasks[j]->channelId) {
               if (sendTasks[i]->buff != recvTasks[j]->buff) {
                 flagcxProxyOp *op;
                 FLAGCXCHECK(flagcxCalloc(&op, 1));
@@ -215,7 +216,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
                 op->nbytes = sendTasks[i]->bytes;
                 op->sendbuff = (uint8_t *)sendTasks[i]->buff;
                 op->recvbuff = (uint8_t *)recvTasks[j]->buff;
-                op->channelId = 0;
+                op->channelId = sendTasks[i]->channelId;
                 op->root = peer;
                 op->connection = comm->channels[op->channelId]
                                      .peers[peer]
@@ -290,7 +291,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
             op->pattern = flagcxPatternRecv;
             op->nbytes = p2p->bytes;
             op->recvbuff = (uint8_t *)p2p->buff;
-            op->channelId = 0;
+            op->channelId = p2p->channelId;
             op->root = peer;
             op->connection = comm->channels[op->channelId]
                                  .peers[peer]
@@ -381,7 +382,7 @@ static flagcxResult_t groupLaunch(struct flagcxAsyncJob *job_) {
             op->pattern = flagcxPatternSend;
             op->nbytes = p2p->bytes;
             op->recvbuff = (uint8_t *)p2p->buff;
-            op->channelId = 0;
+            op->channelId = p2p->channelId;
             op->root = peer;
             op->connection = comm->channels[op->channelId]
                                  .peers[peer]
