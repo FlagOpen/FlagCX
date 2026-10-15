@@ -1,5 +1,9 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+# Load and validate one platform configuration for a GitHub Actions job.
+# Usage: load_platform_config.rb <platform>
+# Reads .github/configs/<platform>.yml and writes runner/container values to
+# GITHUB_OUTPUT, or prints them as JSON when run locally.
 
 require "json"
 require "yaml"

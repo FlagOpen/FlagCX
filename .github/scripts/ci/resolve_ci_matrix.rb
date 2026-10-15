@@ -1,5 +1,9 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+# Resolve the platform matrix for push, PR, dispatch, and /test comment events.
+# Usage: resolve_ci_matrix.rb <config-dir> <context.json>
+# Writes active, matrix, platforms, repository, and ref outputs to
+# GITHUB_OUTPUT. The context JSON is assembled by the controller workflow.
 
 require "json"
 require "yaml"

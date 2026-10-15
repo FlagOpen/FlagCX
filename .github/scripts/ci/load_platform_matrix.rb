@@ -1,5 +1,9 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+# Build the unit-test matrix from the enabled platform registry.
+# Usage: load_platform_matrix.rb [config-dir] [platform[,platform...]]
+# The selection defaults to FLAGCX_CI_PLATFORM, then to all enabled platforms.
+# Prints the JSON matrix and also writes matrix=... when GITHUB_OUTPUT is set.
 
 require "json"
 require "yaml"
