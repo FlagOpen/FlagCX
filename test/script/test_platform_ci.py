@@ -55,7 +55,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
         suite_dir = REPO_ROOT / "test/unittest/device_api"
         result = subprocess.run(
             [
-                "make", "-n", "-C", str(suite_dir), "mpi",
+                "make", "-n", "-B", "-C", str(suite_dir), "mpi",
                 "USE_DU=1", "USE_SHCA=1",
                 "DEVICE_HOME=/opt/dtk",
                 "CCL_HOME=/opt/dtk",
@@ -99,7 +99,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
 
         rma_result = subprocess.run(
             [
-                "make", "-n", "-C", str(REPO_ROOT / "test/unittest/rma"),
+                "make", "-n", "-B", "-C", str(REPO_ROOT / "test/unittest/rma"),
                 "USE_DU=1", "USE_SHCA=1",
                 "DEVICE_HOME=/opt/dtk", "CCL_HOME=/opt/dtk",
             ],
@@ -125,7 +125,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
 
         kernel_result = subprocess.run(
             [
-                "make", "-n", "-C", str(REPO_ROOT / "test/unittest/kernel"),
+                "make", "-n", "-B", "-C", str(REPO_ROOT / "test/unittest/kernel"),
                 "all", "USE_DU=1", "USE_SHCA=1",
                 "DEVICE_HOME=/opt/dtk", "CCL_HOME=/opt/dtk",
             ],
@@ -150,7 +150,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
 
         perf_result = subprocess.run(
             [
-                "make", "-n", "-C", str(REPO_ROOT / "test/perf/device_api"),
+                "make", "-n", "-B", "-C", str(REPO_ROOT / "test/perf/device_api"),
                 "all", "USE_DU=1", "USE_SHCA=1",
                 "DEVICE_HOME=/opt/dtk", "CCL_HOME=/opt/dtk",
             ],
@@ -202,24 +202,35 @@ class PlatformCiRegressionTest(unittest.TestCase):
     def _run_platform_matrix(
         self, event_name, changed_files="", configs_dir=None
     ):
-        script = REPO_ROOT / ".github/scripts/ci/generate_matrix.py"
-        command = [
-            "python3",
-            str(script),
-            "--event-name",
-            event_name,
-        ]
-        if configs_dir is not None:
-            command.extend(["--configs-dir", str(configs_dir)])
-        if changed_files:
-            command.extend(["--changed-files", changed_files])
-        result = subprocess.run(
-            command,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return json.loads(result.stdout.strip().split("=", 1)[1])
+        script = REPO_ROOT / ".github/scripts/ci/resolve_ci_matrix.rb"
+        config_path = configs_dir or REPO_ROOT / ".github/configs"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            context_path = temp_path / "context.json"
+            output_path = temp_path / "github-output"
+            context_path.write_text(
+                json.dumps(
+                    {
+                        "event_name": event_name,
+                        "files": changed_files.splitlines() if changed_files else [],
+                        "repository": "owner/FlagCX",
+                        "ref": "HEAD",
+                    }
+                )
+            )
+            env = os.environ.copy()
+            env["GITHUB_OUTPUT"] = str(output_path)
+            subprocess.run(
+                ["ruby", str(script), str(config_path), str(context_path)],
+                check=True,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            outputs = dict(
+                line.split("=", 1) for line in output_path.read_text().splitlines()
+            )
+            return json.loads(outputs["platforms"])
 
     def test_unified_ci_filters_platform_changes_and_preserves_shared_fallback(self):
         all_platforms = ["cuda", "hygon", "metax", "ppu"]
@@ -287,20 +298,18 @@ class PlatformCiRegressionTest(unittest.TestCase):
             )
 
     def test_main_unit_tests_have_one_automatic_entry_point(self):
-        ci_workflow = (REPO_ROOT / ".github/workflows/ci.yml").read_text()
         unit_workflow = (REPO_ROOT / ".github/workflows/unit-test.yml").read_text()
-        ci_trigger = ci_workflow[: ci_workflow.index("\njobs:")]
         unit_trigger = unit_workflow[: unit_workflow.index("\njobs:")]
 
-        self.assertIn("branches: [main, devops]", ci_trigger)
-        self.assertIn("pull_request:", ci_trigger)
-        self.assertIn("branches: [dev]", unit_trigger)
-        self.assertNotIn("pull_request:", unit_trigger)
-        self.assertNotIn("branches: [main]", unit_trigger)
+        self.assertIn("      - main", unit_trigger)
+        self.assertIn("      - devops", unit_trigger)
+        self.assertIn("  pull_request:", unit_trigger)
+        self.assertIn("  issue_comment:", unit_trigger)
+        self.assertIn("name: FlagCX CI", unit_trigger)
 
-        pipeline = ci_workflow[ci_workflow.index("\n  platform-pipeline:") :]
-        self.assertIn("needs: generate-matrix", pipeline)
-        self.assertIn("needs.generate-matrix.outputs.platforms != '[]'", pipeline)
+        pipeline = unit_workflow[unit_workflow.index("\n  unit_tests:") :]
+        self.assertIn("needs: prepare", pipeline)
+        self.assertIn("needs.prepare.outputs.has_platforms == 'true'", pipeline)
 
     def test_hygon_builds_ibrc_with_shca_abi(self):
         hygon_env = HYGON_ENV.read_text()
@@ -580,11 +589,12 @@ class PlatformCiRegressionTest(unittest.TestCase):
         unit_workflow = (
             REPO_ROOT / ".github/workflows/unit-test.yml"
         ).read_text()
-        ci_workflow = (REPO_ROOT / ".github/workflows/ci.yml").read_text()
-        self.assertNotIn("pull_request.number == 643", ci_workflow)
-        self.assertIn(".github/scripts/ci/generate_matrix.py", ci_workflow)
-        self.assertIn("github.event.inputs.platform || 'all'", unit_workflow)
+        self.assertIn(
+            "EVENT_SELECTION: ${{ inputs.platform || 'all' }}",
+            unit_workflow,
+        )
         self.assertNotIn("pull_request.number == 643", unit_workflow)
+        self.assertNotIn("pull_request.number == 648", unit_workflow)
 
         expected_suites = {
             "cuda": [
@@ -654,8 +664,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
                 REPO_ROOT / f".github/workflows/{workflow_name}"
             ).read_text()
             trigger = workflow[: workflow.index("\njobs:")]
-            self.assertIn("pull_request:", trigger)
-            self.assertIn("push:", trigger)
+            self.assertIn("workflow_call:", trigger)
             self.assertNotIn("pull_request.number != 648", workflow)
 
     def test_reference_platform_coverage_is_explicit(self):
@@ -751,6 +760,8 @@ class PlatformCiRegressionTest(unittest.TestCase):
         self.assertIn("USE_SHARED_P2P_ENGINE=1", legacy_perf)
         self.assertIn('FLAGCX_LIB="$shared_project_build/lib"', legacy_perf)
         self.assertIn("FLAGCX_P2P_PERF_OP=read", legacy_perf)
+        self.assertIn("run_mpi_with_timeout.sh", legacy_perf)
+        self.assertNotIn("mpirun ", legacy_perf)
         self.assertIn('"$shared_test_build/bin/perf_p2p_engine"', legacy_perf)
         self.assertIn('LD_LIBRARY_PATH="$shared_project_build/lib:$LD_LIBRARY_PATH"', legacy_perf)
         self.assertNotIn("FLAGCX_GDR_READ_REQUIRES_FLUSH=0", legacy_perf)

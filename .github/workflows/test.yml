@@ -1,15 +1,26 @@
 name: Perf Tests in Container
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      platforms:
+        required: true
+        type: string
+      repository:
+        required: true
+        type: string
+      ref:
+        required: true
+        type: string
+
+env:
+  FLAGCX_CI_LOG_DIR: ${{ github.workspace }}/.ci-logs
+  FLAGCX_CI_TEST_TIMEOUT: 100m
+  FLAGCX_CI_MPI_TIMEOUT: 60m
 
 jobs:
   load-hardware-container-configs:
+    if: inputs.platforms != '[]'
     name: Load platform container configurations
     runs-on: ubuntu-latest
     outputs:
@@ -33,8 +44,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           persist-credentials: false
 
       - name: Load CUDA configuration
@@ -54,6 +65,7 @@ jobs:
         run: ruby .github/scripts/ci/load_platform_config.rb ppu
 
   perf-test:
+    if: contains(fromJSON(inputs.platforms), 'cuda')
     name: perf-test
     needs: load-hardware-container-configs
     runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.cuda_runs_on) }}
@@ -63,8 +75,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           submodules: recursive
           persist-credentials: false
           set-safe-directory: true
@@ -91,7 +103,18 @@ jobs:
           FLAGCX_CI_CONTAINER_NAME: flagcx-cuda-perf_legacy-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
 
+      - name: Upload test attempt logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: attempts-perf-test-${{ github.run_attempt }}
+          path: ${{ env.FLAGCX_CI_LOG_DIR }}/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+
   perf-test-hygon:
+    if: contains(fromJSON(inputs.platforms), 'hygon')
     name: perf-test (hygon)
     needs: load-hardware-container-configs
     runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.hygon_runs_on) }}
@@ -101,8 +124,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           submodules: recursive
           persist-credentials: false
           set-safe-directory: true
@@ -129,7 +152,18 @@ jobs:
           FLAGCX_CI_CONTAINER_NAME: flagcx-hygon-perf-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
 
+      - name: Upload test attempt logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: attempts-perf-test-hygon-${{ github.run_attempt }}
+          path: ${{ env.FLAGCX_CI_LOG_DIR }}/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+
   perf-test-cuda:
+    if: contains(fromJSON(inputs.platforms), 'cuda')
     name: perf-test (cuda)
     needs: load-hardware-container-configs
     runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.cuda_runs_on) }}
@@ -139,8 +173,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           submodules: recursive
           persist-credentials: false
           set-safe-directory: true
@@ -167,7 +201,18 @@ jobs:
           FLAGCX_CI_CONTAINER_NAME: flagcx-cuda-perf-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
 
+      - name: Upload test attempt logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: attempts-perf-test-cuda-${{ github.run_attempt }}
+          path: ${{ env.FLAGCX_CI_LOG_DIR }}/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+
   perf-test-metax:
+    if: contains(fromJSON(inputs.platforms), 'metax')
     name: perf-test (metax)
     needs: load-hardware-container-configs
     runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.metax_runs_on) }}
@@ -177,8 +222,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           submodules: recursive
           persist-credentials: false
           set-safe-directory: true
@@ -205,7 +250,18 @@ jobs:
           FLAGCX_CI_CONTAINER_NAME: flagcx-metax-perf-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
 
+      - name: Upload test attempt logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: attempts-perf-test-metax-${{ github.run_attempt }}
+          path: ${{ env.FLAGCX_CI_LOG_DIR }}/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+
   perf-test-ppu:
+    if: contains(fromJSON(inputs.platforms), 'ppu')
     name: perf-test (ppu)
     needs: load-hardware-container-configs
     runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.ppu_runs_on) }}
@@ -215,8 +271,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
           submodules: recursive
           persist-credentials: false
           set-safe-directory: true
@@ -242,3 +298,46 @@ jobs:
         env:
           FLAGCX_CI_CONTAINER_NAME: flagcx-ppu-perf-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
+
+      - name: Upload test attempt logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: attempts-perf-test-ppu-${{ github.run_attempt }}
+          path: ${{ env.FLAGCX_CI_LOG_DIR }}/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+
+  perf_complete:
+    name: Validate selected performance jobs
+    if: always()
+    needs:
+      - load-hardware-container-configs
+      - perf-test
+      - perf-test-hygon
+      - perf-test-cuda
+      - perf-test-metax
+      - perf-test-ppu
+    runs-on: ubuntu-latest
+    env:
+      PLATFORMS: ${{ inputs.platforms }}
+      CONFIG_RESULT: ${{ needs['load-hardware-container-configs'].result }}
+      CUDA_BASE_RESULT: ${{ needs['perf-test'].result }}
+      CUDA_RESULT: ${{ needs['perf-test-cuda'].result }}
+      HYGON_RESULT: ${{ needs['perf-test-hygon'].result }}
+      METAX_RESULT: ${{ needs['perf-test-metax'].result }}
+      PPU_RESULT: ${{ needs['perf-test-ppu'].result }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Validate selected performance jobs
+        run: >-
+          bash .github/scripts/ci/check_platform_workflow.sh
+          "$PLATFORMS" "$CONFIG_RESULT" "$CUDA_BASE_RESULT" "$CUDA_RESULT"
+          "$HYGON_RESULT" "$METAX_RESULT" "$PPU_RESULT"
