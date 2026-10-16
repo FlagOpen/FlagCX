@@ -62,7 +62,7 @@ still fails CI, even when a partial coverage report is generated.
 Repository configuration:
 
 - Secret `FLAGCICD_API_TOKEN`: bearer token for the metrics endpoint.
-- Endpoint: `http://flagcicd-inner.flagos.net:8000/metrics/`.
+- Endpoint: `https://flagcicd.flagos.net/flagcicd/api/v1/cicd/metrics/`.
 
 The token is explicitly forwarded only for source in the same repository.
 Fork PRs, including comment-triggered runs, generate/archive reports but skip

@@ -168,7 +168,7 @@ jobs:
         continue-on-error: true
         timeout-minutes: 2
         with:
-          backend_url: http://flagcicd-inner.flagos.net:8000/metrics/
+          backend_url: https://flagcicd.flagos.net/flagcicd/api/v1/cicd/metrics/
           api_token: ${{ secrets.FLAGCICD_API_TOKEN }}
           report_path: coverage-cuda-gpu-torch.json
           file_type: coverage
