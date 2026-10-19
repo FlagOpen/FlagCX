@@ -233,7 +233,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
             return json.loads(outputs["platforms"])
 
     def test_unified_ci_filters_platform_changes_and_preserves_shared_fallback(self):
-        all_platforms = ["ascend", "cuda", "hygon", "metax", "ppu"]
+        all_platforms = ["cuda", "hygon", "metax", "ppu", "ascend"]
         self.assertEqual(
             self._run_platform_matrix(
                 "pull_request", "flagcx/adaptor/device/cuda_adaptor.cc"
