@@ -9,8 +9,8 @@ paths_watch:
   - .github/scripts/ci/run_hygon_workload.sh
   - flagcx/adaptor/device/duhip_adaptor.cc
   - flagcx/adaptor/ccl/durccl_adaptor.cc
-  - flagcx/adaptor/kernel/du/**
-  - test/kernel/du/**
+  - flagcx/adaptor/kernel/du/**/*
+  - test/kernel/du/**/*
   - flagcx/adaptor/include/du_adaptor.h
   - flagcx/adaptor/include/device_api/du_*.h
 

@@ -9,8 +9,8 @@ paths_watch:
   - .github/scripts/ci/run_cuda_workload.sh
   - .github/scripts/ci/run_cuda_legacy_perf.sh
   - flagcx/adaptor/device/cuda_adaptor.cc
-  - flagcx/adaptor/kernel/nvidia/**
-  - test/kernel/nvidia/**
+  - flagcx/adaptor/kernel/nvidia/**/*
+  - test/kernel/nvidia/**/*
   - flagcx/adaptor/ccl/nccl_adaptor.cc
   - flagcx/adaptor/include/nvidia_adaptor.h
   - flagcx/adaptor/include/device_api/nvidia_*.h

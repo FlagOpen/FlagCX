@@ -27,6 +27,7 @@ class TorchCoverageReportTest(unittest.TestCase):
         source.mkdir(parents=True)
         (source / "__init__.py").touch()
         (source / "example.py").write_text("def answer():\n    return 42\n")
+        (source / "unimported.py").write_text("def never_called():\n    return 7\n")
         tests = root / "plugin/torch/tests"
         tests.mkdir(parents=True)
         expected = 0 if fail else 42
@@ -58,6 +59,8 @@ class TorchCoverageReportTest(unittest.TestCase):
         self.assertTrue(report["meta"]["branch_coverage"])
         self.assertGreater(report["totals"]["covered_lines"], 0)
         self.assertIn("src/flagcx/example.py", report["files"])
+        self.assertIn("src/flagcx/unimported.py", report["files"])
+        self.assertEqual(report["files"]["src/flagcx/unimported.py"]["summary"]["percent_covered"], 0.0)
         self.assertFalse(any("tests/" in path for path in report["files"]))
 
     def test_generates_coverage_json_for_python_sources(self):
