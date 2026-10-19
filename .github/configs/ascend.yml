@@ -11,7 +11,6 @@ paths_watch:
   - test/unittest/adaptor/net_test_utils.h
 ci_image: harbor.baai.ac.cn/flagos-dev/flagcx:asend-dev-fixed-20261016
 runner_labels:
-  - self-hosted
   - flagcicd-910c
 docker_volumes:
   - /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro
