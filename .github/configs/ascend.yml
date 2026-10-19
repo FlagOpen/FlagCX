@@ -12,7 +12,7 @@ paths_watch:
 ci_image: harbor.baai.ac.cn/flagos-dev/flagcx:asend-dev-fixed-20261016
 runner_labels:
   - self-hosted
-  - ascend
+  - flagcicd-910c
 docker_volumes:
   - /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro
   - /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi:ro
