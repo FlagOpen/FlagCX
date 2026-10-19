@@ -233,7 +233,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
             return json.loads(outputs["platforms"])
 
     def test_unified_ci_filters_platform_changes_and_preserves_shared_fallback(self):
-        all_platforms = ["cuda", "hygon", "metax", "ppu"]
+        all_platforms = ["ascend", "cuda", "hygon", "metax", "ppu"]
         self.assertEqual(
             self._run_platform_matrix(
                 "pull_request", "flagcx/adaptor/device/cuda_adaptor.cc"
@@ -245,6 +245,12 @@ class PlatformCiRegressionTest(unittest.TestCase):
                 "pull_request", "flagcx/adaptor/device/duhip_adaptor.cc"
             ),
             ["hygon"],
+        )
+        self.assertEqual(
+            self._run_platform_matrix(
+                "pull_request", "flagcx/adaptor/ccl/hccl_adaptor.cc"
+            ),
+            ["ascend"],
         )
         for changed_files in (
             "flagcx/flagcx.cc",
@@ -584,7 +590,8 @@ class PlatformCiRegressionTest(unittest.TestCase):
             '{"include":[{"platform":"cuda","display_name":"CUDA Tests"},'
             '{"platform":"hygon","display_name":"Hygon DCU Tests"},'
             '{"platform":"metax","display_name":"MetaX Tests"},'
-            '{"platform":"ppu","display_name":"T-Head PPU Tests"}]}',
+            '{"platform":"ppu","display_name":"T-Head PPU Tests"},'
+            '{"platform":"ascend","display_name":"Ascend 910C unit tests"}]}',
         )
         unit_workflow = (
             REPO_ROOT / ".github/workflows/unit-test.yml"
@@ -597,6 +604,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
         self.assertNotIn("pull_request.number == 648", unit_workflow)
 
         expected_suites = {
+            "ascend": ["core", "adaptor", "service"],
             "cuda": [
                 "adaptor",
                 "core",

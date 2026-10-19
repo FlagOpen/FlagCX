@@ -1,0 +1,29 @@
+# Huawei Ascend 910C unit-test configuration.
+hardware_name: ascend
+display_name: Ascend 910C unit tests
+paths_watch:
+  - .github/scripts/set_env/ascend.sh
+  - flagcx/adaptor/device/cann_adaptor.cc
+  - flagcx/adaptor/include/ascend_adaptor.h
+  - flagcx/adaptor/ccl/hccl_adaptor.cc
+  - makefiles/ascend.mk
+ci_image: harbor.baai.ac.cn/flagos-dev/flagcx:asend-dev-fixed-20261016
+runner_labels:
+  - self-hosted
+  - ascend
+docker_volumes:
+  - /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro
+docker_options:
+  - --network=host
+  - --ipc=host
+  - --privileged
+  - --device=/dev/davinci_manager
+  - --device=/dev/devmm_svm
+  - --device=/dev/hisi_hdc
+  - --mount=type=bind,src=/dev/infiniband,dst=/dev/infiniband
+  - --ulimit=memlock=-1
+set_env: .github/scripts/set_env/ascend.sh
+unit_test_suites:
+  - core
+  - adaptor
+  - service
