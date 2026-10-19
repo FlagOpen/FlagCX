@@ -1810,6 +1810,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
 class MetaXEnvironmentTest(unittest.TestCase):
     def run_metax_shell(self, body, *, extra_env=None):
         environment = os.environ.copy()
+        environment.pop("BASH_ENV", None)
         if extra_env:
             environment.update(extra_env)
         return subprocess.run(
