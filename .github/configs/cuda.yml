@@ -32,8 +32,10 @@ docker_options:
   - --gpus=all
   - --privileged
   - --ipc=host
+  - --shm-size=500g
   - --ulimit=memlock=-1
   - --ulimit=stack=67108864
+  - --ulimit=nofile=65535:65535
 
 set_env: .github/scripts/set_env/cuda.sh
 

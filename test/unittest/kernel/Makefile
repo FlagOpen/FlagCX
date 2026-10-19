@@ -18,6 +18,14 @@ DLINK_OBJ :=
 endif
 
 # Device linking provided by make.inc (DEVICE_LINK, DEVICE_HOME, etc.)
+MPI_LINKER := $(CXX)
+MPI_LINK_FLAGS :=
+ifeq ($(USE_DU), 1)
+# DU kernel objects use relocatable HIP device code; only the MPI binary
+# links them, so keep host-only unit tests on g++.
+MPI_LINKER := $(DEVICE_COMPILER)
+MPI_LINK_FLAGS := -fgpu-rdc -no-pie
+endif
 
 # Environment variables to force hetero mode on single node
 HETERO_ENV := FLAGCX_USE_HETERO_COMM=1 FLAGCX_MEM_ENABLE=1 FLAGCX_VMM_ENABLE=0 FLAGCX_P2P_DISABLE=1
@@ -62,7 +70,7 @@ $(UNIT_TARGET): $(UNIT_OBJS)
 $(MPI_TARGET): device-api-obj $(MPI_OBJS)
 	@mkdir -p $(BINDIR)
 	@echo "Linking   $@"
-	@$(CXX) $(MPI_OBJS) $(DEVICE_API_OBJ) $(DLINK_OBJ) -o $@ $(FLAGCX_LINK) $(GTEST_LINK) $(MPI_LINK) $(DEVICE_LINK)
+	@$(MPI_LINKER) $(MPI_LINK_FLAGS) $(MPI_OBJS) $(DEVICE_API_OBJ) $(DLINK_OBJ) -o $@ $(FLAGCX_LINK) $(GTEST_LINK) $(MPI_LINK) $(DEVICE_LINK)
 
 $(OBJDIR)/test_%.o: test_%.cpp
 	@mkdir -p $(OBJDIR)

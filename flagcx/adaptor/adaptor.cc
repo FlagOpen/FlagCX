@@ -101,15 +101,15 @@ struct flagcxDeviceAdaptor *deviceAdaptor = &kunlunAdaptor;
 #elif USE_DU_ADAPTOR
 #ifdef USE_BOOTSTRAP_ADAPTOR
 struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&bootstrapAdaptor,
-                                                      &duncclAdaptor};
+                                                      &durcclAdaptor};
 #elif USE_GLOO_ADAPTOR
 struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&glooAdaptor,
-                                                      &duncclAdaptor};
+                                                      &durcclAdaptor};
 #elif USE_MPI_ADAPTOR
 struct flagcxCCLAdaptor *cclAdaptors[NCCLADAPTORS] = {&mpiAdaptor,
-                                                      &duncclAdaptor};
+                                                      &durcclAdaptor};
 #endif
-struct flagcxDeviceAdaptor *deviceAdaptor = &ducudaAdaptor;
+struct flagcxDeviceAdaptor *deviceAdaptor = &duhipAdaptor;
 
 #elif USE_AMD_ADAPTOR
 #ifdef USE_BOOTSTRAP_ADAPTOR

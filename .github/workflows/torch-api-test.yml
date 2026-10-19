@@ -10,15 +10,25 @@ on:
 
 jobs:
   load-hardware-container-configs:
-    name: Load explicit container configurations
+    name: Load platform container configurations
     runs-on: ubuntu-latest
     outputs:
+      cuda_ci_image: ${{ steps.cuda.outputs.ci_image }}
+      cuda_docker_args: ${{ steps.cuda.outputs.docker_args }}
+      cuda_set_env: ${{ steps.cuda.outputs.set_env }}
+      cuda_runs_on: ${{ steps.cuda.outputs.runs_on }}
+      metax_ci_image: ${{ steps.metax.outputs.ci_image }}
+      metax_docker_args: ${{ steps.metax.outputs.docker_args }}
+      metax_set_env: ${{ steps.metax.outputs.set_env }}
+      metax_runs_on: ${{ steps.metax.outputs.runs_on }}
       hygon_ci_image: ${{ steps.hygon.outputs.ci_image }}
       hygon_docker_args: ${{ steps.hygon.outputs.docker_args }}
       hygon_set_env: ${{ steps.hygon.outputs.set_env }}
+      hygon_runs_on: ${{ steps.hygon.outputs.runs_on }}
       ppu_ci_image: ${{ steps.ppu.outputs.ci_image }}
       ppu_docker_args: ${{ steps.ppu.outputs.docker_args }}
       ppu_set_env: ${{ steps.ppu.outputs.set_env }}
+      ppu_runs_on: ${{ steps.ppu.outputs.runs_on }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -26,6 +36,14 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
           persist-credentials: false
+
+      - name: Load CUDA configuration
+        id: cuda
+        run: ruby .github/scripts/ci/load_platform_config.rb cuda
+
+      - name: Load MetaX configuration
+        id: metax
+        run: ruby .github/scripts/ci/load_platform_config.rb metax
 
       - name: Load Hygon configuration
         id: hygon
@@ -35,75 +53,10 @@ jobs:
         id: ppu
         run: ruby .github/scripts/ci/load_platform_config.rb ppu
 
-  torch-api-test:
-    runs-on: [nv-8g-cicd-flagcx]
-    container:
-      image: harbor.baai.ac.cn/flagos-dev/flagcx:55c5c6f-cuda-dev
-      options:  --gpus all --shm-size=500g --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 --ulimit nofile=65535:65535 --user root
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          ssh-strict: true
-          ssh-user: git
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          show-progress: true
-          lfs: false
-          submodules: false
-          set-safe-directory: true
-
-      - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
-
-      - name: Set up Install Dependencies
-        run: |
-          export PATH=/root/miniconda3/bin:$PATH
-          eval "$(/root/miniconda3/bin/conda shell.bash hook)" && conda activate flagscale-train && conda env list
-          apt update -y && apt-get install -y git rdma-core ibverbs-utils perftest infiniband-diags libibverbs-dev librdmacm-dev
-          pip list | grep torch && which python
-          cd /__w/FlagCX/FlagCX
-          git config --global --add safe.directory /__w/FlagCX/FlagCX && git status
-
-      - name: Run `make` to build the project
-        run: |
-          cd /__w/FlagCX/FlagCX
-          export MPI_HOME=/usr/local/mpi
-          make USE_NVIDIA=1 -j$(nproc)
-
-      - name: Install FlagCX PyTorch Plugin
-        run: |
-          export PATH=/root/miniconda3/bin:$PATH
-          eval "$(/root/miniconda3/bin/conda shell.bash hook)" && conda activate flagscale-train && conda env list
-          pip uninstall -y setuptools && pip install setuptools==77.0.1 'setuptools_scm>=8' --extra-index-url https://pypi.org/simple
-          cd /__w/FlagCX/FlagCX
-          export TORCH_DEVICE_BACKEND_AUTOLOAD=0
-          export FLAGCX_ADAPTOR=nvidia
-          python3 setup.py build_ext --inplace
-          echo "PYTHONPATH=/__w/FlagCX/FlagCX/src:$PYTHONPATH" >> "$GITHUB_ENV"
-
-      - name: Run PyTorch API Tests
-        run: |
-          export PATH=/root/miniconda3/bin:$PATH
-          eval "$(/root/miniconda3/bin/conda shell.bash hook)" && conda activate flagscale-train && conda env list
-          cd /__w/FlagCX/FlagCX/test/script/
-          export FLAGCX_DEBUG=INFO
-          export FLAGCX_DEBUG_SUBSYS=ALL
-          bash torch_api_test.sh
-
   torch-api-test-hygon:
     name: torch-api-test (hygon)
     needs: load-hardware-container-configs
-    runs-on: [hg-8g-cicd-flagcx]
+    runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.hygon_runs_on) }}
     timeout-minutes: 180
 
     steps:
@@ -112,25 +65,18 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
-          ssh-strict: true
-          ssh-user: git
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          show-progress: true
-          lfs: false
           submodules: recursive
+          persist-credentials: false
           set-safe-directory: true
 
       - name: Check Docker
         shell: bash
         run: docker version
 
-      - name: Run Hygon Torch API tests
+      - name: Run torch-api-test (hygon) in configured container
         shell: bash
         env:
-          FLAGCX_CI_CONTAINER_NAME: flagcx-hygon-torch-${{ github.run_id }}-${{ github.run_attempt }}
+          FLAGCX_CI_CONTAINER_NAME: flagcx-hygon-torch_api-${{ github.run_id }}-${{ github.run_attempt }}
           FLAGCX_CI_DOCKER_ARGS: ${{ needs.load-hardware-container-configs.outputs.hygon_docker_args }}
           FLAGCX_CI_IMAGE: ${{ needs.load-hardware-container-configs.outputs.hygon_ci_image }}
           FLAGCX_CI_SET_ENV: ${{ needs.load-hardware-container-configs.outputs.hygon_set_env }}
@@ -138,187 +84,17 @@ jobs:
           bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
           hygon torch-api
 
-      - name: Cleanup Hygon Torch API container
+      - name: Cleanup torch-api-test (hygon) container
         if: always()
         shell: bash
         env:
-          FLAGCX_CI_CONTAINER_NAME: flagcx-hygon-torch-${{ github.run_id }}-${{ github.run_attempt }}
+          FLAGCX_CI_CONTAINER_NAME: flagcx-hygon-torch_api-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
 
   torch-api-test-cuda:
     name: torch-api-test (cuda)
-    runs-on: [nv-8g-cicd-flagcx]
-    container:
-      image: harbor.baai.ac.cn/flagos-dev/flagcx:55c5c6f-cuda-dev
-      options: >-
-        --gpus all
-        --shm-size=500g
-        --privileged
-        --ipc=host
-        --ulimit memlock=-1
-        --ulimit stack=67108864
-        --ulimit nofile=65535:65535
-        --user root
-    env:
-      FLAGCX_ADAPTOR: nvidia
-      USE_NVIDIA: "1"
-      MPI_HOME: /usr/local/mpi
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          ssh-strict: true
-          ssh-user: git
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          show-progress: true
-          lfs: false
-          submodules: false
-          set-safe-directory: true
-
-      - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
-
-      - name: Prepare CUDA environment
-        shell: bash
-        run: |
-          source /__w/FlagCX/FlagCX/.github/scripts/set_env/cuda.sh
-          flagcx_ci_configure_suite torch-api
-          flagcx_ci_prepare torch-api
-          flagcx_ci_validate_rdma torch-api
-          echo "PATH=$MPI_HOME/bin:$PATH" >> "$GITHUB_ENV"
-          echo "MPI_HOME=$MPI_HOME" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$MPI_HOME/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
-          nvidia-smi
-
-      - name: Build FlagCX
-        run: |
-          cd /__w/FlagCX/FlagCX
-          make USE_NVIDIA=1 -j$(nproc)
-
-      - name: Install FlagCX PyTorch Plugin
-        run: |
-          export PATH=/root/miniconda3/bin:$PATH
-          eval "$(/root/miniconda3/bin/conda shell.bash hook)" && conda activate flagscale-train
-          export PYTHON_BIN=/root/miniconda3/envs/flagscale-train/bin/python
-          "$PYTHON_BIN" -m pip install 'setuptools_scm>=8'
-          cd /__w/FlagCX/FlagCX
-          export TORCH_DEVICE_BACKEND_AUTOLOAD=0
-          export FLAGCX_ADAPTOR=nvidia
-          "$PYTHON_BIN" setup.py build_ext --inplace
-          echo "PYTHONPATH=/__w/FlagCX/FlagCX/src:$PYTHONPATH" >> "$GITHUB_ENV"
-
-      - name: Run PyTorch API Tests
-        run: |
-          export PATH=/root/miniconda3/bin:$PATH
-          eval "$(/root/miniconda3/bin/conda shell.bash hook)" && conda activate flagscale-train
-          export PYTHON_BIN=/root/miniconda3/envs/flagscale-train/bin/python
-          cd /__w/FlagCX/FlagCX/test/script
-          export FLAGCX_ADAPTOR=nvidia
-          export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-          export FLAGCX_DEBUG=INFO
-          export FLAGCX_DEBUG_SUBSYS=ALL
-          bash torch_api_test.sh
-
-  torch-api-test-metax:
-    name: torch-api-test (metax)
-    runs-on: [mx-8g-cicd-flagcx]
-    container:
-      image: harbor.baai.ac.cn/flagos-dev/flagcx:3016346-metax-dev
-      options: >-
-        --hostname=te-cicd
-        --volume /opt/mxdriver:/opt/mxdriver:ro
-        --shm-size=500g
-        --ipc=host
-        --privileged=true
-        --ulimit memlock=-1
-        --ulimit stack=67108864
-        --ulimit nofile=65535:65535
-        --user root
-        --group-add video
-        -e PLATFORM=metax
-        -e TORCH_DISTRIBUTED_BACKEND=mccl
-        -e LD_LIBRARY_PATH=/opt/mxdriver/lib:/opt/maca/lib:/usr/local/lib:$LD_LIBRARY_PATH
-    env:
-      FLAGCX_ADAPTOR: metax
-      USE_METAX: "1"
-      MPI_HOME: /usr/local/mpi
-      TORCH_DISTRIBUTED_BACKEND: mccl
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          ssh-strict: true
-          ssh-user: git
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          show-progress: true
-          lfs: false
-          submodules: false
-          set-safe-directory: true
-
-      - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
-
-      - name: Prepare MetaX environment
-        shell: bash
-        run: |
-          source /__w/FlagCX/FlagCX/.github/scripts/set_env/metax.sh
-          flagcx_ci_configure_suite torch-api
-          flagcx_ci_prepare torch-api
-          flagcx_ci_validate_rdma torch-api
-          echo "PATH=/opt/maca/mxgpu_llvm/bin:$MPI_HOME/bin:$PATH" >> "$GITHUB_ENV"
-          echo "MPI_HOME=$MPI_HOME" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:/opt/mxdriver/lib:/opt/maca/lib:/usr/local/lib:$MPI_HOME/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
-          mx-smi 2>/dev/null || true
-
-      - name: Build FlagCX
-        run: |
-          cd /__w/FlagCX/FlagCX
-          make USE_METAX=1 -j$(nproc)
-
-      - name: Install FlagCX PyTorch Plugin
-        run: |
-          python3 -m pip install --break-system-packages 'setuptools_scm>=8'
-          cd /__w/FlagCX/FlagCX
-          export TORCH_DEVICE_BACKEND_AUTOLOAD=0
-          export FLAGCX_ADAPTOR=metax
-          python3 setup.py build_ext --inplace
-          echo "PYTHONPATH=/__w/FlagCX/FlagCX/src:$PYTHONPATH" >> "$GITHUB_ENV"
-
-      - name: Run PyTorch API Tests
-        run: |
-          cd /__w/FlagCX/FlagCX/test/script
-          export FLAGCX_ADAPTOR=metax
-          export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-          export FLAGCX_DEBUG=INFO
-          export FLAGCX_DEBUG_SUBSYS=ALL
-          bash torch_api_test.sh
-
-  torch-api-test-ppu:
-    name: torch-api-test (ppu)
     needs: load-hardware-container-configs
-    runs-on: [flagcicd-810e]
+    runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.cuda_runs_on) }}
     timeout-minutes: 180
 
     steps:
@@ -327,25 +103,94 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
-          ssh-strict: true
-          ssh-user: git
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          show-progress: true
-          lfs: false
           submodules: recursive
+          persist-credentials: false
           set-safe-directory: true
 
       - name: Check Docker
         shell: bash
         run: docker version
 
-      - name: Run PPU Torch API tests
+      - name: Run torch-api-test (cuda) in configured container
         shell: bash
         env:
-          FLAGCX_CI_CONTAINER_NAME: flagcx-ppu-torch-${{ github.run_id }}-${{ github.run_attempt }}
+          FLAGCX_CI_CONTAINER_NAME: flagcx-cuda-torch_api-${{ github.run_id }}-${{ github.run_attempt }}
+          FLAGCX_CI_DOCKER_ARGS: ${{ needs.load-hardware-container-configs.outputs.cuda_docker_args }}
+          FLAGCX_CI_IMAGE: ${{ needs.load-hardware-container-configs.outputs.cuda_ci_image }}
+          FLAGCX_CI_SET_ENV: ${{ needs.load-hardware-container-configs.outputs.cuda_set_env }}
+        run: >-
+          bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
+          cuda torch-api
+
+      - name: Cleanup torch-api-test (cuda) container
+        if: always()
+        shell: bash
+        env:
+          FLAGCX_CI_CONTAINER_NAME: flagcx-cuda-torch_api-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
+
+  torch-api-test-metax:
+    name: torch-api-test (metax)
+    needs: load-hardware-container-configs
+    runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.metax_runs_on) }}
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          submodules: recursive
+          persist-credentials: false
+          set-safe-directory: true
+
+      - name: Check Docker
+        shell: bash
+        run: docker version
+
+      - name: Run torch-api-test (metax) in configured container
+        shell: bash
+        env:
+          FLAGCX_CI_CONTAINER_NAME: flagcx-metax-torch_api-${{ github.run_id }}-${{ github.run_attempt }}
+          FLAGCX_CI_DOCKER_ARGS: ${{ needs.load-hardware-container-configs.outputs.metax_docker_args }}
+          FLAGCX_CI_IMAGE: ${{ needs.load-hardware-container-configs.outputs.metax_ci_image }}
+          FLAGCX_CI_SET_ENV: ${{ needs.load-hardware-container-configs.outputs.metax_set_env }}
+        run: >-
+          bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
+          metax torch-api
+
+      - name: Cleanup torch-api-test (metax) container
+        if: always()
+        shell: bash
+        env:
+          FLAGCX_CI_CONTAINER_NAME: flagcx-metax-torch_api-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
+
+  torch-api-test-ppu:
+    name: torch-api-test (ppu)
+    needs: load-hardware-container-configs
+    runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.ppu_runs_on) }}
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          submodules: recursive
+          persist-credentials: false
+          set-safe-directory: true
+
+      - name: Check Docker
+        shell: bash
+        run: docker version
+
+      - name: Run torch-api-test (ppu) in configured container
+        shell: bash
+        env:
+          FLAGCX_CI_CONTAINER_NAME: flagcx-ppu-torch_api-${{ github.run_id }}-${{ github.run_attempt }}
           FLAGCX_CI_DOCKER_ARGS: ${{ needs.load-hardware-container-configs.outputs.ppu_docker_args }}
           FLAGCX_CI_IMAGE: ${{ needs.load-hardware-container-configs.outputs.ppu_ci_image }}
           FLAGCX_CI_SET_ENV: ${{ needs.load-hardware-container-configs.outputs.ppu_set_env }}
@@ -353,9 +198,9 @@ jobs:
           bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
           ppu torch-api
 
-      - name: Cleanup PPU Torch API container
+      - name: Cleanup torch-api-test (ppu) container
         if: always()
         shell: bash
         env:
-          FLAGCX_CI_CONTAINER_NAME: flagcx-ppu-torch-${{ github.run_id }}-${{ github.run_attempt }}
+          FLAGCX_CI_CONTAINER_NAME: flagcx-ppu-torch_api-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true

@@ -93,7 +93,7 @@ void launchKernelIntraBarrierSyncS(const void FLAGCX_IR_GLOBAL_PTR *devCommPtr,
                                    float *buffer, float *output, int N,
                                    flagcxStream_t stream);
 
-// S9: Intra Barrier Arrive/Wait — SyncS(Release) + read + SyncS(Acquire)
+// S9: two full scalar barriers — SyncS(Release) + read + SyncS(Acquire)
 void launchKernelIntraBarrierArriveWaitS(
     const void FLAGCX_IR_GLOBAL_PTR *devCommPtr,
     const void FLAGCX_IR_GLOBAL_PTR *devMemPtr, float *buffer, float *output,

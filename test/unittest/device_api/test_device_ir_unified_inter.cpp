@@ -254,7 +254,8 @@ int main(int argc, char *argv[]) {
       size_t s17Size =
           kUnifiedIrInterTeamResolutionComboCount * maxRanks * sizeof(float);
 
-      float myTag = (float)proc;
+      // Keep rank 0 distinguishable from the zero-initialized receive buffer.
+      float myTag = (float)(proc + 1);
       FLAGCXCHECK(devHandle->deviceMemcpy(sendBuff, &myTag, sizeof(float),
                                           flagcxMemcpyHostToDevice, stream));
       FLAGCXCHECK(devHandle->deviceMemset(recvBuff, 0, s17Size, flagcxMemDevice,
@@ -287,12 +288,12 @@ int main(int argc, char *argv[]) {
         size_t baseOff = combo * maxRanks;
 
         if (teamIdx == 0) { // INTER
-          float expected = (float)(prevNode * intraSize + intraRank);
+          float expected = (float)(prevNode * intraSize + intraRank + 1);
           if (s17Recv[baseOff + prevNode] != expected) {
             s17Pass = false;
           }
         } else { // WORLD
-          float expected = (float)prevWorld;
+          float expected = (float)(prevWorld + 1);
           if (s17Recv[baseOff + prevWorld] != expected) {
             s17Pass = false;
           }
@@ -306,7 +307,7 @@ int main(int argc, char *argv[]) {
       for (int combo = 6;
            combo < kUnifiedIrInterTeamResolutionComboCount && s17Pass;
            combo++) {
-        float expected = (float)(nodeIdx * intraSize + prevIntra);
+        float expected = (float)(nodeIdx * intraSize + prevIntra + 1);
         if (s17Recv[combo * maxRanks + prevIntra] != expected) {
           s17Pass = false;
         }
@@ -736,6 +737,10 @@ int main(int argc, char *argv[]) {
       printf("\n");
   }
 
+  int localPass = allPass ? 1 : 0;
+  int globalPass = 0;
+  MPI_Allreduce(&localPass, &globalPass, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+
   // Cleanup
   delete[] hostSend;
   delete[] hostRecv;
@@ -751,9 +756,10 @@ int main(int argc, char *argv[]) {
   FLAGCXCHECK(flagcxCommDestroy(comm));
 
   if (proc == 0) {
-    printf("=== Final Result: %s ===\n", allPass ? "ALL PASS" : "SOME FAILED");
+    printf("=== Final Result: %s ===\n",
+           globalPass ? "ALL PASS" : "SOME FAILED");
   }
 
   MPI_Finalize();
-  return allPass ? 0 : 1;
+  return globalPass ? 0 : 1;
 }

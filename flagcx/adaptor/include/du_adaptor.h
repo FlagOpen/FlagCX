@@ -1,9 +1,8 @@
 #ifdef USE_DU_ADAPTOR
 
 #include "flagcx.h"
-#include "nccl.h"
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include "rccl.h"
+#include <hip/hip_runtime.h>
 #include <map>
 struct flagcxInnerDevComm {};
 
@@ -12,22 +11,22 @@ struct flagcxInnerComm {
 };
 
 struct flagcxStream {
-  cudaStream_t base;
+  hipStream_t base;
 };
 
 struct flagcxEvent {
-  cudaEvent_t base;
+  hipEvent_t base;
 };
 
 struct flagcxIpcMemHandle {
-  cudaIpcMemHandle_t base;
+  hipIpcMemHandle_t base;
 };
 
 #define DEVCHECK(func)                                                         \
-  {                                                                            \
-    int ret = func;                                                            \
-    if (ret != cudaSuccess)                                                    \
+  do {                                                                         \
+    hipError_t ret = (func);                                                   \
+    if (ret != hipSuccess)                                                     \
       return flagcxUnhandledDeviceError;                                       \
-  }
+  } while (0)
 
 #endif // USE_DU_ADAPTOR

@@ -59,16 +59,18 @@ inline void flagcxRunnerAssertPxnTraffic(flagcxComm_t comm, int rank,
 
   auto *hcomm = comm->heteroComm;
   int localLayoutErrors = 0;
+  const int ranksPerGroup = nranks / 2;
   if (enabled) {
-    if (nranks != 8) {
+    if (nranks < 4 || nranks % 2 != 0) {
       ++localLayoutErrors;
     } else {
       const int firstGroup = comm->clusterIds[0];
-      const int secondGroup = comm->clusterIds[4];
+      const int secondGroup = comm->clusterIds[ranksPerGroup];
       if (firstGroup == secondGroup)
         ++localLayoutErrors;
-      for (int member = 0; member < 8; ++member) {
-        if (comm->clusterIds[member] != (member < 4 ? firstGroup : secondGroup))
+      for (int member = 0; member < nranks; ++member) {
+        if (comm->clusterIds[member] !=
+            (member < ranksPerGroup ? firstGroup : secondGroup))
           ++localLayoutErrors;
       }
     }
@@ -155,8 +157,8 @@ inline void flagcxRunnerAssertPxnTraffic(flagcxComm_t comm, int rank,
               ++localRouteErrors;
           } else {
             ++localRelayed;
-            if (nranks == 8)
-              ++localRelayedByGroup[rank < 4 ? 0 : 1];
+            if (nranks >= 4 && nranks % 2 == 0)
+              ++localRelayedByGroup[rank < ranksPerGroup ? 0 : 1];
             if (send.proxyConn.sameProcess ||
                 send.proxyConn.connection == send.proxyConn.remoteConnection ||
                 comm->clusterIds[proxyRank] != comm->clusterIds[rank] ||
@@ -277,9 +279,9 @@ inline void flagcxRunnerAssertPxnTraffic(flagcxComm_t comm, int rank,
       << operation << " has no completed relay chunk on a relaying source";
   if (enabled && traffic != FlagCXPxnTraffic::ConnectedCollective) {
     EXPECT_GT(globalRelayedByGroup[0], 0)
-        << operation << " did not relay from ranks 0-3";
+        << operation << " did not relay from the first logical node";
     EXPECT_GT(globalRelayedByGroup[1], 0)
-        << operation << " did not relay from ranks 4-7";
+        << operation << " did not relay from the second logical node";
   } else if (!enabled) {
     EXPECT_EQ(globalRelayed, 0) << operation << " unexpectedly used PXN";
   }

@@ -72,6 +72,7 @@ class TorchApiEnvironmentTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(lines[0], "|||||")
         self.assertEqual(lines[1], "1|2|1|0|accl|0")
+        self.assertEqual(result.stdout.count("--nproc_per_node 4"), 2)
 
     def test_skip_heterogeneous_runs_only_homogeneous_environment(self):
         result, lines = self.run_script(skip_hetero=True)

@@ -11,7 +11,7 @@
 
 #include <cassert>
 #include <cstdint>
-#include <cuda/atomic>
+#include <hip/hip_runtime.h>
 
 struct DuPlatform {};
 
@@ -19,71 +19,77 @@ template <>
 struct PlatformTraits<DuPlatform> {
 
   // ==============================================================
-  // Intrin — CUDA SIMT intrinsics
+  // Intrin — HIP wavefront intrinsics
   // ==============================================================
   struct Intrin {
-    static constexpr int simtWidth = 32;
+    static constexpr int simtWidth = FLAGCX_SIMT_WIDTH;
     static FLAGCX_HOST_DEVICE_INLINE constexpr flagcxLaneMask_t fullMask() {
-      return 0xffffffffull;
+      return 0xffffffffffffffffull;
     }
 
-#if defined(__CUDACC__)
-    static FLAGCX_DEVICE_INLINE_DECORATOR int lane() {
-      int l;
-      asm("mov.u32 %0, %%laneid;" : "=r"(l));
-      return l;
-    }
+#if defined(__HIPCC__)
+    static FLAGCX_DEVICE_INLINE_DECORATOR int lane() { return __lane_id(); }
 
     static FLAGCX_DEVICE_INLINE_DECORATOR flagcxLaneMask_t lanemaskLt() {
-      uint32_t m;
-      asm("mov.u32 %0, %%lanemask_lt;" : "=r"(m));
-      return static_cast<flagcxLaneMask_t>(m);
+      return static_cast<flagcxLaneMask_t>(__lanemask_lt());
     }
 
     static FLAGCX_DEVICE_INLINE_DECORATOR flagcxLaneMask_t activemask() {
-      return static_cast<flagcxLaneMask_t>(__activemask());
+      return static_cast<flagcxLaneMask_t>(__ballot(1));
     }
 
     static FLAGCX_DEVICE_INLINE_DECORATOR void
     validateMask(flagcxLaneMask_t mask) {
       if ((mask & ~fullMask()) != 0)
-        __trap();
+        __builtin_trap();
     }
 
     static FLAGCX_DEVICE_INLINE_DECORATOR void
     syncwarp(flagcxLaneMask_t mask = fullMask()) {
       validateMask(mask);
-      __syncwarp(static_cast<uint32_t>(mask));
+      if ((mask & (flagcxLaneMask_t{1} << lane())) == 0)
+        __builtin_trap();
+      // DCU wavefront lanes execute in lockstep, including sub-wave tiles.
+      // Order shared-memory writes and reads across the participating lanes;
+      // a block barrier would deadlock when only part of a block calls sync.
+      __builtin_amdgcn_fence(__ATOMIC_RELEASE, "wavefront");
+      __builtin_amdgcn_wave_barrier();
+      __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "wavefront");
     }
 
     static FLAGCX_DEVICE_INLINE_DECORATOR int popc(flagcxLaneMask_t x) {
       validateMask(x);
-      return __popc(static_cast<uint32_t>(x));
+      return __popcll(static_cast<unsigned long long>(x));
     }
 
     static FLAGCX_DEVICE_INLINE_DECORATOR void namedBarrierSync(int id,
                                                                 int nThreads) {
-      // __barrier_sync_count(id, nThreads);
+      (void)id;
+      if (nThreads == simtWidth) {
+        syncwarp();
+      } else if (nThreads == static_cast<int>(blockDim.x)) {
+        __syncthreads();
+      } else {
+        // HIP has no portable partial-block named barrier. Fail explicitly
+        // rather than silently skipping the synchronization.
+        __builtin_trap();
+      }
     }
 
     static FLAGCX_DEVICE_INLINE_DECORATOR void spinBackoff(int iter) {
       int delay = 1 << (iter < 15 ? iter : 15);
-#if __CUDA_ARCH__ >= 700
-      __nanosleep(delay);
-#else
       uint64_t start = clock64();
       while (clock64() - start < (uint64_t)delay) { /* spin */
       }
-#endif
     }
 
     // System-level fence: ensures stores are visible across all system agents
-    // (including other processes via IPC). Maps to PTX membar.sys.
+    // (including other processes via IPC).
     static FLAGCX_DEVICE_INLINE_DECORATOR void threadfenceSystem() {
       __threadfence_system();
     }
 
-    // Device-level fence: ordering within this GPU only. Maps to membar.gl.
+    // Device-level fence: ordering within this GPU only.
     static FLAGCX_DEVICE_INLINE_DECORATOR void threadfenceDevice() {
       __threadfence();
     }
@@ -201,123 +207,113 @@ struct PlatformTraits<DuPlatform> {
     static inline void coopCopyBytes(DstPtr, SrcPtr, size_t, int, int) {
       assert(false && "coopCopyBytes() called on host");
     }
-#endif // __CUDACC__
+#endif // __HIPCC__
   };
 
   // ==============================================================
-  // Atomic — cuda::atomic_ref scoped operations
+  // Atomic — HIP device atomics with explicit memory scope.
+  // Keep seq_cst until the DU IPC and network visibility tests establish
+  // which weaker orders are valid for this runtime.
   // ==============================================================
   struct Atomic {
+  private:
+    template <flagcxDeviceScope_t Scope>
+    static constexpr int scopeCode() {
+#if defined(__HIP_DEVICE_COMPILE__)
+      return Scope == flagcxDeviceScopeSystem   ? __HIP_MEMORY_SCOPE_SYSTEM
+             : Scope == flagcxDeviceScopeDevice ? __HIP_MEMORY_SCOPE_AGENT
+             : Scope == flagcxDeviceScopeBlock
+                 ? __HIP_MEMORY_SCOPE_WORKGROUP
+                 : __HIP_MEMORY_SCOPE_SINGLETHREAD;
+#else
+      return 0;
+#endif
+    }
+
+  public:
     template <typename T, flagcxDeviceScope_t Scope = flagcxDeviceScopeSystem>
-    static FLAGCX_DEVICE_INLINE_DECORATOR T
-    load(T *ptr, flagcxDeviceMemoryOrder_t order) {
-      using ref_t = typename ScopeHelper<T, Scope>::atomic_ref_t;
-      return ref_t{*ptr}.load(toOrder(order));
+    static FLAGCX_DEVICE_INLINE_DECORATOR T load(T *ptr,
+                                                 flagcxDeviceMemoryOrder_t) {
+#if defined(__HIP_DEVICE_COMPILE__)
+      return __hip_atomic_load(ptr, __ATOMIC_SEQ_CST, scopeCode<Scope>());
+#else
+      return __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+#endif
     }
 
     template <typename T, flagcxDeviceScope_t Scope = flagcxDeviceScopeSystem>
     static FLAGCX_DEVICE_INLINE_DECORATOR void
-    store(T *ptr, const T &val, flagcxDeviceMemoryOrder_t order) {
-      using ref_t = typename ScopeHelper<T, Scope>::atomic_ref_t;
-      ref_t{*ptr}.store(val, toOrder(order));
+    store(T *ptr, const T &val, flagcxDeviceMemoryOrder_t) {
+#if defined(__HIP_DEVICE_COMPILE__)
+      __hip_atomic_store(ptr, val, __ATOMIC_SEQ_CST, scopeCode<Scope>());
+#else
+      __atomic_store_n(ptr, val, __ATOMIC_SEQ_CST);
+#endif
     }
 
     template <typename T, flagcxDeviceScope_t Scope = flagcxDeviceScopeSystem>
     static FLAGCX_DEVICE_INLINE_DECORATOR T
-    fetchAdd(T *ptr, const T &val, flagcxDeviceMemoryOrder_t order) {
-      using ref_t = typename ScopeHelper<T, Scope>::atomic_ref_t;
-      return ref_t{*ptr}.fetch_add(val, toOrder(order));
+    fetchAdd(T *ptr, const T &val, flagcxDeviceMemoryOrder_t) {
+#if defined(__HIP_DEVICE_COMPILE__)
+      return __hip_atomic_fetch_add(ptr, val, __ATOMIC_SEQ_CST,
+                                    scopeCode<Scope>());
+#else
+      return __atomic_fetch_add(ptr, val, __ATOMIC_SEQ_CST);
+#endif
     }
 
     template <typename T, flagcxDeviceScope_t Scope = flagcxDeviceScopeSystem>
     static FLAGCX_DEVICE_INLINE_DECORATOR T
     fetchSub(T *ptr, const T &val, flagcxDeviceMemoryOrder_t order) {
-      using ref_t = typename ScopeHelper<T, Scope>::atomic_ref_t;
-      return ref_t{*ptr}.fetch_sub(val, toOrder(order));
+      return fetchAdd<T, Scope>(ptr, T{} - val, order);
+    }
+
+    template <typename T, flagcxDeviceScope_t Scope = flagcxDeviceScopeSystem>
+    static FLAGCX_DEVICE_INLINE_DECORATOR T fetchOr(T *ptr, const T &val,
+                                                    flagcxDeviceMemoryOrder_t) {
+#if defined(__HIP_DEVICE_COMPILE__)
+      return __hip_atomic_fetch_or(ptr, val, __ATOMIC_SEQ_CST,
+                                   scopeCode<Scope>());
+#else
+      return __atomic_fetch_or(ptr, val, __ATOMIC_SEQ_CST);
+#endif
     }
 
     template <typename T, flagcxDeviceScope_t Scope = flagcxDeviceScopeSystem>
     static FLAGCX_DEVICE_INLINE_DECORATOR T
-    fetchOr(T *ptr, const T &val, flagcxDeviceMemoryOrder_t order) {
-      using ref_t = typename ScopeHelper<T, Scope>::atomic_ref_t;
-      return ref_t{*ptr}.fetch_or(val, toOrder(order));
+    fetchAnd(T *ptr, const T &val, flagcxDeviceMemoryOrder_t) {
+#if defined(__HIP_DEVICE_COMPILE__)
+      return __hip_atomic_fetch_and(ptr, val, __ATOMIC_SEQ_CST,
+                                    scopeCode<Scope>());
+#else
+      return __atomic_fetch_and(ptr, val, __ATOMIC_SEQ_CST);
+#endif
     }
 
     template <typename T, flagcxDeviceScope_t Scope = flagcxDeviceScopeSystem>
     static FLAGCX_DEVICE_INLINE_DECORATOR T
-    fetchAnd(T *ptr, const T &val, flagcxDeviceMemoryOrder_t order) {
-      using ref_t = typename ScopeHelper<T, Scope>::atomic_ref_t;
-      return ref_t{*ptr}.fetch_and(val, toOrder(order));
-    }
-
-    template <typename T, flagcxDeviceScope_t Scope = flagcxDeviceScopeSystem>
-    static FLAGCX_DEVICE_INLINE_DECORATOR T
-    exchange(T *ptr, const T &val, flagcxDeviceMemoryOrder_t order) {
-      using ref_t = typename ScopeHelper<T, Scope>::atomic_ref_t;
-      return ref_t{*ptr}.exchange(val, toOrder(order));
+    exchange(T *ptr, const T &val, flagcxDeviceMemoryOrder_t) {
+#if defined(__HIP_DEVICE_COMPILE__)
+      return __hip_atomic_exchange(ptr, val, __ATOMIC_SEQ_CST,
+                                   scopeCode<Scope>());
+#else
+      return __atomic_exchange_n(ptr, val, __ATOMIC_SEQ_CST);
+#endif
     }
 
     template <typename T, flagcxDeviceScope_t Scope = flagcxDeviceScopeSystem>
     static FLAGCX_DEVICE_INLINE_DECORATOR bool
     compareExchange(T *ptr, T &expected, const T &desired,
-                    flagcxDeviceMemoryOrder_t order) {
-      using ref_t = typename ScopeHelper<T, Scope>::atomic_ref_t;
-      return ref_t{*ptr}.compare_exchange_strong(expected, desired,
-                                                 toOrder(order));
+                    flagcxDeviceMemoryOrder_t) {
+#if defined(__HIP_DEVICE_COMPILE__)
+      return __hip_atomic_compare_exchange_strong(
+          ptr, &expected, desired, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST,
+          scopeCode<Scope>());
+#else
+      return __atomic_compare_exchange_n(ptr, &expected, desired, false,
+                                         __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+#endif
     }
-
-  private:
-    static FLAGCX_DEVICE_INLINE_DECORATOR cuda::memory_order
-    toOrder(flagcxDeviceMemoryOrder_t o) {
-      FLAGCX_MAYBE_UNUSED static FLAGCX_DEVICE_CONSTANT_DECORATOR
-          cuda::memory_order map[] = {
-              cuda::memory_order_relaxed, cuda::memory_order_acquire,
-              cuda::memory_order_release, cuda::memory_order_acq_rel,
-              cuda::memory_order_seq_cst};
-      return map[o];
-    }
-
-  public:
-    // Public conversion helpers for vendor code that passes native enums
-    // to NCCL/CUDA functions.
-    static FLAGCX_DEVICE_INLINE_DECORATOR cuda::memory_order
-    toNativeOrder(flagcxDeviceMemoryOrder_t o) {
-      return toOrder(o);
-    }
-
-    static FLAGCX_DEVICE_INLINE_DECORATOR cuda::thread_scope
-    toNativeScope(flagcxDeviceScope_t s) {
-      FLAGCX_MAYBE_UNUSED static FLAGCX_DEVICE_CONSTANT_DECORATOR
-          cuda::thread_scope map[] = {
-              cuda::thread_scope_system, cuda::thread_scope_device,
-              cuda::thread_scope_block, cuda::thread_scope_thread};
-      return map[s];
-    }
-
-  private:
-    // Scope dispatch helper
-    template <typename T, flagcxDeviceScope_t Scope>
-    struct ScopeHelper;
-
-    template <typename T>
-    struct ScopeHelper<T, flagcxDeviceScopeSystem> {
-      using atomic_ref_t = cuda::atomic_ref<T, cuda::thread_scope_system>;
-    };
-
-    template <typename T>
-    struct ScopeHelper<T, flagcxDeviceScopeDevice> {
-      using atomic_ref_t = cuda::atomic_ref<T, cuda::thread_scope_device>;
-    };
-
-    template <typename T>
-    struct ScopeHelper<T, flagcxDeviceScopeBlock> {
-      using atomic_ref_t = cuda::atomic_ref<T, cuda::thread_scope_block>;
-    };
-
-    template <typename T>
-    struct ScopeHelper<T, flagcxDeviceScopeThread> {
-      using atomic_ref_t = cuda::atomic_ref<T, cuda::thread_scope_thread>;
-    };
   };
 
   // ==============================================================

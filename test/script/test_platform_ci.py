@@ -12,6 +12,193 @@ HYGON_ENV = REPO_ROOT / ".github/scripts/set_env/hygon.sh"
 
 
 class PlatformCiRegressionTest(unittest.TestCase):
+    def test_gpu_ci_world_uses_four_ranks(self):
+        for platform in ("cuda", "metax", "hygon", "ppu"):
+            with self.subTest(platform=platform):
+                source = (
+                    REPO_ROOT / f".github/scripts/set_env/{platform}.sh"
+                ).read_text()
+                self.assertIn("FLAGCX_CI_INTRA_NP=4", source)
+                self.assertIn("FLAGCX_CI_NODE_NP=2", source)
+                self.assertIn("FLAGCX_CI_RUNNER_NP=4", source)
+                self.assertIn("export NP=4", source)
+
+        perf_workflow = (REPO_ROOT / ".github/workflows/test.yml").read_text()
+        torch_script = (REPO_ROOT / "test/script/torch_api_test.sh").read_text()
+        device_makefile = (
+            REPO_ROOT / "test/unittest/device_api/Makefile"
+        ).read_text()
+        self.assertNotIn("mpirun -np 8", perf_workflow)
+        self.assertNotIn("-n 8", device_makefile)
+        self.assertNotIn("-n 4 $(HETERO_ENV)", device_makefile)
+        self.assertIn("--nproc_per_node 4", torch_script)
+        self.assertIn("-n 2 $(HETERO_ENV)", device_makefile)
+
+    def test_device_kernel_sources_use_the_selected_platform(self):
+        for platform, adaptor in (
+            ("nvidia", "nvidia_adaptor.h"),
+            ("du", "du_adaptor.h"),
+            ("iluvatar", "iluvatar_adaptor.h"),
+        ):
+            suffix = "hip" if platform == "du" else "cu"
+            for kernel in (f"device_api.{suffix}", f"device_ir.{suffix}"):
+                source = (REPO_ROOT / "test/kernel" / platform / kernel).read_text()
+                self.assertIn(f'#include "{adaptor}"', source)
+                self.assertNotIn('../nvidia/', source)
+                self.assertNotIn('USE_ILUVATAR_ADAPTOR', source)
+
+        corex_api = (REPO_ROOT / "test/kernel/iluvatar/device_api.cu").read_text()
+        self.assertIn("flagcxIluvatarAtomicContractKernel", corex_api)
+        self.assertIn("flagcxIluvatarUnsupportedCoopKernel", corex_api)
+
+    def test_hygon_device_api_build_and_suite_configuration(self):
+        suite_dir = REPO_ROOT / "test/unittest/device_api"
+        result = subprocess.run(
+            [
+                "make", "-n", "-C", str(suite_dir), "mpi",
+                "USE_DU=1", "USE_SHCA=1",
+                "DEVICE_HOME=/opt/dtk",
+                "CCL_HOME=/opt/dtk",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        for target in (
+            "test_device_api_intra", "test_device_api_inter",
+            "test_device_ir_intra", "test_device_ir_inter",
+            "test_device_ir_unified_intra", "test_device_ir_unified_inter",
+        ):
+            self.assertIn(target, result.stdout)
+        self.assertIn("-DUSE_DU_ADAPTOR", result.stdout)
+        for kernel in ("device_api.hip", "device_ir.hip"):
+            compile_line = next(
+                line for line in result.stdout.splitlines()
+                if "/bin/hipcc " in line and kernel in line
+            )
+            self.assertNotIn("-Xcompiler -fPIC", compile_line)
+        for target in (
+            "test_device_api_intra", "test_device_api_inter",
+            "test_device_ir_intra", "test_device_ir_inter",
+            "test_device_ir_unified_intra", "test_device_ir_unified_inter",
+        ):
+            compile_line = next(
+                line for line in result.stdout.splitlines()
+                if line.startswith("/opt/dtk/bin/hipcc ")
+                and f"/obj/{target}.o " in line
+            )
+            self.assertIn(" -c ", compile_line)
+            self.assertIn(f"{target}.cpp", compile_line)
+            link_line = next(
+                line for line in result.stdout.splitlines()
+                if line.startswith("/opt/dtk/bin/hipcc ") and f"/bin/{target} " in line
+            )
+            self.assertIn("-no-pie", link_line)
+            self.assertIn(f"/obj/{target}.o", link_line)
+            self.assertNotIn(".cpp", link_line)
+
+        rma_result = subprocess.run(
+            [
+                "make", "-n", "-C", str(REPO_ROOT / "test/unittest/rma"),
+                "USE_DU=1", "USE_SHCA=1",
+                "DEVICE_HOME=/opt/dtk", "CCL_HOME=/opt/dtk",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        for source in (
+            "test_rma_post_result.cpp",
+            "test_signal_registration_ownership.cpp",
+        ):
+            compile_line = next(
+                line for line in rma_result.stdout.splitlines()
+                if source in line and " -c " in line
+            )
+            self.assertTrue(compile_line.startswith("g++ "))
+            self.assertNotIn("-fgpu-rdc", compile_line)
+        unit_link_line = next(
+            line for line in rma_result.stdout.splitlines()
+            if "/bin/rma_unit_tests " in line
+        )
+        self.assertTrue(unit_link_line.startswith("g++ "))
+
+        kernel_result = subprocess.run(
+            [
+                "make", "-n", "-C", str(REPO_ROOT / "test/unittest/kernel"),
+                "all", "USE_DU=1", "USE_SHCA=1",
+                "DEVICE_HOME=/opt/dtk", "CCL_HOME=/opt/dtk",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        kernel_unit_link = next(
+            line for line in kernel_result.stdout.splitlines()
+            if "/bin/kernel_unit_tests " in line
+        )
+        self.assertTrue(kernel_unit_link.startswith("g++ "))
+        kernel_mpi_link = next(
+            line for line in kernel_result.stdout.splitlines()
+            if "/bin/kernel_mpi_tests " in line
+        )
+        self.assertTrue(kernel_mpi_link.startswith("/opt/dtk/bin/hipcc "))
+        self.assertIn("-fgpu-rdc", kernel_mpi_link)
+        self.assertIn("-no-pie", kernel_mpi_link)
+        self.assertIn("/du/build/obj/device_api.o", kernel_mpi_link)
+        self.assertNotIn(".cpp", kernel_mpi_link)
+
+        perf_result = subprocess.run(
+            [
+                "make", "-n", "-C", str(REPO_ROOT / "test/perf/device_api"),
+                "all", "USE_DU=1", "USE_SHCA=1",
+                "DEVICE_HOME=/opt/dtk", "CCL_HOME=/opt/dtk",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        for source in sorted((REPO_ROOT / "test/perf/device_api").glob("test_*.cpp")):
+            target = source.stem.removeprefix("test_")
+            compile_line = next(
+                line for line in perf_result.stdout.splitlines()
+                if f"/obj/perf_{target}.o " in line and " -c " in line
+            )
+            self.assertTrue(compile_line.startswith("g++ "))
+            link_line = next(
+                line for line in perf_result.stdout.splitlines()
+                if f"/bin/perf_{target} " in line
+            )
+            self.assertTrue(link_line.startswith("/opt/dtk/bin/hipcc "))
+            self.assertIn("-fgpu-rdc", link_line)
+            self.assertIn("-no-pie", link_line)
+            self.assertIn(f"/obj/perf_{target}.o", link_line)
+            self.assertIn("/du/build/obj/device_api.o", link_line)
+            self.assertNotIn(".cpp", link_line)
+
+        for suite in ("device_api", "device_api_unified_ir"):
+            configured = subprocess.run(
+                [
+                    "bash", "-c",
+                    'source "$1"; flagcx_ci_configure_suite "$2"; '
+                    'flagcx_ci_build_suite_override "$2" ""; '
+                    'build_handled=$FLAGCX_CI_BUILD_SUITE_OVERRIDE_HANDLED; '
+                    'flagcx_ci_run_suite_override "$2" ""; '
+                    'printf "%s %s %s %s %s %s %s" "$FLAGCX_CI_NODE_NP" '
+                    '"$FLAGCX_CI_INTRA_NP" "$HIP_VISIBLE_DEVICES" '
+                    '"$FLAGCX_IB_HCA" '
+                    '"${FLAGCX_CI_PROJECT_MAKE_ARGS[*]}" '
+                    '"$build_handled" "$FLAGCX_CI_RUN_SUITE_OVERRIDE_HANDLED"',
+                    "bash", str(HYGON_ENV), suite,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertIn("2 4 0,1,6,7 shca_0,shca_3", configured.stdout)
+            self.assertIn("COMPILE_KERNEL=1", configured.stdout)
+            self.assertTrue(configured.stdout.endswith(" 0 0"))
+
     def _run_platform_matrix(
         self, event_name, changed_files="", configs_dir=None
     ):
@@ -44,7 +231,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
         )
         self.assertEqual(
             self._run_platform_matrix(
-                "pull_request", "flagcx/adaptor/device/ducuda_adaptor.cc"
+                "pull_request", "flagcx/adaptor/device/duhip_adaptor.cc"
             ),
             ["hygon"],
         )
@@ -82,7 +269,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
                 "hardware_name: hygon\n"
                 "display_name: Hygon\n"
                 "paths_watch:\n"
-                "  - flagcx/adaptor/device/ducuda_adaptor.cc\n"
+                "  - flagcx/adaptor/device/duhip_adaptor.cc\n"
             )
             self.assertEqual(
                 self._run_platform_matrix(
@@ -93,7 +280,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
             self.assertEqual(
                 self._run_platform_matrix(
                     "pull_request",
-                    "flagcx/adaptor/device/ducuda_adaptor.cc",
+                    "flagcx/adaptor/device/duhip_adaptor.cc",
                     configs_dir,
                 ),
                 ["cuda"],
@@ -110,6 +297,10 @@ class PlatformCiRegressionTest(unittest.TestCase):
         self.assertIn("branches: [dev]", unit_trigger)
         self.assertNotIn("pull_request:", unit_trigger)
         self.assertNotIn("branches: [main]", unit_trigger)
+
+        pipeline = ci_workflow[ci_workflow.index("\n  platform-pipeline:") :]
+        self.assertIn("needs: generate-matrix", pipeline)
+        self.assertIn("needs.generate-matrix.outputs.platforms != '[]'", pipeline)
 
     def test_hygon_builds_ibrc_with_shca_abi(self):
         hygon_env = HYGON_ENV.read_text()
@@ -182,8 +373,8 @@ class PlatformCiRegressionTest(unittest.TestCase):
                 "compile-ibuc",
                 "USE_DU=1",
                 "USE_SHCA=1",
-                "DEVICE_HOME=/opt/dtk/cuda/cuda-12",
-                "CCL_HOME=/opt/dtk/cuda/cuda-12",
+                "DEVICE_HOME=/opt/dtk",
+                "CCL_HOME=/opt/dtk",
             ],
             check=True,
             capture_output=True,
@@ -229,12 +420,16 @@ class PlatformCiRegressionTest(unittest.TestCase):
         self.assertIn(
             "FLAGCX_CI_HYGON_FOUR_GPU_DEVICES=0,1,6,7", hygon_env
         )
+        self.assertIn("FLAGCX_CI_PXN_VISIBLE_DEVICES=2,0,6,7", hygon_env)
+        self.assertIn("FLAGCX_CI_PXN_HCAS=shca_0,shca_3", hygon_env)
+        self.assertIn("FLAGCX_CI_RUNNER_NP=4", hygon_env)
+        self.assertIn("export NP=4", hygon_env)
 
         configure = hygon_env[hygon_env.index("flagcx_ci_configure_suite() {") :]
         configure = configure[: configure.index("flagcx_ci_prepare() {")]
         self.assertIn("p2p|rma)", configure)
         self.assertIn(
-            'export CUDA_VISIBLE_DEVICES="$FLAGCX_CI_HYGON_TWO_GPU_DEVICES"',
+            'export HIP_VISIBLE_DEVICES="$FLAGCX_CI_HYGON_TWO_GPU_DEVICES"',
             configure,
         )
         self.assertIn(
@@ -243,11 +438,10 @@ class PlatformCiRegressionTest(unittest.TestCase):
         )
         self.assertIn('runner|symmem)', configure)
         self.assertIn(
-            'export CUDA_VISIBLE_DEVICES="$FLAGCX_CI_HYGON_FOUR_GPU_DEVICES"',
+            'export HIP_VISIBLE_DEVICES="$FLAGCX_CI_HYGON_FOUR_GPU_DEVICES"',
             configure,
         )
-        self.assertIn("FLAGCX_CI_RUNNER_NP=4", configure)
-        self.assertIn("export NP=4", configure)
+        self.assertNotIn("FLAGCX_CI_RUNNER_NP=8", configure)
 
     def test_cuda_runs_ibuc_after_ibrc_in_adaptor_suite(self):
         cuda_config = (REPO_ROOT / ".github/configs/cuda.yml").read_text()
@@ -386,11 +580,11 @@ class PlatformCiRegressionTest(unittest.TestCase):
         unit_workflow = (
             REPO_ROOT / ".github/workflows/unit-test.yml"
         ).read_text()
-        self.assertIn(
-            "FLAGCX_CI_PLATFORM: ${{ github.event.inputs.platform || 'all' }}",
-            unit_workflow,
-        )
-        self.assertNotIn("pull_request.number == 648", unit_workflow)
+        ci_workflow = (REPO_ROOT / ".github/workflows/ci.yml").read_text()
+        self.assertNotIn("pull_request.number == 643", ci_workflow)
+        self.assertIn(".github/scripts/ci/generate_matrix.py", ci_workflow)
+        self.assertIn("github.event.inputs.platform || 'all'", unit_workflow)
+        self.assertNotIn("pull_request.number == 643", unit_workflow)
 
         expected_suites = {
             "cuda": [
@@ -408,6 +602,9 @@ class PlatformCiRegressionTest(unittest.TestCase):
             "hygon": [
                 "adaptor",
                 "core",
+                "device_api",
+                "device_api_host",
+                "device_api_unified_ir",
                 "p2p",
                 "rma",
                 "runner",
@@ -466,61 +663,97 @@ class PlatformCiRegressionTest(unittest.TestCase):
         torch_workflow = (
             REPO_ROOT / ".github/workflows/torch-api-test.yml"
         ).read_text()
-
-        hygon_perf = perf_workflow[perf_workflow.index("  perf-test-hygon:") :]
-        hygon_perf = hygon_perf[: hygon_perf.index("  perf-test-cuda:")]
-        metax_perf = perf_workflow[perf_workflow.index("  perf-test-metax:") :]
-        metax_perf = metax_perf[: metax_perf.index("  perf-test-ppu:")]
         hygon_handler = (
             REPO_ROOT / ".github/scripts/ci/run_hygon_workload.sh"
         ).read_text()
-        self.assertIn("hygon perf", hygon_perf)
+        metax_handler = (
+            REPO_ROOT / ".github/scripts/ci/run_metax_workload.sh"
+        ).read_text()
+        self.assertIn("hygon perf", perf_workflow)
         self.assertIn('"$perf_runner" homogeneous "$perf_bin"', hygon_handler)
         self.assertIn('"$perf_runner" heterogeneous "$perf_bin"', hygon_handler)
+        self.assertIn("metax perf", perf_workflow)
+        self.assertIn('run_host_perf_suite.sh" heterogeneous "$perf_bin"', metax_handler)
 
-        self.assertIn("Perf tests (MetaX uniRunner 8-chip)", metax_perf)
-        self.assertIn("run_host_perf_suite.sh heterogeneous", metax_perf)
-
-        hygon_torch = torch_workflow[
-            torch_workflow.index("  torch-api-test-hygon:") :
-        ]
-        hygon_torch = hygon_torch[: hygon_torch.index("  torch-api-test-cuda:")]
-        metax_torch = torch_workflow[
-            torch_workflow.index("  torch-api-test-metax:") :
-        ]
-        metax_torch = metax_torch[: metax_torch.index("  torch-api-test-ppu:")]
-        self.assertIn("hygon torch-api", hygon_torch)
+        self.assertIn("hygon torch-api", torch_workflow)
         self.assertIn("unset FLAGCX_SKIP_HETERO", hygon_handler)
-        self.assertNotIn("FLAGCX_USE_HETERO_COMM", metax_torch)
+        self.assertIn("metax torch-api", torch_workflow)
+        self.assertNotIn("export FLAGCX_USE_HETERO_COMM", metax_handler)
+
+    def test_perf_and_torch_jobs_use_platform_configured_images(self):
+        perf_workflow = (REPO_ROOT / ".github/workflows/test.yml").read_text()
+        torch_workflow = (
+            REPO_ROOT / ".github/workflows/torch-api-test.yml"
+        ).read_text()
+        for workflow, workload in (
+            (perf_workflow, "perf"),
+            (torch_workflow, "torch-api"),
+        ):
+            self.assertNotIn("container:", workflow)
+            self.assertNotIn("image: harbor.baai.ac.cn", workflow)
+            for platform in ("cuda", "metax", "hygon", "ppu"):
+                with self.subTest(workload=workload, platform=platform):
+                    self.assertIn(
+                        f"ruby .github/scripts/ci/load_platform_config.rb {platform}",
+                        workflow,
+                    )
+                    self.assertIn(
+                        f"FLAGCX_CI_IMAGE: "
+                        f"${{{{ needs.load-hardware-container-configs.outputs.{platform}_ci_image }}}}",
+                        workflow,
+                    )
+                    self.assertIn(f"{platform} {workload}", workflow)
+                    self.assertIn(
+                        f"runs-on: "
+                        f"${{{{ fromJSON(needs.load-hardware-container-configs.outputs.{platform}_runs_on) }}}}",
+                        workflow,
+                    )
+
+        self.assertIn("  perf-test:\n", perf_workflow)
+        self.assertIn("cuda perf-legacy", perf_workflow)
+        self.assertNotIn("cuda_legacy_perf_runs_on", perf_workflow)
+        legacy_perf_job = perf_workflow.split("  perf-test:\n", 1)[1].split(
+            "\n  perf-test-hygon:", 1
+        )[0]
+        self.assertIn(
+            "runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.cuda_runs_on) }}",
+            legacy_perf_job,
+        )
+        self.assertIn("timeout-minutes: 240", legacy_perf_job)
+        self.assertNotIn("\n  torch-api-test:\n", torch_workflow)
+
+        for platform in ("cuda", "metax", "hygon", "ppu"):
+            handler = (
+                REPO_ROOT / f".github/scripts/ci/run_{platform}_workload.sh"
+            ).read_text()
+            self.assertIn('source "$project_root/$FLAGCX_CI_SET_ENV"', handler)
+        cuda_handler = (
+            REPO_ROOT / ".github/scripts/ci/run_cuda_workload.sh"
+        ).read_text()
+        self.assertIn(
+            'source "$project_root/.github/scripts/ci/run_cuda_legacy_perf.sh"',
+            cuda_handler,
+        )
 
     def test_p2p_perf_keeps_legacy_write_and_runs_shared_read(self):
         perf_workflow = (REPO_ROOT / ".github/workflows/test.yml").read_text()
-        default_perf = perf_workflow[perf_workflow.index("  perf-test:") :]
-        default_perf = default_perf[: default_perf.index("  perf-test-hygon:")]
-
-        legacy_name = "P2P Engine perf (legacy GPU WRITE)"
-        shared_build_name = "Build shared P2P Engine perf"
-        shared_read_name = "P2P shared Engine perf (GPU READ)"
-        self.assertIn(legacy_name, default_perf)
-        self.assertIn(shared_build_name, default_perf)
-        self.assertIn(shared_read_name, default_perf)
-        legacy_step = default_perf[
-            default_perf.index(legacy_name) : default_perf.index(shared_build_name)
-        ]
-        shared_build_step = default_perf[
-            default_perf.index(shared_build_name) : default_perf.index(shared_read_name)
-        ]
-        shared_read_step = default_perf[default_perf.index(shared_read_name) :]
-
-        self.assertIn("FLAGCX_P2P_PERF_OP=write", legacy_step)
-        self.assertIn("$PERF_BIN/perf_p2p_engine", legacy_step)
-        self.assertNotIn("FLAGCX_P2P_PERF_OP=read", legacy_step)
-        self.assertIn("USE_SHARED_P2P_ENGINE=1", shared_build_step)
-        self.assertIn("FLAGCX_LIB=$PWD/build-p2p-shared/lib", shared_build_step)
-        self.assertIn("FLAGCX_P2P_PERF_OP=read", shared_read_step)
-        self.assertIn("/build-p2p-shared/bin/perf_p2p_engine", shared_read_step)
-        self.assertIn("/build-p2p-shared/lib:$LD_LIBRARY_PATH", shared_read_step)
-        self.assertNotIn("FLAGCX_GDR_READ_REQUIRES_FLUSH=0", default_perf)
+        legacy_perf = (
+            REPO_ROOT / ".github/scripts/ci/run_cuda_legacy_perf.sh"
+        ).read_text()
+        self.assertIn("cuda perf-legacy", perf_workflow)
+        self.assertIn('run_host_perf_suite.sh" homogeneous "$perf_bin"', legacy_perf)
+        self.assertIn('"$perf_bin/perf_allreduce"', legacy_perf)
+        self.assertIn("for operation in put get", legacy_perf)
+        self.assertIn('"$perf_bin/perf_$operation"', legacy_perf)
+        self.assertIn('"$device_api_bin/perf_allreduce_intranode"', legacy_perf)
+        self.assertIn('"$device_api_bin/perf_internode_onesided"', legacy_perf)
+        self.assertIn("FLAGCX_P2P_PERF_OP=write", legacy_perf)
+        self.assertIn("USE_SHARED_P2P_ENGINE=1", legacy_perf)
+        self.assertIn('FLAGCX_LIB="$shared_project_build/lib"', legacy_perf)
+        self.assertIn("FLAGCX_P2P_PERF_OP=read", legacy_perf)
+        self.assertIn('"$shared_test_build/bin/perf_p2p_engine"', legacy_perf)
+        self.assertIn('LD_LIBRARY_PATH="$shared_project_build/lib:$LD_LIBRARY_PATH"', legacy_perf)
+        self.assertNotIn("FLAGCX_GDR_READ_REQUIRES_FLUSH=0", legacy_perf)
 
     def test_rma_visibility_conformance_covers_supported_routes_and_policies(self):
         unit_runner = (
@@ -631,7 +864,10 @@ class PlatformCiRegressionTest(unittest.TestCase):
             REPO_ROOT / "test/script/symmem_test.sh"
         ).read_text()
 
-        self.assertIn('adaptor|p2p|rma|runner|symmem)', unit_runner)
+        self.assertIn(
+            'adaptor|p2p|rma|runner|symmem|device_api|device_api_unified_ir)',
+            unit_runner,
+        )
         self.assertIn('FLAGCX_CI_MPI_LABEL="symmem IPC local"', symmem_runner)
         self.assertIn('FLAGCX_CI_MPI_LABEL="symmem VMM local"', symmem_runner)
         self.assertIn('FLAGCX_VMM_ENABLE=1', symmem_runner)
@@ -746,7 +982,8 @@ class PlatformCiRegressionTest(unittest.TestCase):
             source = (
                 REPO_ROOT / f".github/scripts/set_env/{platform}.sh"
             ).read_text()
-            self.assertIn("  - symmem", config)
+            if platform != "hygon":
+                self.assertIn("  - symmem", config)
             self.assertIn("FLAGCX_CI_NODE1_MPI_ARGS=(", source)
             self.assertIn("FLAGCX_CI_NODE2_MPI_ARGS=(", source)
 
@@ -838,7 +1075,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
         adaptor_sources = (
             "cuda_adaptor.cc",
             "maca_adaptor.cc",
-            "ducuda_adaptor.cc",
+            "duhip_adaptor.cc",
             "ppu_cuda_adaptor.cc",
         )
         for filename in adaptor_sources:
@@ -854,27 +1091,25 @@ class PlatformCiRegressionTest(unittest.TestCase):
             self.assertIn("MemGetHandleForAddressRange", source, filename)
             self.assertNotIn("GetAllocationVmmMrCaps", source, filename)
 
-        # The DCU CUDA compatibility layer aborts instead of returning an
+        # The DCU HIP runtime aborts instead of returning an
         # unsupported status for NVIDIA-only attributes 110 and 124.  Its
         # strict DMA-BUF/VA CI invocations probe the real operations instead.
-        ducuda = (
-            REPO_ROOT / "flagcx/adaptor/device/ducuda_adaptor.cc"
+        duhip = (
+            REPO_ROOT / "flagcx/adaptor/device/duhip_adaptor.cc"
         ).read_text()
         self.assertNotIn(
             "CU_DEVICE_ATTRIBUTE_GPU_DIRECT_RDMA_WITH_CUDA_VMM_SUPPORTED",
-            ducuda,
+            duhip,
         )
-        self.assertNotIn("CU_DEVICE_ATTRIBUTE_DMA_BUF_SUPPORTED", ducuda)
-        gdr_alloc = ducuda[
-            ducuda.index("flagcxResult_t ducudaAdaptorGdrMemAlloc") :
-            ducuda.index("flagcxResult_t ducudaAdaptorGdrMemFree")
+        self.assertNotIn("CU_DEVICE_ATTRIBUTE_DMA_BUF_SUPPORTED", duhip)
+        gdr_alloc = duhip[
+            duhip.index("flagcxResult_t duhipAdaptorGdrMemAlloc") :
+            duhip.index("flagcxResult_t duhipAdaptorGdrMemFree")
         ]
         self.assertNotIn("mrCaps", gdr_alloc)
-        dma_support = ducuda[
-            ducuda.index("flagcxResult_t ducudaAdaptorDmaSupport") :
-            ducuda.index(
-                "flagcxResult_t ducudaAdaptorMemGetHandleForAddressRange"
-            )
+        dma_support = duhip[
+            duhip.index("flagcxResult_t duhipAdaptorDmaSupport") :
+            duhip.index("duhipAdaptorMemGetHandleForAddressRange")
         ]
         self.assertIn("*dmaBufferSupport = true", dma_support)
 
@@ -925,88 +1160,88 @@ class PlatformCiRegressionTest(unittest.TestCase):
         self.assertIn("routeSucceeded[1]", mpi_route_tests)
 
     def test_hygon_flat_vmm_cleanup_tracks_and_unmaps_individual_slots(self):
-        ducuda = (
-            REPO_ROOT / "flagcx/adaptor/device/ducuda_adaptor.cc"
+        duhip = (
+            REPO_ROOT / "flagcx/adaptor/device/duhip_adaptor.cc"
         ).read_text()
         self.assertIn(
-            "CUmemGenericAllocationHandle handle;",
-            ducuda[ducuda.index("struct DucudaVmmAllocation") :],
+            "hipMemGenericAllocationHandle_t handle;",
+            duhip[duhip.index("struct DuhipVmmAllocation") :],
         )
         self.assertIn(
             "bool handleOwned;",
-            ducuda[ducuda.index("struct DucudaVmmAllocation") :],
+            duhip[duhip.index("struct DuhipVmmAllocation") :],
         )
-        self.assertIn("struct DucudaSymPhysHandle", ducuda)
-        self.assertIn("bool releaseOwned;", ducuda)
+        self.assertIn("struct DuhipSymPhysHandle", duhip)
+        self.assertIn("bool releaseOwned;", duhip)
 
-        gdr_alloc = ducuda[
-            ducuda.index("flagcxResult_t ducudaAdaptorGdrMemAlloc") :
-            ducuda.index("flagcxResult_t ducudaAdaptorGdrMemFree")
+        gdr_alloc = duhip[
+            duhip.index("flagcxResult_t duhipAdaptorGdrMemAlloc") :
+            duhip.index("flagcxResult_t duhipAdaptorGdrMemFree")
         ]
         self.assertNotIn(
-            "if (cuMemRelease(handle) != CUDA_SUCCESS)", gdr_alloc
+            "if (hipMemRelease(handle) != hipSuccess)", gdr_alloc
         )
         self.assertIn(
-            "DucudaVmmAllocation{handle,allocSize,true,true,true}",
+            "DuhipVmmAllocation{handle,allocSize,true,true,true}",
             "".join(gdr_alloc.split()),
         )
 
-        gdr_free = ducuda[
-            ducuda.index("flagcxResult_t ducudaAdaptorGdrMemFree") :
-            ducuda.index("flagcxResult_t ducudaAdaptorStreamCreate")
+        gdr_free = duhip[
+            duhip.index("flagcxResult_t duhipAdaptorGdrMemFree") :
+            duhip.index("flagcxResult_t duhipAdaptorStreamCreate")
         ]
         self.assertLess(
-            gdr_free.index("cuMemUnmap"),
-            gdr_free.index("cuMemRelease(allocation.handle)"),
+            gdr_free.index("hipMemUnmap"),
+            gdr_free.index("hipMemRelease(allocation.handle)"),
         )
         self.assertLess(
-            gdr_free.index("cuMemAddressFree"),
-            gdr_free.index("cuMemRelease(allocation.handle)"),
+            gdr_free.index("hipMemAddressFree"),
+            gdr_free.index("hipMemRelease(allocation.handle)"),
         )
 
-        phys_alloc = ducuda[
-            ducuda.index("flagcxResult_t ducudaAdaptorSymPhysAlloc") :
-            ducuda.index("flagcxResult_t ducudaAdaptorSymPhysFree")
+        phys_alloc = duhip[
+            duhip.index("flagcxResult_t duhipAdaptorSymPhysAlloc") :
+            duhip.index("flagcxResult_t duhipAdaptorSymPhysFree")
         ]
         self.assertLess(
-            phys_alloc.index("cuMemGetAddressRange"),
-            phys_alloc.index("cuMemRetainAllocationHandle"),
+            phys_alloc.index("hipMemGetAddressRange"),
+            phys_alloc.index("hipMemRetainAllocationHandle"),
         )
-        self.assertIn("gDucudaVmmAllocations.find", phys_alloc)
+        self.assertIn("gDuhipVmmAllocations.find", phys_alloc)
         self.assertIn("handle->handle = allocation.handle", phys_alloc)
         self.assertIn("handle->releaseOwned = false", phys_alloc)
         self.assertIn("handle->releaseOwned = true", phys_alloc)
 
-        phys_free = ducuda[
-            ducuda.index("flagcxResult_t ducudaAdaptorSymPhysFree") :
-            ducuda.index("flagcxResult_t ducudaAdaptorSymFlatMappingUnmap")
+        phys_free = duhip[
+            duhip.index("flagcxResult_t duhipAdaptorSymPhysFree") :
+            duhip.index("flagcxResult_t duhipAdaptorSymFlatMappingUnmap")
         ]
-        self.assertIn("ducudaSymPhysHandleDestroy", phys_free)
-        destroy = ducuda[
-            ducuda.index("ducudaSymPhysHandleDestroy") :
-            ducuda.index("flagcxResult_t ducudaAdaptorSymPhysAlloc")
+        self.assertIn("duhipSymPhysHandleDestroy", phys_free)
+        destroy = duhip[
+            duhip.index("duhipSymPhysHandleDestroy") :
+            duhip.index("flagcxResult_t duhipAdaptorSymPhysAlloc")
         ]
         self.assertLess(
             destroy.index("if (physHandle->releaseOwned)"),
-            destroy.index("cuMemRelease(physHandle->handle)"),
+            destroy.index("hipMemRelease(physHandle->handle)"),
         )
 
-        self.assertIn("struct DucudaFlatMapping", ducuda)
-        self.assertIn("gDucudaFlatMappings", ducuda)
-        self.assertIn("mappedSlots", ducuda)
-        self.assertIn("importedHandleOwned", ducuda)
+        self.assertIn("struct DuhipFlatMapping", duhip)
+        self.assertIn("gDuhipFlatMappings", duhip)
+        self.assertIn("mappedSlots", duhip)
+        self.assertIn("importedHandleOwned", duhip)
 
-        flat_map = ducuda[
-            ducuda.index("flagcxResult_t ducudaAdaptorSymFlatMap(") :
-            ducuda.index("flagcxResult_t ducudaAdaptorSymFlatUnmap(")
+        flat_map = duhip[
+            duhip.index("flagcxResult_t duhipAdaptorSymFlatMap(") :
+            duhip.index("flagcxResult_t duhipAdaptorSymFlatUnmap(")
         ]
         self.assertLess(
-            flat_map.index("gDucudaFlatMappings.emplace"),
-            flat_map.index("cuMemImportFromShareableHandle"),
+            flat_map.index("gDuhipFlatMappings.emplace"),
+            flat_map.index("hipMemImportFromShareableHandle"),
         )
         self.assertLess(
             flat_map.index("*flatBase = (void *)base"),
-            flat_map.index("cuMemImportFromShareableHandle"),
+            flat_map.index("hipMemImportFromShareableHandle"),
         )
         for stage in (
             "stage=address-reserve",
@@ -1016,37 +1251,37 @@ class PlatformCiRegressionTest(unittest.TestCase):
         ):
             self.assertIn(stage, flat_map)
         self.assertIn("mapping.importedHandleOwned[i] = 1", flat_map)
-        self.assertNotIn("cuMemRelease(peerHandle)", flat_map)
+        self.assertNotIn("hipMemRelease(peerHandle)", flat_map)
 
-        legacy_unmap = ducuda.index(
-            "flagcxResult_t ducudaAdaptorSymFlatUnmap("
+        legacy_unmap = duhip.index(
+            "flagcxResult_t duhipAdaptorSymFlatUnmap("
         )
-        mapping_unmap_start = ducuda.index(
-            "flagcxResult_t ducudaAdaptorSymFlatMappingUnmap", legacy_unmap
+        mapping_unmap_start = duhip.index(
+            "flagcxResult_t duhipAdaptorSymFlatMappingUnmap", legacy_unmap
         )
-        va_free_start = ducuda.index(
-            "flagcxResult_t ducudaAdaptorSymFlatVaFree", mapping_unmap_start
+        va_free_start = duhip.index(
+            "flagcxResult_t duhipAdaptorSymFlatVaFree", mapping_unmap_start
         )
-        mapping_unmap = ducuda[mapping_unmap_start:va_free_start]
+        mapping_unmap = duhip[mapping_unmap_start:va_free_start]
         self.assertIn("for (int i = 0; i < nPeers; i++)", mapping_unmap)
-        self.assertIn("cuMemUnmap(slot, allocSize)", mapping_unmap)
+        self.assertIn("hipMemUnmap(slot, allocSize)", mapping_unmap)
         self.assertIn("mapping.mappedSlots[i] = 0", mapping_unmap)
-        self.assertNotIn("cuMemUnmap((CUdeviceptr)flatBase,", mapping_unmap)
+        self.assertNotIn("hipMemUnmap((hipDeviceptr_t)flatBase,", mapping_unmap)
         self.assertIn("stage=release-import", mapping_unmap)
         self.assertLess(
-            mapping_unmap.index("cuMemUnmap(slot, allocSize)"),
-            mapping_unmap.index("cuMemRelease(mapping.importedHandles[i])"),
+            mapping_unmap.index("hipMemUnmap(slot, allocSize)"),
+            mapping_unmap.index("hipMemRelease(mapping.importedHandles[i])"),
         )
 
-        va_free = ducuda[
-            va_free_start : ducuda.index(
-                "flagcxResult_t ducudaAdaptorSymMulticastSupported"
+        va_free = duhip[
+            va_free_start : duhip.index(
+                "flagcxResult_t duhipAdaptorSymMulticastSupported"
             )
         ]
         self.assertIn("mapping.mappedSlots[i]", va_free)
         self.assertIn("mapping.importedHandleOwned[i]", va_free)
-        self.assertIn("cuMemAddressFree", va_free)
-        self.assertIn("gDucudaFlatMappings.erase(it)", va_free)
+        self.assertIn("hipMemAddressFree", va_free)
+        self.assertIn("gDuhipFlatMappings.erase(it)", va_free)
 
     def test_multicast_retained_handle_extension_is_latest_only(self):
         header = (
@@ -1062,7 +1297,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
         for filename, symbol in (
             ("cuda_adaptor.cc", "cudaAdaptorSymMulticastImport"),
             ("maca_adaptor.cc", "macaAdaptorSymMulticastImport"),
-            ("ducuda_adaptor.cc", "ducudaAdaptorSymMulticastImport"),
+            ("duhip_adaptor.cc", "duhipAdaptorSymMulticastImport"),
             ("ppu_cuda_adaptor.cc", "ppucudaAdaptorSymMulticastImport"),
         ):
             source = (
@@ -1170,9 +1405,9 @@ class PlatformCiRegressionTest(unittest.TestCase):
         ppu_forced_net = ppu_forced_net[:ppu_forced_net.index("return")]
         self.assertIn("FLAGCX_CI_EXPECT_NET_ADAPTOR=BAREX", ppu_forced_net)
         self.assertIn("FLAGCX_CI_EXPECT_COLL_MULTICHANNEL=1", ppu_forced_net)
-        self.assertIn('FLAGCX_CI_MPI_LABEL="runner PPU PXN eight-rank"', ppu_forced_net)
+        self.assertIn('FLAGCX_CI_MPI_LABEL="runner PPU PXN four-rank"', ppu_forced_net)
         self.assertIn("FLAGCX_PXN_DISABLE=0", ppu_forced_net)
-        self.assertIn("FLAGCX_CI_PXN_RANKS_PER_NODE=4", ppu_forced_net)
+        self.assertIn('FLAGCX_CI_PXN_RANKS_PER_NODE="$FLAGCX_CI_NODE_NP"', ppu_forced_net)
         self.assertIn("FLAGCX_CI_EXPECT_PXN=1", ppu_forced_net)
 
     def test_p2p_ci_runs_write_only_engine_coverage(self):
@@ -1299,14 +1534,21 @@ class PlatformCiRegressionTest(unittest.TestCase):
         self.assertIn('FLAGCX_CI_EXPECT_PXN=1', runner_case)
         self.assertIn('FLAGCX_PXN_DISABLE=1', runner_case)
         self.assertIn('FLAGCX_PXN_DISABLE=0', runner_case)
-        self.assertIn('FLAGCX_CI_PXN_RANKS_PER_NODE=4', runner_case)
+        self.assertIn('FLAGCX_CI_PXN_RANKS_PER_NODE="$FLAGCX_CI_NODE_NP"', runner_case)
         pxn_case = runner_case[
             runner_case.index('if [[ "${FLAGCX_CI_ENABLE_PXN:-1}" == "1" ]]') :
         ]
-        self.assertIn('pxn_launcher+=(CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7)', pxn_case)
-        self.assertIn('-x CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7', pxn_case)
-        self.assertIn('"$MPI_RUNNER" -np 8', pxn_case)
-        self.assertIn('FLAGCX_CI_MPI_LABEL="runner $platform_name PXN eight-rank"', pxn_case)
+        self.assertIn('pxn_launcher+=(FLAGCX_IB_HCA="$FLAGCX_CI_PXN_HCAS")', pxn_case)
+        self.assertIn('-x FLAGCX_IB_HCA="$FLAGCX_CI_PXN_HCAS"', pxn_case)
+        self.assertIn('local pxn_visible_devices_var=CUDA_VISIBLE_DEVICES', pxn_case)
+        self.assertIn('if [[ "$platform_name" == "metax" ]]; then', pxn_case)
+        self.assertIn('pxn_visible_devices_var=MACA_VISIBLE_DEVICES', pxn_case)
+        self.assertIn('elif [[ "$platform_name" == "hygon" ]]; then', pxn_case)
+        self.assertIn('pxn_visible_devices_var=HIP_VISIBLE_DEVICES', pxn_case)
+        self.assertIn('pxn_launcher+=("$pxn_visible_devices_var=$FLAGCX_CI_PXN_VISIBLE_DEVICES")', pxn_case)
+        self.assertIn('-x "$pxn_visible_devices_var=$FLAGCX_CI_PXN_VISIBLE_DEVICES"', pxn_case)
+        self.assertIn('"$MPI_RUNNER" -np "$FLAGCX_CI_RUNNER_NP"', pxn_case)
+        self.assertIn('FLAGCX_CI_MPI_LABEL="runner $platform_name PXN four-rank"', pxn_case)
         self.assertNotIn('FLAGCX_CI_ENABLE_PXN_INTERSERVER', runner_case)
         self.assertIn('FLAGCX_CI_EXPECT_PEER_TRANSPORT=NET', runner_case)
         self.assertIn("FLAGCX_CI_EXPECT_PEER_TRANSPORT=P2P", runner_case)
@@ -1429,7 +1671,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
         core_case = unit_runner[unit_runner.index("    core|service)") :]
         core_case = core_case[: core_case.index("    rma)")]
         self.assertIn('make -C "$suite_dir" run-unit', core_case)
-        for platform in ("cuda", "metax", "hygon", "ppu"):
+        for platform in ("cuda", "metax", "ppu"):
             config = (
                 REPO_ROOT / f".github/configs/{platform}.yml"
             ).read_text()

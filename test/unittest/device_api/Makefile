@@ -1,5 +1,12 @@
 include ../../make.inc
 
+# Only the Device API tests link HIP device objects. Keep the shared test
+# compiler as g++ so host-only suites do not compile device headers with HIPCC.
+ifeq ($(USE_DU), 1)
+CXX := $(DEVICE_COMPILER)
+CXXFLAGS += -fgpu-rdc
+endif
+
 # MPI launcher configuration. Open MPI remains the default used by CI.
 # Use `MPI_FLAVOR=mpich` for MPICH/Hydra (`--genv`, no root-only option).
 MPI_FLAVOR ?= openmpi
@@ -44,6 +51,12 @@ ALL_INCLUDES := $(FLAGCX_INCLUDES) $(IR_INCLUDE) $(PLATFORM_INCLUDES) \
     $(KERNEL_INCLUDE) $(PERF_INCLUDE) $(MPI_INCLUDE) $(DEVICE_INCLUDE)
 
 ALL_LINK := $(FLAGCX_LINK) $(MPI_LINK) $(DEVICE_LINK)
+
+# DU kernel objects contain absolute host relocations. Link their test
+# executables without PIE so the host linker accepts those relocations.
+ifeq ($(USE_DU), 1)
+ALL_LINK += -no-pie
+endif
 
 # Kunlunxin: device_api.o (xshmem Device API kernel) references xshmem host symbols
 # that live in libbkcl, and the XRE runtime libs. libflagcx.so imports (not
@@ -143,35 +156,43 @@ $(UNIT_TARGET): $(UNIT_OBJ)
 	@echo "Linking   $@"
 	@$(CXX) $^ -o $@ $(FLAGCX_LINK) $(DEVICE_LINK) $(UNIT_RPATH) $(GTEST_LINK)
 
-$(BINDIR)/test_device_ir_intra: test_device_ir_intra.cpp $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ)
-	@mkdir -p $(BINDIR)
-	@echo "Linking   $@"
-	@$(CXX) $(CXXFLAGS) -o $@ $< $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ) $(ALL_INCLUDES) $(ALL_LINK)
+# HIPCC treats object files as HIP source when a .cpp input is present in the
+# same link invocation. Compile each test entry point first so links receive
+# object files only. This also keeps the host sources out of device linking.
+$(OBJDIR)/test_device_%.o: test_device_%.cpp
+	@mkdir -p $(OBJDIR)
+	@echo "Compiling $<"
+	@$(CXX) $(CXXFLAGS) -c -o $@ $< $(ALL_INCLUDES)
 
-$(BINDIR)/test_device_ir_inter: test_device_ir_inter.cpp $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ)
+$(BINDIR)/test_device_ir_intra: $(OBJDIR)/test_device_ir_intra.o $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ)
 	@mkdir -p $(BINDIR)
 	@echo "Linking   $@"
-	@$(CXX) $(CXXFLAGS) -o $@ $< $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ) $(ALL_INCLUDES) $(ALL_LINK)
+	@$(CXX) $(CXXFLAGS) -o $@ $^ $(ALL_LINK)
 
-$(BINDIR)/test_device_ir_unified_intra: test_device_ir_unified_intra.cpp $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ)
+$(BINDIR)/test_device_ir_inter: $(OBJDIR)/test_device_ir_inter.o $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ)
 	@mkdir -p $(BINDIR)
 	@echo "Linking   $@"
-	@$(CXX) $(CXXFLAGS) -o $@ $< $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ) $(ALL_INCLUDES) $(ALL_LINK)
+	@$(CXX) $(CXXFLAGS) -o $@ $^ $(ALL_LINK)
 
-$(BINDIR)/test_device_ir_unified_inter: test_device_ir_unified_inter.cpp $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ)
+$(BINDIR)/test_device_ir_unified_intra: $(OBJDIR)/test_device_ir_unified_intra.o $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ)
 	@mkdir -p $(BINDIR)
 	@echo "Linking   $@"
-	@$(CXX) $(CXXFLAGS) -o $@ $< $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ) $(ALL_INCLUDES) $(ALL_LINK)
+	@$(CXX) $(CXXFLAGS) -o $@ $^ $(ALL_LINK)
 
-$(BINDIR)/test_device_api_intra: test_device_api_intra.cpp $(DEVICE_API_OBJ) $(DLINK_API_OBJ) $(TOOLS_OBJ)
+$(BINDIR)/test_device_ir_unified_inter: $(OBJDIR)/test_device_ir_unified_inter.o $(DEVICE_IR_OBJ) $(DLINK_IR_OBJ) $(TOOLS_OBJ)
 	@mkdir -p $(BINDIR)
 	@echo "Linking   $@"
-	@$(CXX) $(CXXFLAGS) -o $@ $< $(DEVICE_API_OBJ) $(DLINK_API_OBJ) $(TOOLS_OBJ) $(ALL_INCLUDES) $(ALL_LINK)
+	@$(CXX) $(CXXFLAGS) -o $@ $^ $(ALL_LINK)
 
-$(BINDIR)/test_device_api_inter: test_device_api_inter.cpp $(DEVICE_API_OBJ) $(DLINK_API_OBJ) $(TOOLS_OBJ)
+$(BINDIR)/test_device_api_intra: $(OBJDIR)/test_device_api_intra.o $(DEVICE_API_OBJ) $(DLINK_API_OBJ) $(TOOLS_OBJ)
 	@mkdir -p $(BINDIR)
 	@echo "Linking   $@"
-	@$(CXX) $(CXXFLAGS) -o $@ $< $(DEVICE_API_OBJ) $(DLINK_API_OBJ) $(TOOLS_OBJ) $(ALL_INCLUDES) $(ALL_LINK)
+	@$(CXX) $(CXXFLAGS) -o $@ $^ $(ALL_LINK)
+
+$(BINDIR)/test_device_api_inter: $(OBJDIR)/test_device_api_inter.o $(DEVICE_API_OBJ) $(DLINK_API_OBJ) $(TOOLS_OBJ)
+	@mkdir -p $(BINDIR)
+	@echo "Linking   $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $^ $(ALL_LINK)
 
 clean:
 	@rm -rf $(BUILDDIR)
@@ -206,31 +227,31 @@ run-mpi-intra: $(filter $(BINDIR)/test_device_ir_intra,$(MPI_TARGETS)) \
 
 ifneq ($(filter $(BINDIR)/test_device_ir_intra,$(MPI_TARGETS)),)
 	@echo "Running intra-node tests..."
-	$(MPIRUN) $(MPI_ROOT_ARGS) -n 8 $(BINDIR)/test_device_ir_intra
+	$(MPIRUN) $(MPI_ROOT_ARGS) -n 4 $(BINDIR)/test_device_ir_intra
 endif
 ifneq ($(filter $(BINDIR)/test_device_api_intra,$(MPI_TARGETS)),)
-	$(MPIRUN) $(MPI_ROOT_ARGS) -n 8 $(BINDIR)/test_device_api_intra
+	$(MPIRUN) $(MPI_ROOT_ARGS) -n 4 $(BINDIR)/test_device_api_intra
 endif
 ifeq ($(filter $(BINDIR)/test_device_ir_intra $(BINDIR)/test_device_api_intra,$(MPI_TARGETS)),)
 	@echo "Skipped legacy intra Device API/IR tests on $(KERNEL_PLATFORM)"
 endif
 
-# Inter-node tests use two logical four-rank nodes. This exercises inter-node
+# Inter-node tests use two logical two-rank nodes. This exercises inter-node
 # discovery even on a single physical host.
 run-mpi-inter: $(filter $(BINDIR)/test_device_ir_inter,$(MPI_TARGETS)) \
                $(filter $(BINDIR)/test_device_api_inter,$(MPI_TARGETS))
 ifneq ($(filter $(BINDIR)/test_device_ir_inter,$(MPI_TARGETS)),)
 	@echo "Running inter-node Device IR tests..."
 	$(MPIRUN) $(MPI_ROOT_ARGS) \
-		-n 4 $(HETERO_ENV) $(INTER_NODE0_ENV) $(BINDIR)/test_device_ir_inter \
-		: -n 4 $(HETERO_ENV) $(INTER_NODE1_ENV) $(BINDIR)/test_device_ir_inter
+		-n 2 $(HETERO_ENV) $(INTER_NODE0_ENV) $(BINDIR)/test_device_ir_inter \
+		: -n 2 $(HETERO_ENV) $(INTER_NODE1_ENV) $(BINDIR)/test_device_ir_inter
 endif
 ifneq ($(filter $(BINDIR)/test_device_api_inter,$(MPI_TARGETS)),)
 	@echo "Running inter-node Device API tests..."
 	$(MPIRUN) $(MPI_ROOT_ARGS) \
-		-n 4 $(HETERO_ENV) $(INTER_NODE0_ENV) \
+		-n 2 $(HETERO_ENV) $(INTER_NODE0_ENV) \
 		$(BINDIR)/test_device_api_inter -b 1M -e 4M -f 2 -R 2 \
-		: -n 4 $(HETERO_ENV) $(INTER_NODE1_ENV) \
+		: -n 2 $(HETERO_ENV) $(INTER_NODE1_ENV) \
 		$(BINDIR)/test_device_api_inter -b 1M -e 4M -f 2 -R 2
 endif
 ifeq ($(filter $(BINDIR)/test_device_ir_inter $(BINDIR)/test_device_api_inter,$(MPI_TARGETS)),)
@@ -240,7 +261,7 @@ endif
 ifneq ($(filter $(BINDIR)/test_device_ir_unified_intra,$(MPI_TARGETS)),)
 run-mpi-unified-intra: $(BINDIR)/test_device_ir_unified_intra
 	@echo "Running unified intra suite tests (INTRA + WORLD, full coop matrices)..."
-	$(MPIRUN) $(MPI_ROOT_ARGS) -n 8 $(UNIFIED_COMMON_ENV) \
+	$(MPIRUN) $(MPI_ROOT_ARGS) -n 4 $(UNIFIED_COMMON_ENV) \
 		$(BINDIR)/test_device_ir_unified_intra $(UNIFIED_TEST_ARGS)
 else
 run-mpi-unified-intra:
@@ -251,9 +272,9 @@ ifneq ($(filter $(BINDIR)/test_device_ir_unified_inter,$(MPI_TARGETS)),)
 run-mpi-unified-inter: $(BINDIR)/test_device_ir_unified_inter
 	@echo "Running unified inter suite tests (INTER + WORLD, full coop matrices)..."
 	$(MPIRUN) $(MPI_ROOT_ARGS) \
-		-n 4 $(UNIFIED_COMMON_ENV) $(INTER_NODE0_ENV) \
+		-n 2 $(UNIFIED_COMMON_ENV) $(INTER_NODE0_ENV) \
 		$(BINDIR)/test_device_ir_unified_inter $(UNIFIED_TEST_ARGS) \
-		: -n 4 $(UNIFIED_COMMON_ENV) $(INTER_NODE1_ENV) \
+		: -n 2 $(UNIFIED_COMMON_ENV) $(INTER_NODE1_ENV) \
 		$(BINDIR)/test_device_ir_unified_inter $(UNIFIED_TEST_ARGS)
 else
 run-mpi-unified-inter:

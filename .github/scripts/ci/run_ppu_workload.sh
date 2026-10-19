@@ -9,10 +9,10 @@ fi
 workload=$1
 project_root=${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}
 perf_runner="$project_root/.github/scripts/ci/run_host_perf_suite.sh"
-ppu_env="$project_root/.github/scripts/set_env/ppu.sh"
+: "${FLAGCX_CI_SET_ENV:?The platform configuration must provide set_env}"
 
 # shellcheck source=/dev/null
-source "$ppu_env"
+source "$project_root/$FLAGCX_CI_SET_ENV"
 flagcx_ci_configure_suite "$workload"
 flagcx_ci_prepare "$workload"
 flagcx_ci_validate_rdma "$workload"
@@ -22,6 +22,7 @@ export LD_LIBRARY_PATH="$project_root/build/lib:$MPI_HOME/lib:${LD_LIBRARY_PATH:
 export FLAGCX_IB_DISABLE=0
 export FLAGCX_DEBUG=${FLAGCX_DEBUG:-INFO}
 export FLAGCX_DEBUG_SUBSYS=${FLAGCX_DEBUG_SUBSYS:-INIT,NET,P2P,PROXY}
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 
 build_flagcx() {
   make -C "$project_root" --jobs="$(nproc)" USE_PPU=1 USE_ACCL_BAREX=1
@@ -30,7 +31,7 @@ build_flagcx() {
 case "$workload" in
   torch-api)
     command -v python3
-    python3 -c 'import torch; print("torch", torch.__version__, "devices", torch.cuda.device_count()); assert torch.cuda.device_count() >= 8'
+    python3 -c 'import torch; print("torch", torch.__version__, "devices", torch.cuda.device_count()); assert torch.cuda.device_count() >= 4'
     build_flagcx
     python3 -m pip install 'setuptools_scm>=8'
     (

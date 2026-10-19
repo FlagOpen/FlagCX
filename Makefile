@@ -68,7 +68,7 @@ ifeq ($(strip $(DEVICE_HOME)),)
 	else ifeq ($(USE_KUNLUNXIN), 1)
 		DEVICE_HOME = /usr/local/xpu
 	else ifeq ($(USE_DU), 1)
-		DEVICE_HOME = ${CUDA_PATH}
+		DEVICE_HOME = ${HIP_PATH}
 	else ifeq ($(USE_AMD), 1)
 		DEVICE_HOME = /opt/rocm
 	else ifeq ($(USE_TSM), 1)
@@ -100,7 +100,7 @@ ifeq ($(strip $(CCL_HOME)),)
 	else ifeq ($(USE_KUNLUNXIN), 1)
 		CCL_HOME = /usr/local/xccl
 	else ifeq ($(USE_DU), 1)
-		CCL_HOME = ${CUDA_PATH}
+		CCL_HOME = ${HIP_PATH}
 	else ifeq ($(USE_AMD), 1)
 		CCL_HOME = /opt/rocm
 	else ifeq ($(USE_TSM), 1)
@@ -403,8 +403,10 @@ endif
 HOST_LINKER   ?= $(HOST_COMPILER)
 DEVICE_LINKER := $(DEVICE_COMPILER)
 LINKER        := $(HOST_LINKER)
-ifeq ($(COMPILE_KERNEL)$(USE_DU),11)
+LINKER_FLAGS  :=
+ifeq ($(USE_DU),1)
   LINKER := $(DEVICE_LINKER)
+  LINKER_FLAGS := $(DEVICE_LINK_FLAG)
 endif
 
 $(LIBDIR)/$(TARGET): $(LIBOBJ) $(DEVOBJS) p2p_engine_mode_force
@@ -413,7 +415,7 @@ $(LIBDIR)/$(TARGET): $(LIBOBJ) $(DEVOBJS) p2p_engine_mode_force
 	  if [ ! -f $@ ] || [ "$$mode" != "$(USE_SHARED_P2P_ENGINE)" ] || \
 	     [ -n "$(filter-out p2p_engine_mode_force,$?)" ]; then \
 	    echo "Linking   $@"; \
-	    $(LINKER) $(LIBOBJ) $(DEVOBJS) -o $@ -L$(CCL_LIB) -L$(DEVICE_LIB) -L$(HOST_CCL_LIB) -L$(UCX_LIB) $(ACCL_BAREX_LINK_FLAG) $(SHCA_LINK_FLAG) -shared -fvisibility=default -Wl,--no-as-needed -Wl,-rpath,$(LIBDIR) -Wl,-rpath,$(CCL_LIB) -Wl,-rpath,$(HOST_CCL_LIB) -Wl,-rpath,$(UCX_LIB) -lpthread -lrt -ldl $(CCL_LINK) $(DEVICE_LINK) $(HOST_CCL_LINK) $(UCX_LINK) $(ACCL_BAREX_LINK) $(SHCA_LINK) -g && \
+	    $(LINKER) $(LINKER_FLAGS) $(LIBOBJ) $(DEVOBJS) -o $@ -L$(CCL_LIB) -L$(DEVICE_LIB) -L$(HOST_CCL_LIB) -L$(UCX_LIB) $(ACCL_BAREX_LINK_FLAG) $(SHCA_LINK_FLAG) -shared -fvisibility=default -Wl,--no-as-needed -Wl,-rpath,$(LIBDIR) -Wl,-rpath,$(CCL_LIB) -Wl,-rpath,$(HOST_CCL_LIB) -Wl,-rpath,$(UCX_LIB) -lpthread -lrt -ldl $(CCL_LINK) $(DEVICE_LINK) $(HOST_CCL_LINK) $(UCX_LINK) $(ACCL_BAREX_LINK) $(SHCA_LINK) -g && \
 	    printf '%s\n' '$(USE_SHARED_P2P_ENGINE)' > $(P2P_ENGINE_MODE_FILE); \
 	  fi
 

@@ -2,7 +2,7 @@
  * Copyright (c) 2026 BAAI. All rights reserved.
  *
  * Device-compiled helpers for device API host integration.
- * Compiled by nvcc, linked into libflagcx.so.
+ * Compiled by hipcc, linked into libflagcx.so.
  * Called from flagcx_device.cc via extern "C".
  *
  * Other vendors provide equivalent implementations in their own
@@ -32,6 +32,6 @@ extern "C" void flagcxDevNetLaunchConstruct(void *devNets, void *devComm,
     return;
   int threads = (count < 256) ? count : 256;
   int blocks = (count + threads - 1) / threads;
-  flagcxDevNetConstructKernel<<<blocks, threads, 0, (cudaStream_t)stream>>>(
+  flagcxDevNetConstructKernel<<<blocks, threads, 0, (hipStream_t)stream>>>(
       (flagcxDevNet *)devNets, (flagcxDevComm *)devComm, count);
 }

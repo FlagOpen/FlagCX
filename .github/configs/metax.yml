@@ -24,8 +24,9 @@ docker_options:
   - --hostname=te-cicd
   - --ipc=host
   - --privileged=true
-  - --shm-size=100gb
+  - --shm-size=500g
   - --ulimit=memlock=-1
+  - --ulimit=stack=67108864
   - --ulimit=nofile=65535:65535
   - --group-add=video
   - --env=PLATFORM=metax

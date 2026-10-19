@@ -5,18 +5,17 @@ display_name: Hygon DCU Tests
 # Only platform-specific files belong here; shared/unmatched changes run all.
 paths_watch:
   - .github/scripts/set_env/hygon.sh
-  - flagcx/adaptor/device/ducuda_adaptor.cc
-  - flagcx/adaptor/ccl/dunccl_adaptor.cc
+  - flagcx/adaptor/device/duhip_adaptor.cc
+  - flagcx/adaptor/ccl/durccl_adaptor.cc
   - flagcx/adaptor/include/du_adaptor.h
   - flagcx/adaptor/include/device_api/du_*.h
   - flagcx/adaptor/kernel/du/*
   - test/kernel/du/*
 
-# Pinned by digest, not by the b079886-hygon-dev tag: the rebake pushed under that
-# tag on 2026-09-11 runs an MLX->SHCA conversion that removes the hcoll package,
-# while the Open MPI in the image still has libhcoll.so.1 in libmpi.so's DT_NEEDED
-# and RUNPATH. Every MPI link then fails on undefined hcoll symbols. Drop the pin
-# when the image carries a working HCOLL (or an Open MPI rebuilt without it) again.
+# Use the fixed image tag rather than b079886-hygon-dev. The rebake pushed under
+# that tag on 2026-09-11 removed the hcoll package, but Open MPI still depends
+# on libhcoll.so.1, causing MPI links to fail. Revisit this tag when the image
+# contains a working HCOLL or an Open MPI build without that dependency.
 ci_image: harbor.baai.ac.cn/flagos-dev/flagcx:hygon-dev-fixed-20260912
 
 runner_labels:
@@ -50,6 +49,9 @@ set_env: .github/scripts/set_env/hygon.sh
 unit_test_suites:
   - adaptor
   - core
+  - device_api
+  - device_api_host
+  - device_api_unified_ir
   - p2p
   - rma
   - runner

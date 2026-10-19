@@ -143,6 +143,22 @@ flagcxResult_t recordDeviceMemcpy(void *, void *, size_t, flagcxMemcpyType_t,
   return flagcxSuccess;
 }
 
+int mockIpcEventToken = 0;
+std::atomic<bool> mockIpcEventReady{false};
+
+flagcxResult_t mockIpcEventQuery(flagcxEvent_t event) {
+  if (event != reinterpret_cast<flagcxEvent_t>(&mockIpcEventToken))
+    return flagcxInvalidArgument;
+  return mockIpcEventReady.load(std::memory_order_acquire) ? flagcxSuccess
+                                                           : flagcxInProgress;
+}
+
+flagcxResult_t mockIpcEventDestroy(flagcxEvent_t event) {
+  return event == reinterpret_cast<flagcxEvent_t>(&mockIpcEventToken)
+             ? flagcxSuccess
+             : flagcxInvalidArgument;
+}
+
 struct RmaQueueFixture {
   flagcxNetAdaptor_latest net = {};
   flagcxRmaProxyState proxy = {};
@@ -286,6 +302,8 @@ protected:
   }
 
   void TearDown() override {
+    if (savedDeviceAdaptor_ != nullptr)
+      deviceAdaptor = savedDeviceAdaptor_;
     pthread_cond_destroy(&proxy_.doneCond);
     pthread_mutex_destroy(&proxy_.doneMutex);
     pthread_mutex_destroy(&producerMutex_);
@@ -322,6 +340,8 @@ protected:
   volatile uint64_t doneSeqCpu_ = 0;
   volatile uint64_t groupSeq_ = 0;
   pthread_mutex_t producerMutex_;
+  flagcxDeviceAdaptor_latest mockDeviceAdaptor_ = {};
+  flagcxDeviceAdaptor_latest *savedDeviceAdaptor_ = nullptr;
 };
 
 struct RmaWorkerProbe {
@@ -931,6 +951,38 @@ TEST_F(RmaSharedTransportFixture,
   EXPECT_EQ(inFlight_, 0u);
   EXPECT_EQ(doneSeq_, 1u);
   EXPECT_TRUE(flagcxIntruQueueEmpty(&inProgress_));
+}
+
+TEST_F(RmaSharedTransportFixture, IpcGetCompletesWithoutSendComm) {
+  sendComms_[0] = nullptr;
+  mockIpcEventReady.store(false, std::memory_order_release);
+  savedDeviceAdaptor_ = deviceAdaptor;
+  mockDeviceAdaptor_.eventQuery = mockIpcEventQuery;
+  mockDeviceAdaptor_.eventDestroy = mockIpcEventDestroy;
+  deviceAdaptor = &mockDeviceAdaptor_;
+  proxy_.completionScoreboards = nullptr;
+
+  auto *desc = static_cast<flagcxRmaDesc *>(calloc(1, sizeof(flagcxRmaDesc)));
+  ASSERT_NE(desc, nullptr);
+  desc->type = FLAGCX_RMA_IPC_GET;
+  desc->streamEvent = reinterpret_cast<flagcxEvent_t>(&mockIpcEventToken);
+  desc->eventArmed = 1;
+  desc->opSeq = 1;
+  ring_[0] = desc;
+  __atomic_store_n(&pi_, 1, __ATOMIC_RELEASE);
+
+  Progress();
+  EXPECT_EQ(ci_, 0u);
+  EXPECT_EQ(proxy_.pendingError, 0);
+  mockIpcEventReady.store(true, std::memory_order_release);
+  Progress();
+  EXPECT_EQ(ci_, 1u);
+  EXPECT_EQ(doneSeq_, 1u);
+  EXPECT_EQ(doneSeqCpu_, 1u);
+  EXPECT_EQ(proxy_.completionCount, 1u);
+  EXPECT_EQ(mockDataPosts, 0);
+  EXPECT_EQ(proxy_.pendingError, 0);
+  EXPECT_EQ(proxy_.rmaError, 0);
 }
 
 TEST_F(RmaSharedTransportFixture, PartialBatchDrainsPrefixThenRetriesSuffix) {

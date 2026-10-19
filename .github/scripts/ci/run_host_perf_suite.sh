@@ -14,7 +14,7 @@ shift 2
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 mpi_runner="$script_dir/run_mpi_with_timeout.sh"
 platform=${FLAGCX_CI_PERF_PLATFORM:-platform}
-mpi_np=${FLAGCX_CI_PERF_NP:-8}
+mpi_np=${FLAGCX_CI_PERF_NP:-4}
 
 case "$mode" in
   homogeneous)

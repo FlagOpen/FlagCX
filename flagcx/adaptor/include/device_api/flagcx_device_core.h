@@ -438,7 +438,7 @@ struct flagcxCoopTile {
 typedef flagcxCoopTile<1> flagcxCoopThread;
 
 // ---- 6d. flagcxCoopWarp — full-warp alias ----
-typedef flagcxCoopTile<FLAGCX_SIMT_WIDTH> flagcxCoopWarp;
+typedef flagcxCoopTile<DeviceAPI::Intrin::simtWidth> flagcxCoopWarp;
 
 // ---- 6e. flagcxCoopTileSpan — consecutive tiles with named barrier ----
 struct flagcxCoopTileSpan {

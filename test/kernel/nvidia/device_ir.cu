@@ -12,11 +12,7 @@
 
 #include "flagcx.h"
 #include "flagcx_kernel.h"
-#if defined(USE_ILUVATAR_ADAPTOR)
-#include "iluvatar_adaptor.h"
-#else
 #include "nvidia_adaptor.h"
-#endif
 #include "flagcx_device_internal.h"
 
 // IR wrapper declarations + implementations (needed for nvcc inline compilation)
@@ -25,8 +21,7 @@
 
 #include "device_ir.h"
 
-// Keep the shared IR tests backend-neutral. Existing backends resolve this to
-// 64; the Iluvatar DefaultBackend resolves it to its 32-bit completion domain.
+// Resolve the backend's completion width without inspecting its storage.
 static constexpr int kCompletionBits =
     flagcxBackendCompletionBits<DeviceAPI>::value;
 
@@ -74,16 +69,9 @@ __global__ void kernelCoopGroupsS_block(int *results) {
 
 // Sub-kernel: tile_span coop check.
 __global__ void kernelCoopGroupsS_tileSpan(int *results) {
-#if defined(USE_ILUVATAR_ADAPTOR)
-  // CoreX only supports an exact full-block tile span. This 128-thread block
-  // is two complete 64-lane waves.
-  uint32_t t0 = 0;
-  uint32_t nTiles = FLAGCX_BLOCK_DIM_X / FLAGCX_SIMT_WIDTH;
-#else
-  int tileIdx = FLAGCX_THREAD_IDX_X / 32;
+  int tileIdx = FLAGCX_THREAD_IDX_X / FLAGCX_SIMT_WIDTH;
   uint32_t t0 = (uint32_t)tileIdx;
   uint32_t nTiles = 1;
-#endif
   uint32_t id = 0;
 
   int rank = flagcxCoopThreadRankExS(FLAGCX_COOP_TILE_SPAN, t0, nTiles, id);
@@ -94,11 +82,8 @@ __global__ void kernelCoopGroupsS_tileSpan(int *results) {
   __shared__ int pass;
   if (FLAGCX_THREAD_IDX_X == 0) pass = 1;
   __syncthreads();
-#if defined(USE_ILUVATAR_ADAPTOR)
-  if (rank != (int)FLAGCX_THREAD_IDX_X || size != (int)FLAGCX_BLOCK_DIM_X)
-#else
-  if (rank != (int)(FLAGCX_THREAD_IDX_X % 32) || size != 32)
-#endif
+  if (rank != (int)(FLAGCX_THREAD_IDX_X % FLAGCX_SIMT_WIDTH) ||
+      size != FLAGCX_SIMT_WIDTH)
     atomicExch(&pass, 0);
   __syncthreads();
   if (FLAGCX_THREAD_IDX_X == 0) results[1] = pass;
@@ -1497,7 +1482,7 @@ flagcxUnifiedIrTestCoopActive(flagcxDevCoopKind_t coopKind) {
   if (coopKind == FLAGCX_COOP_THREAD)
     return FLAGCX_THREAD_IDX_X == 0;
   if (coopKind == FLAGCX_COOP_WARP)
-    return FLAGCX_THREAD_IDX_X < 32;
+    return FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH;
   return coopKind == FLAGCX_COOP_BLOCK;
 }
 
@@ -1555,7 +1540,7 @@ __global__ void kernelDevPutIntraWorldS(const void FLAGCX_IR_GLOBAL_PTR *devComm
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 2: WARP + INTRA ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (intraRank + 1) % intraSize;
     size_t off = 2 * bytes;
     flagcxDevPut(devCommPtr, dstMemPtr, off, srcMemPtr, off, bytes,
@@ -1565,7 +1550,7 @@ __global__ void kernelDevPutIntraWorldS(const void FLAGCX_IR_GLOBAL_PTR *devComm
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 3: WARP + WORLD ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (worldRank + 1) % nRanks;
     size_t off = 3 * bytes;
     flagcxDevPut(devCommPtr, dstMemPtr, off, srcMemPtr, off, bytes,
@@ -1668,7 +1653,7 @@ __global__ void kernelDevPutValueIntraWorldS(const void FLAGCX_IR_GLOBAL_PTR *de
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 2: WARP + INTRA ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (intraRank + 1) % intraSize;
     uint64_t val = (uint64_t)(worldRank * 100 + 2);
     flagcxDevPutValue(devCommPtr, dstMemPtr, (size_t)2 * sizeof(uint64_t), val,
@@ -1678,7 +1663,7 @@ __global__ void kernelDevPutValueIntraWorldS(const void FLAGCX_IR_GLOBAL_PTR *de
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 3: WARP + WORLD ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (worldRank + 1) % nRanks;
     uint64_t val = (uint64_t)(worldRank * 100 + 3);
     flagcxDevPutValue(devCommPtr, dstMemPtr, (size_t)3 * sizeof(uint64_t), val,
@@ -1767,7 +1752,7 @@ __global__ void kernelDevGetIntraWorldS(const void FLAGCX_IR_GLOBAL_PTR *devComm
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 2: WARP + INTRA ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (intraRank + 1) % intraSize;
     size_t off = 2 * bytes;
     flagcxDevGet(devCommPtr, remoteMemPtr, off, localMemPtr, off, bytes,
@@ -1777,7 +1762,7 @@ __global__ void kernelDevGetIntraWorldS(const void FLAGCX_IR_GLOBAL_PTR *devComm
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 3: WARP + WORLD ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (worldRank + 1) % nRanks;
     size_t off = 3 * bytes;
     flagcxDevGet(devCommPtr, remoteMemPtr, off, localMemPtr, off, bytes,
@@ -2076,7 +2061,7 @@ __global__ void kernelDevTeamResolutionIntraWorldS(const void FLAGCX_IR_GLOBAL_P
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 2: WARP + INTRA ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (intraRank + 1) % intraSize;
     size_t dstOff = 2 * maxRanks * sizeof(float) + intraRank * sizeof(float);
     flagcxDevPut(devCommPtr, dstMemPtr, dstOff, srcMemPtr, 0, sizeof(float),
@@ -2086,7 +2071,7 @@ __global__ void kernelDevTeamResolutionIntraWorldS(const void FLAGCX_IR_GLOBAL_P
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 3: WARP + WORLD ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (worldRank + 1) % nRanks;
     size_t dstOff = 3 * maxRanks * sizeof(float) + worldRank * sizeof(float);
     flagcxDevPut(devCommPtr, dstMemPtr, dstOff, srcMemPtr, 0, sizeof(float),
@@ -2833,7 +2818,7 @@ __global__ void kernelDevPutInterWorldS(const void FLAGCX_IR_GLOBAL_PTR *devComm
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 2: WARP + INTER ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (nodeIdx + 1) % nNodes;
     size_t off = 2 * bytes;
     flagcxDevPut(devCommPtr, dstMemPtr, off, srcMemPtr, off, bytes,
@@ -2843,7 +2828,7 @@ __global__ void kernelDevPutInterWorldS(const void FLAGCX_IR_GLOBAL_PTR *devComm
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 3: WARP + WORLD ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (worldRank + 1) % nRanks;
     size_t off = 3 * bytes;
     flagcxDevPut(devCommPtr, dstMemPtr, off, srcMemPtr, off, bytes,
@@ -2946,7 +2931,7 @@ __global__ void kernelDevPutValueInterWorldS(const void FLAGCX_IR_GLOBAL_PTR *de
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 2: WARP + INTER ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (nodeIdx + 1) % nNodes;
     uint64_t val = (uint64_t)(worldRank * 100 + 2);
     flagcxDevPutValue(devCommPtr, dstMemPtr, (size_t)2 * sizeof(uint64_t), val,
@@ -2956,7 +2941,7 @@ __global__ void kernelDevPutValueInterWorldS(const void FLAGCX_IR_GLOBAL_PTR *de
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 3: WARP + WORLD ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (worldRank + 1) % nRanks;
     uint64_t val = (uint64_t)(worldRank * 100 + 3);
     flagcxDevPutValue(devCommPtr, dstMemPtr, (size_t)3 * sizeof(uint64_t), val,
@@ -3046,7 +3031,7 @@ __global__ void kernelDevGetInterWorldS(const void FLAGCX_IR_GLOBAL_PTR *devComm
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 2: WARP + INTER ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (nodeIdx + 1) % nNodes;
     size_t off = 2 * bytes;
     flagcxDevGet(devCommPtr, remoteMemPtr, off, localMemPtr, off, bytes,
@@ -3056,7 +3041,7 @@ __global__ void kernelDevGetInterWorldS(const void FLAGCX_IR_GLOBAL_PTR *devComm
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 3: WARP + WORLD ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (worldRank + 1) % nRanks;
     size_t off = 3 * bytes;
     flagcxDevGet(devCommPtr, remoteMemPtr, off, localMemPtr, off, bytes,
@@ -3347,7 +3332,7 @@ __global__ void kernelDevTeamResolutionInterWorldS(const void FLAGCX_IR_GLOBAL_P
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 2: WARP + INTER ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (nodeIdx + 1) % nNodes;
     size_t dstOff = 2 * maxRanks * sizeof(float) + nodeIdx * sizeof(float);
     flagcxDevPut(devCommPtr, dstMemPtr, dstOff, srcMemPtr, 0, sizeof(float),
@@ -3357,7 +3342,7 @@ __global__ void kernelDevTeamResolutionInterWorldS(const void FLAGCX_IR_GLOBAL_P
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 3: WARP + WORLD ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (worldRank + 1) % nRanks;
     size_t dstOff = 3 * maxRanks * sizeof(float) + worldRank * sizeof(float);
     flagcxDevPut(devCommPtr, dstMemPtr, dstOff, srcMemPtr, 0, sizeof(float),
@@ -3399,7 +3384,7 @@ __global__ void kernelDevTeamResolutionInterWorldS(const void FLAGCX_IR_GLOBAL_P
   flagcxCoopSyncS(FLAGCX_COOP_BLOCK);
 
   // === Combination 7: WARP + INTRA on the multi-node communicator ===
-  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < 32) {
+  if (myBlockIdx == 0 && FLAGCX_THREAD_IDX_X < FLAGCX_SIMT_WIDTH) {
     int peer = (intraRank + 1) % intraSize;
     size_t dstOff = 7 * maxRanks * sizeof(float) + intraRank * sizeof(float);
     flagcxDevPut(devCommPtr, dstMemPtr, dstOff, srcMemPtr, 0, sizeof(float),

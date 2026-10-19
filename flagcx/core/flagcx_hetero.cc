@@ -1357,14 +1357,19 @@ static bool flagcxRmaProxyProgress(struct flagcxRmaProxyState *proxy,
 
     void *sendComm = (fullSendComms != NULL) ? fullSendComms[p] : NULL;
     const uint32_t ci = __atomic_load_n(&proxy->cis[p], __ATOMIC_RELAXED);
-    const bool ipcHead = !flagcxRmaProxyCircularBufEmpty(proxy, p) &&
-                         proxy->circularBuffers[(size_t)p * proxy->queueSize +
-                                                (ci & proxy->queueMask)]
-                                 ->type == FLAGCX_RMA_IPC_GET;
-    if (sendComm != NULL || ipcHead) {
+    const uint32_t pi = __atomic_load_n(&proxy->pis[p], __ATOMIC_ACQUIRE);
+    // Classify the queue head using one snapshot. An IPC GET can arrive
+    // between separate empty checks and must not be mistaken for an operation
+    // that needs a network sendComm.
+    const bool hasHead = ci != pi;
+    const bool ipcHead =
+        hasHead && proxy->circularBuffers[(size_t)p * proxy->queueSize +
+                                          (ci & proxy->queueMask)]
+                           ->type == FLAGCX_RMA_IPC_GET;
+    if (hasHead && (sendComm != NULL || ipcHead)) {
       if (flagcxRmaProxyPollNonPersistDesc(proxy, p, sendComm))
         did = true;
-    } else if (!flagcxRmaProxyCircularBufEmpty(proxy, p)) {
+    } else if (hasHead) {
       if (stopping) {
         // Shutdown with queued-but-unissued descs and no transport.
         // Drain to let the thread exit; flag the error so waiters fail.

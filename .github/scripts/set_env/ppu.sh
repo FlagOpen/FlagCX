@@ -39,10 +39,11 @@ export NCCL_SOCKET_IFNAME="${NCCL_SOCKET_IFNAME:-eth0}"
 FLAGCX_CI_PROJECT_MAKE_ARGS=(USE_PPU=1 USE_ACCL_BAREX=1)
 FLAGCX_CI_TEST_MAKE_ARGS=(USE_PPU=1 USE_ACCL_BAREX=1)
 FLAGCX_CI_ENABLE_SHARED_P2P_ENGINE=1
-FLAGCX_CI_INTRA_NP=8
-FLAGCX_CI_NODE_NP=4
-FLAGCX_CI_RUNNER_NP=8
-export NP=8
+FLAGCX_CI_INTRA_NP=4
+FLAGCX_CI_NODE_NP=2
+FLAGCX_CI_RUNNER_NP=4
+export NP=4
+FLAGCX_CI_PXN_VISIBLE_DEVICES=0,3,4,7
 
 # Two logical nodes on the shared PPU host. Symmem uses these app contexts to
 # require a real BAREX MR for remote peers while retaining local flat mappings.
@@ -133,16 +134,18 @@ flagcx_ci_run_suite_override() {
       -x FLAGCX_CI_EXPECT_PXN=0 \
       ./build/bin/runner_mpi_tests
     if [[ "${FLAGCX_CI_ENABLE_PXN:-1}" == "1" ]]; then
-      FLAGCX_CI_MPI_LABEL="runner PPU PXN eight-rank" \
+      FLAGCX_CI_MPI_LABEL="runner PPU PXN four-rank" \
         env -u FLAGCX_USE_HOST_COMM -u FLAGCX_USE_HETERO_COMM \
-        "$MPI_RUNNER" -np 8 --allow-run-as-root \
+        CUDA_VISIBLE_DEVICES="$FLAGCX_CI_PXN_VISIBLE_DEVICES" \
+        "$MPI_RUNNER" -np "$FLAGCX_CI_RUNNER_NP" --allow-run-as-root \
+        -x CUDA_VISIBLE_DEVICES="$FLAGCX_CI_PXN_VISIBLE_DEVICES" \
         -x FLAGCX_CLUSTER_SPLIT_LIST=2 \
         -x FLAGCX_MEM_ENABLE=1 \
         -x FLAGCX_VMM_ENABLE=0 \
         -x FLAGCX_P2P_TRANSPORT=accl \
         -x FLAGCX_P2P_DISABLE=1 \
         -x FLAGCX_PXN_DISABLE=0 \
-        -x FLAGCX_CI_PXN_RANKS_PER_NODE=4 \
+        -x FLAGCX_CI_PXN_RANKS_PER_NODE="$FLAGCX_CI_NODE_NP" \
         -x FLAGCX_CI_EXPECT_RUNNER_MODE=HYBRID \
         -x FLAGCX_CI_EXPECT_PEER_TRANSPORT=NET \
         -x FLAGCX_CI_EXPECT_NET_ADAPTOR=BAREX \

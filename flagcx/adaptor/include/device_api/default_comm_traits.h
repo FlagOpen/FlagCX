@@ -206,6 +206,7 @@ struct CommTraits<DefaultBackend<PlatformTag>> {
 
     // One-sided fallback
     uint64_t *signalBuffer;
+    uint64_t *localSignalBuffer;
     uint64_t *shadowBuffer;
     uint64_t *counterBuffer;
     int signalCount;
@@ -217,8 +218,8 @@ struct CommTraits<DefaultBackend<PlatformTag>> {
     int netPutValueReady;
     int useP2pSignals;
 
-    // P2P signal delivery (IPC-mapped pointers to each peer's signal buffers).
-    // signalPeerPtrs[peer] → peer's signalBuffer (nullptr if not P2P-reachable)
+    // Direct local signal delivery through IPC or mapped SHM.
+    // signalPeerPtrs[peer] → peer's direct signal plane when reachable
     uint64_t **signalPeerPtrs;
 
     FLAGCX_DEVICE_INLINE_DECORATOR int getIntraRank() const {
@@ -292,8 +293,10 @@ struct CommTraits<DefaultBackend<PlatformTag>> {
       dc.nTeamRanks = di.nTeamRanks;
       dc.barrierSignalBase = di.barrierSignalBase;
       dc.signalBuffer = di.signalBuffer;
+      dc.localSignalBuffer = di.localSignalBuffer;
       dc.shadowBuffer = di.shadowBuffer;
-      dc.counterBuffer = di.counterBuffer;
+      dc.counterBuffer =
+          di.counterDeviceBuffer ? di.counterDeviceBuffer : di.counterBuffer;
       dc.populateCompletion(di);
       dc.signalCount = di.signalCount;
       dc.counterCount = di.counterCount;
@@ -526,8 +529,12 @@ struct CommTraits<DefaultBackend<PlatformTag>> {
 
     FLAGCX_DEVICE_INLINE_DECORATOR CompletionWord
     loadSignalValue(int idx, flagcxDeviceMemoryOrder_t order) const {
-      return CompletionStorage::template loadCompletion<Atomic>(
+      CompletionWord value = CompletionStorage::template loadCompletion<Atomic>(
           _dc.getCompletionSignalBuffer(), signalBuffer, idx, order);
+      if (_dc.localSignalBuffer != nullptr)
+        value += static_cast<CompletionWord>(
+            Atomic::load(&_dc.localSignalBuffer[idx], order));
+      return value;
     }
 
     FLAGCX_DEVICE_INLINE_DECORATOR CompletionWord
@@ -934,7 +941,7 @@ struct CommTraits<DefaultBackend<PlatformTag>> {
       coop.sync();
     }
 
-    // ---- waitSignal: GPU spin on signalBuffer[ctx*N+id] ----
+    // ---- waitSignal: GPU spin on the combined local and network signals ----
     template <typename Coop>
     FLAGCX_DEVICE_INLINE_DECORATOR void
     waitSignal(Coop coop, flagcxDevSignal_t signalId, uint64_t least, int bits,
@@ -1009,6 +1016,9 @@ struct CommTraits<DefaultBackend<PlatformTag>> {
       int idx = _contextId * signalCount + (int)signalId;
       Atomic::store(&_dc.getCompletionSignalBuffer()[idx], CompletionWord{0},
                     flagcxDeviceMemoryOrderRelease);
+      if (_dc.localSignalBuffer != nullptr)
+        Atomic::store(&_dc.localSignalBuffer[idx], uint64_t{0},
+                      flagcxDeviceMemoryOrderRelease);
       CompletionStorage::template resetProxy<Atomic>(
           signalBuffer, idx, flagcxDeviceMemoryOrderRelease);
       Atomic::store(&shadowBuffer[idx], (uint64_t)0,

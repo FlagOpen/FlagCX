@@ -14,7 +14,7 @@
 
 // Device compiler check (for conditional compilation in headers)
 #ifndef FLAGCX_CHECK_DEVICE_CC
-#if defined(__CUDACC__) || defined(__xpu__) ||                                 \
+#if defined(__CUDACC__) || defined(__HIPCC__) || defined(__xpu__) ||           \
     (defined(USE_ILUVATAR_ADAPTOR) && defined(FLAGCX_ILUVATAR_DEVICE_COMPILE))
 #define FLAGCX_CHECK_DEVICE_CC 1
 #else
@@ -208,7 +208,44 @@
 
 #define FLAGCX_DEVICE_STREAM_PTR cudaStream_t *
 
-#elif defined(USE_NVIDIA_ADAPTOR) || defined(USE_DU_ADAPTOR)
+#elif defined(USE_DU_ADAPTOR)
+#include <hip/hip_runtime.h>
+
+#if defined(__HIPCC__)
+#define FLAGCX_HOST_DECORATOR __host__
+#define FLAGCX_DEVICE_DECORATOR __device__
+#define FLAGCX_GLOBAL_DECORATOR __global__
+#define FLAGCX_DEVICE_INLINE_DECORATOR                                         \
+  __device__ inline __attribute__((always_inline))
+#define FLAGCX_HOST_DEVICE_INLINE                                              \
+  __host__ __device__ inline __attribute__((always_inline))
+#define FLAGCX_DEVICE_CONSTANT_DECORATOR __device__ __constant__
+#define FLAGCX_DEVICE_THREAD_FENCE __threadfence_system
+#define FLAGCX_DEVICE_SYNC_THREADS __syncthreads
+#define FLAGCX_THREAD_IDX_X threadIdx.x
+#define FLAGCX_BLOCK_IDX_X blockIdx.x
+#define FLAGCX_BLOCK_DIM_X blockDim.x
+#define FLAGCX_GRID_DIM_X gridDim.x
+#define FLAGCX_SHARED __shared__
+#else
+#define FLAGCX_HOST_DECORATOR
+#define FLAGCX_DEVICE_DECORATOR
+#define FLAGCX_GLOBAL_DECORATOR
+#define FLAGCX_DEVICE_INLINE_DECORATOR inline
+#define FLAGCX_HOST_DEVICE_INLINE inline
+#define FLAGCX_DEVICE_CONSTANT_DECORATOR
+#define FLAGCX_DEVICE_THREAD_FENCE() ((void)0)
+#define FLAGCX_DEVICE_SYNC_THREADS() ((void)0)
+#define FLAGCX_THREAD_IDX_X 0
+#define FLAGCX_BLOCK_IDX_X 0
+#define FLAGCX_BLOCK_DIM_X 1
+#define FLAGCX_GRID_DIM_X 1
+#define FLAGCX_SHARED static
+#endif
+#define FLAGCX_SIMT_WIDTH 64
+#define FLAGCX_DEVICE_STREAM_PTR hipStream_t *
+
+#elif defined(USE_NVIDIA_ADAPTOR)
 #include <cuda.h>
 #include <cuda_runtime.h>
 

@@ -28,7 +28,7 @@ struct PlatformTraits<NvidiaPlatform> {
   // Intrin — CUDA SIMT intrinsics
   // ==============================================================
   struct Intrin {
-    static constexpr int simtWidth = 32;
+    static constexpr int simtWidth = FLAGCX_SIMT_WIDTH;
     static FLAGCX_HOST_DEVICE_INLINE constexpr flagcxLaneMask_t fullMask() {
       return 0xffffffffull;
     }

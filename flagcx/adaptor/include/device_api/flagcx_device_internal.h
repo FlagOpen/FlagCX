@@ -83,15 +83,23 @@ struct flagcxDevCommInternal {
   // ---- One-sided Default layer (set if interSignalCount/interCounterCount >
   // 0)
   // ----
-  uint64_t *signalBuffer; // GPU or host signal words, [signalCount] entries
+  uint64_t *signalBuffer;      // GPU-visible network signal words
+  uint64_t *localSignalBuffer; // GPU-visible local signal words (host SHM mode)
+  void *signalHostBuffer; // CPU mapping of both local and network signal planes
+  void *signalMrHostPtr; // CPU address of the network plane registered with Net
+  void **peerSignalShmPtrs; // CPU mappings of local peer signal segments
+  flagcxShmHandle_t *peerSignalShmHandles;
+  flagcxShmHandle_t mySignalShmHandle;
+  int registeredSignalShmCount;
+  uint64_t **signalDevPeerPtrsRaw; // owned device array for host SHM mode
   // Captured when the owned GPU signal buffer is allocated. It is passed to
   // internal MR registration because this direct gdrMemAlloc allocation is
   // not tracked by the public flagcxMemAlloc registry.
   bool signalBufferIsVmm;
   uint64_t
       *shadowBuffer; // GPU memory (local only, no MR), [signalCount] entries
-  uint64_t
-      *counterBuffer; // GPU memory (flagcxMemAlloc), [counterCount] entries
+  uint64_t *counterBuffer;       // CPU address used by the kernel proxy
+  uint64_t *counterDeviceBuffer; // GPU alias when the host address differs
   // Device-RMW completion plane.  It aliases the buffers above on platforms
   // with 64-bit RMW and owns separate uint32_t buffers on 32-bit-RMW
   // platforms.  Kept opaque here so this host descriptor has one layout.
@@ -127,7 +135,7 @@ struct flagcxDevCommInternal {
   int useP2pSignals;
 
   // ---- P2P signal IPC pointers (intra-node direct atomic path) ----
-  uint64_t **signalPeerPtrs; // Device array: [localRanks] → peer signal bufs
+  uint64_t **signalPeerPtrs; // Device array: local peer direct signal planes
   int signalIpcSlot; // IPC table slot for signal peer pointers (-1 if not used)
   void **completionSignalPeerPtrs;
 

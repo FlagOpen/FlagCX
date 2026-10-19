@@ -119,7 +119,7 @@ jobs:
         id: matrix
         run: |
           python .github/scripts/ci/generate_matrix.py \
-            --event-name "${{ github.event_name }}" \
+            --event-name "$GITHUB_EVENT_NAME" \
             --base-ref  "${{ github.base_ref || 'main' }}" \
             --configs-dir .github/configs \
             >> "$GITHUB_OUTPUT"

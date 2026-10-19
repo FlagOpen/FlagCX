@@ -71,7 +71,6 @@ outputs = {
   "set_env" => set_env,
   "unit_test_suites" => JSON.generate(suites)
 }
-
 if ENV["GITHUB_OUTPUT"] && !ENV["GITHUB_OUTPUT"].empty?
   File.open(ENV.fetch("GITHUB_OUTPUT"), "a") do |output|
     outputs.each do |key, value|

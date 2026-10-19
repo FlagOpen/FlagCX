@@ -8,22 +8,27 @@ on:
     branches:
       - main
 
-env:
-  MPI_HOME: /usr/local/mpi
-  PERF_BIN: /__w/FlagCX/FlagCX/test/perf/host_api/build/bin
-  DEVICE_API_BIN: /__w/FlagCX/FlagCX/test/perf/device_api/build/bin
-
 jobs:
   load-hardware-container-configs:
-    name: Load explicit container configurations
+    name: Load platform container configurations
     runs-on: ubuntu-latest
     outputs:
+      cuda_ci_image: ${{ steps.cuda.outputs.ci_image }}
+      cuda_docker_args: ${{ steps.cuda.outputs.docker_args }}
+      cuda_set_env: ${{ steps.cuda.outputs.set_env }}
+      cuda_runs_on: ${{ steps.cuda.outputs.runs_on }}
+      metax_ci_image: ${{ steps.metax.outputs.ci_image }}
+      metax_docker_args: ${{ steps.metax.outputs.docker_args }}
+      metax_set_env: ${{ steps.metax.outputs.set_env }}
+      metax_runs_on: ${{ steps.metax.outputs.runs_on }}
       hygon_ci_image: ${{ steps.hygon.outputs.ci_image }}
       hygon_docker_args: ${{ steps.hygon.outputs.docker_args }}
       hygon_set_env: ${{ steps.hygon.outputs.set_env }}
+      hygon_runs_on: ${{ steps.hygon.outputs.runs_on }}
       ppu_ci_image: ${{ steps.ppu.outputs.ci_image }}
       ppu_docker_args: ${{ steps.ppu.outputs.docker_args }}
       ppu_set_env: ${{ steps.ppu.outputs.set_env }}
+      ppu_runs_on: ${{ steps.ppu.outputs.runs_on }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -31,6 +36,14 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
           persist-credentials: false
+
+      - name: Load CUDA configuration
+        id: cuda
+        run: ruby .github/scripts/ci/load_platform_config.rb cuda
+
+      - name: Load MetaX configuration
+        id: metax
+        run: ruby .github/scripts/ci/load_platform_config.rb metax
 
       - name: Load Hygon configuration
         id: hygon
@@ -41,156 +54,9 @@ jobs:
         run: ruby .github/scripts/ci/load_platform_config.rb ppu
 
   perf-test:
-    runs-on: [self-hosted, cx-build]
-    container:
-      image: localhost:5000/flagscale:cuda12.8.1-cudnn9.7.1-python3.12-torch2.7.0-time2507111538
-      options: --gpus all --privileged --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          ssh-strict: true
-          ssh-user: git
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          show-progress: true
-          lfs: false
-          submodules: false
-          set-safe-directory: true
-
-      - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
-
-      # FORCE_DEFAULT_PATH only affects kernel object compilation (comm traits);
-      # host-side library and vendor API dispatch are unchanged.
-      - name: Build FlagCX
-        run: |
-          cd /__w/FlagCX/FlagCX
-          make -j$(nproc) USE_NVIDIA=1 COMPILE_KERNEL=1 FORCE_DEFAULT_PATH=1
-
-      - name: Build perf tests
-        run: |
-          cd /__w/FlagCX/FlagCX/test/perf
-          make -j$(nproc) USE_NVIDIA=1 COMPILE_KERNEL=1 FORCE_DEFAULT_PATH=1
-
-      - name: Wait for GPU
-        shell: bash
-        run: |
-          cd /__w/FlagCX/FlagCX
-          source test/script/_gpu_check.sh
-          wait_for_gpu
-
-      - name: "Perf tests (homoRunner)"
-        run: |
-          export PATH=$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
-          set -e
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_alltoall -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_alltoallv -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_sendrecv -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_allreduce -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_allgather -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_reducescatter -b 128M -e 1G -f 2 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_broadcast -b 128M -e 1G -f 2 -r 0 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_gather -b 128M -e 1G -f 2 -r 0 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_scatter -b 128M -e 1G -f 2 -r 0 -p 1
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_reduce -b 128M -e 1G -f 2 -r 0 -p 1
-
-      - name: "Registration -R 1 (homoRunner)"
-        run: |
-          export PATH=$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
-          mpirun -np 8 --allow-run-as-root $PERF_BIN/perf_allreduce -b 128M -e 1G -f 2 -p 1 -R 1
-
-      - name: "Registration -R 1 (uniRunner P2P)"
-        run: |
-          export PATH=$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
-          set -e
-          mpirun -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_sendrecv -b 128M -e 1G -f 2 -p 1 -R 1
-          mpirun -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_alltoall -b 128M -e 1G -f 2 -p 1 -R 1
-
-      - name: "Registration -R 1 (uniRunner NET)"
-        run: |
-          export PATH=$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
-          set -e
-          mpirun -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 -x FLAGCX_P2P_DISABLE=1 $PERF_BIN/perf_sendrecv -b 128M -e 1G -f 2 -p 1 -R 1
-          mpirun -np 8 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 -x FLAGCX_P2P_DISABLE=1 $PERF_BIN/perf_alltoall -b 128M -e 1G -f 2 -p 1 -R 1
-
-      - name: "RMA one-sided (put/get)"
-        run: |
-          export PATH=$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
-          set -e
-          mpirun -np 2 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_put -b 8 -e 1M -f 2 -R 2
-          mpirun -np 2 --allow-run-as-root -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_USE_HETERO_COMM=1 $PERF_BIN/perf_get -b 8 -e 1M -f 2 -R 2
-
-      - name: "Device API perf (intra-node)"
-        run: |
-          export PATH=$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
-          mpirun -np 8 --allow-run-as-root \
-            -x FLAGCX_USE_HETERO_COMM=1 \
-            -x FLAGCX_MEM_ENABLE=1 \
-            -x FLAGCX_VMM_ENABLE=0 \
-            -x FLAGCX_P2P_DISABLE=1 \
-            -x FLAGCX_DEBUG=INFO -x FLAGCX_DEBUG_SUBSYS=ALL \
-            -x LD_LIBRARY_PATH \
-            $DEVICE_API_BIN/perf_allreduce_intranode -b 1M -e 64M -f 2 -R 1
-
-      - name: "Device API perf (inter-node one-sided)"
-        run: |
-          export PATH=$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
-          COMMON_ENV="-x FLAGCX_USE_HETERO_COMM=1 -x FLAGCX_MEM_ENABLE=1 -x FLAGCX_VMM_ENABLE=0 -x FLAGCX_P2P_DISABLE=1 -x LD_LIBRARY_PATH"
-          NODE1_FLAG="-x CUDA_VISIBLE_DEVICES=0,1,2,3 -x FLAGCX_HOSTID=node0 -x FLAGCX_IB_HCA=mlx5_0,mlx5_1,mlx5_2,mlx5_3"
-          NODE2_FLAG="-x CUDA_VISIBLE_DEVICES=4,5,6,7 -x FLAGCX_HOSTID=node1 -x FLAGCX_IB_HCA=mlx5_4,mlx5_5,mlx5_6,mlx5_7"
-          mpirun --allow-run-as-root \
-            -np 4 ${COMMON_ENV} ${NODE1_FLAG} $DEVICE_API_BIN/perf_internode_onesided -b 1M -e 64M -f 2 -R 1 \
-            : -np 4 ${COMMON_ENV} ${NODE2_FLAG} $DEVICE_API_BIN/perf_internode_onesided -b 1M -e 64M -f 2 -R 1
-
-      - name: "P2P Engine perf (legacy GPU WRITE)"
-        run: |
-          export PATH=$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$LD_LIBRARY_PATH
-          FLAGCX_P2P_PERF_OP=write \
-            mpirun -np 2 --allow-run-as-root $PERF_BIN/perf_p2p_engine -b 4K -e 64M -f 2 -n 10
-
-      - name: "Build shared P2P Engine perf"
-        run: |
-          cd /__w/FlagCX/FlagCX
-          make -j$(nproc) USE_NVIDIA=1 COMPILE_KERNEL=1 FORCE_DEFAULT_PATH=1 \
-            USE_SHARED_P2P_ENGINE=1 BUILDDIR=$PWD/build-p2p-shared
-          make -C test/perf/host_api USE_NVIDIA=1 COMPILE_KERNEL=1 \
-            FORCE_DEFAULT_PATH=1 USE_SHARED_P2P_ENGINE=1 \
-            BUILDDIR=$PWD/test/perf/host_api/build-p2p-shared \
-            FLAGCX_LIB=$PWD/build-p2p-shared/lib \
-            $PWD/test/perf/host_api/build-p2p-shared/bin/perf_p2p_engine
-
-      - name: "P2P shared Engine perf (GPU READ)"
-        run: |
-          export PATH=$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build-p2p-shared/lib:$LD_LIBRARY_PATH
-          FLAGCX_P2P_PERF_OP=read \
-            mpirun -np 2 --allow-run-as-root \
-              /__w/FlagCX/FlagCX/test/perf/host_api/build-p2p-shared/bin/perf_p2p_engine \
-              -b 4K -e 64M -f 2 -n 10
-
-  perf-test-hygon:
-    name: perf-test (hygon)
+    name: perf-test
     needs: load-hardware-container-configs
-    runs-on: [hg-8g-cicd-flagcx]
+    runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.cuda_runs_on) }}
     timeout-minutes: 240
 
     steps:
@@ -199,22 +65,53 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
-          ssh-strict: true
-          ssh-user: git
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          show-progress: true
-          lfs: false
           submodules: recursive
+          persist-credentials: false
           set-safe-directory: true
 
       - name: Check Docker
         shell: bash
         run: docker version
 
-      - name: Run Hygon perf tests
+      - name: Run perf-test in configured container
+        shell: bash
+        env:
+          FLAGCX_CI_CONTAINER_NAME: flagcx-cuda-perf_legacy-${{ github.run_id }}-${{ github.run_attempt }}
+          FLAGCX_CI_DOCKER_ARGS: ${{ needs.load-hardware-container-configs.outputs.cuda_docker_args }}
+          FLAGCX_CI_IMAGE: ${{ needs.load-hardware-container-configs.outputs.cuda_ci_image }}
+          FLAGCX_CI_SET_ENV: ${{ needs.load-hardware-container-configs.outputs.cuda_set_env }}
+        run: >-
+          bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
+          cuda perf-legacy
+
+      - name: Cleanup perf-test container
+        if: always()
+        shell: bash
+        env:
+          FLAGCX_CI_CONTAINER_NAME: flagcx-cuda-perf_legacy-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
+
+  perf-test-hygon:
+    name: perf-test (hygon)
+    needs: load-hardware-container-configs
+    runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.hygon_runs_on) }}
+    timeout-minutes: 240
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          submodules: recursive
+          persist-credentials: false
+          set-safe-directory: true
+
+      - name: Check Docker
+        shell: bash
+        run: docker version
+
+      - name: Run perf-test (hygon) in configured container
         shell: bash
         env:
           FLAGCX_CI_CONTAINER_NAME: flagcx-hygon-perf-${{ github.run_id }}-${{ github.run_attempt }}
@@ -225,7 +122,7 @@ jobs:
           bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
           hygon perf
 
-      - name: Cleanup Hygon perf container
+      - name: Cleanup perf-test (hygon) container
         if: always()
         shell: bash
         env:
@@ -234,185 +131,8 @@ jobs:
 
   perf-test-cuda:
     name: perf-test (cuda)
-    runs-on: [nv-8g-cicd-flagcx]
-    container:
-      image: harbor.baai.ac.cn/flagos-dev/flagcx:55c5c6f-cuda-dev
-      options: >-
-        --gpus all
-        --privileged
-        --ipc=host
-        --ulimit memlock=-1
-        --ulimit stack=67108864
-    env:
-      MPI_HOME: /usr/local/mpi
-      PERF_BIN: /__w/FlagCX/FlagCX/test/perf/host_api/build/bin
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          ssh-strict: true
-          ssh-user: git
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          show-progress: true
-          lfs: false
-          submodules: false
-          set-safe-directory: true
-
-      - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
-
-      - name: Prepare CUDA environment
-        shell: bash
-        run: |
-          source /__w/FlagCX/FlagCX/.github/scripts/set_env/cuda.sh
-          flagcx_ci_configure_suite perf
-          flagcx_ci_prepare perf
-          flagcx_ci_validate_rdma perf
-          echo "PATH=$MPI_HOME/bin:$PATH" >> "$GITHUB_ENV"
-          echo "MPI_HOME=$MPI_HOME" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$MPI_HOME/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
-          nvidia-smi
-
-      - name: Build FlagCX
-        shell: bash
-        run: |
-          cd /__w/FlagCX/FlagCX
-          make -j$(nproc) USE_NVIDIA=1 COMPILE_KERNEL=1 FORCE_DEFAULT_PATH=1
-
-      - name: Build perf tests
-        shell: bash
-        run: |
-          cd /__w/FlagCX/FlagCX/test/perf
-          make -j$(nproc) USE_NVIDIA=1 COMPILE_KERNEL=1 FORCE_DEFAULT_PATH=1
-
-      - name: Perf tests (CUDA homogeneous 8-GPU)
-        shell: bash
-        run: |
-          cd /__w/FlagCX/FlagCX
-          source .github/scripts/set_env/cuda.sh
-          export PATH=$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$MPI_HOME/lib:$LD_LIBRARY_PATH
-          FLAGCX_CI_PERF_PLATFORM=CUDA \
-            .github/scripts/ci/run_host_perf_suite.sh homogeneous "$PERF_BIN"
-
-      - name: Perf tests (CUDA uniRunner 8-GPU)
-        shell: bash
-        run: |
-          cd /__w/FlagCX/FlagCX
-          source .github/scripts/set_env/cuda.sh
-          export PATH=$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:$MPI_HOME/lib:$LD_LIBRARY_PATH
-          FLAGCX_CI_PERF_PLATFORM=CUDA \
-            .github/scripts/ci/run_host_perf_suite.sh heterogeneous "$PERF_BIN"
-
-  perf-test-metax:
-    name: perf-test (metax)
-    runs-on: [mx-8g-cicd-flagcx]
-    container:
-      image: harbor.baai.ac.cn/flagos-dev/flagcx:3016346-metax-dev
-      options: >-
-        --hostname=te-cicd
-        --volume /opt/mxdriver:/opt/mxdriver:ro
-        --ipc=host
-        --privileged=true
-        --shm-size=100gb
-        --ulimit memlock=-1
-        --user root
-        --ulimit nofile=65535:65535
-        --group-add video
-        -e PLATFORM=metax
-        -e TORCH_DISTRIBUTED_BACKEND=mccl
-        -e LD_LIBRARY_PATH=/opt/mxdriver/lib:/opt/maca/lib:/usr/local/lib:$LD_LIBRARY_PATH
-    env:
-      MPI_HOME: /usr/local/mpi
-      PERF_BIN: /__w/FlagCX/FlagCX/test/perf/host_api/build/bin
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          ssh-strict: true
-          ssh-user: git
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          show-progress: true
-          lfs: false
-          submodules: false
-          set-safe-directory: true
-
-      - name: Checkout submodules
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/googletest"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/third-party/json"
-          git submodule sync --recursive
-          git submodule update --init --force --recursive
-
-      - name: Prepare MetaX environment
-        shell: bash
-        run: |
-          source /__w/FlagCX/FlagCX/.github/scripts/set_env/metax.sh
-          flagcx_ci_configure_suite perf
-          flagcx_ci_prepare perf
-          flagcx_ci_validate_rdma perf
-          echo "PATH=/opt/maca/mxgpu_llvm/bin:$MPI_HOME/bin:$PATH" >> "$GITHUB_ENV"
-          echo "MPI_HOME=$MPI_HOME" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:/opt/mxdriver/lib:/opt/maca/lib:/usr/local/lib:$MPI_HOME/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
-          mx-smi 2>/dev/null || true
-
-      - name: Build FlagCX
-        shell: bash
-        run: |
-          cd /__w/FlagCX/FlagCX
-          make -j$(nproc) USE_METAX=1
-
-      - name: Build perf tests
-        shell: bash
-        run: |
-          cd /__w/FlagCX/FlagCX/test/perf
-          make -j$(nproc) USE_METAX=1 MPI_HOME=/usr/local/mpi CCL_HOME=/opt/maca
-
-      - name: Perf tests (MetaX homogeneous 8-chip)
-        shell: bash
-        run: |
-          cd /__w/FlagCX/FlagCX
-          source .github/scripts/set_env/metax.sh
-          export PATH=/opt/maca/mxgpu_llvm/bin:$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:/opt/mxdriver/lib:/opt/maca/lib:/usr/local/lib:$MPI_HOME/lib:$LD_LIBRARY_PATH
-          export MCCL_DEBUG=TRACE
-          export MCCL_DEBUG_SUBSYS=ALL
-          FLAGCX_CI_PERF_PLATFORM=MetaX \
-            .github/scripts/ci/run_host_perf_suite.sh homogeneous "$PERF_BIN"
-
-      - name: Perf tests (MetaX uniRunner 8-chip)
-        shell: bash
-        run: |
-          cd /__w/FlagCX/FlagCX
-          source .github/scripts/set_env/metax.sh
-          export PATH=/opt/maca/mxgpu_llvm/bin:$MPI_HOME/bin:$PATH
-          export LD_LIBRARY_PATH=/__w/FlagCX/FlagCX/build/lib:/opt/mxdriver/lib:/opt/maca/lib:/usr/local/lib:$MPI_HOME/lib:$LD_LIBRARY_PATH
-          FLAGCX_CI_PERF_PLATFORM=MetaX \
-            .github/scripts/ci/run_host_perf_suite.sh heterogeneous "$PERF_BIN"
-
-  perf-test-ppu:
-    name: perf-test (ppu)
     needs: load-hardware-container-configs
-    runs-on: [flagcicd-810e]
+    runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.cuda_runs_on) }}
     timeout-minutes: 240
 
     steps:
@@ -421,22 +141,91 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
-          ssh-strict: true
-          ssh-user: git
-          persist-credentials: true
-          clean: true
-          sparse-checkout-cone-mode: true
-          fetch-tags: false
-          show-progress: true
-          lfs: false
           submodules: recursive
+          persist-credentials: false
           set-safe-directory: true
 
       - name: Check Docker
         shell: bash
         run: docker version
 
-      - name: Run PPU perf tests
+      - name: Run perf-test (cuda) in configured container
+        shell: bash
+        env:
+          FLAGCX_CI_CONTAINER_NAME: flagcx-cuda-perf-${{ github.run_id }}-${{ github.run_attempt }}
+          FLAGCX_CI_DOCKER_ARGS: ${{ needs.load-hardware-container-configs.outputs.cuda_docker_args }}
+          FLAGCX_CI_IMAGE: ${{ needs.load-hardware-container-configs.outputs.cuda_ci_image }}
+          FLAGCX_CI_SET_ENV: ${{ needs.load-hardware-container-configs.outputs.cuda_set_env }}
+        run: >-
+          bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
+          cuda perf
+
+      - name: Cleanup perf-test (cuda) container
+        if: always()
+        shell: bash
+        env:
+          FLAGCX_CI_CONTAINER_NAME: flagcx-cuda-perf-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
+
+  perf-test-metax:
+    name: perf-test (metax)
+    needs: load-hardware-container-configs
+    runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.metax_runs_on) }}
+    timeout-minutes: 240
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          submodules: recursive
+          persist-credentials: false
+          set-safe-directory: true
+
+      - name: Check Docker
+        shell: bash
+        run: docker version
+
+      - name: Run perf-test (metax) in configured container
+        shell: bash
+        env:
+          FLAGCX_CI_CONTAINER_NAME: flagcx-metax-perf-${{ github.run_id }}-${{ github.run_attempt }}
+          FLAGCX_CI_DOCKER_ARGS: ${{ needs.load-hardware-container-configs.outputs.metax_docker_args }}
+          FLAGCX_CI_IMAGE: ${{ needs.load-hardware-container-configs.outputs.metax_ci_image }}
+          FLAGCX_CI_SET_ENV: ${{ needs.load-hardware-container-configs.outputs.metax_set_env }}
+        run: >-
+          bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
+          metax perf
+
+      - name: Cleanup perf-test (metax) container
+        if: always()
+        shell: bash
+        env:
+          FLAGCX_CI_CONTAINER_NAME: flagcx-metax-perf-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker rm --force "$FLAGCX_CI_CONTAINER_NAME" >/dev/null 2>&1 || true
+
+  perf-test-ppu:
+    name: perf-test (ppu)
+    needs: load-hardware-container-configs
+    runs-on: ${{ fromJSON(needs.load-hardware-container-configs.outputs.ppu_runs_on) }}
+    timeout-minutes: 240
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          submodules: recursive
+          persist-credentials: false
+          set-safe-directory: true
+
+      - name: Check Docker
+        shell: bash
+        run: docker version
+
+      - name: Run perf-test (ppu) in configured container
         shell: bash
         env:
           FLAGCX_CI_CONTAINER_NAME: flagcx-ppu-perf-${{ github.run_id }}-${{ github.run_attempt }}
@@ -447,7 +236,7 @@ jobs:
           bash "$GITHUB_WORKSPACE/.github/scripts/ci/run_hardware_container.sh"
           ppu perf
 
-      - name: Cleanup PPU perf container
+      - name: Cleanup perf-test (ppu) container
         if: always()
         shell: bash
         env:

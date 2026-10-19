@@ -2,7 +2,6 @@
 #include "flagcx_kernel_internal.h"
 #include "device_api/comm_traits.h"
 
-#define FULL_MASK 0xffffffff
 #define SLOT_IDX 4
 #define FST_IDX 5
 #define SND_IDX 6

@@ -19,11 +19,11 @@
 TEST_F(FlagCXCollTest, SendRecv) {
 
   const char *expectPxn = std::getenv("FLAGCX_CI_EXPECT_PXN");
-  const bool pxnCrossPairs =
-      expectPxn != nullptr && std::strcmp(expectPxn, "1") == 0 && nranks == 8;
-  // The normal ring crosses between ranks 3/4 and 7/0, which are NIC-local
-  // on the PPU host. Pair opposite logical nodes in PXN CI so both directions
-  // actually exercise sender-side relays.
+  const bool pxnCrossPairs = expectPxn != nullptr &&
+                             std::strcmp(expectPxn, "1") == 0 && nranks >= 4 &&
+                             nranks % 2 == 0;
+  // Pair opposite logical nodes in PXN CI so both directions exercise
+  // sender-side relays, regardless of the even-sized CI world.
   int sendPeer =
       pxnCrossPairs ? (rank + nranks / 2) % nranks : (rank + 1) % nranks;
   int recvPeer = pxnCrossPairs ? sendPeer : (rank - 1 + nranks) % nranks;

@@ -6,8 +6,7 @@ FLAGCX_CI_ENV_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=/dev/null
 source "$FLAGCX_CI_ENV_DIR/../ci/rdma_static_preflight.sh"
 
-export CUDA_PATH="${CUDA_PATH:-/opt/dtk/cuda/cuda-12}"
-export CUDA_HOME="${CUDA_HOME:-$CUDA_PATH}"
+export HIP_PATH="${HIP_PATH:-/opt/dtk}"
 
 if [[ -f /opt/dtk/env.sh ]]; then
   # shellcheck source=/dev/null
@@ -36,23 +35,18 @@ export USE_SHCA=1
 FLAGCX_CI_COMMON_MAKE_ARGS=(
   USE_DU=1
   USE_SHCA=1
-  DEVICE_HOME="$CUDA_PATH"
-  CCL_HOME="$CUDA_PATH"
+  DEVICE_HOME="$HIP_PATH"
+  CCL_HOME="$HIP_PATH"
 )
 
-# The DU makefile does not currently pull the default device-api backend into
-# libflagcx.so by itself, so CI passes it through as an extra source.
-FLAGCX_CI_PROJECT_MAKE_ARGS=(
-  "${FLAGCX_CI_COMMON_MAKE_ARGS[@]}"
-  PLATFORM_EXTRA_SRCS=flagcx/adaptor/device_api/default_dev_api_backend.cc
-)
+FLAGCX_CI_PROJECT_MAKE_ARGS=("${FLAGCX_CI_COMMON_MAKE_ARGS[@]}")
 FLAGCX_CI_TEST_MAKE_ARGS=("${FLAGCX_CI_COMMON_MAKE_ARGS[@]}")
 FLAGCX_CI_ENABLE_SHARED_P2P_ENGINE=1
 
-FLAGCX_CI_INTRA_NP=8
-FLAGCX_CI_NODE_NP=4
-FLAGCX_CI_RUNNER_NP=8
-export NP=8
+FLAGCX_CI_INTRA_NP=4
+FLAGCX_CI_NODE_NP=2
+FLAGCX_CI_RUNNER_NP=4
+export NP=4
 
 # The Hygon CI host exposes two mutually reachable SHCA pairs. Keep the RDMA
 # integration suites on the verified shca_0 <-> shca_3 fabric until runtime
@@ -61,15 +55,19 @@ export NP=8
 FLAGCX_CI_HYGON_CONNECTED_HCAS=shca_0,shca_3
 FLAGCX_CI_HYGON_TWO_GPU_DEVICES=0,7
 FLAGCX_CI_HYGON_FOUR_GPU_DEVICES=0,1,6,7
+# Put the NIC-distant GPUs at ranks 0 and 2, with their local relay GPUs at
+# ranks 1 and 3. Both PXN sends then use the verified shca_0/shca_3 fabric.
+FLAGCX_CI_PXN_VISIBLE_DEVICES=2,0,6,7
+FLAGCX_CI_PXN_HCAS=shca_0,shca_3
 
 FLAGCX_CI_NODE1_MPI_ARGS=(
-  -x CUDA_VISIBLE_DEVICES=0,1
+  -x HIP_VISIBLE_DEVICES=0,1
   -x FLAGCX_HOSTID=node0
   -x NCCL_HOSTID=node0
   -x FLAGCX_IB_HCA=shca_0
 )
 FLAGCX_CI_NODE2_MPI_ARGS=(
-  -x CUDA_VISIBLE_DEVICES=6,7
+  -x HIP_VISIBLE_DEVICES=6,7
   -x FLAGCX_HOSTID=node1
   -x NCCL_HOSTID=node1
   -x FLAGCX_IB_HCA=shca_3
@@ -80,20 +78,21 @@ flagcx_ci_configure_suite() {
 
   case "$suite" in
     p2p|rma)
-      export CUDA_VISIBLE_DEVICES="$FLAGCX_CI_HYGON_TWO_GPU_DEVICES"
+      export HIP_VISIBLE_DEVICES="$FLAGCX_CI_HYGON_TWO_GPU_DEVICES"
       export FLAGCX_IB_HCA="$FLAGCX_CI_HYGON_CONNECTED_HCAS"
       ;;
     runner|symmem)
-      export CUDA_VISIBLE_DEVICES="$FLAGCX_CI_HYGON_FOUR_GPU_DEVICES"
+      export HIP_VISIBLE_DEVICES="$FLAGCX_CI_HYGON_FOUR_GPU_DEVICES"
       export FLAGCX_IB_HCA="$FLAGCX_CI_HYGON_CONNECTED_HCAS"
-      if [[ "$suite" == "runner" ]]; then
-        FLAGCX_CI_RUNNER_NP=4
-        export NP=4
-      fi
       ;;
-    device_api)
+    device_api|device_api_unified_ir)
+      export HIP_VISIBLE_DEVICES="$FLAGCX_CI_HYGON_FOUR_GPU_DEVICES"
+      export FLAGCX_IB_HCA="$FLAGCX_CI_HYGON_CONNECTED_HCAS"
       FLAGCX_CI_PROJECT_MAKE_ARGS+=(COMPILE_KERNEL=1)
       FLAGCX_CI_TEST_MAKE_ARGS+=(COMPILE_KERNEL=1)
+      FLAGCX_CI_INTRA_NP=4
+      # Each logical node sees two GPUs next to its SHCA rail.
+      FLAGCX_CI_NODE_NP=2
       ;;
   esac
 }
@@ -102,14 +101,15 @@ flagcx_ci_prepare() {
   local suite=$1
   echo "Preparing Hygon DCU environment for CI workload: $suite"
   command -v mpirun
-  command -v nvcc
+  command -v hipcc
   mpirun --version
-  nvcc --version
+  hipcc --version
   hy-smi --showproductname || true
 
   if [[ "$suite" == "adaptor" || "$suite" == "p2p" ||
         "$suite" == "rma" || "$suite" == "runner" ||
-        "$suite" == "symmem" ]]; then
+        "$suite" == "symmem" || "$suite" == "device_api" ||
+        "$suite" == "device_api_unified_ir" ]]; then
     echo "Network interfaces visible inside the CI container:"
     ls /sys/class/net 2>/dev/null || true
     echo "RDMA devices visible inside the CI container:"
@@ -139,12 +139,6 @@ flagcx_ci_build_suite_override() {
   shift 2 || true
   local -a args=("$@")
 
-  if [[ "$suite" == "device_api" ]]; then
-    FLAGCX_CI_BUILD_SUITE_OVERRIDE_HANDLED=1
-    echo "Skipping Hygon device_api build: DU test kernels do not provide all launchers required by the current device_api tests."
-    return
-  fi
-
   if [[ "$suite" == "symmem" ]]; then
     FLAGCX_CI_BUILD_SUITE_OVERRIDE_HANDLED=1
     cmake -S "$PROJECT_ROOT/third-party/googletest" \
@@ -162,12 +156,6 @@ flagcx_ci_run_suite_override() {
   local suite_dir=$2
   shift 2
   local -a args=("$@")
-
-  if [[ "$suite" == "device_api" ]]; then
-    FLAGCX_CI_RUN_SUITE_OVERRIDE_HANDLED=1
-    echo "Skipping Hygon device_api tests: DU launcher coverage is incomplete in the current test kernels."
-    return
-  fi
 
   FLAGCX_CI_RUN_SUITE_OVERRIDE_HANDLED=0
 }

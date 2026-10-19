@@ -7,6 +7,7 @@ BINS := $(SRCS:test_%.cpp=$(BINDIR)/perf_%)
 # Shared source files
 TOOLS_SRC   := $(PROJECT_ROOT)/test/tools.cc
 COMMON_SRCS := $(TOOLS_SRC)
+TOOLS_OBJ   := $(OBJDIR)/tools.o
 
 # Shared device kernel object (built in test/kernel/[platform]/)
 DEVICE_API_OBJ := $(KERNEL_OBJ_DIR)/device_api.o
@@ -68,10 +69,30 @@ $(SHMEM_SYNC_OBJ): $(SHMEM_ADAPTOR_DIR)/nvshmem_state_sync.cc
 		-I$(PROJECT_ROOT)/flagcx/adaptor/include/device_api $(DEVICE_INCLUDE)
 endif
 
+ifeq ($(USE_DU), 1)
+# Compile host sources separately. DU's HIP linker needs object-only inputs
+# when it performs the final device link for the relocatable kernel object.
+PERF_HOST_OBJS := $(SRCS:test_%.cpp=$(OBJDIR)/perf_%.o)
+.SECONDARY: $(PERF_HOST_OBJS)
+
+$(TOOLS_OBJ): $(TOOLS_SRC)
+	@mkdir -p $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(HOST_ADAPTOR_DEFINE) -c -o $@ $< $(ALL_INCLUDES)
+
+$(OBJDIR)/perf_%.o: test_%.cpp
+	@mkdir -p $(OBJDIR)
+	@$(CXX) $(CXXFLAGS) $(HOST_ADAPTOR_DEFINE) -c -o $@ $< $(ALL_INCLUDES)
+
+$(BINDIR)/perf_%: $(OBJDIR)/perf_%.o $(TOOLS_OBJ) $(DEVICE_API_OBJ) $(DLINK_OBJ) $(SHMEM_SYNC_OBJ)
+	@mkdir -p $(BINDIR)
+	@echo "Linking $@"
+	@$(DEVICE_COMPILER) -fgpu-rdc -no-pie -o $@ $^ $(ALL_LINK)
+else
 $(BINDIR)/perf_%: test_%.cpp $(COMMON_SRCS) $(DEVICE_API_OBJ) $(DLINK_OBJ) $(SHMEM_SYNC_OBJ)
 	@mkdir -p $(BINDIR)
 	@echo "Compiling $@"
 	@$(CXX) $(CXXFLAGS) $(HOST_ADAPTOR_DEFINE) -o $@ $< $(COMMON_SRCS) $(DEVICE_API_OBJ) $(SHMEM_SYNC_OBJ) $(DLINK_OBJ) $(ALL_INCLUDES) $(ALL_LINK)
+endif
 
 clean:
 	@rm -rf $(BUILDDIR)

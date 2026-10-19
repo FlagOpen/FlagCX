@@ -9,33 +9,33 @@
 static_assert(sizeof(ncclUniqueId) <= sizeof(flagcxInnerUniqueId),
               "ncclUniqueId does not fit inside flagcxInnerUniqueId");
 
-flagcxResult_t duncclAdaptorGetVersion(int *version) {
+flagcxResult_t durcclAdaptorGetVersion(int *version) {
   return (flagcxResult_t)ncclGetVersion(version);
 }
 
-flagcxResult_t duncclAdaptorGetUniqueId(flagcxInnerUniqueId_t *uniqueId) {
+flagcxResult_t durcclAdaptorGetUniqueId(flagcxInnerUniqueId_t *uniqueId) {
   if (*uniqueId == NULL) {
     flagcxCalloc(uniqueId, 1);
   }
   return (flagcxResult_t)ncclGetUniqueId((ncclUniqueId *)(*uniqueId));
 }
 
-flagcxResult_t duncclAdaptorGetStagedBuffer(const flagcxInnerComm_t comm,
+flagcxResult_t durcclAdaptorGetStagedBuffer(const flagcxInnerComm_t comm,
                                             void **buff, size_t size,
                                             int isRecv) {
   return flagcxNotSupported;
 }
 
-const char *duncclAdaptorGetErrorString(flagcxResult_t result) {
+const char *durcclAdaptorGetErrorString(flagcxResult_t result) {
   return ncclGetErrorString((ncclResult_t)result);
 }
 
-const char *duncclAdaptorGetLastError(flagcxInnerComm_t comm) {
+const char *durcclAdaptorGetLastError(flagcxInnerComm_t comm) {
   return ncclGetLastError(comm->base);
 }
 
 flagcxResult_t
-duncclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
+durcclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
                           flagcxInnerUniqueId_t commId, int rank,
                           struct bootstrapState * /*bootstrap*/) {
   if (*comm == NULL) {
@@ -45,80 +45,80 @@ duncclAdaptorCommInitRank(flagcxInnerComm_t *comm, int nranks,
                                           *(ncclUniqueId *)commId, rank);
 }
 
-flagcxResult_t duncclAdaptorCommFinalize(flagcxInnerComm_t comm) {
+flagcxResult_t durcclAdaptorCommFinalize(flagcxInnerComm_t comm) {
   return (flagcxResult_t)ncclCommFinalize(comm->base);
 }
 
-flagcxResult_t duncclAdaptorCommDestroy(flagcxInnerComm_t comm) {
+flagcxResult_t durcclAdaptorCommDestroy(flagcxInnerComm_t comm) {
   return (flagcxResult_t)ncclCommDestroy(comm->base);
 }
 
-flagcxResult_t duncclAdaptorCommAbort(flagcxInnerComm_t comm) {
+flagcxResult_t durcclAdaptorCommAbort(flagcxInnerComm_t comm) {
   return (flagcxResult_t)ncclCommAbort(comm->base);
 }
 
-flagcxResult_t duncclAdaptorCommResume(flagcxInnerComm_t comm) {
+flagcxResult_t durcclAdaptorCommResume(flagcxInnerComm_t comm) {
   return (flagcxResult_t)ncclInvalidUsage;
 }
 
-flagcxResult_t duncclAdaptorCommSuspend(flagcxInnerComm_t comm) {
+flagcxResult_t durcclAdaptorCommSuspend(flagcxInnerComm_t comm) {
   return (flagcxResult_t)ncclInvalidUsage;
 }
 
-flagcxResult_t duncclAdaptorCommCount(const flagcxInnerComm_t comm,
+flagcxResult_t durcclAdaptorCommCount(const flagcxInnerComm_t comm,
                                       int *count) {
   return (flagcxResult_t)ncclCommCount(comm->base, count);
 }
 
-flagcxResult_t duncclAdaptorCommCuDevice(const flagcxInnerComm_t comm,
+flagcxResult_t durcclAdaptorCommCuDevice(const flagcxInnerComm_t comm,
                                          int *device) {
   return (flagcxResult_t)ncclCommCuDevice(comm->base, device);
 }
 
-flagcxResult_t duncclAdaptorCommUserRank(const flagcxInnerComm_t comm,
+flagcxResult_t durcclAdaptorCommUserRank(const flagcxInnerComm_t comm,
                                          int *rank) {
   return (flagcxResult_t)ncclCommUserRank(comm->base, rank);
 }
 
-flagcxResult_t duncclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
+flagcxResult_t durcclAdaptorCommGetAsyncError(flagcxInnerComm_t comm,
                                               flagcxResult_t *asyncError) {
   return (flagcxResult_t)ncclCommGetAsyncError(comm->base,
                                                (ncclResult_t *)asyncError);
 }
 
 // TODO: unsupported
-flagcxResult_t duncclAdaptorMemAlloc(void **ptr, size_t size) {
+flagcxResult_t durcclAdaptorMemAlloc(void **ptr, size_t size) {
   return flagcxNotSupported;
 }
 
 // TODO: unsupported
-flagcxResult_t duncclAdaptorMemFree(void *ptr) { return flagcxNotSupported; }
+flagcxResult_t durcclAdaptorMemFree(void *ptr) { return flagcxNotSupported; }
 
 // TODO: unsupported
-flagcxResult_t duncclAdaptorCommRegister(flagcxInnerComm_t comm, void *buff,
+flagcxResult_t durcclAdaptorCommRegister(flagcxInnerComm_t comm, void *buff,
                                          size_t size, void **handle) {
   return flagcxNotSupported;
 }
 
 // TODO: unsupported
-flagcxResult_t duncclAdaptorCommDeregister(flagcxInnerComm_t comm,
+flagcxResult_t durcclAdaptorCommDeregister(flagcxInnerComm_t comm,
                                            void *handle) {
   return flagcxNotSupported;
 }
 
-flagcxResult_t duncclAdaptorCommWindowRegister(flagcxInnerComm_t comm,
+flagcxResult_t durcclAdaptorCommWindowRegister(flagcxInnerComm_t comm,
                                                void *buff, size_t size,
                                                flagcxInnerWindow_t *win,
                                                int winFlags) {
   return flagcxNotSupported;
 }
 
-flagcxResult_t duncclAdaptorCommWindowDeregister(flagcxInnerComm_t comm,
+flagcxResult_t durcclAdaptorCommWindowDeregister(flagcxInnerComm_t comm,
                                                  flagcxInnerWindow_t win) {
   return flagcxNotSupported;
 }
 
-flagcxResult_t duncclAdaptorReduce(const void *sendbuff, void *recvbuff,
+flagcxResult_t durcclAdaptorReduce(const void *sendbuff, void *recvbuff,
                                    size_t count, flagcxDataType_t datatype,
                                    flagcxRedOp_t op, int root,
                                    flagcxInnerComm_t comm,
@@ -128,7 +128,7 @@ flagcxResult_t duncclAdaptorReduce(const void *sendbuff, void *recvbuff,
                                     root, comm->base, stream->base);
 }
 
-flagcxResult_t duncclAdaptorGather(const void *sendbuff, void *recvbuff,
+flagcxResult_t durcclAdaptorGather(const void *sendbuff, void *recvbuff,
                                    size_t count, flagcxDataType_t datatype,
                                    int root, flagcxInnerComm_t comm,
                                    flagcxStream_t stream) {
@@ -153,7 +153,7 @@ flagcxResult_t duncclAdaptorGather(const void *sendbuff, void *recvbuff,
   return (flagcxResult_t)res;
 }
 
-flagcxResult_t duncclAdaptorScatter(const void *sendbuff, void *recvbuff,
+flagcxResult_t durcclAdaptorScatter(const void *sendbuff, void *recvbuff,
                                     size_t count, flagcxDataType_t datatype,
                                     int root, flagcxInnerComm_t comm,
                                     flagcxStream_t stream) {
@@ -178,7 +178,7 @@ flagcxResult_t duncclAdaptorScatter(const void *sendbuff, void *recvbuff,
   return (flagcxResult_t)res;
 }
 
-flagcxResult_t duncclAdaptorBroadcast(const void *sendbuff, void *recvbuff,
+flagcxResult_t durcclAdaptorBroadcast(const void *sendbuff, void *recvbuff,
                                       size_t count, flagcxDataType_t datatype,
                                       int root, flagcxInnerComm_t comm,
                                       flagcxStream_t stream) {
@@ -187,7 +187,7 @@ flagcxResult_t duncclAdaptorBroadcast(const void *sendbuff, void *recvbuff,
                                        comm->base, stream->base);
 }
 
-flagcxResult_t duncclAdaptorAllReduce(const void *sendbuff, void *recvbuff,
+flagcxResult_t durcclAdaptorAllReduce(const void *sendbuff, void *recvbuff,
                                       size_t count, flagcxDataType_t datatype,
                                       flagcxRedOp_t op, flagcxInnerComm_t comm,
                                       flagcxStream_t stream) {
@@ -196,7 +196,7 @@ flagcxResult_t duncclAdaptorAllReduce(const void *sendbuff, void *recvbuff,
       comm->base, stream->base);
 }
 
-flagcxResult_t duncclAdaptorReduceScatter(const void *sendbuff, void *recvbuff,
+flagcxResult_t durcclAdaptorReduceScatter(const void *sendbuff, void *recvbuff,
                                           size_t recvcount,
                                           flagcxDataType_t datatype,
                                           flagcxRedOp_t op,
@@ -207,7 +207,7 @@ flagcxResult_t duncclAdaptorReduceScatter(const void *sendbuff, void *recvbuff,
       comm->base, stream->base);
 }
 
-flagcxResult_t duncclAdaptorAllGather(const void *sendbuff, void *recvbuff,
+flagcxResult_t durcclAdaptorAllGather(const void *sendbuff, void *recvbuff,
                                       size_t sendcount,
                                       flagcxDataType_t datatype,
                                       flagcxInnerComm_t comm,
@@ -217,7 +217,7 @@ flagcxResult_t duncclAdaptorAllGather(const void *sendbuff, void *recvbuff,
                                        stream->base);
 }
 
-flagcxResult_t duncclAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
+flagcxResult_t durcclAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
                                      size_t count, flagcxDataType_t datatype,
                                      flagcxInnerComm_t comm,
                                      flagcxStream_t stream) {
@@ -241,7 +241,7 @@ flagcxResult_t duncclAdaptorAlltoAll(const void *sendbuff, void *recvbuff,
   return (flagcxResult_t)res;
 }
 
-flagcxResult_t duncclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
+flagcxResult_t durcclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
                                       size_t *sdispls, void *recvbuff,
                                       size_t *recvcounts, size_t *rdispls,
                                       flagcxDataType_t datatype,
@@ -273,7 +273,7 @@ flagcxResult_t duncclAdaptorAlltoAllv(const void *sendbuff, size_t *sendcounts,
   return (flagcxResult_t)res;
 }
 
-flagcxResult_t duncclAdaptorSend(const void *sendbuff, size_t count,
+flagcxResult_t durcclAdaptorSend(const void *sendbuff, size_t count,
                                  flagcxDataType_t datatype, int peer,
                                  flagcxInnerComm_t comm,
                                  flagcxStream_t stream) {
@@ -281,7 +281,7 @@ flagcxResult_t duncclAdaptorSend(const void *sendbuff, size_t count,
                                   peer, comm->base, stream->base);
 }
 
-flagcxResult_t duncclAdaptorRecv(void *recvbuff, size_t count,
+flagcxResult_t durcclAdaptorRecv(void *recvbuff, size_t count,
                                  flagcxDataType_t datatype, int peer,
                                  flagcxInnerComm_t comm,
                                  flagcxStream_t stream) {
@@ -289,56 +289,56 @@ flagcxResult_t duncclAdaptorRecv(void *recvbuff, size_t count,
                                   peer, comm->base, stream->base);
 }
 
-flagcxResult_t duncclAdaptorGroupStart() {
+flagcxResult_t durcclAdaptorGroupStart() {
   return (flagcxResult_t)ncclGroupStart();
 }
 
-flagcxResult_t duncclAdaptorGroupEnd() {
+flagcxResult_t durcclAdaptorGroupEnd() {
   return (flagcxResult_t)ncclGroupEnd();
 }
 
 flagcxResult_t
-duncclAdaptorDevCommReqsInit(flagcxInnerComm_t /*comm*/,
+durcclAdaptorDevCommReqsInit(flagcxInnerComm_t /*comm*/,
                              flagcxDevCommRequirements * /*reqs*/) {
   return flagcxNotSupported;
 }
 
 flagcxResult_t
-duncclAdaptorDevCommCreate(flagcxInnerComm_t /*comm*/,
+durcclAdaptorDevCommCreate(flagcxInnerComm_t /*comm*/,
                            const flagcxDevCommRequirements * /*reqs*/,
                            flagcxInnerDevComm_t * /*devComm*/) {
   return flagcxNotSupported;
 }
 
-flagcxResult_t duncclAdaptorDevCommDestroy(flagcxInnerComm_t /*comm*/,
+flagcxResult_t durcclAdaptorDevCommDestroy(flagcxInnerComm_t /*comm*/,
                                            flagcxInnerDevComm_t /*devComm*/) {
   return flagcxNotSupported;
 }
 
-struct flagcxCCLAdaptor duncclAdaptor = {
-    "DUNCCL",
+struct flagcxCCLAdaptor durcclAdaptor = {
+    "DURCCL",
     // Basic functions
-    duncclAdaptorGetVersion, duncclAdaptorGetUniqueId,
-    duncclAdaptorGetErrorString, duncclAdaptorGetLastError,
-    duncclAdaptorGetStagedBuffer,
+    durcclAdaptorGetVersion, durcclAdaptorGetUniqueId,
+    durcclAdaptorGetErrorString, durcclAdaptorGetLastError,
+    durcclAdaptorGetStagedBuffer,
     // Communicator functions
-    duncclAdaptorCommInitRank, duncclAdaptorCommFinalize,
-    duncclAdaptorCommDestroy, duncclAdaptorCommAbort, duncclAdaptorCommResume,
-    duncclAdaptorCommSuspend, duncclAdaptorCommCount, duncclAdaptorCommCuDevice,
-    duncclAdaptorCommUserRank, duncclAdaptorCommGetAsyncError,
-    duncclAdaptorMemAlloc, duncclAdaptorMemFree, duncclAdaptorCommRegister,
-    duncclAdaptorCommDeregister,
+    durcclAdaptorCommInitRank, durcclAdaptorCommFinalize,
+    durcclAdaptorCommDestroy, durcclAdaptorCommAbort, durcclAdaptorCommResume,
+    durcclAdaptorCommSuspend, durcclAdaptorCommCount, durcclAdaptorCommCuDevice,
+    durcclAdaptorCommUserRank, durcclAdaptorCommGetAsyncError,
+    durcclAdaptorMemAlloc, durcclAdaptorMemFree, durcclAdaptorCommRegister,
+    durcclAdaptorCommDeregister,
     // Symmetric functions
-    duncclAdaptorCommWindowRegister, duncclAdaptorCommWindowDeregister,
+    durcclAdaptorCommWindowRegister, durcclAdaptorCommWindowDeregister,
     // Communication functions
-    duncclAdaptorReduce, duncclAdaptorGather, duncclAdaptorScatter,
-    duncclAdaptorBroadcast, duncclAdaptorAllReduce, duncclAdaptorReduceScatter,
-    duncclAdaptorAllGather, duncclAdaptorAlltoAll, duncclAdaptorAlltoAllv,
-    duncclAdaptorSend, duncclAdaptorRecv,
+    durcclAdaptorReduce, durcclAdaptorGather, durcclAdaptorScatter,
+    durcclAdaptorBroadcast, durcclAdaptorAllReduce, durcclAdaptorReduceScatter,
+    durcclAdaptorAllGather, durcclAdaptorAlltoAll, durcclAdaptorAlltoAllv,
+    durcclAdaptorSend, durcclAdaptorRecv,
     // Group semantics
-    duncclAdaptorGroupStart, duncclAdaptorGroupEnd,
+    durcclAdaptorGroupStart, durcclAdaptorGroupEnd,
     // Device API
-    duncclAdaptorDevCommReqsInit, duncclAdaptorDevCommCreate,
-    duncclAdaptorDevCommDestroy};
+    durcclAdaptorDevCommReqsInit, durcclAdaptorDevCommCreate,
+    durcclAdaptorDevCommDestroy};
 
 #endif // USE_DU_ADAPTOR

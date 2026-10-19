@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}"
 export FLAGCX_DEBUG="${FLAGCX_DEBUG:-INFO}"
 export FLAGCX_DEBUG_SUBSYS="${FLAGCX_DEBUG_SUBSYS:-INIT}"
 
@@ -78,7 +77,7 @@ run_torch_api_test() {
     port=$(find_free_port)
     local -a command=(
         "$PYTHON_BIN" -m torch.distributed.run
-        --nproc_per_node 8
+        --nproc_per_node 4
         --nnodes=1
         --node_rank=0
         --master_addr=localhost

@@ -26,8 +26,11 @@
 #include "utils.h"
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <new>
 #include <sched.h>
+#include <unistd.h>
 
 using DefaultCompletionWord = typename DeviceAPI::CompletionWord;
 
@@ -47,7 +50,7 @@ static void flagcxDevNetLaunchConstruct(void *, void *, int, void *) {}
 
 static flagcxResult_t shmHostRegister(void *ptr, size_t bytes) {
   if (deviceAdaptor->hostRegister == nullptr) {
-    WARN("FLAGCX_SIGNAL_HOST_ENABLE=1: hostRegister not supported");
+    WARN("host-mapped device API: hostRegister not supported");
     return flagcxNotSupported;
   }
   return deviceAdaptor->hostRegister(ptr, bytes);
@@ -209,7 +212,7 @@ static flagcxResult_t setupIpcBarriers(flagcxComm_t comm,
          (void *)devComm->barrierPeers, devComm->nBarriers);
 
   } else {
-    // ── flagcxShm + hipHostRegister path (FLAGCX_SIGNAL_HOST_ENABLE=1) ──
+    // ── flagcxShm + mapped host-memory barrier path ──
     flagcxResult_t res = flagcxSuccess;
     void **peerCpuPtrs = nullptr;
     flagcxShmHandle_t *peerShmHandles = nullptr;
@@ -256,7 +259,7 @@ static flagcxResult_t setupIpcBarriers(flagcxComm_t comm,
         void *peerPtr = nullptr;
         flagcxShmHandle_t peerHandle = nullptr;
         FLAGCXCHECKGOTO(flagcxShmOpen(peerPath, sizeof(peerPath), barrierSize,
-                                      &peerPtr, nullptr, 1, &peerHandle),
+                                      &peerPtr, nullptr, -1, &peerHandle),
                         res, fail_peer_shm);
         peerCpuPtrs[lr] = peerPtr;
         peerShmHandles[lr] = peerHandle;
@@ -334,6 +337,118 @@ static flagcxResult_t setupIpcBarriers(flagcxComm_t comm,
   return flagcxSuccess;
 }
 
+// Each rank owns one SHM segment with disjoint local-GPU and network signal
+// planes. Local peers register that segment and use its GPU alias for direct
+// atomics; the NIC registers the owning rank's network plane through its CPU
+// address. Keeping the planes separate avoids mixing GPU and NIC atomics on
+// the same word when a WORLD communicator has both local and remote senders.
+static flagcxResult_t setupHostSignals(flagcxComm_t comm,
+                                       flagcxDevComm_t devComm,
+                                       size_t planeBytes) {
+  // Keep GPU and NIC atomics on different pages, including for small signal
+  // counts whose unpadded planes would otherwise share a cache line.
+  const long pageSize = sysconf(_SC_PAGESIZE);
+  if (pageSize <= 0)
+    return flagcxSystemError;
+  const size_t planeAlignment = (size_t)pageSize;
+  if (planeBytes == 0 || planeBytes > SIZE_MAX - (planeAlignment - 1) ||
+      comm->localRanks <= 0 || comm->localRank < 0 ||
+      comm->localRank >= comm->localRanks)
+    return flagcxInvalidArgument;
+  if (deviceAdaptor->hostGetDevicePointer == nullptr) {
+    WARN("host-mapped signals: hostGetDevicePointer not supported");
+    return flagcxNotSupported;
+  }
+
+  const size_t planeStride =
+      ((planeBytes + planeAlignment - 1) / planeAlignment) * planeAlignment;
+  if (planeStride > (SIZE_MAX - sizeof(int)) / 2)
+    return flagcxInvalidArgument;
+  const size_t shmBytes = 2 * planeStride;
+  const int localRanks = comm->localRanks;
+  devComm->nLocalRanks = localRanks;
+  flagcxResult_t res = flagcxSuccess;
+  void **hostDevicePtrs = nullptr;
+  void *myCpuPtr = nullptr;
+  char myPath[SHM_PATH_MAX];
+  snprintf(myPath, sizeof(myPath), "/dev/shm/flagcx_signal_%016llx_%d",
+           (unsigned long long)comm->magic, comm->rank);
+
+  FLAGCXCHECKGOTO(flagcxShmOpen(myPath, sizeof(myPath), shmBytes, &myCpuPtr,
+                                nullptr, localRanks,
+                                &devComm->mySignalShmHandle),
+                  res, fail);
+  devComm->signalHostBuffer = myCpuPtr;
+  FLAGCXCHECKGOTO(
+      bootstrapCollBarrier(comm->bootstrap, comm->rank, comm->nranks, 0x5A01),
+      res, fail);
+
+  devComm->peerSignalShmPtrs = (void **)calloc(localRanks, sizeof(void *));
+  devComm->peerSignalShmHandles =
+      (flagcxShmHandle_t *)calloc(localRanks, sizeof(flagcxShmHandle_t));
+  hostDevicePtrs = (void **)malloc(localRanks * sizeof(void *));
+  if (!devComm->peerSignalShmPtrs || !devComm->peerSignalShmHandles ||
+      !hostDevicePtrs) {
+    res = flagcxSystemError;
+    goto fail;
+  }
+
+  for (int lr = 0; lr < localRanks; lr++) {
+    int rank = comm->localRankToRank[lr];
+    if (rank == comm->rank) {
+      devComm->peerSignalShmPtrs[lr] = myCpuPtr;
+      devComm->peerSignalShmHandles[lr] = devComm->mySignalShmHandle;
+    } else {
+      char peerPath[SHM_PATH_MAX];
+      snprintf(peerPath, sizeof(peerPath), "/dev/shm/flagcx_signal_%016llx_%d",
+               (unsigned long long)comm->magic, rank);
+      FLAGCXCHECKGOTO(flagcxShmOpen(peerPath, sizeof(peerPath), shmBytes,
+                                    &devComm->peerSignalShmPtrs[lr], nullptr,
+                                    -1, &devComm->peerSignalShmHandles[lr]),
+                      res, fail);
+    }
+  }
+
+  for (int lr = 0; lr < localRanks; lr++) {
+    FLAGCXCHECKGOTO(shmHostRegister(devComm->peerSignalShmPtrs[lr], shmBytes),
+                    res, fail);
+    devComm->registeredSignalShmCount++;
+    FLAGCXCHECKGOTO(deviceAdaptor->hostGetDevicePointer(
+                        &hostDevicePtrs[lr], devComm->peerSignalShmPtrs[lr]),
+                    res, fail);
+  }
+
+  FLAGCXCHECKGOTO(deviceAdaptor->deviceMalloc(
+                      (void **)&devComm->signalDevPeerPtrsRaw,
+                      localRanks * sizeof(void *), flagcxMemDevice, NULL),
+                  res, fail);
+  FLAGCXCHECKGOTO(
+      deviceAdaptor->deviceMemcpy(devComm->signalDevPeerPtrsRaw, hostDevicePtrs,
+                                  localRanks * sizeof(void *),
+                                  flagcxMemcpyHostToDevice, NULL, NULL),
+      res, fail);
+
+  devComm->signalPeerPtrs = devComm->signalDevPeerPtrsRaw;
+  devComm->completionSignalPeerPtrs = (void **)devComm->signalDevPeerPtrsRaw;
+  devComm->localSignalBuffer = (uint64_t *)hostDevicePtrs[comm->localRank];
+  devComm->signalBuffer =
+      devComm->localSignalBuffer + planeStride / sizeof(uint64_t);
+  devComm->signalMrHostPtr =
+      (uint64_t *)myCpuPtr + planeStride / sizeof(uint64_t);
+  INFO(FLAGCX_INIT,
+       "setupHostSignals(SHM): rank %d local=%p network=%p mrHost=%p peers=%d",
+       comm->rank, (void *)devComm->localSignalBuffer,
+       (void *)devComm->signalBuffer, devComm->signalMrHostPtr, localRanks);
+  free(hostDevicePtrs);
+  return flagcxSuccess;
+
+fail:
+  free(hostDevicePtrs);
+  // The caller invokes defaultDevApiCommDestroy on a failed create. All
+  // successfully acquired SHM mappings and registrations remain tracked there.
+  return res;
+}
+
 // ==========================================================================
 // Pre-establish full-mesh proxy connections
 // ==========================================================================
@@ -382,6 +497,9 @@ defaultDevApiCommCreate(flagcxComm_t comm,
   // The default backend consumes only fields in the frozen prefix.
   (void)reqsSize;
   const bool forceOneSidedNet = flagcxParamDeviceOneSidedForceNet() != 0;
+  const bool hostMappedSignals =
+      flagcxParamSignalHostEnable() != 0 &&
+      sizeof(DefaultCompletionWord) == sizeof(uint64_t);
   const bool oneSidedRequested =
       reqs->interSignalCount > 0 || reqs->interCounterCount > 0;
   // IPC barrier layer
@@ -445,12 +563,22 @@ defaultDevApiCommCreate(flagcxComm_t comm,
       // Expand signalCount to include barrier slots:
       // barrier needs nTeamRanks slots per barrier instance (one per CTA)
       int userSignals = reqs->interSignalCount;
-      int barrierSlots = devComm->nTeamRanks * reqs->interBarrierCount;
-      if (reqs->interBarrierCount > 0 &&
-          barrierSlots / reqs->interBarrierCount != devComm->nTeamRanks) {
+      if (devComm->nTeamRanks < 0 || reqs->interBarrierCount < 0 ||
+          (reqs->interBarrierCount > 0 &&
+           devComm->nTeamRanks >
+               std::numeric_limits<int>::max() / reqs->interBarrierCount)) {
         WARN("barrierSignalBase overflow: nTeamRanks=%d interBarrierCount=%d",
              devComm->nTeamRanks, reqs->interBarrierCount);
         return flagcxInternalError;
+      }
+      int barrierSlots = devComm->nTeamRanks * reqs->interBarrierCount;
+      if (userSignals < 0 || barrierSlots < 0 ||
+          userSignals > std::numeric_limits<int>::max() - barrierSlots ||
+          bufCtxCount <= 0 ||
+          (size_t)(userSignals + barrierSlots) >
+              SIZE_MAX / (size_t)bufCtxCount / sizeof(uint64_t)) {
+        WARN("defaultDevApiCommCreate: signal buffer size overflow");
+        return flagcxInvalidArgument;
       }
       devComm->signalCount = userSignals + barrierSlots;
       devComm->barrierSignalBase = userSignals;
@@ -461,7 +589,14 @@ defaultDevApiCommCreate(flagcxComm_t comm,
           FLAGCX_INIT,
           "defaultDevApiCommCreate: signalBuffer sigSize=%zu (count=%d ctx=%d)",
           sigSize, devComm->signalCount, bufCtxCount);
-      if (flagcxParamSignalHostEnable()) {
+      if (hostMappedSignals) {
+        res = setupHostSignals(comm, devComm, sigSize);
+        if (res != flagcxSuccess) {
+          WARN("defaultDevApiCommCreate: host signal SHM setup failed (%d)",
+               res);
+          return res;
+        }
+      } else if (flagcxParamSignalHostEnable()) {
         res = deviceAdaptor->deviceMalloc((void **)&devComm->signalBuffer,
                                           sigSize, flagcxMemHost, NULL);
         if (res != flagcxSuccess) {
@@ -537,6 +672,14 @@ defaultDevApiCommCreate(flagcxComm_t comm,
         return res;
       }
       memset(devComm->counterBuffer, 0, cntSize);
+      if (hostMappedSignals) {
+        if (deviceAdaptor->hostGetDevicePointer == nullptr)
+          return flagcxNotSupported;
+        res = deviceAdaptor->hostGetDevicePointer(
+            (void **)&devComm->counterDeviceBuffer, devComm->counterBuffer);
+        if (res != flagcxSuccess)
+          return res;
+      }
       INFO(FLAGCX_INIT, "defaultDevApiCommCreate: counterBuffer OK");
       if (sizeof(DefaultCompletionWord) == sizeof(uint32_t)) {
         size_t directCntSize = (size_t)devComm->counterCount * bufCtxCount *
@@ -554,7 +697,9 @@ defaultDevApiCommCreate(flagcxComm_t comm,
         if (res != flagcxSuccess)
           return res;
       } else {
-        devComm->completionCounterBuffer = devComm->counterBuffer;
+        devComm->completionCounterBuffer = hostMappedSignals
+                                               ? devComm->counterDeviceBuffer
+                                               : devComm->counterBuffer;
       }
     }
 
@@ -591,6 +736,9 @@ defaultDevApiCommCreate(flagcxComm_t comm,
 
       // Register signal buffer for RDMA one-sided access
       if (devComm->signalBuffer) {
+        void *signalRegistrationBuffer = hostMappedSignals
+                                             ? devComm->signalMrHostPtr
+                                             : (void *)devComm->signalBuffer;
         void *previousSignalBase = comm->heteroComm->rmaSignalBase;
         struct flagcxOneSideHandleInfo *previousRegistration =
             comm->heteroComm->signalHandle;
@@ -600,23 +748,23 @@ defaultDevApiCommCreate(flagcxComm_t comm,
              "defaultDevApiCommCreate: registering signalBuffer (ptrType=%d)",
              sigPtrType);
         res = flagcxOneSideSignalRegisterInternal(
-            comm, devComm->signalBuffer,
+            comm, signalRegistrationBuffer,
             (size_t)devComm->signalCount * bufCtxCount * sizeof(uint64_t),
             sigPtrType, devComm->signalBufferIsVmm);
         struct flagcxOneSideHandleInfo *registration =
             comm->heteroComm->signalHandle;
         bool signalRegistered =
             res == flagcxSuccess &&
-            comm->heteroComm->rmaSignalBase == devComm->signalBuffer;
+            comm->heteroComm->rmaSignalBase == signalRegistrationBuffer;
         bool networkSignalRegistered = registrationMatchesBuffer(
-            comm, registration, devComm->signalBuffer);
+            comm, registration, signalRegistrationBuffer);
         if (!signalRegistered) {
           WARN("defaultDevApiCommCreate: flagcxOneSideSignalRegister failed "
                "or retained another buffer (%d, handle=%p, buffer=%p)",
-               res, (void *)registration, (void *)devComm->signalBuffer);
+               res, (void *)registration, signalRegistrationBuffer);
         } else {
           if (previousSignalBase == nullptr)
-            devComm->ownedSignalBuffer = devComm->signalBuffer;
+            devComm->ownedSignalBuffer = (uint64_t *)signalRegistrationBuffer;
           if (networkSignalRegistered && previousRegistration == nullptr)
             devComm->ownedSignalRegistration = registration;
           devComm->netSignalReady = networkSignalRegistered ? 1 : 0;
@@ -694,13 +842,17 @@ defaultDevApiCommCreate(flagcxComm_t comm,
     // Net signals may coexist in one communicator.
     devComm->useP2pSignals = (devComm->signalIpcSlot >= 0) ? 1 : 0;
   } else {
-    // Preserve the existing 64-bit DefaultBackend transport choice.
+    // Local SHM signals and remote Net signals can coexist. GPU-memory
+    // signals keep the existing whole-communicator transport choice.
     devComm->useP2pSignals =
-        (devComm->nInterPeers == 0 && devComm->signalIpcSlot >= 0) ? 1 : 0;
+        hostMappedSignals
+            ? (!forceOneSidedNet && devComm->signalDevPeerPtrsRaw != nullptr)
+            : (devComm->nInterPeers == 0 && devComm->signalIpcSlot >= 0);
   }
 
   if (devComm->signalBuffer &&
-      (devComm->nInterPeers > 0 || devComm->signalIpcSlot < 0) &&
+      (devComm->nInterPeers > 0 || !devComm->useP2pSignals ||
+       forceOneSidedNet) &&
       !devComm->netSignalReady) {
     WARN("defaultDevApiCommCreate: neither signal IPC nor Net fallback is "
          "available");
@@ -754,6 +906,7 @@ defaultDevApiCommCreate(flagcxComm_t comm,
 
 static flagcxResult_t defaultDevApiCommDestroy(flagcxComm_t comm,
                                                flagcxDevComm_t devComm) {
+  const bool hostSignalShm = devComm->signalHostBuffer != nullptr;
   // Deregister communicator-level MRs before freeing their backing buffers.
   // Check handle identity so rollback cannot remove a registration owned by
   // another DevComm.
@@ -829,7 +982,7 @@ static flagcxResult_t defaultDevApiCommDestroy(flagcxComm_t comm,
   devComm->completionSignalPeerPtrs = nullptr;
   devComm->signalPeerPtrs = nullptr;
 
-  // ── Shm path cleanup (FLAGCX_SIGNAL_HOST_ENABLE=1 only) ──────────────
+  // ── Shm barrier path cleanup ──────────────────────────────────────────
   if (devComm->peerBarrierShmPtrs) {
     for (int lr = 0; lr < devComm->registeredBarrierShmCount; lr++) {
       if (devComm->peerBarrierShmPtrs[lr])
@@ -863,6 +1016,39 @@ static flagcxResult_t defaultDevApiCommDestroy(flagcxComm_t comm,
   }
   devComm->barrierPeers = nullptr;
 
+  // Host signal SHM owns CPU mappings and registrations. The GPU pointers in
+  // signalBuffer and signalPeerPtrs are aliases, never allocations to free.
+  if (devComm->peerSignalShmPtrs) {
+    for (int lr = 0; lr < devComm->registeredSignalShmCount; lr++) {
+      if (devComm->peerSignalShmPtrs[lr])
+        shmHostUnregister(devComm->peerSignalShmPtrs[lr]);
+    }
+    free(devComm->peerSignalShmPtrs);
+    devComm->peerSignalShmPtrs = nullptr;
+  }
+  devComm->registeredSignalShmCount = 0;
+  if (devComm->peerSignalShmHandles) {
+    for (int lr = 0; lr < devComm->nLocalRanks; lr++) {
+      if (devComm->peerSignalShmHandles[lr] &&
+          devComm->peerSignalShmHandles[lr] != devComm->mySignalShmHandle)
+        flagcxShmClose(devComm->peerSignalShmHandles[lr]);
+    }
+    free(devComm->peerSignalShmHandles);
+    devComm->peerSignalShmHandles = nullptr;
+  }
+  if (devComm->mySignalShmHandle) {
+    flagcxShmClose(devComm->mySignalShmHandle);
+    devComm->mySignalShmHandle = nullptr;
+  }
+  devComm->signalHostBuffer = nullptr;
+  devComm->signalMrHostPtr = nullptr;
+  devComm->localSignalBuffer = nullptr;
+  if (devComm->signalDevPeerPtrsRaw) {
+    deviceAdaptor->deviceFree(devComm->signalDevPeerPtrsRaw, flagcxMemDevice,
+                              NULL);
+    devComm->signalDevPeerPtrsRaw = nullptr;
+  }
+
   // ── Free one-sided buffers immediately ────────────────────────────────
   if (devComm->localBarrierFlags) {
     if (devComm->localBarrierFlagsDeviceAllocated) {
@@ -876,7 +1062,7 @@ static flagcxResult_t defaultDevApiCommDestroy(flagcxComm_t comm,
     deviceAdaptor->deviceFree(devComm->epochBuffer, flagcxMemDevice, NULL);
     devComm->epochBuffer = nullptr;
   }
-  if (devComm->signalBuffer) {
+  if (devComm->signalBuffer && !hostSignalShm) {
     flagcxResult_t result = flagcxSuccess;
     if (flagcxParamSignalHostEnable())
       result =
@@ -887,9 +1073,9 @@ static flagcxResult_t defaultDevApiCommDestroy(flagcxComm_t comm,
     // subsequent communicator-destroy attempt can retry it.
     if (result != flagcxSuccess)
       return result;
-    devComm->signalBuffer = nullptr;
-    devComm->signalBufferIsVmm = false;
   }
+  devComm->signalBuffer = nullptr;
+  devComm->signalBufferIsVmm = false;
   if (sizeof(DefaultCompletionWord) == sizeof(uint32_t)) {
     if (devComm->completionSignalBuffer) {
       deviceAdaptor->deviceFree(devComm->completionSignalBuffer,

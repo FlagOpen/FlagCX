@@ -12,8 +12,8 @@
  *Pointer (GetLocalPointerS) S5:  Intra Pointer (GetIntraPointerS) S6:  Peer
  *Pointer (GetPeerPointerS) S7:  Multicast Pointer (GetMulticastPointerS) —
  *commented, NVLS-dependent S8:  Intra Barrier Sync (IntraBarrierSyncS) S9:
- *Intra Barrier Sync Split (SyncS Release + read + SyncS Acquire) S10: Intra
- *AllReduce (composite using barriers + pointers)
+ *Intra Barrier Sync Two Epochs (SyncS Release + read + SyncS Acquire) S10:
+ *Intra AllReduce (composite using barriers + pointers)
  *
  * Usage: mpirun -np N ./test_device_ir_intra [options]
  *   -b <minbytes>  -e <maxbytes>  -f <stepfactor>
@@ -312,11 +312,12 @@ int main(int argc, char *argv[]) {
     FLAGCXCHECK(devHandle->deviceMemcpy(hostBuf, devOutput,
                                         count * sizeof(float),
                                         flagcxMemcpyDeviceToHost, stream));
+    FLAGCXCHECK(devHandle->streamSynchronize(stream));
 
     float expectedS8 = (float)(peer + 1);
     bool s8Pass = true;
     for (size_t i = 0; i < count; i++) {
-      if (fabsf(hostBuf[i] - expectedS8) > 1e-3f) {
+      if (!(fabsf(hostBuf[i] - expectedS8) <= 1e-3f)) {
         s8Pass = false;
         break;
       }
@@ -327,7 +328,7 @@ int main(int argc, char *argv[]) {
     MPI_Barrier(MPI_COMM_WORLD);
 
     // -----------------------------------------------------------------------
-    // S9: Intra Barrier Arrive/Wait (Release + read + Acquire)
+    // S9: two full scalar barriers (Release + read + Acquire)
     // -----------------------------------------------------------------------
     FLAGCXCHECK(devHandle->deviceMemset(regBuff, 0, count * sizeof(float),
                                         flagcxMemDevice, stream));
@@ -341,16 +342,17 @@ int main(int argc, char *argv[]) {
     FLAGCXCHECK(devHandle->deviceMemcpy(hostBuf, devOutput,
                                         count * sizeof(float),
                                         flagcxMemcpyDeviceToHost, stream));
+    FLAGCXCHECK(devHandle->streamSynchronize(stream));
 
     float expectedS9 = (float)(peer + 500);
     bool s9Pass = true;
     for (size_t i = 0; i < count; i++) {
-      if (fabsf(hostBuf[i] - expectedS9) > 1e-3f) {
+      if (!(fabsf(hostBuf[i] - expectedS9) <= 1e-3f)) {
         s9Pass = false;
         break;
       }
     }
-    RPRINTF("S9  IntraBarrierArriveWait(Scalar): %s\n",
+    RPRINTF("S9  IntraBarrierTwoEpochs(Scalar): %s\n",
             s9Pass ? "PASS" : "FAIL");
     allPass &= s9Pass;
 
