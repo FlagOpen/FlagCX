@@ -60,7 +60,7 @@ flagcx_ci_require_rdma() {
 
   platform_name=$(basename "$SET_ENV_SCRIPT" .sh)
   case "$platform_name" in
-    cuda|metax|hygon|ppu) ;;
+    cuda|iluvatar|metax|hygon|ppu) ;;
     *) return 0 ;;
   esac
 
@@ -502,6 +502,10 @@ run_suite() {
             # DU uses the existing RMA correctness tests. No separate device
             # consumer kernel is built for this platform.
             ;;
+          iluvatar)
+            # The CoreX RMA build has no device-consumer visibility kernel.
+            echo "Iluvatar: device-consumer visibility coverage is unavailable; running standard RMA correctness tests."
+            ;;
           ppu)
             # BAREX intentionally retains a temporary no-op/NONE policy. The
             # READ consumer runs; WRITE records a capability note if BAREX
@@ -531,7 +535,7 @@ run_suite() {
             -x FLAGCX_CI_EXPECT_GDR_WRITE_REQUIRED="$expected_write_required"
           )
         fi
-        if [[ "$platform_name" != "hygon" ]]; then
+        if [[ "$platform_name" != "hygon" && "$platform_name" != "iluvatar" ]]; then
           FLAGCX_CI_MPI_LABEL="rma GDR visibility ordinary" \
             make -C "$suite_dir" run-mpi-net "${args[@]}" \
             MPIRUN="$MPI_RUNNER" NET_FILTER="$visibility_filter" \
