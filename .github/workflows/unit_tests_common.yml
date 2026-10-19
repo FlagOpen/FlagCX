@@ -48,6 +48,9 @@ jobs:
     name: ${{ needs.load_config.outputs.display_name }} / ${{ matrix.suite }}
     needs: load_config
     timeout-minutes: 120
+    concurrency:
+      group: ${{ inputs.platform == 'ascend' && 'flagcx-ascend-hardware' || format('{0}-{1}-{2}', github.workflow, github.run_id, matrix.suite) }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:

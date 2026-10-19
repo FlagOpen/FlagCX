@@ -47,5 +47,11 @@ flagcx_ci_prepare() {
   test -d "$DEVICE_HOME/include"
   test -e /dev/davinci_manager
   test -e /dev/devmm_svm
+  test -e /dev/hisi_hdc
+  test -x /usr/local/sbin/npu-smi
+  test -e /dev/infiniband/rdma_cm
+  echo "Ascend host and container device inventory:"
+  npu-smi info
+  ls -l /dev/davinci* /dev/infiniband
   command -v g++
 }
