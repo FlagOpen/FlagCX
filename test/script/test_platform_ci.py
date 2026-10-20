@@ -233,7 +233,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
             return json.loads(outputs["platforms"])
 
     def test_unified_ci_filters_platform_changes_and_preserves_shared_fallback(self):
-        all_platforms = ["cuda", "hygon", "metax", "ppu"]
+        all_platforms = ["cuda", "hygon", "metax", "ppu", "enflame"]
         self.assertEqual(
             self._run_platform_matrix(
                 "pull_request", "flagcx/adaptor/device/cuda_adaptor.cc"
@@ -580,11 +580,14 @@ class PlatformCiRegressionTest(unittest.TestCase):
             text=True,
         )
         self.assertEqual(
-            result.stdout.strip(),
-            '{"include":[{"platform":"cuda","display_name":"CUDA Tests"},'
-            '{"platform":"hygon","display_name":"Hygon DCU Tests"},'
-            '{"platform":"metax","display_name":"MetaX Tests"},'
-            '{"platform":"ppu","display_name":"T-Head PPU Tests"}]}',
+            json.loads(result.stdout),
+            {"include": [
+                {"platform": "cuda", "display_name": "CUDA Tests"},
+                {"platform": "hygon", "display_name": "Hygon DCU Tests"},
+                {"platform": "metax", "display_name": "MetaX Tests"},
+                {"platform": "ppu", "display_name": "T-Head PPU Tests"},
+                {"platform": "enflame", "display_name": "Enflame Tests"},
+            ]},
         )
         unit_workflow = (
             REPO_ROOT / ".github/workflows/unit-test.yml"
@@ -638,6 +641,12 @@ class PlatformCiRegressionTest(unittest.TestCase):
                 "runner",
                 "service",
                 "symmem",
+            ],
+            "enflame": [
+                "adaptor",
+                "core",
+                "device_api_host",
+                "service",
             ],
         }
         for platform, expected in expected_suites.items():
@@ -866,6 +875,11 @@ class PlatformCiRegressionTest(unittest.TestCase):
             ).read_text()
             self.assertIn("rdma_static_preflight.sh", source)
             self.assertIn("flagcx_ci_validate_rdma_static", source)
+
+        enflame_config = (REPO_ROOT / ".github/configs/enflame.yml").read_text()
+        enflame_env = (REPO_ROOT / ".github/scripts/set_env/enflame.sh").read_text()
+        self.assertIn("  - sy-8g-cicd-flagcx", enflame_config)
+        self.assertIn('GTEST_FILTER="-DeviceAdaptorTest.HostGetDevicePointer:NetAdaptorLoopback.*"', enflame_env)
 
     def test_symmem_runs_required_local_and_network_vmm_matrix(self):
         unit_runner = (
