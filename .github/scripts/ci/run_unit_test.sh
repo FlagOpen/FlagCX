@@ -340,7 +340,7 @@ run_suite() {
       FLAGCX_CI_MPI_LABEL="$SUITE IPC MPI tests" \
         make -C "$suite_dir" run-mpi "${args[@]}" \
         MPIRUN="$MPI_RUNNER" MPI_NP=2 \
-        MPI_ENV="-x FLAGCX_VMM_ENABLE=0" || ipc_status=$?
+        MPI_ENV="-x FLAGCX_VMM_ENABLE=0 ${FLAGCX_CI_ADAPTOR_MPI_FILTER:+-x GTEST_FILTER=$FLAGCX_CI_ADAPTOR_MPI_FILTER}" || ipc_status=$?
 
       # Exercise the real IBRC connection handshake with asymmetric rank-local
       # settings. Both peers must report the same terminal error, cleanup must
@@ -476,7 +476,8 @@ run_suite() {
       # the other path from running and producing a useful result.
       FLAGCX_CI_MPI_LABEL="rma IPC MPI tests" \
         make -C "$suite_dir" run-mpi-ipc "${args[@]}" \
-        MPIRUN="$MPI_RUNNER" || ipc_status=$?
+        MPIRUN="$MPI_RUNNER" \
+        IPC_FILTER="${FLAGCX_CI_RMA_IPC_FILTER:-RmaTest.IpcResolvedPeerPointerSupportsDirectCopy:RmaTest.IpcPutWithoutNetworkMr:RmaTest.GetAsyncOffsets:RmaTest.IpcGetCounterFollowsCopy:RmaTest.PutSignalSmall:RmaTest.PutSignalLarge:RmaTest.SignalOnlyNoData:RmaTest.MultipleSignals}" || ipc_status=$?
       if flagcx_ci_require_rdma "$SUITE"; then
         FLAGCX_CI_MPI_LABEL="rma network MPI tests" \
           make -C "$suite_dir" run-mpi-net "${args[@]}" \
@@ -643,14 +644,19 @@ run_suite() {
         "$MPI_RUNNER" -np "$FLAGCX_CI_RUNNER_NP" --allow-run-as-root \
         -x FLAGCX_CI_EXPECT_RUNNER_MODE=HOMO \
         ./build/bin/runner_mpi_tests
-      FLAGCX_CI_MPI_LABEL="runner heterogeneous" \
-        "$MPI_RUNNER" -np "$FLAGCX_CI_RUNNER_NP" --allow-run-as-root \
-        -x FLAGCX_MEM_ENABLE=1 \
-        -x FLAGCX_CLUSTER_SPLIT_LIST=2 \
-        -x FLAGCX_P2P_DISABLE=0 \
-        -x FLAGCX_CI_EXPECT_RUNNER_MODE=HYBRID \
-        -x FLAGCX_CI_EXPECT_PEER_TRANSPORT=P2P \
-        ./build/bin/runner_mpi_tests
+      if [[ "${FLAGCX_CI_RUNNER_HETERO_SUPPORTED:-1}" == 1 ]]; then
+        FLAGCX_CI_MPI_LABEL="runner heterogeneous" \
+          "$MPI_RUNNER" -np "$FLAGCX_CI_RUNNER_NP" --allow-run-as-root \
+          -x FLAGCX_MEM_ENABLE=1 \
+          -x FLAGCX_CLUSTER_SPLIT_LIST=2 \
+          -x FLAGCX_P2P_DISABLE=0 \
+          -x FLAGCX_CI_EXPECT_RUNNER_MODE=HYBRID \
+          -x FLAGCX_CI_EXPECT_PEER_TRANSPORT=P2P \
+          ./build/bin/runner_mpi_tests
+      else
+        echo "Skipping heterogeneous runner modes: unsupported on $platform_name CoreX runtime"
+      fi
+      if [[ "${FLAGCX_CI_RUNNER_HETERO_SUPPORTED:-1}" == 1 ]]; then
       FLAGCX_CI_MPI_LABEL="runner forced NET" \
         "$MPI_RUNNER" -np "$FLAGCX_CI_RUNNER_NP" --allow-run-as-root \
         -x FLAGCX_MEM_ENABLE=1 \
@@ -726,6 +732,7 @@ run_suite() {
           ./build/bin/runner_mpi_tests \
           --gtest_filter=FlagCXCollTest.SendRecv:FlagCXCollTest.AllReduce:FlagCXCollTest.AlltoAll
       fi
+      fi
       ;;
     symmem)
       bash "$PROJECT_ROOT/test/script/symmem_test.sh"
@@ -740,6 +747,7 @@ run_suite() {
       }
       local platform_name expected_adaptor
       local symmem_run_vmm_net_data=1
+      local symmem_run_vmm_local=1
       local -a symmem_common_env symmem_platform_env
       platform_name=$(basename "$SET_ENV_SCRIPT" .sh)
       expected_adaptor=IB
@@ -755,6 +763,10 @@ run_suite() {
       if [[ "$platform_name" == "ppu" || "$platform_name" == "hygon" ]]; then
         symmem_run_vmm_net_data=0
       fi
+      if [[ "${FLAGCX_CI_SYMMEM_VMM_SUPPORTED:-1}" == 0 ]]; then
+        symmem_run_vmm_net_data=0
+        symmem_run_vmm_local=0
+      fi
       symmem_common_env=(
         -x FLAGCX_USE_HETERO_COMM=1
         -x FLAGCX_CLUSTER_SPLIT_LIST=2
@@ -768,34 +780,38 @@ run_suite() {
       local symmem_bin="$PROJECT_ROOT/test/unittest/symmem/build/bin/symmem_mpi_tests"
       local symmem_filter="--gtest_filter=SymMemTest.HybridLocalAndRemoteAccess:SymMemTest.RankLocalStatusFailureConvergesDeterministically:SymMemTest.FullMeshRoundFailureConvergesAndRetries:SymMemTest.RankLocalMrFailureDoesNotPublishPartialWindow:SymMemTest.MrRollbackFailureRetainsWindowLeaseUntilRetry:SymMemTest.AsymmetricDeregisterUsesCollectivePublishSlot:SymMemTest.PublicRegistrationUsesVmmMrRouting:SymMemTest.VmmFlatFallbackPreservesMrRoute:SymMemTest.DirectGdrVmmPreservesMrRoute:SymMemTest.VmmRollbackFailureConvergesBeforeMrMetadataExchange:SymMemTest.CrossNodeCleanupFailureConvergesBeforeRelease:SymMemTest.SignalRegistrationUsesAllocationProvenance:SymMemTest.RankLocalSignalMrFailurePreservesErrorAndRetries:SymMemTest.RepeatedRegisterDeregister:SymMemTest.DuplicateWindowsShareMrUntilLastDeregister:SymMemTest.CommDestroyReleasesLiveWindow"
 
-      FLAGCX_CI_MPI_LABEL="symmem remote without NET" \
-        "$MPI_RUNNER" --allow-run-as-root \
-        -np "$FLAGCX_CI_SYMMEM_NODE_NP" \
-        -x FLAGCX_USE_HETERO_COMM=1 \
-        -x FLAGCX_CLUSTER_SPLIT_LIST=2 \
-        -x FLAGCX_MEM_ENABLE=1 \
-        -x FLAGCX_VMM_ENABLE=1 \
-        -x FLAGCX_CI_REQUIRE_VMM=1 \
-        -x FLAGCX_IB_DISABLE=1 \
-        -x FLAGCX_P2P_DISABLE=1 \
-        -x FLAGCX_CI_REQUIRE_REMOTE_NO_NET=1 \
-        -x LD_LIBRARY_PATH \
-        "${symmem_platform_env[@]}" "${FLAGCX_CI_NODE1_MPI_ARGS[@]}" \
-        "$symmem_bin" \
-        --gtest_filter=SymMemTest.RemotePeersWithoutNetworkDoNotPublishWindow \
-        : -np "$FLAGCX_CI_SYMMEM_NODE_NP" \
-        -x FLAGCX_USE_HETERO_COMM=1 \
-        -x FLAGCX_CLUSTER_SPLIT_LIST=2 \
-        -x FLAGCX_MEM_ENABLE=1 \
-        -x FLAGCX_VMM_ENABLE=1 \
-        -x FLAGCX_CI_REQUIRE_VMM=1 \
-        -x FLAGCX_IB_DISABLE=1 \
-        -x FLAGCX_P2P_DISABLE=1 \
-        -x FLAGCX_CI_REQUIRE_REMOTE_NO_NET=1 \
-        -x LD_LIBRARY_PATH \
-        "${symmem_platform_env[@]}" "${FLAGCX_CI_NODE2_MPI_ARGS[@]}" \
-        "$symmem_bin" \
-        --gtest_filter=SymMemTest.RemotePeersWithoutNetworkDoNotPublishWindow
+      if ((symmem_run_vmm_local != 0)); then
+        FLAGCX_CI_MPI_LABEL="symmem remote without NET" \
+          "$MPI_RUNNER" --allow-run-as-root \
+          -np "$FLAGCX_CI_SYMMEM_NODE_NP" \
+          -x FLAGCX_USE_HETERO_COMM=1 \
+          -x FLAGCX_CLUSTER_SPLIT_LIST=2 \
+          -x FLAGCX_MEM_ENABLE=1 \
+          -x FLAGCX_VMM_ENABLE=1 \
+          -x FLAGCX_CI_REQUIRE_VMM=1 \
+          -x FLAGCX_IB_DISABLE=1 \
+          -x FLAGCX_P2P_DISABLE=1 \
+          -x FLAGCX_CI_REQUIRE_REMOTE_NO_NET=1 \
+          -x LD_LIBRARY_PATH \
+          "${symmem_platform_env[@]}" "${FLAGCX_CI_NODE1_MPI_ARGS[@]}" \
+          "$symmem_bin" \
+          --gtest_filter=SymMemTest.RemotePeersWithoutNetworkDoNotPublishWindow \
+          : -np "$FLAGCX_CI_SYMMEM_NODE_NP" \
+          -x FLAGCX_USE_HETERO_COMM=1 \
+          -x FLAGCX_CLUSTER_SPLIT_LIST=2 \
+          -x FLAGCX_MEM_ENABLE=1 \
+          -x FLAGCX_VMM_ENABLE=1 \
+          -x FLAGCX_CI_REQUIRE_VMM=1 \
+          -x FLAGCX_IB_DISABLE=1 \
+          -x FLAGCX_P2P_DISABLE=1 \
+          -x FLAGCX_CI_REQUIRE_REMOTE_NO_NET=1 \
+          -x LD_LIBRARY_PATH \
+          "${symmem_platform_env[@]}" "${FLAGCX_CI_NODE2_MPI_ARGS[@]}" \
+          "$symmem_bin" \
+          --gtest_filter=SymMemTest.RemotePeersWithoutNetworkDoNotPublishWindow
+      else
+        echo "Skipping $platform_name VMM-local and remote-without-NET tests: VMM is unavailable"
+      fi
 
       FLAGCX_CI_MPI_LABEL="symmem local IPC + NET fallback" \
         "$MPI_RUNNER" --allow-run-as-root \
@@ -816,6 +832,11 @@ run_suite() {
         "${symmem_common_env[@]}" -x FLAGCX_VMM_ENABLE=0 \
         "${symmem_platform_env[@]}" "${FLAGCX_CI_NODE2_MPI_ARGS[@]}" \
         "$symmem_bin" "$symmem_filter"
+
+      if ((symmem_run_vmm_local == 0)); then
+        echo "Skipping $platform_name VMM + NET tests: VMM is unavailable"
+        return 0
+      fi
 
       if ((symmem_run_vmm_net_data != 0)); then
         FLAGCX_CI_MPI_LABEL="symmem VMM + NET auto" \
