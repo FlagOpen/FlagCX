@@ -2,6 +2,7 @@
 hardware_name: ascend
 display_name: Ascend 910C unit tests
 paths_watch:
+  - .github/configs/ascend.yml
   - .github/scripts/set_env/ascend.sh
   - .github/workflows/unit_tests_common.yml
   - flagcx/adaptor/device/cann_adaptor.cc
