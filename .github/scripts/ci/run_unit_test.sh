@@ -290,7 +290,8 @@ run_suite() {
         FLAGCX_CI_TEST_LABEL="$SUITE unit tests" \
         "$TEST_RUNNER" make -C "$suite_dir" run-unit "${args[@]}" || \
         unit_status=$?
-      if ((unit_status == 0)); then
+      if ((unit_status == 0)) &&
+         [[ "$(basename "$SET_ENV_SCRIPT" .sh)" != enflame ]]; then
         python3 "$PROJECT_ROOT/.github/scripts/ci/check_adaptor_gpu_tests.py" \
           "$gpu_result_xml" || unit_status=$?
       fi
@@ -498,9 +499,9 @@ run_suite() {
             expected_write=unsupported
             expected_write_required=1
             ;;
-          hygon)
-            # DU uses the existing RMA correctness tests. No separate device
-            # consumer kernel is built for this platform.
+          hygon|enflame)
+            # These backends run the existing RMA correctness suite without a
+            # separate immediate device-consumer visibility kernel.
             ;;
           ppu)
             # BAREX intentionally retains a temporary no-op/NONE policy. The
@@ -531,13 +532,16 @@ run_suite() {
             -x FLAGCX_CI_EXPECT_GDR_WRITE_REQUIRED="$expected_write_required"
           )
         fi
-        if [[ "$platform_name" != "hygon" ]]; then
+        if [[ "$platform_name" != "hygon" &&
+              "$platform_name" != "enflame" ]]; then
           FLAGCX_CI_MPI_LABEL="rma GDR visibility ordinary" \
             make -C "$suite_dir" run-mpi-net "${args[@]}" \
             MPIRUN="$MPI_RUNNER" NET_FILTER="$visibility_filter" \
             RMA_VMM_ENABLE=0 \
             RMA_PLATFORM_ENV="$base_rma_platform_env ${visibility_common_env[*]}" || \
             visibility_status=$?
+        elif [[ "$platform_name" == "enflame" ]]; then
+          echo "Skipping Enflame GDR visibility consumer tests: no Enflame consumer kernel is built"
         fi
 
         if [[ "$platform_name" == "cuda" ]]; then
