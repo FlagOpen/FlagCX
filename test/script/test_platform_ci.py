@@ -645,8 +645,14 @@ class PlatformCiRegressionTest(unittest.TestCase):
             "enflame": [
                 "adaptor",
                 "core",
+                "device_api",
                 "device_api_host",
+                "device_api_unified_ir",
+                "p2p",
+                "rma",
+                "runner",
                 "service",
+                "symmem",
             ],
         }
         for platform, expected in expected_suites.items():
@@ -789,7 +795,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
         self.assertIn("$(KERNEL_INCLUDE)", rma_makefile)
         self.assertIn("RMA_VMM_ENABLE ?= 0", rma_makefile)
         self.assertIn("NET_FILTER ?= *", rma_makefile)
-        for platform in ("metax)", "hygon)", "ppu)", "cuda)"):
+        for platform in ("metax)", "hygon|enflame)", "ppu)", "cuda)"):
             self.assertIn(platform, rma_case)
 
         du_kernel_makefile = (REPO_ROOT / "test/kernel/du/Makefile").read_text()
@@ -809,7 +815,13 @@ class PlatformCiRegressionTest(unittest.TestCase):
             rma_case,
         )
         self.assertIn('NET_FILTER="RmaTest.GetSmall"', rma_case)
-        self.assertIn('if [[ "$platform_name" != "hygon" ]]; then', rma_case)
+        self.assertIn(
+            'if [[ "$platform_name" != "hygon" &&\n'
+            '              "$platform_name" != "enflame" ]]; then',
+            rma_case,
+        )
+        self.assertIn("hygon|enflame)", rma_case)
+        self.assertIn("Skipping Enflame GDR visibility consumer tests", rma_case)
         self.assertIn(
             '-x FLAGCX_CI_GDR_VISIBILITY_EXPECT_SETUP=success_or_unsupported',
             rma_case,
