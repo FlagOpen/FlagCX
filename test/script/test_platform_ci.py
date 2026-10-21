@@ -233,7 +233,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
             return json.loads(outputs["platforms"])
 
     def test_unified_ci_filters_platform_changes_and_preserves_shared_fallback(self):
-        all_platforms = ["cuda", "hygon", "metax", "ppu"]
+        all_platforms = ["cuda", "hygon", "metax", "kunlunxin", "ppu"]
         self.assertEqual(
             self._run_platform_matrix(
                 "pull_request", "flagcx/adaptor/device/cuda_adaptor.cc"
@@ -584,6 +584,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
             '{"include":[{"platform":"cuda","display_name":"CUDA Tests"},'
             '{"platform":"hygon","display_name":"Hygon DCU Tests"},'
             '{"platform":"metax","display_name":"MetaX Tests"},'
+            '{"platform":"kunlunxin","display_name":"KunlunXin Tests"},'
             '{"platform":"ppu","display_name":"T-Head PPU Tests"}]}',
         )
         unit_workflow = (
@@ -630,6 +631,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
                 "service",
                 "symmem",
             ],
+            "kunlunxin": ["core", "service"],
             "ppu": [
                 "adaptor",
                 "core",
