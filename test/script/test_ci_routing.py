@@ -40,13 +40,13 @@ class CiMatrixRoutingTest(unittest.TestCase):
         for event_name in ("push", "schedule"):
             with self.subTest(event=event_name):
                 outputs, _ = self.resolve({"event_name": event_name})
-                self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "ppu"])
+                self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "kunlunxin", "ppu"])
 
     def test_common_changes_select_all_platforms(self):
         outputs, _ = self.resolve(
             {"event_name": "pull_request", "files": ["flagcx/core/group.cc"]}
         )
-        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "ppu"])
+        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "kunlunxin", "ppu"])
 
     def test_platform_specific_changes_select_only_matching_platform(self):
         for path, expected in (
@@ -85,7 +85,7 @@ class CiMatrixRoutingTest(unittest.TestCase):
         outputs, _ = self.resolve(
             {"event_name": "pull_request", "labels": ["platform:all"]}
         )
-        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "ppu"])
+        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "kunlunxin", "ppu"])
 
     def test_empty_pr_changes_skip_hardware_matrix(self):
         outputs, _ = self.resolve(
@@ -98,7 +98,7 @@ class CiMatrixRoutingTest(unittest.TestCase):
         outputs, _ = self.resolve(
             {"event_name": "pull_request", "files": ["README.md"]}
         )
-        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "ppu"])
+        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "kunlunxin", "ppu"])
 
     def test_unmapped_ci_source_change_falls_back_to_all_platforms(self):
         outputs, _ = self.resolve(
@@ -107,7 +107,7 @@ class CiMatrixRoutingTest(unittest.TestCase):
                 "files": [".github/scripts/ci/new_backend_ci.sh"],
             }
         )
-        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "ppu"])
+        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "kunlunxin", "ppu"])
 
     def test_mixed_platform_and_unknown_changes_run_all_platforms(self):
         outputs, _ = self.resolve(
@@ -115,14 +115,14 @@ class CiMatrixRoutingTest(unittest.TestCase):
                 "flagcx/adaptor/device/cuda_adaptor.cc", "new/shared/file.cc"
             ]}
         )
-        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "ppu"])
+        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "kunlunxin", "ppu"])
 
     def test_unregistered_vendor_paths_use_full_matrix(self):
         outputs, _ = self.resolve({
             "event_name": "pull_request",
             "files": ["flagcx/adaptor/device/ixcuda_adaptor.cc"],
         })
-        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "ppu"])
+        self.assertEqual(outputs["platforms"], ["cuda", "hygon", "metax", "kunlunxin", "ppu"])
 
     def test_fork_repository_and_immutable_ref_are_forwarded(self):
         outputs, _ = self.resolve({
@@ -141,7 +141,7 @@ class CiMatrixRoutingTest(unittest.TestCase):
         self.assertEqual(outputs["platforms"], ["ppu"])
 
     def test_every_platform_config_has_watch_patterns(self):
-        for platform in ("cuda", "hygon", "metax", "ppu"):
+        for platform in ("cuda", "hygon", "metax", "kunlunxin", "ppu"):
             with self.subTest(platform=platform):
                 config = (CONFIG_DIR / f"{platform}.yml").read_text()
                 self.assertIn("paths_watch:", config)
@@ -166,7 +166,7 @@ class CiMatrixRoutingTest(unittest.TestCase):
                     "permission": "maintain",
                     "is_pull_request": True,
                 },
-                ["cuda", "hygon", "metax", "ppu"],
+                ["cuda", "hygon", "metax", "kunlunxin", "ppu"],
             ),
             (
                 "issue_comment",
