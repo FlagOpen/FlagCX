@@ -397,6 +397,10 @@ run_suite() {
       FLAGCX_CI_TEST_LABEL="$SUITE unit tests" \
         "$TEST_RUNNER" make -C "$suite_dir" run-unit "${args[@]}"
       ;;
+    kernel|topo)
+      FLAGCX_CI_TEST_LABEL="$SUITE unit tests" \
+        "$TEST_RUNNER" make -C "$suite_dir" run-unit "${args[@]}"
+      ;;
     p2p)
       local unit_status=0
       local mpi_status=0
@@ -874,7 +878,7 @@ run_suite() {
 }
 
 case "$SUITE" in
-  adaptor|core|device_api_host|p2p|rma|runner|service|symmem)
+  adaptor|core|device_api_host|kernel|p2p|rma|runner|service|symmem|topo)
     build_googletest
     ;;
   device_api|device_api_unified_ir)
