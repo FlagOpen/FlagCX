@@ -878,7 +878,7 @@ run_suite() {
 }
 
 case "$SUITE" in
-  adaptor|core|device_api_host|kernel|p2p|rma|runner|service|symmem|topo)
+  adaptor|core|device|device_api_host|kernel|p2p|rma|runner|service|symmem|topo)
     build_googletest
     ;;
   device_api|device_api_unified_ir)

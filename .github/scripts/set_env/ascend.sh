@@ -17,7 +17,7 @@ FLAGCX_CI_ENABLE_SHARED_P2P_ENGINE=0
 
 flagcx_ci_configure_suite() {
   case "$1" in
-    core|adaptor|kernel|service|topo) ;;
+    core|adaptor|device|device_api|kernel|p2p|rma|runner|service|symmem|topo) ;;
     *) echo "Ascend CI does not enable suite: $1" >&2; return 1 ;;
   esac
 }
@@ -28,8 +28,19 @@ flagcx_ci_build_suite_override() {
   shift 2
   # Ascend currently enables single-process suites; MPI coverage is separate.
   FLAGCX_CI_BUILD_SUITE_OVERRIDE_HANDLED=1
-  make -C "$suite_dir" --jobs="$(nproc)" \
-    "$suite_dir/build/bin/${suite}_unit_tests" "$@"
+  case "$suite" in
+    device)
+      make -C "$suite_dir" --jobs="$(nproc)" all "$@"
+      ;;
+    device_api)
+      build_googletest
+      make -C "$suite_dir" --jobs="$(nproc)" unit "$@"
+      ;;
+    *)
+      make -C "$suite_dir" --jobs="$(nproc)" \
+        "$suite_dir/build/bin/${suite}_unit_tests" "$@"
+      ;;
+  esac
 }
 
 flagcx_ci_run_suite_override() {
@@ -37,8 +48,13 @@ flagcx_ci_run_suite_override() {
   local suite_dir=$2
   shift 2
   FLAGCX_CI_RUN_SUITE_OVERRIDE_HANDLED=1
-  FLAGCX_CI_TEST_LABEL="Ascend $suite unit tests" \
-    "$TEST_RUNNER" make -C "$suite_dir" run-unit "$@"
+  if [[ "$suite" == device ]]; then
+    FLAGCX_CI_TEST_LABEL="Ascend device unit tests" \
+      "$TEST_RUNNER" "$suite_dir/build/bin/device_test"
+  else
+    FLAGCX_CI_TEST_LABEL="Ascend $suite unit tests" \
+      "$TEST_RUNNER" make -C "$suite_dir" run-unit "$@"
+  fi
 }
 
 flagcx_ci_prepare() {
