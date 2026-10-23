@@ -233,7 +233,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
             return json.loads(outputs["platforms"])
 
     def test_unified_ci_filters_platform_changes_and_preserves_shared_fallback(self):
-        all_platforms = ["cuda", "hygon", "metax", "ppu"]
+        all_platforms = ["cuda", "hygon", "metax", "ppu", "ascend"]
         self.assertEqual(
             self._run_platform_matrix(
                 "pull_request", "flagcx/adaptor/device/cuda_adaptor.cc"
@@ -245,6 +245,12 @@ class PlatformCiRegressionTest(unittest.TestCase):
                 "pull_request", "flagcx/adaptor/device/duhip_adaptor.cc"
             ),
             ["hygon"],
+        )
+        self.assertEqual(
+            self._run_platform_matrix(
+                "pull_request", "flagcx/adaptor/ccl/hccl_adaptor.cc"
+            ),
+            ["ascend"],
         )
         for changed_files in (
             "flagcx/flagcx.cc",
@@ -584,7 +590,8 @@ class PlatformCiRegressionTest(unittest.TestCase):
             '{"include":[{"platform":"cuda","display_name":"CUDA Tests"},'
             '{"platform":"hygon","display_name":"Hygon DCU Tests"},'
             '{"platform":"metax","display_name":"MetaX Tests"},'
-            '{"platform":"ppu","display_name":"T-Head PPU Tests"}]}',
+            '{"platform":"ppu","display_name":"T-Head PPU Tests"},'
+            '{"platform":"ascend","display_name":"Ascend 910C unit tests"}]}',
         )
         unit_workflow = (
             REPO_ROOT / ".github/workflows/unit-test.yml"
@@ -599,6 +606,19 @@ class PlatformCiRegressionTest(unittest.TestCase):
         self.assertNotIn("FLAGCX_CI_PR_NUMBER", unit_workflow)
 
         expected_suites = {
+            "ascend": [
+                "core",
+                "adaptor",
+                "device",
+                "device_api",
+                "kernel",
+                "p2p",
+                "rma",
+                "runner",
+                "service",
+                "symmem",
+                "topo",
+            ],
             "cuda": [
                 "adaptor",
                 "core",
@@ -1855,6 +1875,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
 class MetaXEnvironmentTest(unittest.TestCase):
     def run_metax_shell(self, body, *, extra_env=None):
         environment = os.environ.copy()
+        environment.pop("BASH_ENV", None)
         if extra_env:
             environment.update(extra_env)
         return subprocess.run(

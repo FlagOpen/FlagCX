@@ -7,6 +7,7 @@
 
 #include <cstdio>
 
+#include "adaptor.h"
 #include "flagcx.h"
 #include "flagcx_net.h"
 #include "flagcx_net_adaptor.h"
@@ -33,6 +34,32 @@ inline flagcxResult_t getLocalNetDevice(struct flagcxNetAdaptor *netAdaptor,
   result = deviceHandle->getDevice(&gpuDev);
   if (result != flagcxSuccess) {
     flagcxDeviceHandleFree(deviceHandle);
+    return result;
+  }
+
+  // CANN currently has no PCI bus-ID callbacks, so PCI-based GPU/NIC
+  // proximity cannot be computed. The loopback tests only need a valid local
+  // device pair; select the first visible NPU and NIC in that case.
+  if (deviceAdaptor == nullptr || deviceAdaptor->getDevicePciBusId == nullptr ||
+      deviceAdaptor->getDeviceByPciBusId == nullptr) {
+    int gpuCount = 0;
+    result = deviceHandle->getDeviceCount(&gpuCount);
+    if (result == flagcxSuccess && gpuCount > 0) {
+      gpuDev = 0;
+      *netDev = 0;
+    } else if (result == flagcxSuccess) {
+      result = flagcxInternalError;
+    }
+    const flagcxResult_t deviceFreeResult =
+        flagcxDeviceHandleFree(deviceHandle);
+    if (result == flagcxSuccess)
+      result = deviceFreeResult;
+    if (result == flagcxSuccess && selectedGpu != nullptr)
+      *selectedGpu = gpuDev;
+    if (result == flagcxSuccess)
+      fprintf(stderr,
+              "Adaptor tests selected first local NPU/NIC; PCI topology "
+              "callbacks are unavailable.\n");
     return result;
   }
 
