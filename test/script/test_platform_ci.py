@@ -604,7 +604,7 @@ class PlatformCiRegressionTest(unittest.TestCase):
         self.assertNotIn("pull_request.number == 648", unit_workflow)
 
         expected_suites = {
-            "ascend": ["core", "adaptor", "service"],
+            "ascend": ["core", "adaptor", "kernel", "service", "topo"],
             "cuda": [
                 "adaptor",
                 "core",

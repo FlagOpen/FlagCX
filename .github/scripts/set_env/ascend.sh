@@ -17,7 +17,7 @@ FLAGCX_CI_ENABLE_SHARED_P2P_ENGINE=0
 
 flagcx_ci_configure_suite() {
   case "$1" in
-    core|adaptor|service) ;;
+    core|adaptor|kernel|service|topo) ;;
     *) echo "Ascend CI does not enable suite: $1" >&2; return 1 ;;
   esac
 }

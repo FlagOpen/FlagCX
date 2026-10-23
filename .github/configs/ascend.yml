@@ -49,4 +49,6 @@ set_env: .github/scripts/set_env/ascend.sh
 unit_test_suites:
   - core
   - adaptor
+  - kernel
   - service
+  - topo
